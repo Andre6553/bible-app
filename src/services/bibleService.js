@@ -1,0 +1,236 @@
+import { supabase } from '../config/supabaseClient';
+
+/**
+ * Bible Service - Handles all Bible data operations with Supabase
+ */
+
+export const SUPPORTED_VERSIONS = [
+    { id: 'KJV', name: 'King James Version', abbreviation: 'KJV' },
+    { id: 'AFR83', name: 'Afrikaans 1983', abbreviation: 'AFR83' },
+    { id: 'NLT', name: 'New Living Translation', abbreviation: 'NLT' },
+    { id: 'AFR53', name: 'Afrikaans 1953', abbreviation: 'AFR53' },
+    { id: 'AMP', name: 'Amplified Bible', abbreviation: 'AMP' }
+];
+
+/**
+ * Get all available Bible versions
+ */
+export const getVersions = async () => {
+    // Return hardcoded list as per requirements/schema limitations
+    return { success: true, data: SUPPORTED_VERSIONS };
+};
+
+/**
+ * Get all books grouped by testament
+ */
+export const getBooks = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('books')
+            .select('*')
+            .order('order'); // specified as 'order' in prompt
+
+        if (error) throw error;
+
+        // Group by testament
+        const oldTestament = data.filter(book => book.testament === 'OT');
+        const newTestament = data.filter(book => book.testament === 'NT');
+
+        return {
+            success: true,
+            data: {
+                oldTestament,
+                newTestament,
+                all: data
+            }
+        };
+    } catch (error) {
+        console.error('Error fetching books:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Get a specific chapter with all verses
+ * Caches the last 10 opened chapters in localStorage
+ */
+export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
+    const cacheKey = `chapter_${bookId}_${chapter}_${versionId}`;
+
+    // 1. Try to get from cache first
+    try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            console.log('Serving chapter from cache');
+            return { success: true, data: JSON.parse(cached) };
+        }
+    } catch (e) {
+        console.warn('Error reading from localStorage', e);
+    }
+
+    // 2. Fetch from network
+    try {
+        const { data, error } = await supabase
+            .from('verses')
+            .select(`
+                id,
+                book_id,
+                chapter,
+                verse,
+                text,
+                version,
+                books (
+                    id,
+                    name_full,
+                    testament
+                )
+            `)
+            .eq('book_id', bookId)
+            .eq('chapter', chapter)
+            .eq('version', versionId) // Using string column
+            .order('verse');
+
+        if (error) throw error;
+
+        // 3. Save to cache if successful
+        if (data && data.length > 0) {
+            try {
+                // Save content
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+
+                // Update recent chapters list to maintain limit of 10
+                const recentKeysStr = localStorage.getItem('recentChapters');
+                let recentKeys = recentKeysStr ? JSON.parse(recentKeysStr) : [];
+
+                // Remove this key if it already exists (to move it to top)
+                recentKeys = recentKeys.filter(k => k !== cacheKey);
+
+                // Add to beginning
+                recentKeys.unshift(cacheKey);
+
+                // Trim to 10
+                if (recentKeys.length > 10) {
+                    const removedKeys = recentKeys.splice(10);
+                    // Remove old data from localStorage
+                    removedKeys.forEach(k => localStorage.removeItem(k));
+                }
+
+                localStorage.setItem('recentChapters', JSON.stringify(recentKeys));
+            } catch (e) {
+                console.warn('Error saving to localStorage', e);
+            }
+        }
+
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error fetching chapter:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Get chapter count for a specific book
+ */
+export const getChapterCount = async (bookId) => {
+    try {
+        // We can find the max chapter number for a book
+        // Since we don't have a chapters table, we query verses
+        // This is a bit heavy but works for this schema
+        const { data, error } = await supabase
+            .from('verses')
+            .select('chapter')
+            .eq('book_id', bookId)
+            .order('chapter', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+        return {
+            success: true,
+            data: data.length > 0 ? data[0].chapter : 0
+        };
+    } catch (error) {
+        console.error('Error fetching chapter count:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Get verse count for a specific chapter
+ */
+export const getVerseCount = async (bookId, chapter) => {
+    try {
+        const { data, error } = await supabase
+            .from('verses')
+            .select('verse')
+            .eq('book_id', bookId)
+            .eq('chapter', chapter)
+            .order('verse', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+        return {
+            success: true,
+            data: data.length > 0 ? data[0].verse : 0
+        };
+    } catch (error) {
+        console.error('Error fetching verse count:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Search verses by keyword or phrase
+ */
+export const searchVerses = async (searchQuery, versionId = null, testament = 'all') => {
+    try {
+        // Use !inner join if we need to filter by testament, otherwise standard join
+        const bookJoin = testament !== 'all' ? 'books!inner' : 'books';
+
+        let query = supabase
+            .from('verses')
+            .select(`
+                id,
+                book_id,
+                chapter,
+                verse,
+                text,
+                version,
+                ${bookJoin} (
+                    id,
+                    name_full,
+                    testament
+                )
+            `)
+            .ilike('text', `%${searchQuery}%`)
+            .order('book_id')
+            .order('chapter')
+            .order('verse')
+            .limit(1000); // Increased limit to find more results
+
+        // Filter by version if specified, otherwise search all
+        if (versionId && versionId !== 'all') {
+            query = query.eq('version', versionId);
+        }
+
+        // Filter by testament
+        if (testament && testament !== 'all') {
+            query = query.eq('books.testament', testament);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error searching verses:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Get verse reference text (book name, chapter:verse)
+ */
+export const getVerseReference = (verse) => {
+    if (!verse || !verse.books) return '';
+    return `${verse.books.name_full} ${verse.chapter}:${verse.verse}`;
+};
