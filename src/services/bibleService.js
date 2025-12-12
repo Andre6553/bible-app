@@ -5,11 +5,8 @@ import { supabase } from '../config/supabaseClient';
  */
 
 export const SUPPORTED_VERSIONS = [
-    { id: 'KJV', name: 'King James Version', abbreviation: 'KJV' },
-    { id: 'AFR83', name: 'Afrikaans 1983', abbreviation: 'AFR83' },
-    { id: 'NLT', name: 'New Living Translation', abbreviation: 'NLT' },
     { id: 'AFR53', name: 'Afrikaans 1953', abbreviation: 'AFR53' },
-    { id: 'AMP', name: 'Amplified Bible', abbreviation: 'AMP' }
+    { id: 'KJV', name: 'King James Version', abbreviation: 'KJV' }
 ];
 
 /**
