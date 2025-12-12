@@ -22,6 +22,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [tempSelectedBook, setTempSelectedBook] = useState(null);
     const [tempSelectedChapter, setTempSelectedChapter] = useState(1);
     const [targetVerse, setTargetVerse] = useState(null); // For scrolling to verse
+    const [showInfo, setShowInfo] = useState(false); // Info Modal state
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, text: '', step: 'initial' });
@@ -251,7 +252,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             {/* Header */}
             <div className="bible-header">
                 <div className="header-top">
-                    <h1 className="app-title">Bible Study</h1>
+                    <div className="header-left">
+                        <button className="info-btn icon-btn" onClick={() => setShowInfo(true)} title="App Info">ℹ️</button>
+                        <h1 className="app-title">Bible Study</h1>
+                    </div>
                     <select
                         className="version-selector select"
                         value={currentVersion?.id || ''}
@@ -444,6 +448,43 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     </div>
                 )}
             </div>
+
+            {/* Info / Help Modal */}
+            {showInfo && (
+                <div className="book-selector-modal" onClick={() => setShowInfo(false)}>
+                    <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>How to use this App</h2>
+                            <button className="close-btn" onClick={() => setShowInfo(false)}>✕</button>
+                        </div>
+                        <div className="modal-body info-body">
+                            <div className="info-section">
+                                <h3>📖 Reading</h3>
+                                <p>Tap the <strong>Book Name</strong> button to switch books. Use the <strong>&lt; / &gt;</strong> arrows to change chapters.</p>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>🔍 Quick Search</h3>
+                                <p><strong>Long-press</strong> (or select) any word in the text. A menu will pop up asking if you want to search for that word in the Old or New Testament.</p>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>🌍 Versions</h3>
+                                <p>Switch between <strong>KJV</strong> (English) and <strong>AFR53</strong> (Afrikaans) using the dropdown at the top right.</p>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>⚡ Offline Use</h3>
+                                <p>This app works offline! Once you open a chapter, it saves to your phone so you can read it later without internet.</p>
+                            </div>
+
+                            <div className="info-footer">
+                                <p>Version 1.0.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

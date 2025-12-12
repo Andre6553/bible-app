@@ -26,6 +26,31 @@
     margin-bottom: var(--spacing-md);
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.info-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+}
+
+.info-btn:hover {
+    background: var(--bg-tertiary);
+    transform: scale(1.1);
+}
+
 .app-title {
     font-size: 1.5rem;
     font-weight: 700;
@@ -509,4 +534,43 @@
     border-width: 6px;
     border-style: solid;
     border-color: transparent transparent var(--bg-elevated) transparent;
+}
+
+/* Info Modal Styles */
+.info-content {
+    max-width: 500px !important;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.info-body {
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+    gap: var(--spacing-xl);
+    display: flex;
+    flex-direction: column;
+}
+
+.info-section h3 {
+    font-size: 1.1rem;
+    color: var(--accent-primary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-section p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.info-footer {
+    text-align: center;
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-subtle);
+    font-size: 0.85rem;
+    color: var(--text-muted);
 }
