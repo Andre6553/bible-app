@@ -253,25 +253,29 @@ export async function askBibleQuestion(userId, question, verses = []) {
         const response = await result.response;
         const answer = response.text();
 
-        // 5. Save to cache (for reuse)
-        await saveCachedAnswer(question, answer);
+        // 5. Save to cache (for reuse) - Non-blocking
+        saveCachedAnswer(question, answer).catch(console.error);
 
-        // 6. Log the question
-        await supabase
-            .from('ai_questions')
-            .insert({
-                user_id: userId,
-                question: question,
-                answer: answer,
-                cached: false,
-                verse_context: contextText
+        // 6. Log and Increment - Non-blocking / Separate try-catch
+        try {
+            await supabase
+                .from('ai_questions')
+                .insert({
+                    user_id: userId,
+                    question: question,
+                    answer: answer,
+                    cached: false,
+                    verse_context: contextText
+                });
+
+            // 7. Increment API call counter
+            await supabase.rpc('increment', {
+                table_name: 'ai_quota',
+                column_name: 'total_api_calls_today'
             });
-
-        // 7. Increment API call counter
-        await supabase.rpc('increment', {
-            table_name: 'ai_quota',
-            column_name: 'total_api_calls_today'
-        });
+        } catch (dbError) {
+            console.warn("Background logging failed, but answer was generated:", dbError);
+        }
 
         return { success: true, answer, cached: false };
 
