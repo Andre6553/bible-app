@@ -23,38 +23,91 @@
     margin-bottom: var(--spacing-lg);
 }
 
+/* Search Form Layout */
 .search-form {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
 }
 
-.search-input-wrapper {
+.search-bar-row {
     display: flex;
+    align-items: center;
     gap: var(--spacing-sm);
+    width: 100%;
+    position: relative;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding-right: 8px;
+    /* Space for clock icon */
+}
+
+.search-bar-row:focus-within {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.1);
 }
 
 .search-input {
     flex: 1;
     padding: var(--spacing-md);
     font-size: 1rem;
+    border: none;
+    background: transparent;
+    outline: none;
+    /* Removed default outline */
 }
 
+.history-toggle-btn {
+    padding: 8px;
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.history-toggle-btn:hover,
+.history-toggle-btn.active {
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+}
+
+.search-actions-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    width: 100%;
+}
+
+.search-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    min-width: 0;
+}
+
+/* Constants for button disabled state etc are handled by global or specific overrides below if existing */
 .search-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-.search-btn {
-    min-width: unset;
-    /* Remove min-width constraint */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: var(--spacing-md) var(--spacing-lg);
-    font-size: 1rem;
+/* AI Modal Back Button */
+.close-btn.back-to-results {
+    font-size: 0.9rem;
     font-weight: 600;
+    color: var(--accent-primary);
+    background: var(--bg-tertiary);
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
 }
 
 .ai-btn {
