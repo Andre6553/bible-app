@@ -1,9 +1,13 @@
 .search-page {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 60px);
-    /* Subtract bottom nav height */
-    overflow: hidden;
+    height: 100%;
+    min-height: 0;
+    /* Critical for flex children to scroll */
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* Allow page scrolling */
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Search Header */
