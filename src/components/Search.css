@@ -368,6 +368,8 @@
     white-space: pre-wrap;
     max-height: 400px;
     overflow-y: auto;
+    color: var(--text-primary);
+    /* Ensure text is visible */
 }
 
 .ai-response h3 {
