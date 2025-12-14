@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBooks, getChapter, getChapterCount, getVerseCount } from '../services/bibleService';
