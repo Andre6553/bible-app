@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from '../config/supabaseClient';
-import crypto from 'crypto-js';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
@@ -134,10 +133,17 @@ export async function getUserRemainingQuota(userId) {
 }
 
 /**
- * Generate hash for caching
+ * Generate hash for caching (browser-compatible)
  */
 function hashQuestion(question) {
-    return crypto.SHA256(question.toLowerCase().trim()).toString();
+    const text = question.toLowerCase().trim();
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        const char = text.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString(36);
 }
 
 /**

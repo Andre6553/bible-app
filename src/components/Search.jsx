@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference } from '../services/bibleService';
-import { getUserId } from '../services/bibleService'; // For user tracking
 import { askBibleQuestion, getUserRemainingQuota } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
 import './Search.css';
+
+// Generate or retrieve user ID from localStorage
+function getUserId() {
+    let userId = localStorage.getItem('bible_user_id');
+    if (!userId) {
+        userId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        localStorage.setItem('bible_user_id', userId);
+    }
+    return userId;
+}
 
 function Search({ currentVersion, versions }) {
     const [searchParams, setSearchParams] = useSearchParams();
