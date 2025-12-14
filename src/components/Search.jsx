@@ -314,7 +314,7 @@ function Search({ currentVersion, versions }) {
 
             {/* AI Research Modal */}
             {showAIModal && (
-                <div className="book-selector-modal" onClick={() => setShowAIModal(false)}>
+                <div className="book-selector-modal ai-research-modal" onClick={() => setShowAIModal(false)}>
                     <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h2>🤖 AI Bible Research</h2>
