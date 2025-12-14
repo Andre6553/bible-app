@@ -202,6 +202,8 @@
     flex: 1;
     overflow-y: auto;
     padding: var(--spacing-lg);
+    padding-bottom: 120px;
+    /* Extra space for bottom nav */
     min-height: 0;
     /* Critical for nested flex scrolling */
     -webkit-overflow-scrolling: touch;
