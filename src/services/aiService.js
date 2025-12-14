@@ -240,12 +240,15 @@ export async function askBibleQuestion(userId, question, verses = []) {
 
         const userPrompt = `${SYSTEM_PROMPT}
 
-**Context Verses:**
-${verseContext || 'No specific verses provided'}
+**Context Verses (Reference Only):**
+${verseContext || 'No specific verses found'}
 
 **User Question:** ${question}
 
-Provide a biblical answer based on the verses above. Cite specific references.`;
+Provide a biblical answer. 
+1. PRIORITIZE using the Context Verses above if they are relevant.
+2. If the Context Verses are not relevant, use your general biblical knowledge to answer, BUT YOU MUST CITE Book Chapter:Verse for every point you make.
+3. If you cannot find a direct biblical answer, admit it.`;
 
         // 4. Call Gemini AI
         const result = await model.generateContent(userPrompt);

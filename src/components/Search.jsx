@@ -129,8 +129,32 @@ function Search({ currentVersion, versions }) {
         setAiLoading(true);
         setAiResponse(null);
 
-        // Use search results as verse context
-        const verseContext = results.slice(0, 10).map(v => ({
+        let contextSource = results;
+
+        // If no results on screen, perform background search for context
+        if (results.length === 0) {
+            try {
+                // Use the question itself as a search query to find relevant verses
+                // Remove common question words to improve search
+                const cleanQuery = aiQuestion
+                    .replace(/^(what|who|where|when|why|how|does|is|are|can|will|should) /i, '')
+                    .replace(/\?$/, '')
+                    .trim();
+
+                // If query is too short after cleaning, use original
+                const searchQuery = cleanQuery.length > 3 ? cleanQuery : aiQuestion;
+
+                const searchResult = await searchVerses(searchQuery, 'all', 'all');
+                if (searchResult.success && searchResult.data.length > 0) {
+                    contextSource = searchResult.data;
+                }
+            } catch (err) {
+                console.error("Background search failed", err);
+            }
+        }
+
+        // Use search results as verse context (limit to top 15 for better context)
+        const verseContext = contextSource.slice(0, 15).map(v => ({
             book: v.books.name_full,
             chapter: v.chapter,
             verse: v.verse,
