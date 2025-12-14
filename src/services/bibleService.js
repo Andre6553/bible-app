@@ -240,11 +240,11 @@ export const getVerseReference = (verse) => {
  * Get or create User ID for analytics
  */
 const getUserId = () => {
-    let userId = localStorage.getItem('bible_app_user_id');
+    let userId = localStorage.getItem('bible_user_id'); // Use same key as AI search
     if (!userId) {
         // Generate random ID (simple implementation)
         userId = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-        localStorage.setItem('bible_app_user_id', userId);
+        localStorage.setItem('bible_user_id', userId);
     }
     return userId;
 };
