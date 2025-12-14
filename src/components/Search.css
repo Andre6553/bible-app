@@ -749,48 +749,67 @@
 /* Desktop/Tablet Specific Improvements */
 @media (min-width: 769px) {
 
-    /* Horizontal Search Layout */
+    /* Make search header not overlay content */
+    .search-header {
+        position: relative;
+        z-index: 10;
+    }
+
+    /* Horizontal Search Layout - use more width */
     .search-form {
         flex-direction: row;
         align-items: center;
+        max-width: 100%;
     }
 
     .search-bar-row {
         flex: 3;
-        /* Take up most space */
     }
 
     .search-actions-row {
-        flex: 1;
+        flex: 0 0 auto;
         width: auto;
-        min-width: 250px;
+        min-width: 280px;
     }
 
     .search-input-container {
         display: flex;
         flex-direction: column;
         gap: var(--spacing-sm);
-        max-width: 1000px;
+        max-width: 100%;
+        /* Use full width */
+        padding: 0 var(--spacing-lg);
         margin: 0 auto var(--spacing-md);
     }
 
-    /* Search results should fill vertical space on PC */
+    /* Search results should fill vertical space and use full width on PC */
     .search-results {
         flex: 1;
         overflow-y: auto;
         padding: var(--spacing-xl);
     }
 
-    .results-list {
-        max-width: 900px;
+    .results-header {
+        max-width: 100%;
     }
 
-    /* Ensure modal looks like a modal on PC */
+    .results-list {
+        max-width: 100%;
+        /* Use full width */
+    }
+
+    .result-card {
+        max-width: 100%;
+    }
+
+    /* AI Modal - wider on PC */
     .ai-research-modal .book-selector-content {
-        max-width: 600px;
-        height: 80vh;
-        max-height: 800px;
-        margin: 5vh auto;
+        max-width: 800px;
+        /* Wider modal */
+        width: 90vw;
+        height: 85vh;
+        max-height: 900px;
+        margin: 2.5vh auto;
         border-radius: var(--radius-lg);
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         display: flex;
@@ -806,5 +825,10 @@
 
     .close-btn.back-to-results {
         display: inline-flex;
+    }
+
+    /* AI Answer should be wider */
+    .ai-answer {
+        max-height: 500px;
     }
 }
