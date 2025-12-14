@@ -130,8 +130,10 @@ function Stats() {
         if (error) {
             alert('Error deleting logs: ' + error.message);
         } else {
+            // Clear local state immediately
+            setLogs([]);
+            setStats({ total: 0, topTerms: [] });
             alert('✅ All search logs deleted!');
-            fetchLogs(); // Refresh
         }
     };
 
@@ -149,8 +151,10 @@ function Stats() {
         if (error) {
             alert('Error deleting AI logs: ' + error.message);
         } else {
+            // Clear local state immediately
+            setAiQuestions([]);
+            setAiStats({ total: 0, topQuestions: [] });
             alert('✅ All AI question logs deleted!');
-            fetchAIQuestions(); // Refresh
         }
     };
 
