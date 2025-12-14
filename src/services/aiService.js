@@ -234,22 +234,19 @@ export async function askBibleQuestion(userId, question, verses = []) {
         }
 
         // 3. Build prompt with verse context
-        const verseContext = verses.map(v =>
+        const contextText = verses.length > 0 ? verses.map(v =>
             `${v.book} ${v.chapter}:${v.verse} - "${v.text}"`
-        ).join('\n\n');
+        ).join('\n\n') : 'No specific verses found';
 
-        const userPrompt = `${SYSTEM_PROMPT}
-
-**Context Verses (Reference Only):**
-${verseContext || 'No specific verses found'}
-
-**User Question:** ${question}
-
-Provide a biblical answer. 
-1. PRIORITIZE using the Context Verses above if they are relevant.
-2. If the Context Verses are not relevant, use your general biblical knowledge to answer.
-3. CRITICAL: You MUST cite verses in this EXACT format: [[Book Chapter:Verse]] (e.g., [[John 3:16]]). Do not use parentheses `()` for citations, use double brackets `[[]]`.
-4. If you cannot find a direct biblical answer, admit it.`;
+        let userPrompt = SYSTEM_PROMPT + "\n\n";
+        userPrompt += "**Context Verses (Reference Only):**\n";
+        userPrompt += contextText + "\n\n";
+        userPrompt += "**User Question:** " + question + "\n\n";
+        userPrompt += "Provide a biblical answer.\n";
+        userPrompt += "1. PRIORITIZE using the Context Verses above if they are relevant.\n";
+        userPrompt += "2. If the Context Verses are not relevant, use your general biblical knowledge to answer.\n";
+        userPrompt += "3. CRITICAL: You MUST cite verses in this EXACT format: [[Book Chapter:Verse]] (e.g., [[John 3:16]]). Do not use parentheses `()` for citations, use double brackets `[[]]`.\n";
+        userPrompt += "4. If you cannot find a direct biblical answer, admit it.";
 
         // 4. Call Gemini AI
         const result = await model.generateContent(userPrompt);
