@@ -372,6 +372,26 @@
     /* Ensure text is visible */
 }
 
+.citation-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    cursor: pointer;
+    margin: 0 4px;
+    transition: all 0.2s;
+}
+
+.citation-link:hover {
+    background: var(--accent-primary);
+    color: white;
+}
+
 .ai-response h3 {
     color: var(--accent-primary);
 }
