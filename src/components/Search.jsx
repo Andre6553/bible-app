@@ -257,44 +257,92 @@ function Search({ currentVersion, versions }) {
 
     return (
         <div className="search-page">
-            <div className="search-header">
-                <h1 className="search-title">Search the Bible</h1>
+            const [showHistory, setShowHistory] = useState(false);
 
-                <form onSubmit={handleSearch} className="search-form">
-                    <div className="search-input-wrapper">
-                        <input
-                            type="text"
-                            className="search-input input"
-                            placeholder="Search for verses, keywords, or topics..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        <button
-                            type="submit"
-                            className="search-btn btn-primary"
-                            disabled={loading || !searchQuery.trim()}
-                            title="Search Bible"
-                        >
-                            {loading ? '...' : (
-                                <>
-                                    <span className="btn-icon">🔍</span>
-                                    <span className="btn-text">Search</span>
-                                </>
-                            )}
-                        </button>
-                        <button
-                            type="button"
-                            className="search-btn ai-btn"
-                            onClick={handleAskAI}
-                            disabled={quotaInfo.remaining <= 0}
-                            title="Ask AI"
-                        >
-                            <span className="btn-icon">🤖</span>
-                            <span className="btn-text">Ask AI</span>
-                        </button>
+    // ... (existing code)
+
+    const toggleHistory = () => {
+                setShowHistory(!showHistory);
+    };
+
+    const clearHistory = () => {
+                setHistory([]);
+            localStorage.removeItem('search_history');
+            setShowHistory(false);
+    };
+
+            return (
+            <div className="search-page">
+                <div className="search-header">
+                    <h1 className="search-title">Search the Bible</h1>
+
+                    <div className="search-input-container">
+                        <form onSubmit={handleSearch} className="search-form">
+                            <div className="search-input-wrapper">
+                                <input
+                                    type="text"
+                                    className="search-input input"
+                                    placeholder="Search for verses..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onClick={() => setShowHistory(true)} // Open history on click
+                                />
+                                {/* History Toggle Button */}
+                                <button
+                                    type="button"
+                                    className={`history-toggle-btn ${showHistory ? 'active' : ''}`}
+                                    onClick={toggleHistory}
+                                    title="Search History"
+                                >
+                                    🕒
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="search-btn btn-primary"
+                                    disabled={loading || !searchQuery.trim()}
+                                >
+                                    {loading ? '...' : '🔍'}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="search-btn ai-btn"
+                                    onClick={handleAskAI}
+                                    disabled={quotaInfo.remaining <= 0}
+                                >
+                                    🤖 AI
+                                </button>
+                            </div>
+                        </form>
+
+                        {/* History Dropdown */}
+                        {showHistory && history.length > 0 && (
+                            <div className="history-dropdown">
+                                <div className="history-header">
+                                    <span>Recent Searches</span>
+                                    <button className="clear-history-btn" onClick={clearHistory}>Clear</button>
+                                </div>
+                                <div className="history-list">
+                                    {history.map((term, i) => (
+                                        <button
+                                            key={i}
+                                            className="history-item"
+                                            onClick={() => {
+                                                setSearchQuery(term);
+                                                setSearchParams({ q: term, version: searchVersion, testament: searchTestament });
+                                                setShowHistory(false);
+                                            }}
+                                        >
+                                            🕒 {term}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="search-filters">
+                        {/* ... filters ... */}
                         <label className="filter-label">
                             <span>Version:</span>
                             <select
@@ -324,162 +372,161 @@ function Search({ currentVersion, versions }) {
                             </select>
                         </label>
                     </div>
-                </form>
-            </div>
+                </div>
 
-            <div className="search-results">
-                {loading ? (
-                    <div className="loading-state">
-                        <div className="loading-spinner"></div>
-                        <p>Searching...</p>
-                    </div>
-                ) : hasSearched ? (
-                    results.length > 0 ? (
-                        <>
-                            <div className="results-header">
-                                <p className="results-count">
-                                    Found {results.length} verse{results.length !== 1 ? 's' : ''}
-                                </p>
-                                <button
-                                    className="ai-research-btn btn-primary"
-                                    onClick={handleAskAI}
-                                    disabled={quotaInfo.remaining <= 0}
-                                >
-                                    🤖 Ask AI ({quotaInfo.remaining} left)
-                                </button>
-                            </div>
-
-                            <div
-                                className="results-list"
-                                style={{
-                                    fontSize: `${settings.fontSize}px`,
-                                    fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
-                                }}
-                            >
-                                {results.map(verse => (
-                                    <div
-                                        key={verse.id}
-                                        className="result-card card"
-                                        onClick={() => navigate('/bible', {
-                                            state: {
-                                                bookId: verse.books.id,
-                                                chapter: verse.chapter,
-                                                targetVerse: verse.verse
-                                            }
-                                        })}
-                                        style={{ cursor: 'pointer' }}
+                <div className="search-results">
+                    {loading ? (
+                        <div className="loading-state">
+                            <div className="loading-spinner"></div>
+                            <p>Searching...</p>
+                        </div>
+                    ) : hasSearched ? (
+                        results.length > 0 ? (
+                            <>
+                                <div className="results-header">
+                                    <p className="results-count">
+                                        Found {results.length} verse{results.length !== 1 ? 's' : ''}
+                                    </p>
+                                    <button
+                                        className="ai-research-btn btn-primary"
+                                        onClick={handleAskAI}
+                                        disabled={quotaInfo.remaining <= 0}
                                     >
-                                        <div className="result-header">
-                                            <span className="result-reference">
-                                                {getVerseReference(verse)}
-                                            </span>
-                                            <span className="result-version">
-                                                {verse.version}
-                                            </span>
-                                        </div>
-                                        <p className="result-text">
-                                            {highlightText(verse.text, searchQuery)}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
+                                        🤖 Ask AI ({quotaInfo.remaining} left)
+                                    </button>
+                                </div>
 
-                            {results.length >= 1000 && (
-                                <p className="results-notice">
-                                    Showing first 1000 results. Try a more specific search if you can't find what you're looking for.
-                                </p>
-                            )}
-                        </>
+                                <div
+                                    className="results-list"
+                                    style={{
+                                        fontSize: `${settings.fontSize}px`,
+                                        fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
+                                    }}
+                                >
+                                    {results.map(verse => (
+                                        <div
+                                            key={verse.id}
+                                            className="result-card card"
+                                            onClick={() => navigate('/bible', {
+                                                state: {
+                                                    bookId: verse.books.id,
+                                                    chapter: verse.chapter,
+                                                    targetVerse: verse.verse
+                                                }
+                                            })}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <div className="result-header">
+                                                <span className="result-reference">
+                                                    {getVerseReference(verse)}
+                                                </span>
+                                                <span className="result-version">
+                                                    {verse.version}
+                                                </span>
+                                            </div>
+                                            <p className="result-text">
+                                                {highlightText(verse.text, searchQuery)}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {results.length >= 1000 && (
+                                    <p className="results-notice">
+                                        Showing first 1000 results. Try a more specific search if you can't find what you're looking for.
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <div className="empty-state">
+                                <div className="empty-icon">📖</div>
+                                <h3>No verses found</h3>
+                                <p>Try different keywords or check your spelling</p>
+                            </div>
+                        )
                     ) : (
                         <div className="empty-state">
-                            <div className="empty-icon">📖</div>
-                            <h3>No verses found</h3>
-                            <p>Try different keywords or check your spelling</p>
-                        </div>
-                    )
-                ) : (
-                    <div className="empty-state">
-                        <div className="empty-icon">🔍</div>
-                        <h3>Search the Scriptures</h3>
-                        <p>Enter keywords, phrases, or topics to find verses</p>
-                        <div className="search-tips">
-                            {history.length > 0 && (
-                                <div className="search-history">
-                                    <h4>Recent Searches</h4>
-                                    <div className="history-chips">
-                                        {history.map((term, i) => (
-                                            <button
-                                                key={i}
-                                                className="history-chip"
-                                                onClick={() => {
-                                                    setSearchQuery(term);
-                                                    setSearchParams({ q: term, version: searchVersion, testament: searchTestament });
-                                                }}
-                                            >
-                                                🕒 {term}
-                                            </button>
-                                        ))}
+                            <div className="empty-icon">🔍</div>
+                            <h3>Search the Scriptures</h3>
+                            <p>Enter keywords, phrases, or topics to find verses</p>
+                            <div className="search-tips">
+                                {history.length > 0 && (
+                                    <div className="search-history">
+                                        <h4>Recent Searches</h4>
+                                        <div className="history-chips">
+                                            {history.map((term, i) => (
+                                                <button
+                                                    key={i}
+                                                    className="history-chip"
+                                                    onClick={() => {
+                                                        setSearchQuery(term);
+                                                        setSearchParams({ q: term, version: searchVersion, testament: searchTestament });
+                                                    }}
+                                                >
+                                                    🕒 {term}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
+                                )}
+                                <h4>Search Tips:</h4>
+                                <ul>
+                                    <li>Try single words like "love" or "faith"</li>
+                                    <li>Use phrases like "the Lord is my shepherd"</li>
+                                    <li>Search for specific topics like "forgiveness"</li>
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* AI Research Modal */}
+                {showAIModal && (
+                    <div className="book-selector-modal ai-research-modal" onClick={() => setShowAIModal(false)}>
+                        <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>🤖 AI Bible Research</h2>
+                                <button className="close-btn" onClick={() => setShowAIModal(false)}>✕</button>
+                            </div>
+                            <div className="modal-body info-body">
+                                <div className="info-section">
+                                    <h3>Ask your question:</h3>
+                                    <textarea
+                                        className="ai-question-input"
+                                        placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
+                                        value={aiQuestion}
+                                        onChange={(e) => setAiQuestion(e.target.value)}
+                                        rows={3}
+                                    />
+                                    <button
+                                        className="btn-primary"
+                                        onClick={submitAIQuestion}
+                                        disabled={aiLoading || !aiQuestion.trim()}
+                                        style={{ marginTop: '10px', width: '100%' }}
+                                    >
+                                        {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
+                                    </button>
                                 </div>
-                            )}
-                            <h4>Search Tips:</h4>
-                            <ul>
-                                <li>Try single words like "love" or "faith"</li>
-                                <li>Use phrases like "the Lord is my shepherd"</li>
-                                <li>Search for specific topics like "forgiveness"</li>
-                            </ul>
+
+                                {aiResponse && (
+                                    <div className="info-section ai-response">
+                                        <h3>📚 Biblical Answer:</h3>
+                                        <div className="ai-answer">
+                                            {formatAIResponse(aiResponse)}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="info-footer">
+                                    <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
+                                    <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
-
-            {/* AI Research Modal */}
-            {showAIModal && (
-                <div className="book-selector-modal ai-research-modal" onClick={() => setShowAIModal(false)}>
-                    <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>🤖 AI Bible Research</h2>
-                            <button className="close-btn" onClick={() => setShowAIModal(false)}>✕</button>
-                        </div>
-                        <div className="modal-body info-body">
-                            <div className="info-section">
-                                <h3>Ask your question:</h3>
-                                <textarea
-                                    className="ai-question-input"
-                                    placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
-                                    value={aiQuestion}
-                                    onChange={(e) => setAiQuestion(e.target.value)}
-                                    rows={3}
-                                />
-                                <button
-                                    className="btn-primary"
-                                    onClick={submitAIQuestion}
-                                    disabled={aiLoading || !aiQuestion.trim()}
-                                    style={{ marginTop: '10px', width: '100%' }}
-                                >
-                                    {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
-                                </button>
-                            </div>
-
-                            {aiResponse && (
-                                <div className="info-section ai-response">
-                                    <h3>📚 Biblical Answer:</h3>
-                                    <div className="ai-answer">
-                                        {formatAIResponse(aiResponse)}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="info-footer">
-                                <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
-                                <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+            );
 }
 
-export default Search;
+            export default Search;
