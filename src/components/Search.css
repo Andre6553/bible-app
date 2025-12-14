@@ -109,6 +109,10 @@
     flex: 1;
     overflow-y: auto;
     padding: var(--spacing-lg);
+    min-height: 0;
+    /* Critical for nested flex scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Smooth scroll on iOS */
 }
 
 .results-header {
