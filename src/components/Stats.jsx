@@ -150,6 +150,7 @@ function Stats() {
                             <thead>
                                 <tr>
                                     <th>Time</th>
+                                    <th>User</th>
                                     <th>Query</th>
                                     <th>Ver</th>
                                 </tr>
@@ -158,6 +159,7 @@ function Stats() {
                                 {logs.slice(0, 20).map((log) => (
                                     <tr key={log.id}>
                                         <td>{new Date(log.created_at).toLocaleTimeString()}</td>
+                                        <td><span className="user-badge">{log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}</span></td>
                                         <td>{log.query}</td>
                                         <td>{log.version}</td>
                                     </tr>
