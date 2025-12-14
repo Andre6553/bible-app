@@ -217,6 +217,10 @@ export const searchVerses = async (searchQuery, versionId = null, testament = 'a
         const { data, error } = await query;
 
         if (error) throw error;
+
+        // Log search asynchronously
+        logSearch(searchQuery, versionId, testament);
+
         return { success: true, data };
     } catch (error) {
         console.error('Error searching verses:', error);
@@ -230,4 +234,18 @@ export const searchVerses = async (searchQuery, versionId = null, testament = 'a
 export const getVerseReference = (verse) => {
     if (!verse || !verse.books) return '';
     return `${verse.books.name_full} ${verse.chapter}:${verse.verse}`;
+};
+
+/**
+ * Log search query for analytics
+ */
+export const logSearch = async (query, version, testament) => {
+    try {
+        await supabase.from('search_logs').insert([
+            { query, version: version || 'all', testament: testament || 'all' }
+        ]);
+    } catch (err) {
+        // Silently fail
+        console.error('Analytics log error', err);
+    }
 };

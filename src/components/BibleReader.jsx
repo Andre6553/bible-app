@@ -1,12 +1,13 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getBooks, getChapter, getChapterCount, getVerseCount } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import './BibleReader.css';
 
 function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const [books, setBooks] = useState({ oldTestament: [], newTestament: [] });
     const [selectedBook, setSelectedBook] = useState(null);
     const [selectedChapter, setSelectedChapter] = useState(1);
@@ -69,6 +70,19 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         const result = await getBooks();
         if (result.success) {
             setBooks(result.data);
+            setBooks(result.data);
+
+            // Handle Deep Link from Search or Default to Genesis
+            if (location.state?.bookId) {
+                const book = result.data.all.find(b => b.id === location.state.bookId);
+                if (book) {
+                    setSelectedBook(book);
+                    if (location.state.chapter) setSelectedChapter(location.state.chapter);
+                    if (location.state.targetVerse) setTargetVerse(location.state.targetVerse);
+                    return; // Skip default
+                }
+            }
+
             // Default to first book (Genesis)
             if (result.data.all.length > 0) {
                 setSelectedBook(result.data.all[0]);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference } from '../services/bibleService';
 import './Search.css';
 
@@ -12,6 +12,20 @@ function Search({ currentVersion, versions }) {
     const [loading, setLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
+    const navigate = useNavigate();
+    const [history, setHistory] = useState([]);
+
+    // Load history on mount
+    useEffect(() => {
+        const saved = localStorage.getItem('search_history');
+        if (saved) setHistory(JSON.parse(saved));
+    }, []);
+
+    const addToHistory = (query) => {
+        const newHistory = [query, ...history.filter(h => h !== query)].slice(0, 10);
+        setHistory(newHistory);
+        localStorage.setItem('search_history', JSON.stringify(newHistory));
+    };
     // Auto-search on mount if params exist
     useEffect(() => {
         const query = searchParams.get('q');
@@ -29,6 +43,7 @@ function Search({ currentVersion, versions }) {
     const performSearch = async (query, versionId, testament) => {
         if (!query.trim()) return;
 
+        addToHistory(query.trim()); // Save to history
         setLoading(true);
         setHasSearched(true);
 
@@ -146,7 +161,18 @@ function Search({ currentVersion, versions }) {
 
                             <div className="results-list">
                                 {results.map(verse => (
-                                    <div key={verse.id} className="result-card card">
+                                    <div
+                                        key={verse.id}
+                                        className="result-card card"
+                                        onClick={() => navigate('/bible', {
+                                            state: {
+                                                bookId: verse.books.id,
+                                                chapter: verse.chapter,
+                                                targetVerse: verse.verse
+                                            }
+                                        })}
+                                        style={{ cursor: 'pointer' }}
+                                    >
                                         <div className="result-header">
                                             <span className="result-reference">
                                                 {getVerseReference(verse)}
@@ -181,6 +207,25 @@ function Search({ currentVersion, versions }) {
                         <h3>Search the Scriptures</h3>
                         <p>Enter keywords, phrases, or topics to find verses</p>
                         <div className="search-tips">
+                            {history.length > 0 && (
+                                <div className="search-history">
+                                    <h4>Recent Searches</h4>
+                                    <div className="history-chips">
+                                        {history.map((term, i) => (
+                                            <button
+                                                key={i}
+                                                className="history-chip"
+                                                onClick={() => {
+                                                    setSearchQuery(term);
+                                                    setSearchParams({ q: term, version: searchVersion, testament: searchTestament });
+                                                }}
+                                            >
+                                                🕒 {term}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             <h4>Search Tips:</h4>
                             <ul>
                                 <li>Try single words like "love" or "faith"</li>
