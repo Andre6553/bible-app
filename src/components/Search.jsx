@@ -181,7 +181,7 @@ function Search({ currentVersion, versions }) {
                             type="button"
                             className="search-btn ai-btn"
                             onClick={handleAskAI}
-                            disabled={!searchQuery.trim() || quotaInfo.remaining <= 0}
+                            disabled={quotaInfo.remaining <= 0}
                             title="Ask AI"
                         >
                             <span className="btn-icon">🤖</span>
