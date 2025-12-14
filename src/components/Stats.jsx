@@ -5,11 +5,13 @@ import './Stats.css';
 
 function Stats() {
     const [logs, setLogs] = useState([]);
+    const [aiQuestions, setAiQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
 
     const [stats, setStats] = useState({ total: 0, topTerms: [] });
+    const [aiStats, setAiStats] = useState({ total: 0, topQuestions: [] });
     // Authentication
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [pinInput, setPinInput] = useState('');
@@ -19,6 +21,7 @@ function Stats() {
         // Only fetch if authenticated
         if (isAuthenticated) {
             fetchLogs();
+            fetchAIQuestions();
         }
     }, [isAuthenticated]);
 
@@ -52,6 +55,42 @@ function Stats() {
         processStats(data);
         setLogs(data);
         setLoading(false);
+    };
+
+    const fetchAIQuestions = async () => {
+        const { data, error } = await supabase
+            .from('ai_questions')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(500);
+
+        if (error) {
+            console.error("Error fetching AI questions:", error);
+            return;
+        }
+
+        processAIStats(data);
+        setAiQuestions(data);
+    };
+
+    const processAIStats = (data) => {
+        const total = data.length;
+
+        // Count frequencies
+        const counts = {};
+        data.forEach(item => {
+            // Normalize: lowercase, trim, first 100 chars
+            const q = item.question.toLowerCase().trim().substring(0, 100);
+            counts[q] = (counts[q] || 0) + 1;
+        });
+
+        // Sort by frequency
+        const sorted = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([question, count]) => ({ question, count }));
+
+        setAiStats({ total, topQuestions: sorted });
     };
 
     const processStats = (data) => {
@@ -162,6 +201,60 @@ function Stats() {
                                         <td><span className="user-badge">{log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}</span></td>
                                         <td>{log.query}</td>
                                         <td>{log.version}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {/* AI Questions Section */}
+            <h2 className="section-title">🤖 AI Research Analytics</h2>
+            <div className="stats-grid">
+                {/* AI Summary Card */}
+                <div className="stat-card summary-card ai-summary">
+                    <h3>Total AI Questions</h3>
+                    <div className="big-number">{aiStats.total}</div>
+                    <p className="subtitle">Last 500 records</p>
+                </div>
+
+                {/* Top AI Questions Card */}
+                <div className="stat-card">
+                    <h3>🔥 Popular Questions</h3>
+                    {aiStats.topQuestions.length === 0 ? (
+                        <p className="no-data">No AI questions yet</p>
+                    ) : (
+                        <ul className="top-list">
+                            {aiStats.topQuestions.map((item, idx) => (
+                                <li key={idx} className="top-item ai-question-item">
+                                    <span className="rank">#{idx + 1}</span>
+                                    <span className="term ai-q-text">"{item.question.substring(0, 60)}..."</span>
+                                    <span className="count">{item.count}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+
+                {/* Recent AI Questions */}
+                <div className="stat-card recent-list">
+                    <h3>💬 Recent AI Questions</h3>
+                    <div className="log-table-wrapper">
+                        <table className="log-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>User</th>
+                                    <th>Question</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {aiQuestions.slice(0, 20).map((q) => (
+                                    <tr key={q.id}>
+                                        <td>{new Date(q.created_at).toLocaleString()}</td>
+                                        <td><span className="user-badge">{q.user_id ? q.user_id.substring(0, 8) + '...' : 'Anon'}</span></td>
+                                        <td className="ai-q-cell">{q.question.substring(0, 80)}{q.question.length > 80 ? '...' : ''}</td>
                                     </tr>
                                 ))}
                             </tbody>

@@ -236,3 +236,41 @@
     background: var(--bg-tertiary);
     color: var(--text-primary);
 }
+
+/* AI Stats Section */
+.section-title {
+    margin-top: 2.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    color: var(--accent-secondary);
+    border-bottom: 2px solid var(--border-subtle);
+    padding-bottom: 0.5rem;
+}
+
+.ai-summary {
+    background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+    color: white;
+}
+
+.ai-summary h3 {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.ai-summary .subtitle {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.ai-q-text {
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+.ai-q-cell {
+    font-size: 0.85rem;
+    max-width: 300px;
+    word-break: break-word;
+}
+
+.ai-question-item {
+    flex-wrap: wrap;
+}
