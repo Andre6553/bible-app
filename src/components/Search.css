@@ -265,3 +265,52 @@
         align-items: flex-start;
     }
 }
+
+/* AI Research Styles */
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.ai-research-btn {
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.ai-question-input {
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.ai-question-input:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+}
+
+.ai-answer {
+    background: var(--bg-tertiary);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--accent-primary);
+    line-height: 1.8;
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.ai-response h3 {
+    color: var(--accent-primary);
+}

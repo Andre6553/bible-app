@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference } from '../services/bibleService';
+import { getUserId } from '../services/bibleService'; // For user tracking
+import { askBibleQuestion, getUserRemainingQuota } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
 import './Search.css';
 
@@ -17,10 +19,21 @@ function Search({ currentVersion, versions }) {
     const navigate = useNavigate();
     const [history, setHistory] = useState([]);
 
+    // AI Research State
+    const [showAIModal, setShowAIModal] = useState(false);
+    const [aiQuestion, setAiQuestion] = useState('');
+    const [aiResponse, setAiResponse] = useState(null);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [quotaInfo, setQuotaInfo] = useState({ remaining: 0, quota: 10 });
+    const userId = getUserId();
+
     // Load history on mount
     useEffect(() => {
         const saved = localStorage.getItem('search_history');
         if (saved) setHistory(JSON.parse(saved));
+
+        // Load quota info
+        loadQuotaInfo();
     }, []);
 
     const addToHistory = (query) => {
@@ -88,6 +101,44 @@ function Search({ currentVersion, versions }) {
         const newParams = { q: searchQuery, version: searchVersion, testament: searchTestament };
         newParams[key] = value; // Override with new value
         setSearchParams(newParams);
+    };
+
+    const loadQuotaInfo = async () => {
+        const info = await getUserRemainingQuota(userId);
+        setQuotaInfo(info);
+    };
+
+    const handleAskAI = () => {
+        setAiQuestion(searchQuery);
+        setShowAIModal(true);
+        setAiResponse(null);
+    };
+
+    const submitAIQuestion = async () => {
+        if (!aiQuestion.trim()) return;
+
+        setAiLoading(true);
+        setAiResponse(null);
+
+        // Use search results as verse context
+        const verseContext = results.slice(0, 10).map(v => ({
+            book: v.books.name_full,
+            chapter: v.chapter,
+            verse: v.verse,
+            text: v.text
+        }));
+
+        const result = await askBibleQuestion(userId, aiQuestion, verseContext);
+
+        setAiLoading(false);
+
+        if (result.success) {
+            setAiResponse(result.answer);
+            // Refresh quota
+            await loadQuotaInfo();
+        } else {
+            setAiResponse(`❌ ${result.error}`);
+        }
     };
 
     return (
@@ -159,6 +210,13 @@ function Search({ currentVersion, versions }) {
                                 <p className="results-count">
                                     Found {results.length} verse{results.length !== 1 ? 's' : ''}
                                 </p>
+                                <button
+                                    className="ai-research-btn btn-primary"
+                                    onClick={handleAskAI}
+                                    disabled={quotaInfo.remaining <= 0}
+                                >
+                                    🤖 Ask AI ({quotaInfo.remaining} left)
+                                </button>
                             </div>
 
                             <div
@@ -244,6 +302,52 @@ function Search({ currentVersion, versions }) {
                     </div>
                 )}
             </div>
+
+            {/* AI Research Modal */}
+            {showAIModal && (
+                <div className="book-selector-modal" onClick={() => setShowAIModal(false)}>
+                    <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>🤖 AI Bible Research</h2>
+                            <button className="close-btn" onClick={() => setShowAIModal(false)}>✕</button>
+                        </div>
+                        <div className="modal-body info-body">
+                            <div className="info-section">
+                                <h3>Ask your question:</h3>
+                                <textarea
+                                    className="ai-question-input"
+                                    placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
+                                    value={aiQuestion}
+                                    onChange={(e) => setAiQuestion(e.target.value)}
+                                    rows={3}
+                                />
+                                <button
+                                    className="btn-primary"
+                                    onClick={submitAIQuestion}
+                                    disabled={aiLoading || !aiQuestion.trim()}
+                                    style={{ marginTop: '10px', width: '100%' }}
+                                >
+                                    {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
+                                </button>
+                            </div>
+
+                            {aiResponse && (
+                                <div className="info-section ai-response">
+                                    <h3>📚 Biblical Answer:</h3>
+                                    <div className="ai-answer">
+                                        {aiResponse}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="info-footer">
+                                <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
+                                <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
