@@ -27,6 +27,16 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Handle navigation requests (HTML pages) - serve index.html for SPA routing
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(() => {
+                return caches.match('/index.html');
+            })
+        );
+        return;
+    }
+
     event.respondWith(
         caches.match(event.request).then((response) => {
             // Return cached response if found
