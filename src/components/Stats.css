@@ -1,12 +1,13 @@
 .stats-page {
     padding: 2rem;
     padding-bottom: 120px;
-    /* Increase space for Bottom Nav on mobile */
     max-width: 1200px;
     margin: 0 auto;
     color: var(--text-primary);
-    min-height: 100vh;
-    /* Use min-height instead of height for proper scrolling */
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
 }
 
@@ -15,7 +16,6 @@
     .stats-page {
         padding: 1rem;
         padding-bottom: 150px;
-        /* Extra padding for mobile bottom nav */
     }
 }
 
