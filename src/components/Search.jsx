@@ -226,6 +226,44 @@ function Search({ currentVersion, versions }) {
             '/teach': 'What does the Bible teach about'
         };
 
+        // Handle /help command - show shortcuts without calling AI
+        if (processedQuestion.toLowerCase() === '/help' || processedQuestion.toLowerCase() === '/help ') {
+            setAiLoading(false);
+            setAiResponse(`📚 **AI Shortcut Commands**
+
+Here are the available shortcuts to quickly ask questions:
+
+• **/story [topic]** - Tell me the complete biblical story of...
+  Example: \`/story Moses\` or \`/story David and Goliath\`
+
+• **/explain [topic]** - Explain in detail from the Bible about...
+  Example: \`/explain salvation\`
+
+• **/meaning [word]** - What is the biblical meaning of...
+  Example: \`/meaning grace\`
+
+• **/who [person]** - Who was...
+  Example: \`/who Abraham\`
+
+• **/what [thing]** - What was...
+  Example: \`/what the Passover\`
+
+• **/why [topic]** - Why did...
+  Example: \`/why Adam sin\`
+
+• **/teach [topic]** - What does the Bible teach about...
+  Example: \`/teach forgiveness\`
+
+• **/compare [topics]** - Compare and contrast in the Bible...
+  Example: \`/compare law and grace\`
+
+• **/verse [reference]** - What does the Bible say in...
+  Example: \`/verse John 3:16\`
+
+💡 **Tip:** Just type the shortcut followed by your topic and press Ask!`);
+            return;
+        }
+
         for (const [shortcut, expansion] of Object.entries(shortcuts)) {
             if (processedQuestion.toLowerCase().startsWith(shortcut + ' ')) {
                 const topic = processedQuestion.substring(shortcut.length + 1).trim();
