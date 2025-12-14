@@ -6,26 +6,10 @@ import { useSettings } from '../context/SettingsContext';
 import './BibleReader.css';
 
 const THEME_COLORS = [
-    '#6366f1', // Indigo (Default)
-    '#ef4444', // Red
-    '#f97316', // Orange
-    '#f59e0b', // Amber
-    '#eab308', // Yellow
-    '#84cc16', // Lime
-    '#22c55e', // Green
-    '#10b981', // Emerald
-    '#14b8a6', // Teal
-    '#06b6d4', // Cyan
-    '#0ea5e9', // Sky
-    '#3b82f6', // Blue
-    '#8b5cf6', // Violet
-    '#a855f7', // Purple
-    '#d946ef', // Fuchsia
-    '#ec4899', // Pink
-    '#f43f5e', // Rose
-    '#64748b', // Slate
-    '#78716c', // Stone
-    '#d97706', // Dark Amber
+    '#6366f1', '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+    '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6',
+    '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#64748b',
+    '#78716c', '#d97706'
 ];
 
 function BibleReader({ currentVersion, setCurrentVersion, versions }) {
