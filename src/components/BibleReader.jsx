@@ -519,6 +519,18 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             <button className="close-btn" onClick={() => setShowSettings(false)}>✕</button>
                         </div>
                         <div className="modal-body info-body">
+
+                            {/* Live Preview */}
+                            <div
+                                className="settings-preview"
+                                style={{
+                                    fontSize: `${settings.fontSize}px`,
+                                    fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
+                                }}
+                            >
+                                <p>In the beginning God created the heaven and the earth.</p>
+                            </div>
+
                             <div className="info-section">
                                 <h3>Text Size: {settings.fontSize}px</h3>
                                 <div className="settings-control">
