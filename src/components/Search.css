@@ -361,6 +361,26 @@
     font-weight: bold;
 }
 
+/* Home Button */
+.home-btn {
+    margin-top: var(--spacing-xl);
+    padding: 14px 32px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 12px rgba(var(--accent-primary-rgb), 0.3);
+}
+
+.home-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(var(--accent-primary-rgb), 0.4);
+}
+
 /* Loading State */
 .loading-state {
     display: flex;
