@@ -12,6 +12,9 @@ function Stats() {
 
     const [stats, setStats] = useState({ total: 0, topTerms: [] });
     const [aiStats, setAiStats] = useState({ total: 0, topQuestions: [] });
+    // Modal for detail view
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [itemType, setItemType] = useState(null); // 'search' or 'ai'
     // Authentication
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [pinInput, setPinInput] = useState('');
@@ -196,7 +199,11 @@ function Stats() {
                             </thead>
                             <tbody>
                                 {logs.slice(0, 20).map((log) => (
-                                    <tr key={log.id}>
+                                    <tr
+                                        key={log.id}
+                                        className="clickable-row"
+                                        onClick={() => { setSelectedItem(log); setItemType('search'); }}
+                                    >
                                         <td>{new Date(log.created_at).toLocaleTimeString()}</td>
                                         <td><span className="user-badge">{log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}</span></td>
                                         <td>{log.query}</td>
@@ -251,7 +258,11 @@ function Stats() {
                             </thead>
                             <tbody>
                                 {aiQuestions.slice(0, 20).map((q) => (
-                                    <tr key={q.id}>
+                                    <tr
+                                        key={q.id}
+                                        className="clickable-row"
+                                        onClick={() => { setSelectedItem(q); setItemType('ai'); }}
+                                    >
                                         <td>{new Date(q.created_at).toLocaleString()}</td>
                                         <td><span className="user-badge">{q.user_id ? q.user_id.substring(0, 8) + '...' : 'Anon'}</span></td>
                                         <td className="ai-q-cell">{q.question.substring(0, 80)}{q.question.length > 80 ? '...' : ''}</td>
@@ -262,6 +273,57 @@ function Stats() {
                     </div>
                 </div>
             </div>
+
+            {/* Detail Modal */}
+            {selectedItem && (
+                <div className="detail-modal-overlay" onClick={() => setSelectedItem(null)}>
+                    <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="detail-modal-header">
+                            <h3>{itemType === 'ai' ? '🤖 AI Question Details' : '🔍 Search Details'}</h3>
+                            <button className="close-modal-btn" onClick={() => setSelectedItem(null)}>✕</button>
+                        </div>
+                        <div className="detail-modal-body">
+                            <div className="detail-row">
+                                <span className="detail-label">📅 Date & Time:</span>
+                                <span className="detail-value">{new Date(selectedItem.created_at).toLocaleString()}</span>
+                            </div>
+                            <div className="detail-row">
+                                <span className="detail-label">👤 User ID:</span>
+                                <span className="detail-value user-id-full">{selectedItem.user_id || 'Anonymous'}</span>
+                            </div>
+                            {itemType === 'search' ? (
+                                <>
+                                    <div className="detail-row">
+                                        <span className="detail-label">🔎 Search Query:</span>
+                                        <span className="detail-value">{selectedItem.query}</span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">📖 Version:</span>
+                                        <span className="detail-value">{selectedItem.version}</span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">📜 Testament:</span>
+                                        <span className="detail-value">{selectedItem.testament || 'All'}</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="detail-row full-width">
+                                        <span className="detail-label">❓ Question:</span>
+                                        <p className="detail-value question-full">{selectedItem.question}</p>
+                                    </div>
+                                    {selectedItem.context && (
+                                        <div className="detail-row full-width">
+                                            <span className="detail-label">📚 Context Provided:</span>
+                                            <p className="detail-value context-text">{selectedItem.context}</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

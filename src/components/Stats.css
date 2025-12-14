@@ -274,3 +274,129 @@
 .ai-question-item {
     flex-wrap: wrap;
 }
+
+/* Clickable Table Rows */
+.clickable-row {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.clickable-row:hover {
+    background: var(--bg-tertiary) !important;
+}
+
+/* Detail Modal */
+.detail-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.detail-modal {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.detail-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-tertiary);
+    border-radius: 12px 12px 0 0;
+}
+
+.detail-modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.close-modal-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    font-size: 1rem;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.close-modal-btn:hover {
+    background: #ff4444;
+    color: white;
+    border-color: #ff4444;
+}
+
+.detail-modal-body {
+    padding: 20px;
+}
+
+.detail-row {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-row.full-width {
+    flex-direction: column;
+    gap: 8px;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 120px;
+    flex-shrink: 0;
+}
+
+.detail-value {
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.user-id-full {
+    font-family: monospace;
+    font-size: 0.85rem;
+    background: var(--bg-tertiary);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.question-full {
+    line-height: 1.6;
+    margin: 0;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.context-text {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 0;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
