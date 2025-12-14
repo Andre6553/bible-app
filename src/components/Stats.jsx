@@ -7,11 +7,31 @@ function Stats() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+
     const [stats, setStats] = useState({ total: 0, topTerms: [] });
+    // Authentication
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [pinInput, setPinInput] = useState('');
+    const [authError, setAuthError] = useState(false);
 
     useEffect(() => {
-        fetchLogs();
-    }, []);
+        // Only fetch if authenticated
+        if (isAuthenticated) {
+            fetchLogs();
+        }
+    }, [isAuthenticated]);
+
+    const handleLogin = (e) => {
+        e.preventDefault();
+        if (pinInput === '58078') {
+            setIsAuthenticated(true);
+            setAuthError(false);
+        } else {
+            setAuthError(true);
+            setPinInput('');
+        }
+    };
 
     const fetchLogs = async () => {
         setLoading(true);
@@ -54,11 +74,36 @@ function Stats() {
         setStats({ total, topTerms: sorted });
     };
 
+    if (!isAuthenticated) {
+        return (
+            <div className="stats-login-container">
+                <div className="stats-login-card">
+                    <h2>Admin Access 🔒</h2>
+                    <form onSubmit={handleLogin}>
+                        <input
+                            type="password"
+                            value={pinInput}
+                            onChange={(e) => setPinInput(e.target.value)}
+                            placeholder="Enter PIN"
+                            className="pin-input"
+                            autoFocus
+                        />
+                        {authError && <p className="error-msg">Incorrect PIN</p>}
+                        <button type="submit" className="login-btn">Unlock</button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
     if (loading) return <div className="stats-loading">Loading Analytics...</div>;
 
     return (
         <div className="stats-page">
-            <h1 className="stats-title">Search Analytics 📊</h1>
+            <div className="stats-header-row">
+                <h1 className="stats-title">Search Analytics 📊</h1>
+                <button className="logout-btn" onClick={() => setIsAuthenticated(false)}>Lock 🔒</button>
+            </div>
 
             {error && (
                 <div className="stats-error">
