@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference } from '../services/bibleService';
+import { useSettings } from '../context/SettingsContext';
 import './Search.css';
 
 function Search({ currentVersion, versions }) {
@@ -11,6 +12,7 @@ function Search({ currentVersion, versions }) {
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+    const { settings } = useSettings();
 
     const navigate = useNavigate();
     const [history, setHistory] = useState([]);
@@ -159,7 +161,13 @@ function Search({ currentVersion, versions }) {
                                 </p>
                             </div>
 
-                            <div className="results-list">
+                            <div
+                                className="results-list"
+                                style={{
+                                    fontSize: `${settings.fontSize}px`,
+                                    fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
+                                }}
+                            >
                                 {results.map(verse => (
                                     <div
                                         key={verse.id}
