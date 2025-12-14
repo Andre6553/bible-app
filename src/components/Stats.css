@@ -400,3 +400,58 @@
     max-height: 150px;
     overflow-y: auto;
 }
+
+/* Clear All Button */
+.clear-all-btn {
+    margin-top: 12px;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid #ff4444;
+    color: #ff4444;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clear-all-btn:hover {
+    background: #ff4444;
+    color: white;
+}
+
+.clear-all-ai {
+    border-color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.clear-all-ai:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: white;
+    color: white;
+}
+
+/* Detail Modal Footer */
+.detail-modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-tertiary);
+    border-radius: 0 0 12px 12px;
+}
+
+.delete-entry-btn {
+    width: 100%;
+    padding: 12px;
+    background: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.delete-entry-btn:hover {
+    background: #cc3333;
+    transform: translateY(-1px);
+}

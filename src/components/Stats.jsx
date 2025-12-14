@@ -116,6 +116,73 @@ function Stats() {
         setStats({ total, topTerms: sorted });
     };
 
+    // Delete all search logs
+    const clearAllSearchLogs = async () => {
+        if (!window.confirm('⚠️ Are you sure you want to DELETE ALL search logs? This cannot be undone!')) {
+            return;
+        }
+
+        const { error } = await supabase
+            .from('search_logs')
+            .delete()
+            .neq('id', 0); // Delete all (neq id 0 means all rows)
+
+        if (error) {
+            alert('Error deleting logs: ' + error.message);
+        } else {
+            alert('✅ All search logs deleted!');
+            fetchLogs(); // Refresh
+        }
+    };
+
+    // Delete all AI logs
+    const clearAllAILogs = async () => {
+        if (!window.confirm('⚠️ Are you sure you want to DELETE ALL AI question logs? This cannot be undone!')) {
+            return;
+        }
+
+        const { error } = await supabase
+            .from('ai_questions')
+            .delete()
+            .neq('id', 0);
+
+        if (error) {
+            alert('Error deleting AI logs: ' + error.message);
+        } else {
+            alert('✅ All AI question logs deleted!');
+            fetchAIQuestions(); // Refresh
+        }
+    };
+
+    // Delete single entry
+    const deleteSingleEntry = async () => {
+        if (!selectedItem) return;
+
+        const table = itemType === 'search' ? 'search_logs' : 'ai_questions';
+        const itemDesc = itemType === 'search' ? 'search log' : 'AI question';
+
+        if (!window.confirm(`Are you sure you want to delete this ${itemDesc}?`)) {
+            return;
+        }
+
+        const { error } = await supabase
+            .from(table)
+            .delete()
+            .eq('id', selectedItem.id);
+
+        if (error) {
+            alert('Error deleting: ' + error.message);
+        } else {
+            setSelectedItem(null);
+            // Refresh the appropriate list
+            if (itemType === 'search') {
+                fetchLogs();
+            } else {
+                fetchAIQuestions();
+            }
+        }
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="stats-login-container">
@@ -164,6 +231,9 @@ function Stats() {
                     <h3>Total Searches</h3>
                     <div className="big-number">{stats.total}</div>
                     <p className="subtitle">Last 1000 records</p>
+                    <button className="clear-all-btn" onClick={clearAllSearchLogs}>
+                        🗑️ Clear All
+                    </button>
                 </div>
 
                 {/* Top Terms Card */}
@@ -224,6 +294,9 @@ function Stats() {
                     <h3>Total AI Questions</h3>
                     <div className="big-number">{aiStats.total}</div>
                     <p className="subtitle">Last 500 records</p>
+                    <button className="clear-all-btn clear-all-ai" onClick={clearAllAILogs}>
+                        🗑️ Clear All
+                    </button>
                 </div>
 
                 {/* Top AI Questions Card */}
@@ -320,6 +393,11 @@ function Stats() {
                                     )}
                                 </>
                             )}
+                        </div>
+                        <div className="detail-modal-footer">
+                            <button className="delete-entry-btn" onClick={deleteSingleEntry}>
+                                🗑️ Delete This Entry
+                            </button>
                         </div>
                     </div>
                 </div>
