@@ -614,16 +614,6 @@ function Search({ currentVersion, versions }) {
                 )}
             </div>
 
-            {/* Fixed Home Button at bottom */}
-            <div className="fixed-home-container">
-                <button
-                    className="home-btn"
-                    onClick={() => navigate('/bible')}
-                >
-                    🏠 Home
-                </button>
-            </div>
-
             {/* AI Research Modal */}
             {showAIModal && (
                 <div className="book-selector-modal ai-research-modal" onClick={() => setShowAIModal(false)}>
