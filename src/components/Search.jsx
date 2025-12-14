@@ -610,14 +610,18 @@ function Search({ currentVersion, versions }) {
                                 <li>Search for specific topics like "forgiveness"</li>
                             </ul>
                         </div>
-                        <button
-                            className="home-btn"
-                            onClick={() => navigate('/bible')}
-                        >
-                            🏠 Home
-                        </button>
                     </div>
                 )}
+            </div>
+
+            {/* Fixed Home Button at bottom */}
+            <div className="fixed-home-container">
+                <button
+                    className="home-btn"
+                    onClick={() => navigate('/bible')}
+                >
+                    🏠 Home
+                </button>
             </div>
 
             {/* AI Research Modal */}
