@@ -36,6 +36,8 @@ function Search({ currentVersion, versions }) {
     const [aiLoading, setAiLoading] = useState(false);
     const [quotaInfo, setQuotaInfo] = useState({ remaining: 0, quota: 10 });
     const [allBooks, setAllBooks] = useState([]); // For citation lookup
+    const [aiHistory, setAiHistory] = useState([]); // AI Q&A history
+    const [showAIHistory, setShowAIHistory] = useState(false); // Toggle for history section
     const userId = getUserId();
 
     // Load history and AI state on mount
@@ -43,7 +45,9 @@ function Search({ currentVersion, versions }) {
         const savedHistory = localStorage.getItem('search_history');
         if (savedHistory) setHistory(JSON.parse(savedHistory));
 
-        // Restore AI Session
+        // Load AI history
+        const savedAIHistory = localStorage.getItem('ai_search_history');
+        if (savedAIHistory) setAiHistory(JSON.parse(savedAIHistory));
         try {
             const savedAI = sessionStorage.getItem('bible_ai_session');
             if (savedAI) {
@@ -245,6 +249,17 @@ function Search({ currentVersion, versions }) {
 
         if (result.success) {
             setAiResponse(result.answer);
+
+            // Save to AI history
+            const newEntry = {
+                question: aiQuestion,
+                answer: result.answer,
+                timestamp: Date.now()
+            };
+            const updatedHistory = [newEntry, ...aiHistory].slice(0, 20); // Keep last 20
+            setAiHistory(updatedHistory);
+            localStorage.setItem('ai_search_history', JSON.stringify(updatedHistory));
+
             // Refresh quota
             await loadQuotaInfo();
         } else {
@@ -618,6 +633,53 @@ function Search({ currentVersion, versions }) {
                                 <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
                                 <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
                             </div>
+
+                            {/* AI History Section */}
+                            {aiHistory.length > 0 && (
+                                <div className="ai-history-section">
+                                    <button
+                                        className="ai-history-toggle"
+                                        onClick={() => setShowAIHistory(!showAIHistory)}
+                                    >
+                                        📜 Previous Questions ({aiHistory.length})
+                                        <span className={`toggle-arrow ${showAIHistory ? 'open' : ''}`}>▼</span>
+                                    </button>
+
+                                    {showAIHistory && (
+                                        <div className="ai-history-list">
+                                            {aiHistory.map((item, idx) => (
+                                                <div key={idx} className="ai-history-item">
+                                                    <div className="ai-history-question">
+                                                        <span className="question-text">❓ {item.question}</span>
+                                                        <button
+                                                            className="reask-btn"
+                                                            onClick={() => {
+                                                                setAiQuestion(item.question);
+                                                                setAiResponse(item.answer); // Show the saved answer
+                                                            }}
+                                                            title="View this answer"
+                                                        >
+                                                            View
+                                                        </button>
+                                                    </div>
+                                                    <div className="ai-history-date">
+                                                        {new Date(item.timestamp).toLocaleDateString()}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <button
+                                                className="clear-ai-history-btn"
+                                                onClick={() => {
+                                                    setAiHistory([]);
+                                                    localStorage.removeItem('ai_search_history');
+                                                }}
+                                            >
+                                                🗑️ Clear History
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

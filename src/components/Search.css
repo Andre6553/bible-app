@@ -493,6 +493,105 @@
     color: var(--accent-primary);
 }
 
+/* AI History Section */
+.ai-history-section {
+    margin-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-subtle);
+    padding-top: var(--spacing-md);
+}
+
+.ai-history-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-history-toggle:hover {
+    background: var(--bg-secondary);
+}
+
+.toggle-arrow {
+    transition: transform 0.2s;
+}
+
+.toggle-arrow.open {
+    transform: rotate(180deg);
+}
+
+.ai-history-list {
+    margin-top: var(--spacing-sm);
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+}
+
+.ai-history-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.ai-history-item:last-of-type {
+    border-bottom: none;
+}
+
+.ai-history-question {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.question-text {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.reask-btn {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    background: var(--accent-primary);
+    color: white;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.reask-btn:hover {
+    opacity: 0.9;
+}
+
+.ai-history-date {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.clear-ai-history-btn {
+    width: 100%;
+    padding: 8px;
+    font-size: 0.8rem;
+    color: #ff4444;
+    background: transparent;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.clear-ai-history-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
+}
+
 /* History Dropdown */
 .search-input-container {
     position: relative;
