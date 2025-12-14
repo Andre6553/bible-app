@@ -261,19 +261,29 @@ function Search({ currentVersion, versions }) {
             const lastSpaceIndex = citation.lastIndexOf(' ');
             if (lastSpaceIndex === -1) return;
 
-            const bookName = citation.substring(0, lastSpaceIndex).trim();
+            const bookNameRaw = citation.substring(0, lastSpaceIndex).trim();
             const refPart = citation.substring(lastSpaceIndex + 1).trim(); // "3:16"
 
             const [chapter, verse] = refPart.split(':');
 
-            // Find book ID
-            // Handle cases where AI says "First John" vs "1 John" if needed, 
-            // but for now relying on AI to match our naming or us to match standard.
-            // Our DB uses "1 John", "Genesis", etc.
-            const book = allBooks.find(b =>
-                b.name_full.toLowerCase() === bookName.toLowerCase() ||
-                b.id === bookName.toUpperCase()
-            );
+            // Normalization helper
+            const normalizeBookName = (name) => {
+                return name.toLowerCase()
+                    .replace(/^first /, '1 ')
+                    .replace(/^second /, '2 ')
+                    .replace(/^third /, '3 ')
+                    .replace(/^i /, '1 ')
+                    .replace(/^ii /, '2 ')
+                    .replace(/^iii /, '3 ')
+                    .replace('.', ''); // Remove dots from abbreviations
+            };
+
+            const targetName = normalizeBookName(bookNameRaw);
+
+            const book = allBooks.find(b => {
+                const dbName = normalizeBookName(b.name_full);
+                return dbName === targetName || b.id === bookNameRaw.toUpperCase();
+            });
 
             if (book) {
                 // Navigate to bible reader
@@ -282,14 +292,13 @@ function Search({ currentVersion, versions }) {
                         bookId: book.id,
                         chapter: parseInt(chapter),
                         targetVerse: parseInt(verse),
-                        fromSearch: true // Signal for "Back" button in Reader
+                        fromSearch: true
                     }
                 });
-
-                // Don't close modal here, state is persisted so it re-opens on back
-                // setShowAIModal(false); 
+                // Persist state, don't close modal (handled by caching)
             } else {
-                console.warn(`Book not found: ${bookName}`);
+                console.warn(`Book not found: ${bookNameRaw} (Normalized: ${targetName})`);
+                // Optional: Flash a toast or error to user
             }
         } catch (e) {
             console.error("Error parsing citation", e);
