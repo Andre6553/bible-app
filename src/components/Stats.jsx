@@ -15,6 +15,11 @@ function Stats() {
     // Modal for detail view
     const [selectedItem, setSelectedItem] = useState(null);
     const [itemType, setItemType] = useState(null); // 'search' or 'ai'
+    // Date range delete
+    const [showDateRangeModal, setShowDateRangeModal] = useState(false);
+    const [dateRangeType, setDateRangeType] = useState(null); // 'search' or 'ai'
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     // Authentication
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [pinInput, setPinInput] = useState('');
@@ -189,6 +194,52 @@ function Stats() {
         }
     };
 
+    // Open date range modal
+    const openDateRangeModal = (type) => {
+        setDateRangeType(type);
+        setStartDate('');
+        setEndDate('');
+        setShowDateRangeModal(true);
+    };
+
+    // Delete by date range
+    const deleteByDateRange = async () => {
+        if (!startDate || !endDate) {
+            alert('Please select both start and end dates.');
+            return;
+        }
+
+        const table = dateRangeType === 'search' ? 'search_logs' : 'ai_questions';
+        const typeName = dateRangeType === 'search' ? 'search logs' : 'AI questions';
+
+        // Add time to dates for proper range (start of day to end of day)
+        const startDateTime = `${startDate}T00:00:00`;
+        const endDateTime = `${endDate}T23:59:59`;
+
+        if (!window.confirm(`⚠️ Delete all ${typeName} from ${startDate} to ${endDate}? This cannot be undone!`)) {
+            return;
+        }
+
+        const { error, count } = await supabase
+            .from(table)
+            .delete()
+            .gte('created_at', startDateTime)
+            .lte('created_at', endDateTime);
+
+        if (error) {
+            alert('Error deleting: ' + error.message);
+        } else {
+            setShowDateRangeModal(false);
+            alert(`✅ Deleted ${typeName} from ${startDate} to ${endDate}!`);
+            // Refresh the data
+            if (dateRangeType === 'search') {
+                fetchLogs();
+            } else {
+                fetchAIQuestions();
+            }
+        }
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="stats-login-container">
@@ -237,9 +288,14 @@ function Stats() {
                     <h3>Total Searches</h3>
                     <div className="big-number">{stats.total}</div>
                     <p className="subtitle">Last 1000 records</p>
-                    <button className="clear-all-btn" onClick={clearAllSearchLogs}>
-                        🗑️ Clear All
-                    </button>
+                    <div className="card-actions">
+                        <button className="clear-all-btn" onClick={clearAllSearchLogs}>
+                            🗑️ Clear All
+                        </button>
+                        <button className="date-range-btn" onClick={() => openDateRangeModal('search')}>
+                            📅 Delete by Date
+                        </button>
+                    </div>
                 </div>
 
                 {/* Top Terms Card */}
@@ -300,9 +356,14 @@ function Stats() {
                     <h3>Total AI Questions</h3>
                     <div className="big-number">{aiStats.total}</div>
                     <p className="subtitle">Last 500 records</p>
-                    <button className="clear-all-btn clear-all-ai" onClick={clearAllAILogs}>
-                        🗑️ Clear All
-                    </button>
+                    <div className="card-actions">
+                        <button className="clear-all-btn clear-all-ai" onClick={clearAllAILogs}>
+                            🗑️ Clear All
+                        </button>
+                        <button className="date-range-btn date-range-ai" onClick={() => openDateRangeModal('ai')}>
+                            📅 Delete by Date
+                        </button>
+                    </div>
                 </div>
 
                 {/* Top AI Questions Card */}
@@ -403,6 +464,50 @@ function Stats() {
                         <div className="detail-modal-footer">
                             <button className="delete-entry-btn" onClick={deleteSingleEntry}>
                                 🗑️ Delete This Entry
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Date Range Delete Modal */}
+            {showDateRangeModal && (
+                <div className="detail-modal-overlay" onClick={() => setShowDateRangeModal(false)}>
+                    <div className="detail-modal date-range-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="detail-modal-header">
+                            <h3>📅 Delete {dateRangeType === 'search' ? 'Search Logs' : 'AI Questions'} by Date</h3>
+                            <button className="close-modal-btn" onClick={() => setShowDateRangeModal(false)}>✕</button>
+                        </div>
+                        <div className="detail-modal-body">
+                            <div className="date-input-group">
+                                <label>Start Date:</label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="date-input"
+                                />
+                            </div>
+                            <div className="date-input-group">
+                                <label>End Date:</label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="date-input"
+                                />
+                            </div>
+                            <p className="date-range-info">
+                                ⚠️ All records from {startDate || '(start)'} to {endDate || '(end)'} will be permanently deleted.
+                            </p>
+                        </div>
+                        <div className="detail-modal-footer">
+                            <button
+                                className="delete-entry-btn"
+                                onClick={deleteByDateRange}
+                                disabled={!startDate || !endDate}
+                            >
+                                🗑️ Delete Records in Range
                             </button>
                         </div>
                     </div>

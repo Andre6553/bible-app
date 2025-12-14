@@ -455,3 +455,88 @@
     background: #cc3333;
     transform: translateY(-1px);
 }
+
+.delete-entry-btn:disabled {
+    background: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Card Actions Container */
+.card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Date Range Button */
+.date-range-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.date-range-btn:hover {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.date-range-ai {
+    border-color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.date-range-ai:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: white;
+    color: white;
+}
+
+/* Date Range Modal */
+.date-range-modal {
+    max-width: 400px;
+}
+
+.date-input-group {
+    margin-bottom: 16px;
+}
+
+.date-input-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.date-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.date-range-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    border-radius: 8px;
+    color: #ff6666;
+    font-size: 0.85rem;
+    text-align: center;
+}
