@@ -102,12 +102,51 @@
 
 /* AI Modal Back Button */
 .close-btn.back-to-results {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--accent-primary);
-    background: var(--bg-tertiary);
-    padding: 6px 12px;
+    background: rgba(var(--accent-primary-rgb), 0.1);
+    padding: 8px 12px;
+    border-radius: 20px;
+    /* Pill shape */
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.close-btn.back-to-results:hover {
+    background: var(--accent-primary);
+    color: white;
+}
+
+/* Submit Question Button - Professional Look */
+.ai-submit-btn {
+    margin-top: 12px;
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: white;
+    border: none;
     border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(var(--accent-primary-rgb), 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.ai-submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(var(--accent-primary-rgb), 0.4);
+}
+
+.ai-submit-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
 }
 
 .ai-btn {
@@ -570,14 +609,20 @@
         flex-shrink: 0;
         background: var(--bg-secondary);
         border-bottom: 1px solid var(--border-subtle);
+
+        /* Flex improvements for mobile header */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
     }
 
-    .ai-research-modal .modal-body {
-        flex: 1;
-        overflow-y: auto;
-        padding: var(--spacing-md);
-        display: flex;
-        flex-direction: column;
+    .ai-research-modal .modal-header h2 {
+        font-size: 1.1rem;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* Input section at top */
@@ -590,6 +635,7 @@
         padding-bottom: var(--spacing-md);
         margin-bottom: var(--spacing-md);
     }
+
 
     .ai-question-input {
         min-height: 60px;

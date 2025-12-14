@@ -296,6 +296,15 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 </div>
 
                 <div className="reading-controls">
+                    {location.state?.fromSearch && (
+                        <button
+                            className="book-selector-btn btn-secondary"
+                            onClick={() => navigate('/search' + location.search)} // Maintain params if needed, or just /search
+                            style={{ marginRight: '8px', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)' }}
+                        >
+                            ⬅ Back
+                        </button>
+                    )}
                     <button
                         className="book-selector-btn btn-secondary"
                         onClick={() => setShowBookSelector(!showBookSelector)}

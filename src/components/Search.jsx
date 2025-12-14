@@ -38,18 +38,42 @@ function Search({ currentVersion, versions }) {
     const [allBooks, setAllBooks] = useState([]); // For citation lookup
     const userId = getUserId();
 
-    // Load history on mount
+    // Load history and AI state on mount
     useEffect(() => {
-        const saved = localStorage.getItem('search_history');
-        if (saved) setHistory(JSON.parse(saved));
+        const savedHistory = localStorage.getItem('search_history');
+        if (savedHistory) setHistory(JSON.parse(savedHistory));
 
-        // Load quota info
-        // Load quota info
+        // Restore AI Session
+        try {
+            const savedAI = sessionStorage.getItem('bible_ai_session');
+            if (savedAI) {
+                const { question, response, showModal, timestamp } = JSON.parse(savedAI);
+                // Valid for 1 hour
+                if (Date.now() - timestamp < 3600000) {
+                    setAiQuestion(question);
+                    setAiResponse(response);
+                    setShowAIModal(showModal);
+                }
+            }
+        } catch (e) {
+            console.warn("AI session restore failed", e);
+        }
+
         loadQuotaInfo();
-
-        // Load books for citation lookup
         loadBooks();
     }, []);
+
+    // Persist AI State whenever it changes
+    useEffect(() => {
+        if (aiQuestion || aiResponse || showAIModal) {
+            sessionStorage.setItem('bible_ai_session', JSON.stringify({
+                question: aiQuestion,
+                response: aiResponse,
+                showModal: showAIModal,
+                timestamp: Date.now()
+            }));
+        }
+    }, [aiQuestion, aiResponse, showAIModal]);
 
     const loadBooks = async () => {
         const result = await getBooks();
@@ -257,10 +281,13 @@ function Search({ currentVersion, versions }) {
                     state: {
                         bookId: book.id,
                         chapter: parseInt(chapter),
-                        targetVerse: parseInt(verse)
+                        targetVerse: parseInt(verse),
+                        fromSearch: true // Signal for "Back" button in Reader
                     }
                 });
-                setShowAIModal(false); // Close modal to see bible
+
+                // Don't close modal here, state is persisted so it re-opens on back
+                // setShowAIModal(false); 
             } else {
                 console.warn(`Book not found: ${bookName}`);
             }
@@ -527,10 +554,9 @@ function Search({ currentVersion, versions }) {
                                     rows={3}
                                 />
                                 <button
-                                    className="btn-primary"
+                                    className="ai-submit-btn"
                                     onClick={submitAIQuestion}
                                     disabled={aiLoading || !aiQuestion.trim()}
-                                    style={{ marginTop: '10px', width: '100%' }}
                                 >
                                     {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
                                 </button>
