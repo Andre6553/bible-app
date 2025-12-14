@@ -3,7 +3,7 @@ import { supabase } from '../config/supabaseClient';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Use stable model
 
 // System prompt for biblical accuracy
 const SYSTEM_PROMPT = `You are a Bible study assistant. Follow these STRICT rules:
@@ -285,14 +285,20 @@ export async function askBibleQuestion(userId, question, verses = []) {
         // More specific error messages
         let errorMessage = 'Failed to get AI response. Please try again.';
 
-        if (error.message?.includes('quota') || error.message?.includes('limit')) {
-            errorMessage = 'API quota exceeded. Please try again later.';
-        } else if (error.message?.includes('network') || error.message?.includes('fetch') || error.message?.includes('Failed to fetch')) {
+        const errMsg = error.message?.toLowerCase() || '';
+
+        if (errMsg.includes('quota') || errMsg.includes('limit') || errMsg.includes('rate') || errMsg.includes('429')) {
+            errorMessage = 'Google AI rate limit reached. Please wait a minute and try again.';
+        } else if (errMsg.includes('api key') || errMsg.includes('api_key') || errMsg.includes('invalid')) {
+            errorMessage = 'API configuration error. Please contact support.';
+        } else if (errMsg.includes('network') || errMsg.includes('fetch') || errMsg.includes('Failed to fetch')) {
             errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message?.includes('timeout')) {
+        } else if (errMsg.includes('timeout')) {
             errorMessage = 'Request timed out. Please try again.';
-        } else if (error.message?.includes('blocked') || error.message?.includes('safety')) {
+        } else if (errMsg.includes('blocked') || errMsg.includes('safety')) {
             errorMessage = 'Content was blocked by safety filters. Please rephrase your question.';
+        } else if (errMsg.includes('model') || errMsg.includes('not found')) {
+            errorMessage = 'AI model error. Please try again later.';
         }
 
         return {
