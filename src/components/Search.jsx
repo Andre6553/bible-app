@@ -38,6 +38,7 @@ function Search({ currentVersion, versions }) {
     const [allBooks, setAllBooks] = useState([]); // For citation lookup
     const [aiHistory, setAiHistory] = useState([]); // AI Q&A history
     const [showAIHistory, setShowAIHistory] = useState(false); // Toggle for history section
+    const [showShortcutMenu, setShowShortcutMenu] = useState(false); // Shortcut popup
     const userId = getUserId();
 
     // Load history and AI state on mount
@@ -692,9 +693,49 @@ Here are the available shortcuts to quickly ask questions:
                                     className="ai-question-input"
                                     placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
                                     value={aiQuestion}
-                                    onChange={(e) => setAiQuestion(e.target.value)}
+                                    onChange={(e) => {
+                                        setAiQuestion(e.target.value);
+                                        // Show shortcut menu when typing /
+                                        if (e.target.value === '/' || e.target.value.startsWith('/')) {
+                                            setShowShortcutMenu(true);
+                                        } else {
+                                            setShowShortcutMenu(false);
+                                        }
+                                    }}
                                     rows={3}
                                 />
+                                
+                                {/* Shortcut popup menu */}
+                                {showShortcutMenu && (
+                                    <div className="shortcut-popup">
+                                        <div className="shortcut-header">⚡ Quick Commands</div>
+                                        {[
+                                            { cmd: '/story', desc: 'Tell me the story of...', icon: '📖' },
+                                            { cmd: '/explain', desc: 'Explain from the Bible...', icon: '💡' },
+                                            { cmd: '/meaning', desc: 'Biblical meaning of...', icon: '📚' },
+                                            { cmd: '/who', desc: 'Who was...', icon: '👤' },
+                                            { cmd: '/what', desc: 'What was...', icon: '❓' },
+                                            { cmd: '/why', desc: 'Why did...', icon: '🤔' },
+                                            { cmd: '/teach', desc: 'What does the Bible teach...', icon: '🎓' },
+                                            { cmd: '/compare', desc: 'Compare in the Bible...', icon: '⚖️' },
+                                            { cmd: '/help', desc: 'Show all shortcuts', icon: 'ℹ️' },
+                                        ].map((item) => (
+                                            <button
+                                                key={item.cmd}
+                                                className="shortcut-item"
+                                                onClick={() => {
+                                                    setAiQuestion(item.cmd + ' ');
+                                                    setShowShortcutMenu(false);
+                                                }}
+                                            >
+                                                <span className="shortcut-icon">{item.icon}</span>
+                                                <span className="shortcut-cmd">{item.cmd}</span>
+                                                <span className="shortcut-desc">{item.desc}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                
                                 <button
                                     className="ai-submit-btn"
                                     onClick={submitAIQuestion}
