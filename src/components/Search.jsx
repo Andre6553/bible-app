@@ -211,6 +211,29 @@ function Search({ currentVersion, versions }) {
         setAiLoading(true);
         setAiResponse(null);
 
+        // Process shortcuts like /story, /explain, /meaning
+        let processedQuestion = aiQuestion.trim();
+
+        const shortcuts = {
+            '/story': 'Tell me the complete biblical story of',
+            '/explain': 'Explain in detail from the Bible about',
+            '/meaning': 'What is the biblical meaning of',
+            '/verse': 'What does the Bible say in',
+            '/who': 'Who was',
+            '/what': 'What was',
+            '/why': 'Why did',
+            '/compare': 'Compare and contrast in the Bible:',
+            '/teach': 'What does the Bible teach about'
+        };
+
+        for (const [shortcut, expansion] of Object.entries(shortcuts)) {
+            if (processedQuestion.toLowerCase().startsWith(shortcut + ' ')) {
+                const topic = processedQuestion.substring(shortcut.length + 1).trim();
+                processedQuestion = `${expansion} ${topic}`;
+                break;
+            }
+        }
+
         let contextSource = results;
 
         // If no results on screen, perform background search for context
@@ -243,7 +266,7 @@ function Search({ currentVersion, versions }) {
             text: v.text
         }));
 
-        const result = await askBibleQuestion(userId, aiQuestion, verseContext);
+        const result = await askBibleQuestion(userId, processedQuestion, verseContext);
 
         setAiLoading(false);
 
