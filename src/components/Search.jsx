@@ -39,6 +39,7 @@ function Search({ currentVersion, versions }) {
     const [aiHistory, setAiHistory] = useState([]); // AI Q&A history
     const [showAIHistory, setShowAIHistory] = useState(false); // Toggle for history section
     const [showShortcutMenu, setShowShortcutMenu] = useState(false); // Shortcut popup
+    const [isAnswerExpanded, setIsAnswerExpanded] = useState(false); // Fullscreen answer mode
     const userId = getUserId();
 
     // Load history and AI state on mount
@@ -687,73 +688,100 @@ Here are the available shortcuts to quickly ask questions:
                             </button>
                         </div>
                         <div className="modal-body info-body">
-                            <div className="info-section">
-                                <h3>Ask your question:</h3>
-                                <textarea
-                                    className="ai-question-input"
-                                    placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
-                                    value={aiQuestion}
-                                    onChange={(e) => {
-                                        setAiQuestion(e.target.value);
-                                        // Show shortcut menu when typing /
-                                        if (e.target.value === '/' || e.target.value.startsWith('/')) {
-                                            setShowShortcutMenu(true);
-                                        } else {
+                            {!isAnswerExpanded && (
+                                <div className="info-section">
+                                    <h3>Ask your question:</h3>
+                                    <textarea
+                                        className="ai-question-input"
+                                        placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
+                                        value={aiQuestion}
+                                        onChange={(e) => {
+                                            setAiQuestion(e.target.value);
+                                            // Show shortcut menu when typing /
+                                            if (e.target.value === '/' || e.target.value.startsWith('/')) {
+                                                setShowShortcutMenu(true);
+                                            } else {
+                                                setShowShortcutMenu(false);
+                                            }
+                                        }}
+                                        rows={3}
+                                    />
+
+                                    {/* Shortcut popup menu */}
+                                    {showShortcutMenu && (
+                                        <div className="shortcut-popup">
+                                            <div className="shortcut-header">⚡ Quick Commands</div>
+                                            {[
+                                                { cmd: '/story', desc: 'Tell me the story of...', icon: '📖' },
+                                                { cmd: '/explain', desc: 'Explain from the Bible...', icon: '💡' },
+                                                { cmd: '/meaning', desc: 'Biblical meaning of...', icon: '📚' },
+                                                { cmd: '/who', desc: 'Who was...', icon: '👤' },
+                                                { cmd: '/what', desc: 'What was...', icon: '❓' },
+                                                { cmd: '/why', desc: 'Why did...', icon: '🤔' },
+                                                { cmd: '/teach', desc: 'What does the Bible teach...', icon: '🎓' },
+                                                { cmd: '/compare', desc: 'Compare in the Bible...', icon: '⚖️' },
+                                                { cmd: '/help', desc: 'Show all shortcuts', icon: 'ℹ️' },
+                                            ].map((item) => (
+                                                <button
+                                                    key={item.cmd}
+                                                    className="shortcut-item"
+                                                    onClick={() => {
+                                                        setAiQuestion(item.cmd + ' ');
+                                                        setShowShortcutMenu(false);
+                                                    }}
+                                                >
+                                                    <span className="shortcut-icon">{item.icon}</span>
+                                                    <span className="shortcut-cmd">{item.cmd}</span>
+                                                    <span className="shortcut-desc">{item.desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        className="ai-submit-btn"
+                                        onClick={() => {
                                             setShowShortcutMenu(false);
-                                        }
-                                    }}
-                                    rows={3}
-                                />
-
-                                {/* Shortcut popup menu */}
-                                {showShortcutMenu && (
-                                    <div className="shortcut-popup">
-                                        <div className="shortcut-header">⚡ Quick Commands</div>
-                                        {[
-                                            { cmd: '/story', desc: 'Tell me the story of...', icon: '📖' },
-                                            { cmd: '/explain', desc: 'Explain from the Bible...', icon: '💡' },
-                                            { cmd: '/meaning', desc: 'Biblical meaning of...', icon: '📚' },
-                                            { cmd: '/who', desc: 'Who was...', icon: '👤' },
-                                            { cmd: '/what', desc: 'What was...', icon: '❓' },
-                                            { cmd: '/why', desc: 'Why did...', icon: '🤔' },
-                                            { cmd: '/teach', desc: 'What does the Bible teach...', icon: '🎓' },
-                                            { cmd: '/compare', desc: 'Compare in the Bible...', icon: '⚖️' },
-                                            { cmd: '/help', desc: 'Show all shortcuts', icon: 'ℹ️' },
-                                        ].map((item) => (
-                                            <button
-                                                key={item.cmd}
-                                                className="shortcut-item"
-                                                onClick={() => {
-                                                    setAiQuestion(item.cmd + ' ');
-                                                    setShowShortcutMenu(false);
-                                                }}
-                                            >
-                                                <span className="shortcut-icon">{item.icon}</span>
-                                                <span className="shortcut-cmd">{item.cmd}</span>
-                                                <span className="shortcut-desc">{item.desc}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <button
-                                    className="ai-submit-btn"
-                                    onClick={() => {
-                                        setShowShortcutMenu(false);
-                                        submitAIQuestion();
-                                    }}
-                                    disabled={aiLoading || !aiQuestion.trim()}
-                                >
-                                    {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
-                                </button>
-                            </div>
+                                            submitAIQuestion();
+                                        }}
+                                        disabled={aiLoading || !aiQuestion.trim()}
+                                    >
+                                        {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
+                                    </button>
+                                </div>
+                            )}
 
                             {aiResponse && (
-                                <div className="info-section ai-response">
-                                    <h3>📚 Biblical Answer:</h3>
+                                <div
+                                    className={`info-section ai-response ${isAnswerExpanded ? 'expanded' : ''}`}
+                                    onDoubleClick={() => setIsAnswerExpanded(!isAnswerExpanded)}
+                                >
+                                    <div className="ai-response-header">
+                                        <h3>📚 Biblical Answer:</h3>
+                                        {!isAnswerExpanded && (
+                                            <span className="expand-hint">Double-tap to expand</span>
+                                        )}
+                                        {isAnswerExpanded && (
+                                            <button
+                                                className="collapse-btn"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsAnswerExpanded(false);
+                                                }}
+                                            >
+                                                ✕ Close
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="ai-answer">
                                         {formatAIResponse(aiResponse)}
                                     </div>
+                                    {isAnswerExpanded && (
+                                        <div className="expanded-nav-buttons">
+                                            <button onClick={() => navigate('/bible')}>📖 Bible</button>
+                                            <button onClick={() => { setIsAnswerExpanded(false); setShowAIModal(false); }}>🔍 Search</button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
