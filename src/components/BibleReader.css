@@ -257,8 +257,9 @@
     flex: 1;
     overflow-y: auto;
     padding: var(--spacing-lg);
-    padding-bottom: 120px;
-    /* Space for Bottom Nav on mobile */
+    padding-bottom: 200px;
+    /* Extra Space for Bottom Nav on mobile */
+    box-sizing: border-box;
 }
 
 .verses-content {
