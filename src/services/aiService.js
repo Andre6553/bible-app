@@ -281,9 +281,23 @@ export async function askBibleQuestion(userId, question, verses = []) {
 
     } catch (error) {
         console.error('AI question error:', error);
+
+        // More specific error messages
+        let errorMessage = 'Failed to get AI response. Please try again.';
+
+        if (error.message?.includes('quota') || error.message?.includes('limit')) {
+            errorMessage = 'API quota exceeded. Please try again later.';
+        } else if (error.message?.includes('network') || error.message?.includes('fetch') || error.message?.includes('Failed to fetch')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message?.includes('timeout')) {
+            errorMessage = 'Request timed out. Please try again.';
+        } else if (error.message?.includes('blocked') || error.message?.includes('safety')) {
+            errorMessage = 'Content was blocked by safety filters. Please rephrase your question.';
+        }
+
         return {
             success: false,
-            error: 'Failed to get AI response. Please try again.',
+            error: errorMessage,
             details: error.message
         };
     }
