@@ -536,7 +536,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
                             <div className="info-section">
                                 <h3>🌍 Bible Versions</h3>
-                                <p>Switch between <strong>KJV</strong>, <strong>AFR53</strong>, <strong>AFR83</strong>, <strong>NLT</strong>, and <strong>AMP</strong> using the dropdown at the top.</p>
+                                <p>Switch between <strong>KJV</strong> (English) and <strong>AFR53</strong> (Afrikaans) using the dropdown at the top.</p>
                             </div>
 
                             <div className="info-section">
