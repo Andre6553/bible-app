@@ -301,16 +301,16 @@ function Search({ currentVersion, versions }) {
 
                 <div className="search-input-container">
                     <form onSubmit={handleSearch} className="search-form">
-                        <div className="search-input-wrapper">
+                        {/* Row 1: Input + History Toggle */}
+                        <div className="search-bar-row">
                             <input
                                 type="text"
                                 className="search-input input"
                                 placeholder="Search for verses..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                onClick={() => setShowHistory(true)} // Open history on click
+                                onClick={() => setShowHistory(true)}
                             />
-                            {/* History Toggle Button */}
                             <button
                                 type="button"
                                 className={`history-toggle-btn ${showHistory ? 'active' : ''}`}
@@ -319,13 +319,16 @@ function Search({ currentVersion, versions }) {
                             >
                                 🕒
                             </button>
+                        </div>
 
+                        {/* Row 2: Action Buttons */}
+                        <div className="search-actions-row">
                             <button
                                 type="submit"
                                 className="search-btn btn-primary"
                                 disabled={loading || !searchQuery.trim()}
                             >
-                                {loading ? '...' : '🔍'}
+                                {loading ? '...' : '🔍 Search'}
                             </button>
                             <button
                                 type="button"
@@ -333,7 +336,7 @@ function Search({ currentVersion, versions }) {
                                 onClick={handleAskAI}
                                 disabled={quotaInfo.remaining <= 0}
                             >
-                                🤖 AI
+                                🤖 AI Research
                             </button>
                         </div>
                     </form>
@@ -509,7 +512,9 @@ function Search({ currentVersion, versions }) {
                     <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h2>🤖 AI Bible Research</h2>
-                            <button className="close-btn" onClick={() => setShowAIModal(false)}>✕</button>
+                            <button className="close-btn back-to-results" onClick={() => setShowAIModal(false)}>
+                                ⬅ Back to Results
+                            </button>
                         </div>
                         <div className="modal-body info-body">
                             <div className="info-section">
