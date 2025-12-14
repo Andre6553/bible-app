@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { getVersions } from './services/bibleService';
+import { Analytics } from "@vercel/analytics/react"
 import './App.css';
 
 // Lazy load components
@@ -42,6 +43,7 @@ function App() {
     return (
         <Router>
             <div className="app">
+                <Analytics />
                 <div className="app-content">
                     <Suspense fallback={
                         <div className="loading-state">
