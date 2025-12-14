@@ -6,6 +6,29 @@ import { getLocalizedBookName } from '../constants/bookNames';
 import { useSettings } from '../context/SettingsContext';
 import './BibleReader.css';
 
+const THEME_COLORS = [
+    '#6366f1', // Indigo (Default)
+    '#ef4444', // Red
+    '#f97316', // Orange
+    '#f59e0b', // Amber
+    '#eab308', // Yellow
+    '#84cc16', // Lime
+    '#22c55e', // Green
+    '#10b981', // Emerald
+    '#14b8a6', // Teal
+    '#06b6d4', // Cyan
+    '#0ea5e9', // Sky
+    '#3b82f6', // Blue
+    '#8b5cf6', // Violet
+    '#a855f7', // Purple
+    '#d946ef', // Fuchsia
+    '#ec4899', // Pink
+    '#f43f5e', // Rose
+    '#64748b', // Slate
+    '#78716c', // Stone
+    '#d97706', // Dark Amber
+];
+
 function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const navigate = useNavigate();
     const location = useLocation();
@@ -525,7 +548,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 className="settings-preview"
                                 style={{
                                     fontSize: `${settings.fontSize}px`,
-                                    fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
+                                    fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif',
+                                    borderLeft: `4px solid ${settings.themeColor}`
                                 }}
                             >
                                 <p>In the beginning God created the heaven and the earth.</p>
@@ -566,6 +590,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                         onClick={() => updateSettings({ fontFamily: 'serif' })}
                                         style={{ fontFamily: 'serif' }}
                                     >Classic (Serif)</button>
+                                </div>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>Theme Color</h3>
+                                <div className="color-grid">
+                                    {THEME_COLORS.map(color => (
+                                        <button
+                                            key={color}
+                                            className={`color-swatch ${settings.themeColor === color ? 'active' : ''}`}
+                                            style={{ backgroundColor: color }}
+                                            onClick={() => updateSettings({ themeColor: color })}
+                                            aria-label={`Select color ${color}`}
+                                        />
+                                    ))}
                                 </div>
                             </div>
                         </div>

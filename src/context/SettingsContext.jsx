@@ -11,7 +11,8 @@ export const SettingsProvider = ({ children }) => {
     // Default Settings
     const [settings, setSettings] = useState({
         fontSize: 18, // Default 18px
-        fontFamily: 'sans-serif' // 'sans-serif' or 'serif'
+        fontFamily: 'sans-serif', // 'sans-serif' or 'serif'
+        themeColor: '#6366f1' // Default Indigo
     });
 
     // Load from localStorage on mount

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SettingsProvider } from './context/SettingsContext';
+import ThemeHandler from './components/ThemeHandler';
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { getVersions } from './services/bibleService';
 import { Analytics } from "@vercel/analytics/react"
@@ -44,6 +45,7 @@ function App() {
 
     return (
         <SettingsProvider>
+            <ThemeHandler />
             <Router>
                 <div className="app">
                     <Analytics />
