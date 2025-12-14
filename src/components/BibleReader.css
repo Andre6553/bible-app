@@ -257,6 +257,8 @@
     flex: 1;
     overflow-y: auto;
     padding: var(--spacing-lg);
+    padding-bottom: 120px;
+    /* Space for Bottom Nav on mobile */
 }
 
 .verses-content {
