@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { SettingsProvider } from './context/SettingsContext';
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { getVersions } from './services/bibleService';
 import { Analytics } from "@vercel/analytics/react"
@@ -42,48 +43,51 @@ function App() {
     }
 
     return (
-        <Router>
-            <div className="app">
-                <Analytics />
-                <div className="app-content">
-                    <Suspense fallback={
-                        <div className="loading-state">
-                            <div className="loading-spinner"></div>
-                        </div>
-                    }>
-                        <Routes>
-                            <Route
-                                path="/bible"
-                                element={
-                                    <BibleReader
-                                        currentVersion={currentVersion}
-                                        setCurrentVersion={setCurrentVersion}
-                                        versions={versions}
-                                    />
-                                }
-                            />
-                            <Route
-                                path="/search"
-                                element={
-                                    <Search
-                                        currentVersion={currentVersion}
-                                        versions={versions}
-                                    />
-                                }
-                            />
-                            <Route
-                                path="/stats"
-                                element={<Stats />}
-                            />
-                            <Route path="/" element={<Navigate to="/bible" replace />} />
-                        </Routes>
+        <SettingsProvider>
+            <Router>
+                <div className="app">
+                    <Analytics />
+                    <div className="app-content">
+                        <Suspense fallback={
+                            <div className="loading-state">
+                                <div className="loading-spinner"></div>
+                            </div>
+                        }>
+                            <Routes>
+                                <Route
+                                    path="/bible"
+                                    element={
+                                        <BibleReader
+                                            currentVersion={currentVersion}
+                                            setCurrentVersion={setCurrentVersion}
+                                            versions={versions}
+                                        />
+                                    }
+                                />
+                                <Route
+                                    path="/search"
+                                    element={
+                                        <Search
+                                            currentVersion={currentVersion}
+                                            versions={versions}
+                                        />
+                                    }
+                                />
+                                <Route
+                                    path="/stats"
+                                    element={<Stats />}
+                                />
+                                <Route path="/" element={<Navigate to="/bible" replace />} />
+                            </Routes>
+                        </Suspense>
+                    </div>
+                    <Suspense fallback={null}>
+                        <BottomNav />
                     </Suspense>
                 </div>
-                <Suspense fallback={null}>
-                    <BottomNav />
-                </Suspense>
-            </div>
-        </Router>
+
+            </Router>
+        </SettingsProvider >
     );
 }
 

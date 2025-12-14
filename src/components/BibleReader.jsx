@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBooks, getChapter, getChapterCount, getVerseCount } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
+import { useSettings } from '../context/SettingsContext';
 import './BibleReader.css';
 
 function BibleReader({ currentVersion, setCurrentVersion, versions }) {
@@ -17,6 +18,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showBookSelector, setShowBookSelector] = useState(false);
+
+    // Settings Scope
+    const { settings, updateSettings } = useSettings();
+    const [showSettings, setShowSettings] = useState(false);
 
     // Navigation State
     const [selectionStage, setSelectionStage] = useState('books'); // 'books', 'chapters', 'verses'
@@ -267,6 +272,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             <div className="bible-header">
                 <div className="header-top">
                     <div className="header-left">
+                        <button className="info-btn icon-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
                         <button className="info-btn icon-btn" onClick={() => setShowInfo(true)} title="App Info">ℹ️</button>
                         <h1 className="app-title">Bible Study</h1>
                     </div>
@@ -447,6 +453,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         </h2>
                         <div
                             className="verses-list"
+                            style={{
+                                fontSize: `${settings.fontSize}px`,
+                                fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
+                            }}
                         >
                             {verses.map(verse => (
                                 <div key={verse.id} id={`verse-${verse.verse}`} className="verse-item">
@@ -494,6 +504,57 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
                             <div className="info-footer">
                                 <p>Version 1.0.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Settings Modal */}
+            {showSettings && (
+                <div className="book-selector-modal" onClick={() => setShowSettings(false)}>
+                    <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Reader Settings ⚙️</h2>
+                            <button className="close-btn" onClick={() => setShowSettings(false)}>✕</button>
+                        </div>
+                        <div className="modal-body info-body">
+                            <div className="info-section">
+                                <h3>Text Size: {settings.fontSize}px</h3>
+                                <div className="settings-control">
+                                    <button
+                                        className="settings-btn"
+                                        onClick={() => updateSettings({ fontSize: Math.max(12, settings.fontSize - 2) })}
+                                    >A-</button>
+                                    <input
+                                        type="range"
+                                        min="12"
+                                        max="32"
+                                        step="2"
+                                        value={settings.fontSize}
+                                        onChange={(e) => updateSettings({ fontSize: parseInt(e.target.value) })}
+                                        className="settings-slider"
+                                    />
+                                    <button
+                                        className="settings-btn"
+                                        onClick={() => updateSettings({ fontSize: Math.min(32, settings.fontSize + 2) })}
+                                    >A+</button>
+                                </div>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>Font Style</h3>
+                                <div className="settings-control">
+                                    <button
+                                        className={`settings-toggle ${settings.fontFamily === 'sans-serif' ? 'active' : ''}`}
+                                        onClick={() => updateSettings({ fontFamily: 'sans-serif' })}
+                                    >Modern (Sans)</button>
+                                    <button
+                                        className={`settings-toggle ${settings.fontFamily === 'serif' ? 'active' : ''}`}
+                                        onClick={() => updateSettings({ fontFamily: 'serif' })}
+                                        style={{ fontFamily: 'serif' }}
+                                    >Classic (Serif)</button>
+                                </div>
                             </div>
                         </div>
                     </div>

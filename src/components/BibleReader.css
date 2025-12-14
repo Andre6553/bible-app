@@ -577,3 +577,73 @@
     font-size: 0.85rem;
     color: var(--text-muted);
 }
+
+/* Settings Controls */
+.settings-control {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--bg-tertiary);
+    padding: 0.8rem;
+    border-radius: var(--radius-md);
+    margin-top: 0.5rem;
+}
+
+.settings-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elevated);
+    border: none;
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.settings-btn:hover {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.settings-slider {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    appearance: none;
+    outline: none;
+}
+
+.settings-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.settings-toggle {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.settings-toggle:hover {
+    background: var(--bg-elevated);
+}
+
+.settings-toggle.active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
