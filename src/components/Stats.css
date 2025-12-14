@@ -3,6 +3,9 @@
     max-width: 1200px;
     margin: 0 auto;
     color: var(--text-primary);
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .stats-title {
