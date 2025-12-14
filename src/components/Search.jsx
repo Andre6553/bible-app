@@ -39,8 +39,21 @@ function Search({ currentVersion, versions }) {
     const [aiHistory, setAiHistory] = useState([]); // AI Q&A history
     const [showAIHistory, setShowAIHistory] = useState(false); // Toggle for history section
     const [showShortcutMenu, setShowShortcutMenu] = useState(false); // Shortcut popup
+    const [showMainShortcutMenu, setShowMainShortcutMenu] = useState(false); // Main search shortcut popup
     const [isAnswerExpanded, setIsAnswerExpanded] = useState(false); // Fullscreen answer mode
     const userId = getUserId();
+
+    const AI_SHORTCUTS = [
+        { cmd: '/story', desc: 'Tell me the story of...', icon: '📖' },
+        { cmd: '/explain', desc: 'Explain from the Bible...', icon: '💡' },
+        { cmd: '/meaning', desc: 'Biblical meaning of...', icon: '📚' },
+        { cmd: '/who', desc: 'Who was...', icon: '👤' },
+        { cmd: '/what', desc: 'What was...', icon: '❓' },
+        { cmd: '/why', desc: 'Why did...', icon: '🤔' },
+        { cmd: '/teach', desc: 'What does the Bible teach...', icon: '🎓' },
+        { cmd: '/compare', desc: 'Compare in the Bible...', icon: '⚖️' },
+        { cmd: '/help', desc: 'Show all shortcuts', icon: 'ℹ️' },
+    ];
 
     // Load history and AI state on mount
     useEffect(() => {
@@ -479,9 +492,56 @@ Here are the available shortcuts to quickly ask questions:
                                 className="search-input input"
                                 placeholder="Search for verses..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onClick={() => setShowHistory(true)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSearchQuery(val);
+                                    // Show menu if starting with / and no space yet (typing command)
+                                    if (val.startsWith('/') && !val.includes(' ')) {
+                                        setShowMainShortcutMenu(true);
+                                        setShowHistory(false);
+                                    } else {
+                                        setShowMainShortcutMenu(false);
+                                    }
+                                }}
+                                onClick={() => {
+                                    if (searchQuery.startsWith('/') && !searchQuery.includes(' ')) {
+                                        setShowMainShortcutMenu(true);
+                                    } else {
+                                        setShowHistory(true);
+                                    }
+                                }}
                             />
+
+                            {/* Main Search Shortcut Menu */}
+                            {showMainShortcutMenu && (
+                                <div className="shortcut-popup main-search-shortcuts" style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    right: 0,
+                                    zIndex: 1000,
+                                    marginTop: '5px'
+                                }}>
+                                    <div className="shortcut-header">⚡ Quick AI Research</div>
+                                    {AI_SHORTCUTS.map((item) => (
+                                        <button
+                                            key={item.cmd}
+                                            className="shortcut-item"
+                                            onClick={() => {
+                                                setAiQuestion(item.cmd + ' ');
+                                                setSearchQuery(''); // Clear main search
+                                                setShowMainShortcutMenu(false);
+                                                setShowAIModal(true); // Open AI modal
+                                            }}
+                                            type="button"
+                                        >
+                                            <span className="shortcut-icon">{item.icon}</span>
+                                            <span className="shortcut-cmd">{item.cmd}</span>
+                                            <span className="shortcut-desc">{item.desc}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                             <button
                                 type="button"
                                 className={`history-toggle-btn ${showHistory ? 'active' : ''}`}
@@ -497,9 +557,18 @@ Here are the available shortcuts to quickly ask questions:
                             <button
                                 type="submit"
                                 className="search-btn btn-primary"
+                                onClick={(e) => {
+                                    // If user typed a command manually in main search, handle it as AI
+                                    if (searchQuery.startsWith('/')) {
+                                        e.preventDefault();
+                                        setAiQuestion(searchQuery);
+                                        setSearchQuery('');
+                                        setShowAIModal(true);
+                                    }
+                                }}
                                 disabled={loading || !searchQuery.trim()}
                             >
-                                {loading ? '...' : '🔍 Search'}
+                                {loading ? '...' : (searchQuery.startsWith('/') ? '🤖 Ask AI' : '🔍 Search')}
                             </button>
                             <button
                                 type="button"
@@ -600,21 +669,19 @@ Here are the available shortcuts to quickly ask questions:
                                     fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
                                 }}
                             >
-                                {results.map(verse => (
-                                    <div
-                                        key={verse.id}
-                                        className="result-card card"
-                                        onClick={() => navigate('/bible', {
+                                {results.map((verse, index) => (
+                                    <div key={index} className="verse-card" onClick={() => {
+                                        navigate('/bible', {
                                             state: {
                                                 bookId: verse.books.id,
                                                 chapter: verse.chapter,
-                                                targetVerse: verse.verse
+                                                targetVerse: verse.verse,
+                                                fromSearch: true
                                             }
-                                        })}
-                                        style={{ cursor: 'pointer' }}
-                                    >
+                                        });
+                                    }}>
                                         <div className="result-header">
-                                            <span className="result-reference">
+                                            <span className="result-ref">
                                                 {getVerseReference(verse)}
                                             </span>
                                             <span className="result-version">
@@ -696,9 +763,10 @@ Here are the available shortcuts to quickly ask questions:
                                         placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
                                         value={aiQuestion}
                                         onChange={(e) => {
-                                            setAiQuestion(e.target.value);
-                                            // Show shortcut menu when typing /
-                                            if (e.target.value === '/' || e.target.value.startsWith('/')) {
+                                            const val = e.target.value;
+                                            setAiQuestion(val);
+                                            // Show shortcut menu only if typing command (starts with / and no space yet)
+                                            if (val.startsWith('/') && !val.includes(' ')) {
                                                 setShowShortcutMenu(true);
                                             } else {
                                                 setShowShortcutMenu(false);
@@ -711,17 +779,7 @@ Here are the available shortcuts to quickly ask questions:
                                     {showShortcutMenu && (
                                         <div className="shortcut-popup">
                                             <div className="shortcut-header">⚡ Quick Commands</div>
-                                            {[
-                                                { cmd: '/story', desc: 'Tell me the story of...', icon: '📖' },
-                                                { cmd: '/explain', desc: 'Explain from the Bible...', icon: '💡' },
-                                                { cmd: '/meaning', desc: 'Biblical meaning of...', icon: '📚' },
-                                                { cmd: '/who', desc: 'Who was...', icon: '👤' },
-                                                { cmd: '/what', desc: 'What was...', icon: '❓' },
-                                                { cmd: '/why', desc: 'Why did...', icon: '🤔' },
-                                                { cmd: '/teach', desc: 'What does the Bible teach...', icon: '🎓' },
-                                                { cmd: '/compare', desc: 'Compare in the Bible...', icon: '⚖️' },
-                                                { cmd: '/help', desc: 'Show all shortcuts', icon: 'ℹ️' },
-                                            ].map((item) => (
+                                            {AI_SHORTCUTS.map((item) => (
                                                 <button
                                                     key={item.cmd}
                                                     className="shortcut-item"
