@@ -43,6 +43,18 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         loadBooks();
     }, []);
 
+    // Handle navigation from search results
+    useEffect(() => {
+        if (location.state?.bookId && books.all) {
+            const book = books.all.find(b => b.id === location.state.bookId);
+            if (book) {
+                setSelectedBook(book);
+                if (location.state.chapter) setSelectedChapter(location.state.chapter);
+                if (location.state.targetVerse) setTargetVerse(location.state.targetVerse);
+            }
+        }
+    }, [location.state, books.all]);
+
     useEffect(() => {
         if (selectedBook && currentVersion) {
             loadChapterCount();
