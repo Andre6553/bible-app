@@ -3,7 +3,7 @@ import { supabase } from '../config/supabaseClient';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // System prompt for biblical accuracy
 const SYSTEM_PROMPT = `You are a Bible study assistant. Follow these STRICT rules:
