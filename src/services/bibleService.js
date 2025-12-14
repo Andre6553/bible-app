@@ -237,12 +237,31 @@ export const getVerseReference = (verse) => {
 };
 
 /**
+ * Get or create User ID for analytics
+ */
+const getUserId = () => {
+    let userId = localStorage.getItem('bible_app_user_id');
+    if (!userId) {
+        // Generate random ID (simple implementation)
+        userId = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem('bible_app_user_id', userId);
+    }
+    return userId;
+};
+
+/**
  * Log search query for analytics
  */
 export const logSearch = async (query, version, testament) => {
     try {
+        const userId = getUserId();
         await supabase.from('search_logs').insert([
-            { query, version: version || 'all', testament: testament || 'all' }
+            {
+                query,
+                version: version || 'all',
+                testament: testament || 'all',
+                user_id: userId
+            }
         ]);
     } catch (err) {
         // Silently fail
