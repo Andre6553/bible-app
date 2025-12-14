@@ -173,13 +173,15 @@ function Stats() {
         if (error) {
             alert('Error deleting: ' + error.message);
         } else {
-            setSelectedItem(null);
-            // Refresh the appropriate list
+            // Immediately update local state for instant UI feedback
             if (itemType === 'search') {
-                fetchLogs();
+                setLogs(prevLogs => prevLogs.filter(log => log.id !== selectedItem.id));
+                processStats(logs.filter(log => log.id !== selectedItem.id));
             } else {
-                fetchAIQuestions();
+                setAiQuestions(prevQ => prevQ.filter(q => q.id !== selectedItem.id));
+                processAIStats(aiQuestions.filter(q => q.id !== selectedItem.id));
             }
+            setSelectedItem(null);
         }
     };
 
