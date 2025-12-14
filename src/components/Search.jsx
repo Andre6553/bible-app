@@ -170,7 +170,12 @@ function Search({ currentVersion, versions }) {
                             disabled={loading || !searchQuery.trim()}
                             title="Search Bible"
                         >
-                            {loading ? '...' : '🔍'}
+                            {loading ? '...' : (
+                                <>
+                                    <span className="btn-icon">🔍</span>
+                                    <span className="btn-text">Search</span>
+                                </>
+                            )}
                         </button>
                         <button
                             type="button"
@@ -178,9 +183,9 @@ function Search({ currentVersion, versions }) {
                             onClick={handleAskAI}
                             disabled={!searchQuery.trim() || quotaInfo.remaining <= 0}
                             title="Ask AI"
-                            style={{ marginLeft: '8px', background: 'var(--accent-secondary)' }}
                         >
-                            🤖
+                            <span className="btn-icon">🤖</span>
+                            <span className="btn-text">Ask AI</span>
                         </button>
                     </div>
 

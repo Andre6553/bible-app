@@ -40,24 +40,42 @@
     font-size: 1rem;
 }
 
-.search-btn {
-    min-width: 50px;
-    padding: var(--spacing-md);
-    font-size: 1.25rem;
-}
-
 .search-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
+.search-btn {
+    min-width: unset;
+    /* Remove min-width constraint */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
 .ai-btn {
     background: var(--accent-secondary);
-    color: white;
+    color: white !important;
+    /* Force text color for visibility */
+    margin-left: 0;
+    /* Managed by gap */
 }
 
 .ai-btn:hover {
     background: var(--accent-primary);
+}
+
+.btn-icon {
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+.btn-text {
+    white-space: nowrap;
 }
 
 .search-filters {
@@ -265,14 +283,46 @@
         flex-direction: column;
     }
 
-    .search-btn {
+    .search-input-wrapper .search-btn {
         width: 100%;
     }
 
-    .result-header {
+    /* Keep buttons side-by-side on mobile inside their wrapper if we change structure, 
+       but here search-input-wrapper is the parent. 
+       Let's change search-input-wrapper to allow buttons row on mobile */
+    .search-input-wrapper {
         flex-direction: column;
-        align-items: flex-start;
+        gap: var(--spacing-sm);
     }
+
+    /* Create a row for buttons on mobile if they are direct children? 
+       Actually, the input is also a child. 
+       We need to group buttons or use flex-wrap */
+
+    /* Better mobile layout: Input on top, Buttons below side-by-side */
+    .search-input-wrapper {
+        flex-wrap: wrap;
+    }
+
+    .search-input {
+        width: 100%;
+        min-width: 100%;
+        /* Force input to own line */
+    }
+
+    .search-btn {
+        flex: 1;
+        /* Share space equally */
+        font-size: 0.9rem;
+        /* Smaller font on mobile */
+        padding: 10px;
+    }
+}
+
+.result-header {
+    flex-direction: column;
+    align-items: flex-start;
+}
 }
 
 /* AI Research Styles */
