@@ -1,5 +1,7 @@
 .stats-page {
     padding: 2rem;
+    padding-bottom: 100px;
+    /* Space for Bottom Nav */
     max-width: 1200px;
     margin: 0 auto;
     color: var(--text-primary);
