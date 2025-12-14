@@ -281,24 +281,47 @@ function Search({ currentVersion, versions }) {
 
             const [chapter, verse] = refPart.split(':');
 
-            // Normalization helper
+            // Normalization helper - handles common variations
             const normalizeBookName = (name) => {
-                return name.toLowerCase()
+                let normalized = name.toLowerCase().trim()
+                    // Handle numbered books
                     .replace(/^first /, '1 ')
                     .replace(/^second /, '2 ')
                     .replace(/^third /, '3 ')
                     .replace(/^i /, '1 ')
                     .replace(/^ii /, '2 ')
                     .replace(/^iii /, '3 ')
-                    .replace('.', ''); // Remove dots from abbreviations
+                    .replace(/^1st /, '1 ')
+                    .replace(/^2nd /, '2 ')
+                    .replace(/^3rd /, '3 ')
+                    // Handle singular/plural variations
+                    .replace(/^psalm$/, 'psalms')
+                    .replace(/^proverb$/, 'proverbs')
+                    .replace(/^song of solomon$/, 'song of songs')
+                    .replace(/^songs of solomon$/, 'song of songs')
+                    .replace(/^revelation$/, 'revelations')
+                    // Remove dots and extra spaces
+                    .replace(/\./g, '')
+                    .replace(/\s+/g, ' ');
+
+                return normalized;
             };
 
             const targetName = normalizeBookName(bookNameRaw);
 
-            const book = allBooks.find(b => {
+            // Try exact match first
+            let book = allBooks.find(b => {
                 const dbName = normalizeBookName(b.name_full);
                 return dbName === targetName || b.id === bookNameRaw.toUpperCase();
             });
+
+            // Fallback: try partial match (for cases like "Psalm" matching "Psalms")
+            if (!book) {
+                book = allBooks.find(b => {
+                    const dbName = normalizeBookName(b.name_full);
+                    return dbName.startsWith(targetName) || targetName.startsWith(dbName);
+                });
+            }
 
             if (book) {
                 // Navigate to bible reader
