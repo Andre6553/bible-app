@@ -66,7 +66,7 @@ function Search({ currentVersion, versions }) {
         setHistory(newHistory);
         localStorage.setItem('search_history', JSON.stringify(newHistory));
     };
-    // Auto-search on mount if params exist
+    // Auto-search on mount or param change
     useEffect(() => {
         const query = searchParams.get('q');
         const ver = searchParams.get('version');
@@ -76,6 +76,24 @@ function Search({ currentVersion, versions }) {
             setSearchQuery(query);
             if (ver) setSearchVersion(ver);
             if (test) setSearchTestament(test);
+
+            // Check session cache first for instant "back" navigation
+            try {
+                const cached = sessionStorage.getItem('bible_search_cache');
+                if (cached) {
+                    const { query: cachedQuery, data, timestamp } = JSON.parse(cached);
+                    // Use cache if query matches and it's fresh (e.g. < 1 hour)
+                    if (cachedQuery === query && data && (Date.now() - timestamp < 3600000)) {
+                        setResults(data);
+                        setHasSearched(true);
+                        setLoading(false);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn("Cache read error", e);
+            }
+
             performSearch(query, ver || 'all', test || 'all');
         }
     }, [searchParams]);
@@ -83,7 +101,7 @@ function Search({ currentVersion, versions }) {
     const performSearch = async (query, versionId, testament) => {
         if (!query.trim()) return;
 
-        addToHistory(query.trim()); // Save to history
+        addToHistory(query.trim());
         setLoading(true);
         setHasSearched(true);
 
@@ -91,6 +109,16 @@ function Search({ currentVersion, versions }) {
 
         if (result.success) {
             setResults(result.data);
+            // Cache successful results
+            try {
+                sessionStorage.setItem('bible_search_cache', JSON.stringify({
+                    query: query.trim(),
+                    data: result.data,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                console.warn("Cache write error", e);
+            }
         } else {
             setResults([]);
         }
