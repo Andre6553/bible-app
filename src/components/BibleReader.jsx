@@ -43,15 +43,20 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         loadBooks();
     }, []);
 
-    // Handle navigation from search results
+    // Handle navigation from search results - more robust check
     useEffect(() => {
-        if (location.state?.bookId && books.all) {
-            const book = books.all.find(b => b.id === location.state.bookId);
-            if (book) {
-                setSelectedBook(book);
-                if (location.state.chapter) setSelectedChapter(location.state.chapter);
-                if (location.state.targetVerse) setTargetVerse(location.state.targetVerse);
-            }
+        // Ensure we have valid location state and books are loaded
+        if (!location.state?.bookId) return;
+        if (!books.all || books.all.length === 0) return;
+
+        const book = books.all.find(b => b.id === location.state.bookId);
+        if (book) {
+            console.log('Navigating to:', book.name_full, 'Chapter:', location.state.chapter, 'Verse:', location.state.targetVerse);
+            setSelectedBook(book);
+            if (location.state.chapter) setSelectedChapter(location.state.chapter);
+            if (location.state.targetVerse) setTargetVerse(location.state.targetVerse);
+        } else {
+            console.warn('Book not found for ID:', location.state.bookId);
         }
     }, [location.state, books.all]);
 
