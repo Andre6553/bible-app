@@ -7,6 +7,7 @@ import './App.css';
 // Lazy load components
 const BibleReader = lazy(() => import('./components/BibleReader'));
 const Search = lazy(() => import('./components/Search'));
+const Stats = lazy(() => import('./components/Stats'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 
 function App() {
@@ -69,6 +70,10 @@ function App() {
                                         versions={versions}
                                     />
                                 }
+                            />
+                            <Route
+                                path="/stats"
+                                element={<Stats />}
                             />
                             <Route path="/" element={<Navigate to="/bible" replace />} />
                         </Routes>
