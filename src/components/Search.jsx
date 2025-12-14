@@ -306,15 +306,49 @@ function Search({ currentVersion, versions }) {
     };
 
     // Parse AI text to replace [[Book Chapter:Verse]] with links
+    // Handles multiple verses like [[2 Samuel 8:10, 8:8]]
     const formatAIResponse = (text) => {
         if (!text) return null;
 
-        // Regex for [[Book Chapter:Verse]]
+        // Regex for [[Book Chapter:Verse]] or [[Book Chapter:Verse, Chapter:Verse, ...]]
         const parts = text.split(/(\[\[.*?\]\])/g);
 
         return parts.map((part, index) => {
             if (part.startsWith('[[') && part.endsWith(']]')) {
                 const content = part.slice(2, -2); // Remove [[ and ]]
+
+                // Check if it contains multiple verses (comma-separated)
+                if (content.includes(',')) {
+                    // Split by comma: "2 Samuel 8:10, 8:8" -> ["2 Samuel 8:10", "8:8"]
+                    const refs = content.split(',').map(r => r.trim());
+
+                    // Extract book name from the first reference
+                    const firstRef = refs[0];
+                    const lastSpaceIdx = firstRef.lastIndexOf(' ');
+                    const bookPart = lastSpaceIdx !== -1 ? firstRef.substring(0, lastSpaceIdx) : '';
+
+                    return refs.map((ref, refIdx) => {
+                        // If ref doesn't have a book name (e.g. "8:8"), prepend the book
+                        let fullRef = ref;
+                        if (!ref.includes(' ') && bookPart) {
+                            // This is just "8:8" (chapter:verse only), add the book
+                            fullRef = `${bookPart} ${ref}`;
+                        }
+
+                        return (
+                            <button
+                                key={`${index}-${refIdx}`}
+                                className="citation-link"
+                                onClick={() => handleCitationClick(fullRef)}
+                                title="Read this verse"
+                            >
+                                📖 {fullRef}
+                            </button>
+                        );
+                    });
+                }
+
+                // Single verse - original behavior
                 return (
                     <button
                         key={index}
