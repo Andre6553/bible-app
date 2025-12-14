@@ -51,6 +51,15 @@
     cursor: not-allowed;
 }
 
+.ai-btn {
+    background: var(--accent-secondary);
+    color: white;
+}
+
+.ai-btn:hover {
+    background: var(--accent-primary);
+}
+
 .search-filters {
     display: flex;
     gap: var(--spacing-md);

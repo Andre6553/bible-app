@@ -168,8 +168,19 @@ function Search({ currentVersion, versions }) {
                             type="submit"
                             className="search-btn btn-primary"
                             disabled={loading || !searchQuery.trim()}
+                            title="Search Bible"
                         >
                             {loading ? '...' : '🔍'}
+                        </button>
+                        <button
+                            type="button"
+                            className="search-btn ai-btn"
+                            onClick={handleAskAI}
+                            disabled={!searchQuery.trim() || quotaInfo.remaining <= 0}
+                            title="Ask AI"
+                            style={{ marginLeft: '8px', background: 'var(--accent-secondary)' }}
+                        >
+                            🤖
                         </button>
                     </div>
 
