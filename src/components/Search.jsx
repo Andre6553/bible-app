@@ -704,7 +704,7 @@ Here are the available shortcuts to quickly ask questions:
                                     }}
                                     rows={3}
                                 />
-                                
+
                                 {/* Shortcut popup menu */}
                                 {showShortcutMenu && (
                                     <div className="shortcut-popup">
@@ -735,10 +735,13 @@ Here are the available shortcuts to quickly ask questions:
                                         ))}
                                     </div>
                                 )}
-                                
+
                                 <button
                                     className="ai-submit-btn"
-                                    onClick={submitAIQuestion}
+                                    onClick={() => {
+                                        setShowShortcutMenu(false);
+                                        submitAIQuestion();
+                                    }}
                                     disabled={aiLoading || !aiQuestion.trim()}
                                 >
                                     {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
