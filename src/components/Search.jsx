@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { searchVerses, getVerseReference } from '../services/bibleService';
+import { searchVerses, getVerseReference, getBooks } from '../services/bibleService';
 import { askBibleQuestion, getUserRemainingQuota } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
 import './Search.css';
@@ -34,6 +34,7 @@ function Search({ currentVersion, versions }) {
     const [aiResponse, setAiResponse] = useState(null);
     const [aiLoading, setAiLoading] = useState(false);
     const [quotaInfo, setQuotaInfo] = useState({ remaining: 0, quota: 10 });
+    const [allBooks, setAllBooks] = useState([]); // For citation lookup
     const userId = getUserId();
 
     // Load history on mount
@@ -42,8 +43,22 @@ function Search({ currentVersion, versions }) {
         if (saved) setHistory(JSON.parse(saved));
 
         // Load quota info
+        // Load quota info
         loadQuotaInfo();
+
+        // Load books for citation lookup
+        loadBooks();
     }, []);
+
+    const loadBooks = async () => {
+        const result = await getBooks();
+        if (result.success) {
+            // Flatten the grouped structure if getBooks returns groups, 
+            // or just take the flat list if available. 
+            // Checking bibleService: it returns { oldTestament, newTestament, all }
+            setAllBooks(result.data.all || []);
+        }
+    };
 
     const addToHistory = (query) => {
         const newHistory = [query, ...history.filter(h => h !== query)].slice(0, 10);
@@ -384,7 +399,7 @@ function Search({ currentVersion, versions }) {
                                 <div className="info-section ai-response">
                                     <h3>📚 Biblical Answer:</h3>
                                     <div className="ai-answer">
-                                        {aiResponse}
+                                        {formatAIResponse(aiResponse)}
                                     </div>
                                 </div>
                             )}

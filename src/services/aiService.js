@@ -247,8 +247,9 @@ ${verseContext || 'No specific verses found'}
 
 Provide a biblical answer. 
 1. PRIORITIZE using the Context Verses above if they are relevant.
-2. If the Context Verses are not relevant, use your general biblical knowledge to answer, BUT YOU MUST CITE Book Chapter:Verse for every point you make.
-3. If you cannot find a direct biblical answer, admit it.`;
+2. If the Context Verses are not relevant, use your general biblical knowledge to answer.
+3. CRITICAL: You MUST cite verses in this EXACT format: [[Book Chapter:Verse]] (e.g., [[John 3:16]]). Do not use parentheses `()` for citations, use double brackets `[[]]`.
+4. If you cannot find a direct biblical answer, admit it.`;
 
         // 4. Call Gemini AI
         const result = await model.generateContent(userPrompt);
