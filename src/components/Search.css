@@ -644,65 +644,67 @@
         min-height: 60px;
         /* Smaller initial height on mobile */
     }
+}
 
-    /* Desktop/Tablet Specific Improvements */
-    @media (min-width: 769px) {
+/* Desktop/Tablet Specific Improvements */
+@media (min-width: 769px) {
 
-        /* Horizontal Search Layout */
-        .search-form {
-            flex-direction: row;
-            align-items: center;
-        }
-
-        .search-bar-row {
-            flex: 3;
-            /* Take up most space */
-        }
-
-        .search-actions-row {
-            flex: 1;
-            width: auto;
-            /* Let flex handle it */
-            min-width: 250px;
-            /* Ensure buttons aren't too squashed */
-        }
-
-        .search-input-container {
-            display: flex;
-            flex-direction: column;
-            gap: var(--spacing-sm);
-            max-width: 1000px;
-            margin: 0 auto var(--spacing-md);
-        }
-
-        /* Ensure modal looks like a modal on PC */
-        .ai-research-modal .book-selector-content {
-            max-width: 600px;
-            height: 80vh;
-            max-height: 800px;
-            margin: 5vh auto;
-            border-radius: var(--radius-lg);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            /* Ensure proper positioning context */
-        }
-
-        .ai-research-modal .modal-header {
-            border-top-left-radius: var(--radius-lg);
-            border-top-right-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-        }
-
-        /* Hide the "Back to Results" pill on PC if the 'X' is sufficient, 
-       but user liked it. Let's keep it but style it nicely. */
-        .close-btn.back-to-results {
-            display: none;
-            /* Usually X is enough on PC, but let's see. 
-                          Actually, X is removed in favor of this?
-                          Wait, the JSX has "Back to Results" INSTEAD of X/Close? 
-                          If so, we need it. */
-            display: inline-flex;
-        }
+    /* Horizontal Search Layout */
+    .search-form {
+        flex-direction: row;
+        align-items: center;
     }
+
+    .search-bar-row {
+        flex: 3;
+        /* Take up most space */
+    }
+
+    .search-actions-row {
+        flex: 1;
+        width: auto;
+        min-width: 250px;
+    }
+
+    .search-input-container {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        max-width: 1000px;
+        margin: 0 auto var(--spacing-md);
+    }
+
+    /* Search results should fill vertical space on PC */
+    .search-results {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-xl);
+    }
+
+    .results-list {
+        max-width: 900px;
+    }
+
+    /* Ensure modal looks like a modal on PC */
+    .ai-research-modal .book-selector-content {
+        max-width: 600px;
+        height: 80vh;
+        max-height: 800px;
+        margin: 5vh auto;
+        border-radius: var(--radius-lg);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .ai-research-modal .modal-header {
+        border-top-left-radius: var(--radius-lg);
+        border-top-right-radius: var(--radius-lg);
+        padding: var(--spacing-lg);
+    }
+
+    .close-btn.back-to-results {
+        display: inline-flex;
+    }
+}
