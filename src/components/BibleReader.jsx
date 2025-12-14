@@ -515,27 +515,37 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         </div>
                         <div className="modal-body info-body">
                             <div className="info-section">
-                                <h3>📖 Reading</h3>
-                                <p>Tap the <strong>Book Name</strong> button to switch books. Use the <strong>&lt; / &gt;</strong> arrows to change chapters.</p>
+                                <h3>📖 Reading the Bible</h3>
+                                <p>Tap the <strong>Book Name</strong> button to browse books, chapters, and verses. Use the <strong>&lt; / &gt;</strong> arrows to navigate between chapters.</p>
                             </div>
 
                             <div className="info-section">
-                                <h3>🔍 Quick Search</h3>
-                                <p><strong>Long-press</strong> (or select) any word in the text. A menu will pop up asking if you want to search for that word in the Old or New Testament.</p>
+                                <h3>🔍 Search</h3>
+                                <p>Go to the <strong>Search</strong> tab to find verses by keyword. You can filter by Bible version and Testament (Old/New).</p>
                             </div>
 
                             <div className="info-section">
-                                <h3>🌍 Versions</h3>
-                                <p>Switch between <strong>KJV</strong> (English) and <strong>AFR53</strong> (Afrikaans) using the dropdown at the top right.</p>
+                                <h3>🤖 AI Research</h3>
+                                <p>Ask any Bible question! Click <strong>"AI Research"</strong> in Search to get AI-powered answers with scripture references. Click the references to jump directly to those verses.</p>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>📝 Quick Search</h3>
+                                <p><strong>Select any word</strong> in the Bible text, then choose to search for it in the Old or New Testament.</p>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>🌍 Bible Versions</h3>
+                                <p>Switch between <strong>KJV</strong>, <strong>AFR53</strong>, <strong>AFR83</strong>, <strong>NLT</strong>, and <strong>AMP</strong> using the dropdown at the top.</p>
                             </div>
 
                             <div className="info-section">
                                 <h3>⚡ Offline Use</h3>
-                                <p>This app works offline! Once you open a chapter, it saves to your phone so you can read it later without internet.</p>
+                                <p>This app works offline! Chapters you've read are saved automatically for reading without internet.</p>
                             </div>
 
                             <div className="info-footer">
-                                <p>Version 1.0.0</p>
+                                <p>Version 2.0.0</p>
                             </div>
                         </div>
                     </div>
