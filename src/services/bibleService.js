@@ -375,28 +375,31 @@ export const getUserHistory = async (userId) => {
 
         // 2. Fallback: If no results, try client-side filtering (handles potential column type casting issues)
         if (searches.length === 0) {
-            console.log('Direct search_logs query returned 0, trying fallback...');
+            console.log(`Direct search_logs query returned 0 for ${cleanUserId}, trying fallback (limit 5000)...`);
             const { data: allSearches } = await supabase
                 .from('search_logs')
                 .select('*')
                 .order('created_at', { ascending: false })
-                .limit(500); // Fetch recent 500
+                .limit(5000); // Increased to match stats limit
 
             if (allSearches) {
                 // Manual loose comparison
                 searches = allSearches.filter(s => s.user_id && s.user_id.trim() === cleanUserId).slice(0, 20);
+                console.log(`Fallback found ${searches.length} searches`);
             }
         }
 
         if (aiQuestions.length === 0) {
+            console.log(`Direct ai_questions query returned 0 for ${cleanUserId}, trying fallback (limit 5000)...`);
             const { data: allAi } = await supabase
                 .from('ai_questions')
                 .select('*')
                 .order('created_at', { ascending: false })
-                .limit(500);
+                .limit(5000);
 
             if (allAi) {
                 aiQuestions = allAi.filter(q => q.user_id && q.user_id.trim() === cleanUserId).slice(0, 20);
+                console.log(`Fallback found ${aiQuestions.length} ai questions`);
             }
         }
 
