@@ -295,6 +295,50 @@
     font-weight: normal;
 }
 
+.user-info-col {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: 4px;
+}
+
+.device-badge {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: block;
+}
+
+.user-modal-header {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.user-modal-header h3 {
+    color: white;
+}
+
+.user-agents-list {
+    background: var(--bg-tertiary);
+    padding: 10px;
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--border-subtle);
+}
+
+.ua-item {
+    font-family: monospace;
+    font-size: 0.75rem;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    word-break: break-all;
+    color: var(--text-secondary);
+}
+
+.ua-item:last-child {
+    border-bottom: none;
+}
+
 .ai-q-text {
     font-size: 0.85rem;
     line-height: 1.3;

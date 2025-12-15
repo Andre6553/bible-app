@@ -11,6 +11,7 @@ function Stats() {
 
     // User Stats
     const [userStats, setUserStats] = useState({ totalUsers: 0, topUsers: [] });
+    const [selectedUser, setSelectedUser] = useState(null);
 
 
     const [stats, setStats] = useState({ total: 0, topTerms: [] });
@@ -377,9 +378,12 @@ function Stats() {
                     ) : (
                         <ul className="top-list">
                             {userStats.topUsers.map((u, idx) => (
-                                <li key={idx} className="top-item">
+                                <li key={idx} className="top-item clickable-row" onClick={() => setSelectedUser(u)}>
                                     <span className="rank">#{idx + 1}</span>
-                                    <span className="term user-id-term">{u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}</span>
+                                    <div className="user-info-col">
+                                        <span className="term user-id-term">{u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}</span>
+                                        <span className="device-badge">{u.device}</span>
+                                    </div>
                                     <span className="count">{u.count} actions</span>
                                 </li>
                             ))}
@@ -549,6 +553,45 @@ function Stats() {
                             >
                                 🗑️ Delete Records in Range
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* User Detail Modal */}
+            {selectedUser && (
+                <div className="detail-modal-overlay" onClick={() => setSelectedUser(null)}>
+                    <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="detail-modal-header user-modal-header">
+                            <h3>👤 User Analysis</h3>
+                            <button className="close-modal-btn" onClick={() => setSelectedUser(null)}>✕</button>
+                        </div>
+                        <div className="detail-modal-body">
+                            <div className="detail-row">
+                                <span className="detail-label">🆔 User ID:</span>
+                                <span className="detail-value user-id-full">{selectedUser.userId || 'Anonymous'}</span>
+                            </div>
+                            <div className="detail-row">
+                                <span className="detail-label">⚡ Total Actions:</span>
+                                <span className="detail-value">{selectedUser.count} (Search + AI)</span>
+                            </div>
+                            <div className="detail-row">
+                                <span className="detail-label">📱 Primary Device:</span>
+                                <span className="detail-value">{selectedUser.device}</span>
+                            </div>
+
+                            <div className="detail-row full-width">
+                                <span className="detail-label">🕵️ Detected User Agents:</span>
+                                <div className="user-agents-list">
+                                    {selectedUser.fullUserAgents && selectedUser.fullUserAgents.length > 0 ? (
+                                        selectedUser.fullUserAgents.map((ua, i) => (
+                                            <div key={i} className="ua-item">{ua}</div>
+                                        ))
+                                    ) : (
+                                        <p className="no-data-text">No device info recorded.</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

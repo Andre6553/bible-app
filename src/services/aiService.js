@@ -266,7 +266,8 @@ export async function askBibleQuestion(userId, question, verses = []) {
                     question: question,
                     answer: answer,
                     cached: false,
-                    verse_context: contextText
+                    verse_context: contextText,
+                    device_info: navigator.userAgent
                 });
 
             // 7. Increment API call counter

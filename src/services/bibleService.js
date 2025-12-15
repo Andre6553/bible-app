@@ -260,7 +260,8 @@ export const logSearch = async (query, version, testament) => {
                 query,
                 version: version || 'all',
                 testament: testament || 'all',
-                user_id: userId
+                user_id: userId,
+                device_info: navigator.userAgent
             }
         ]);
     } catch (err) {
@@ -274,10 +275,9 @@ export const logSearch = async (query, version, testament) => {
  */
 export const getUserStatistics = async () => {
     try {
-        // Fetch raw user_ids from both tables
-        // We limit to 5000 to keep it performant on client-side aggregation
-        const searchReq = supabase.from('search_logs').select('user_id').limit(5000);
-        const aiReq = supabase.from('ai_questions').select('user_id').limit(5000);
+        // Fetch raw user_ids and device_info from both tables
+        const searchReq = supabase.from('search_logs').select('user_id, device_info').limit(5000);
+        const aiReq = supabase.from('ai_questions').select('user_id, device_info').limit(5000);
 
         const [searchRes, aiRes] = await Promise.all([searchReq, aiReq]);
 
@@ -286,23 +286,49 @@ export const getUserStatistics = async () => {
 
         // Combined list of all actions
         const allActions = [
-            ...searchRes.data.map(d => ({ user: d.user_id, type: 'search' })),
-            ...aiRes.data.map(d => ({ user: d.user_id, type: 'ai' }))
+            ...searchRes.data.map(d => ({ user: d.user_id, type: 'search', device: d.device_info })),
+            ...aiRes.data.map(d => ({ user: d.user_id, type: 'ai', device: d.device_info }))
         ];
 
         // 1. Unique Users Count
         const uniqueUsers = new Set(allActions.map(a => a.user)).size;
 
-        // 2. User Activity Count
-        const userCounts = {};
+        // 2. User Activity Count & Device Parsing
+        const userStats = {};
+        
         allActions.forEach(action => {
             const uid = action.user || 'Anonymous';
-            userCounts[uid] = (userCounts[uid] || 0) + 1;
+            if (!userStats[uid]) {
+                userStats[uid] = { count: 0, devices: [] };
+            }
+            userStats[uid].count++;
+            if (action.device) {
+                userStats[uid].devices.push(action.device);
+            }
         });
 
+        // Helper to get formatted device name
+        const getDeviceName = (userAgents) => {
+            if (!userAgents || userAgents.length === 0) return 'Unknown';
+            // Simple frequency count of user agents
+            const ua = userAgents[userAgents.length - 1]; // Use most recent for now
+            
+            if (/iPhone|iPad|iPod/.test(ua)) return '📱 iOS';
+            if (/Android/.test(ua)) return '📱 Android';
+            if (/Windows/.test(ua)) return '💻 Windows';
+            if (/Macintosh|Mac OS X/.test(ua)) return '💻 Mac';
+            if (/Linux/.test(ua)) return '🐧 Linux';
+            return '❓ Unknown';
+        };
+
         // 3. Sort by activity
-        const topUsers = Object.entries(userCounts)
-            .map(([userId, count]) => ({ userId, count }))
+        const topUsers = Object.entries(userStats)
+            .map(([userId, stats]) => ({ 
+                userId, 
+                count: stats.count,
+                device: getDeviceName(stats.devices),
+                fullUserAgents: [...new Set(stats.devices)].slice(0, 5) // Store unique UAs
+            }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 5); // Top 5
 
