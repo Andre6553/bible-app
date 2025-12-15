@@ -530,6 +530,27 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             </div>
 
                             <div className="info-section">
+                                <h3>⚡ AI Shortcuts</h3>
+                                <p>Use quick commands in AI Research for faster questions:</p>
+                                <p style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>
+                                    <strong>/story</strong> - Tell me the story of...<br />
+                                    <strong>/explain</strong> - Explain...<br />
+                                    <strong>/meaning</strong> - What is the biblical meaning of...<br />
+                                    <strong>/who</strong> - Who was...<br />
+                                    <strong>/what</strong> - What was...<br />
+                                    <strong>/why</strong> - Why did...<br />
+                                    <strong>/teach</strong> - What does the Bible teach...<br />
+                                    <strong>/compare</strong> - Compare in the Bible...<br />
+                                    <strong>/help</strong> - Show all shortcuts
+                                </p>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>✨ For You (Blog)</h3>
+                                <p>Discover personalized content! Get a <strong>daily devotional</strong> based on your interests, browse <strong>trending topics</strong>, and read <strong>recommended articles</strong> tailored to your search history.</p>
+                            </div>
+
+                            <div className="info-section">
                                 <h3>📝 Quick Search</h3>
                                 <p><strong>Select any word</strong> in the Bible text, then choose to search for it in the Old or New Testament.</p>
                             </div>
@@ -540,12 +561,17 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             </div>
 
                             <div className="info-section">
+                                <h3>⚙️ Settings</h3>
+                                <p>Customize your reading experience! Adjust <strong>font size</strong>, choose between <strong>modern or classic fonts</strong>, and personalize your <strong>theme color</strong>.</p>
+                            </div>
+
+                            <div className="info-section">
                                 <h3>⚡ Offline Use</h3>
                                 <p>This app works offline! Chapters you've read are saved automatically for reading without internet.</p>
                             </div>
 
                             <div className="info-footer">
-                                <p>Version 2.0.0</p>
+                                <p>Version 3.0.0</p>
                             </div>
                         </div>
                     </div>
