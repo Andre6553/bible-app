@@ -295,7 +295,7 @@ export const getUserStatistics = async () => {
 
         // 2. User Activity Count & Device Parsing
         const userStats = {};
-        
+
         allActions.forEach(action => {
             const uid = action.user || 'Anonymous';
             if (!userStats[uid]) {
@@ -312,7 +312,7 @@ export const getUserStatistics = async () => {
             if (!userAgents || userAgents.length === 0) return 'Unknown';
             // Simple frequency count of user agents
             const ua = userAgents[userAgents.length - 1]; // Use most recent for now
-            
+
             if (/iPhone|iPad|iPod/.test(ua)) return '📱 iOS';
             if (/Android/.test(ua)) return '📱 Android';
             if (/Windows/.test(ua)) return '💻 Windows';
@@ -323,8 +323,8 @@ export const getUserStatistics = async () => {
 
         // 3. Sort by activity
         const topUsers = Object.entries(userStats)
-            .map(([userId, stats]) => ({ 
-                userId, 
+            .map(([userId, stats]) => ({
+                userId,
                 count: stats.count,
                 device: getDeviceName(stats.devices),
                 fullUserAgents: [...new Set(stats.devices)].slice(0, 5) // Store unique UAs
@@ -342,5 +342,37 @@ export const getUserStatistics = async () => {
     } catch (error) {
         console.error('Error getting user stats:', error);
         return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Get specific history for a user
+ */
+export const getUserHistory = async (userId) => {
+    try {
+        const searchReq = supabase
+            .from('search_logs')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        const aiReq = supabase
+            .from('ai_questions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        const [searchRes, aiRes] = await Promise.all([searchReq, aiReq]);
+
+        return {
+            success: true,
+            searches: searchRes.data || [],
+            aiQuestions: aiRes.data || []
+        };
+    } catch (error) {
+        console.error('Error getting user history:', error);
+        return { success: false, searches: [], aiQuestions: [] };
     }
 };

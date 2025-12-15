@@ -12,9 +12,30 @@ function Stats() {
     // User Stats
     const [userStats, setUserStats] = useState({ totalUsers: 0, topUsers: [] });
     const [selectedUser, setSelectedUser] = useState(null);
-
+    const [selectedUserHistory, setSelectedUserHistory] = useState({ searches: [], aiQuestions: [] });
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     const [stats, setStats] = useState({ total: 0, topTerms: [] });
+
+    // ... (rest of code) ...
+
+    const handleUserClick = async (user) => {
+        setSelectedUser(user);
+        setHistoryLoading(true);
+        // Reset history while loading
+        setSelectedUserHistory({ searches: [], aiQuestions: [] });
+
+        const history = await getUserHistory(user.userId);
+        if (history.success) {
+            setSelectedUserHistory({
+                searches: history.searches,
+                aiQuestions: history.aiQuestions
+            });
+        }
+        setHistoryLoading(false);
+    };
+
+    // AI Stats State
     const [aiStats, setAiStats] = useState({ total: 0, topQuestions: [] });
     // Modal for detail view
     const [selectedItem, setSelectedItem] = useState(null);
