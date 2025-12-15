@@ -24,8 +24,16 @@ function BottomNav() {
                 to="/blog"
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
-                <span className="nav-icon">📝</span>
+                <span className="nav-icon">✨</span>
                 <span className="nav-label">For You</span>
+            </NavLink>
+
+            <NavLink
+                to="/profile"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+                <span className="nav-icon">👤</span>
+                <span className="nav-label">Profile</span>
             </NavLink>
         </nav>
     );

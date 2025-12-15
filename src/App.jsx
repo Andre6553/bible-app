@@ -11,6 +11,7 @@ const BibleReader = lazy(() => import('./components/BibleReader'));
 const Search = lazy(() => import('./components/Search'));
 const Stats = lazy(() => import('./components/Stats'));
 const Blog = lazy(() => import('./components/Blog'));
+const Profile = lazy(() => import('./components/Profile'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 
 function App() {
@@ -83,6 +84,10 @@ function App() {
                                 <Route
                                     path="/blog"
                                     element={<Blog />}
+                                />
+                                <Route
+                                    path="/profile"
+                                    element={<Profile />}
                                 />
                                 <Route path="/" element={<Navigate to="/bible" replace />} />
                             </Routes>

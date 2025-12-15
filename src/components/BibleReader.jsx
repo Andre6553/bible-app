@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBooks, getChapter, getChapterCount, getVerseCount } from '../services/bibleService';
+import { getChapterHighlights, saveHighlight, removeHighlight, getVerseNote, saveNote, HIGHLIGHT_COLORS } from '../services/highlightService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { useSettings } from '../context/SettingsContext';
+import VerseActionSheet from './VerseActionSheet';
+import NoteModal from './NoteModal';
 import './BibleReader.css';
 
 const THEME_COLORS = [
@@ -39,6 +42,13 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     // Context Menu State
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, text: '', step: 'initial' });
 
+    // Highlight State
+    const [highlights, setHighlights] = useState({}); // { verseNum: color }
+    const [selectedVerse, setSelectedVerse] = useState(null); // Currently tapped verse
+    const [showActionSheet, setShowActionSheet] = useState(false);
+    const [showNoteModal, setShowNoteModal] = useState(false);
+    const [existingNote, setExistingNote] = useState(null);
+
     useEffect(() => {
         loadBooks();
     }, []);
@@ -66,6 +76,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             loadChapter();
         }
     }, [selectedBook, selectedChapter, currentVersion]);
+
+    // Load highlights when chapter changes
+    useEffect(() => {
+        if (selectedBook && currentVersion) {
+            loadHighlights();
+        }
+    }, [selectedBook, selectedChapter, currentVersion]);
+
+    const loadHighlights = async () => {
+        if (!selectedBook || !currentVersion) return;
+        const result = await getChapterHighlights(selectedBook.id, selectedChapter, currentVersion.id);
+        if (result.success) {
+            setHighlights(result.highlights);
+        }
+    };
 
 
     useEffect(() => {
@@ -147,6 +172,74 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             setVerses(result.data || []);
         }
         setLoading(false);
+    };
+
+    // Verse tap handler - single tap to select
+    const handleVerseTap = (verse, e) => {
+        // Don't trigger for text selection (long press/drag)
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) return;
+
+        e.stopPropagation();
+        setSelectedVerse(verse);
+        setShowActionSheet(true);
+    };
+
+    // Handle highlight color selection
+    const handleHighlight = async (color) => {
+        if (!selectedVerse || !selectedBook || !currentVersion) return;
+
+        if (color === null) {
+            // Remove highlight
+            await removeHighlight(selectedBook.id, selectedChapter, selectedVerse.verse, currentVersion.id);
+            setHighlights(prev => {
+                const updated = { ...prev };
+                delete updated[selectedVerse.verse];
+                return updated;
+            });
+        } else {
+            // Add/update highlight
+            await saveHighlight(selectedBook.id, selectedChapter, selectedVerse.verse, currentVersion.id, color);
+            setHighlights(prev => ({
+                ...prev,
+                [selectedVerse.verse]: color
+            }));
+        }
+        setShowActionSheet(false);
+        setSelectedVerse(null);
+    };
+
+    // Handle opening note modal
+    const handleOpenNote = async () => {
+        if (!selectedVerse || !selectedBook || !currentVersion) return;
+
+        // Check for existing note
+        const result = await getVerseNote(selectedBook.id, selectedChapter, selectedVerse.verse, currentVersion.id);
+        setExistingNote(result.note);
+        setShowActionSheet(false);
+        setShowNoteModal(true);
+    };
+
+    // Handle saving note
+    const handleSaveNote = async (noteText, studyId, labelIds) => {
+        if (!selectedVerse || !selectedBook || !currentVersion) return;
+
+        await saveNote(selectedBook.id, selectedChapter, selectedVerse.verse, currentVersion.id, noteText, studyId, labelIds);
+        setShowNoteModal(false);
+        setSelectedVerse(null);
+        setExistingNote(null);
+    };
+
+    // Close action sheet
+    const handleCloseActionSheet = () => {
+        setShowActionSheet(false);
+        setSelectedVerse(null);
+    };
+
+    // Get verse reference string
+    const getVerseRef = (verse) => {
+        const bookName = getLocalizedBookName(selectedBook?.name_full, currentVersion?.id);
+        return `${bookName} ${selectedChapter}:${verse.verse}`;
     };
 
     // --- Search / Context Menu Logic ---
@@ -491,7 +584,17 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             }}
                         >
                             {verses.map(verse => (
-                                <div key={verse.id} id={`verse-${verse.verse}`} className="verse-item">
+                                <div
+                                    key={verse.id}
+                                    id={`verse-${verse.verse}`}
+                                    className={`verse-item ${selectedVerse?.verse === verse.verse ? 'verse-selected' : ''}`}
+                                    onClick={(e) => handleVerseTap(verse, e)}
+                                    style={{
+                                        backgroundColor: highlights[verse.verse]
+                                            ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
+                                            : 'transparent'
+                                    }}
+                                >
                                     <span className="verse-number">{verse.verse}</span>
                                     <span className="verse-text">{verse.text}</span>
                                 </div>
@@ -655,6 +758,36 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Verse Action Sheet */}
+            {showActionSheet && selectedVerse && (
+                <VerseActionSheet
+                    verse={selectedVerse}
+                    verseText={selectedVerse.text}
+                    verseRef={getVerseRef(selectedVerse)}
+                    currentColor={highlights[selectedVerse.verse]}
+                    onHighlight={handleHighlight}
+                    onNote={handleOpenNote}
+                    onCopy={() => { }}
+                    onClose={handleCloseActionSheet}
+                />
+            )}
+
+            {/* Note Modal */}
+            {showNoteModal && selectedVerse && (
+                <NoteModal
+                    verse={selectedVerse}
+                    verseText={selectedVerse.text}
+                    verseRef={getVerseRef(selectedVerse)}
+                    existingNote={existingNote}
+                    onSave={handleSaveNote}
+                    onClose={() => {
+                        setShowNoteModal(false);
+                        setSelectedVerse(null);
+                        setExistingNote(null);
+                    }}
+                />
             )}
         </div>
     );

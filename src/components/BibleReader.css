@@ -321,6 +321,17 @@
     line-height: 1.8;
 }
 
+/* Verse Selection and Highlight States */
+.verse-item {
+    cursor: pointer;
+    user-select: text;
+}
+
+.verse-item.verse-selected {
+    border-bottom: 2px dotted var(--accent-primary);
+    padding-bottom: calc(var(--spacing-sm) - 2px);
+}
+
 /* Loading State */
 .loading-state {
     display: flex;
