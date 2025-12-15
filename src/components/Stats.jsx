@@ -21,16 +21,34 @@ function Stats() {
 
     const handleUserClick = async (user) => {
         setSelectedUser(user);
-        setHistoryLoading(true);
-        // Reset history while loading
-        setSelectedUserHistory({ searches: [], aiQuestions: [] });
 
+        // 1. Immediate Local Filter (Guaranteed to match what's on screen)
+        const localSearches = logs.filter(l => l.user_id === user.userId).slice(0, 20);
+        const localAi = aiQuestions.filter(q => q.user_id === user.userId).slice(0, 20);
+
+        console.log(`Local filter found: ${localSearches.length} searches, ${localAi.length} AI questions for ${user.userId}`);
+
+        setSelectedUserHistory({
+            searches: localSearches,
+            aiQuestions: localAi
+        });
+
+        // 2. Fetch Deeper History (in background)
+        setHistoryLoading(true);
         const history = await getUserHistory(user.userId);
+
         if (history.success) {
-            setSelectedUserHistory({
-                searches: history.searches,
-                aiQuestions: history.aiQuestions
-            });
+            // Only update if we found something, or if we had nothing locally
+            // We trust the server result more if it returns data
+            const serverHasData = history.searches.length > 0 || history.aiQuestions.length > 0;
+            const localIsEmpty = localSearches.length === 0 && localAi.length === 0;
+
+            if (serverHasData || localIsEmpty) {
+                setSelectedUserHistory({
+                    searches: history.searches,
+                    aiQuestions: history.aiQuestions
+                });
+            }
         }
         setHistoryLoading(false);
     };
