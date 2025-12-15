@@ -53,22 +53,31 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         loadBooks();
     }, []);
 
-    // Handle navigation from search results - more robust check
+    // Handle navigation from search results or Profile
     useEffect(() => {
         // Ensure we have valid location state and books are loaded
         if (!location.state?.bookId) return;
         if (!books.all || books.all.length === 0) return;
 
-        const book = books.all.find(b => b.id === location.state.bookId);
+        const { bookId, chapter, targetVerse } = location.state;
+        // Use == for loose equality since bookId might be string and book.id integer
+        const book = books.all.find(b => b.id == bookId);
+
         if (book) {
-            console.log('Navigating to:', book.name_full, 'Chapter:', location.state.chapter, 'Verse:', location.state.targetVerse);
-            setSelectedBook(book);
-            if (location.state.chapter) setSelectedChapter(location.state.chapter);
-            if (location.state.targetVerse) setTargetVerse(location.state.targetVerse);
+            console.log('📖 Navigation received:', book.name_full, 'Chapter:', chapter, 'Verse:', targetVerse);
+
+            // Use a timeout to ensure state updates properly after render cycle
+            setTimeout(() => {
+                setSelectedBook(book);
+                setSelectedChapter(chapter || 1);
+                if (targetVerse) {
+                    setTargetVerse(targetVerse);
+                }
+            }, 0);
         } else {
-            console.warn('Book not found for ID:', location.state.bookId);
+            console.warn('Book not found for ID:', bookId);
         }
-    }, [location.state, books.all]);
+    }, [location.key, books.all]); // Use location.key to detect new navigation
 
     useEffect(() => {
         if (selectedBook && currentVersion) {
@@ -127,7 +136,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
             // Handle Deep Link from Search or Default to Genesis
             if (location.state?.bookId) {
-                const book = result.data.all.find(b => b.id === location.state.bookId);
+                const book = result.data.all.find(b => b.id == location.state.bookId);
                 if (book) {
                     setSelectedBook(book);
                     if (location.state.chapter) setSelectedChapter(location.state.chapter);
