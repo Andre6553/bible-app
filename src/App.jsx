@@ -10,6 +10,7 @@ import './App.css';
 const BibleReader = lazy(() => import('./components/BibleReader'));
 const Search = lazy(() => import('./components/Search'));
 const Stats = lazy(() => import('./components/Stats'));
+const Blog = lazy(() => import('./components/Blog'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 
 function App() {
@@ -78,6 +79,10 @@ function App() {
                                 <Route
                                     path="/stats"
                                     element={<Stats />}
+                                />
+                                <Route
+                                    path="/blog"
+                                    element={<Blog />}
                                 />
                                 <Route path="/" element={<Navigate to="/bible" replace />} />
                             </Routes>

@@ -1,0 +1,339 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getUserId, getBooks } from '../services/bibleService';
+import {
+    getRecommendedPosts,
+    getDailyDevotional,
+    getTrendingTopics,
+    analyzeUserInterests
+} from '../services/blogService';
+import './Blog.css';
+
+function Blog() {
+    const navigate = useNavigate();
+    const [posts, setPosts] = useState([]);
+    const [devotional, setDevotional] = useState(null);
+    const [trendingTopics, setTrendingTopics] = useState([]);
+    const [userTopics, setUserTopics] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [devotionalLoading, setDevotionalLoading] = useState(false);
+    const [selectedPost, setSelectedPost] = useState(null);
+    const [error, setError] = useState(null);
+    const [allBooks, setAllBooks] = useState([]);
+
+    useEffect(() => {
+        loadBlogContent();
+        loadBooks();
+    }, []);
+
+    const loadBooks = async () => {
+        const result = await getBooks();
+        if (result.success) {
+            setAllBooks(result.data.all || []);
+        }
+    };
+
+    const loadBlogContent = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const userId = getUserId();
+
+            // Load all content in parallel
+            const [postsResult, devotionalResult, trendingResult, interestsResult] = await Promise.all([
+                getRecommendedPosts(userId),
+                getDailyDevotional(userId),
+                getTrendingTopics(),
+                analyzeUserInterests(userId)
+            ]);
+
+            if (postsResult.success) {
+                setPosts(postsResult.posts);
+            }
+
+            if (devotionalResult.success) {
+                setDevotional(devotionalResult.devotional);
+            }
+
+            if (trendingResult.success) {
+                setTrendingTopics(trendingResult.topics);
+            }
+
+            if (interestsResult.success) {
+                setUserTopics(interestsResult.topics);
+            }
+        } catch (err) {
+            console.error('Error loading blog content:', err);
+            setError('Could not load content. Please try again.');
+        }
+
+        setLoading(false);
+    };
+
+    const refreshDevotional = async () => {
+        setDevotionalLoading(true);
+        const userId = getUserId();
+        const result = await getDailyDevotional(userId, true); // Force generate
+        if (result.success) {
+            setDevotional(result.devotional);
+        }
+        setDevotionalLoading(false);
+    };
+
+    const formatContent = (content) => {
+        if (!content) return '';
+        // Convert markdown-style bold to HTML
+        return content
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br/>');
+    };
+
+    // Handle clicking on scripture reference - navigate to Bible reader
+    const handleScriptureClick = (ref, e) => {
+        e.stopPropagation(); // Prevent modal from closing
+        setSelectedPost(null); // Close the modal
+
+        try {
+            // Parse reference: "Matthew 6:9-13" or "1 Samuel 17:4"
+            // Find the last space to separate book from chapter:verse
+            const lastSpaceIndex = ref.lastIndexOf(' ');
+            if (lastSpaceIndex === -1) {
+                // Fallback to search if can't parse
+                navigate(`/search?q=${encodeURIComponent(ref)}`);
+                return;
+            }
+
+            const bookName = ref.substring(0, lastSpaceIndex).trim();
+            const refPart = ref.substring(lastSpaceIndex + 1).trim(); // "6:9-13" or "3:16"
+
+            // Extract chapter and verse (handle ranges like 9-13)
+            const [chapterVerse] = refPart.split('-'); // Take first part if range
+            const [chapter, verse] = chapterVerse.split(':');
+
+            // Normalize book name for matching
+            const normalizeBookName = (name) => {
+                return name.toLowerCase().trim()
+                    .replace(/^first /, '1 ')
+                    .replace(/^second /, '2 ')
+                    .replace(/^third /, '3 ')
+                    .replace(/^i /, '1 ')
+                    .replace(/^ii /, '2 ')
+                    .replace(/^iii /, '3 ')
+                    .replace(/^1st /, '1 ')
+                    .replace(/^2nd /, '2 ')
+                    .replace(/^3rd /, '3 ')
+                    .replace(/^psalm$/, 'psalms')
+                    .replace(/^proverb$/, 'proverbs')
+                    .replace(/\./g, '')
+                    .replace(/\s+/g, ' ');
+            };
+
+            const targetName = normalizeBookName(bookName);
+
+            // Find matching book
+            let book = allBooks.find(b => {
+                const dbName = normalizeBookName(b.name_full);
+                const bookId = String(b.id).toLowerCase();
+                return dbName === targetName || bookId === bookName.toLowerCase();
+            });
+
+            // Fallback: partial match
+            if (!book) {
+                book = allBooks.find(b => {
+                    const dbName = normalizeBookName(b.name_full);
+                    return dbName.startsWith(targetName) || targetName.startsWith(dbName);
+                });
+            }
+
+            if (book) {
+                // Navigate to Bible reader with the specific passage
+                navigate('/bible', {
+                    state: {
+                        bookId: book.id,
+                        chapter: parseInt(chapter),
+                        targetVerse: parseInt(verse) || 1,
+                        fromSearch: true
+                    }
+                });
+            } else {
+                // Fallback to search if book not found
+                console.warn(`Book not found: ${bookName}`);
+                navigate(`/search?q=${encodeURIComponent(ref)}`);
+            }
+        } catch (err) {
+            console.error('Error parsing scripture reference:', err);
+            navigate(`/search?q=${encodeURIComponent(ref)}`);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="blog-page">
+                <div className="blog-header">
+                    <h1>For You</h1>
+                </div>
+                <div className="blog-loading">
+                    <div className="skeleton-card"></div>
+                    <div className="skeleton-card"></div>
+                    <div className="skeleton-card"></div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="blog-page">
+            {/* Header */}
+            <div className="blog-header">
+                <h1>✨ For You</h1>
+                <p className="blog-subtitle">Personalized content based on your interests</p>
+            </div>
+
+            {error && (
+                <div className="blog-error">
+                    <p>{error}</p>
+                    <button onClick={loadBlogContent}>Try Again</button>
+                </div>
+            )}
+
+            {/* Daily Devotional Section */}
+            <section className="blog-section devotional-section">
+                <div className="section-header">
+                    <h2>🌅 Today's Inspiration</h2>
+                    <button
+                        className="refresh-btn"
+                        onClick={refreshDevotional}
+                        disabled={devotionalLoading}
+                    >
+                        {devotionalLoading ? '⏳' : '🔄'} New
+                    </button>
+                </div>
+
+                {devotional ? (
+                    <div className="devotional-card">
+                        <h3>{devotional.title || 'Daily Devotional'}</h3>
+                        <div
+                            className="devotional-content"
+                            dangerouslySetInnerHTML={{ __html: formatContent(devotional.content) }}
+                        />
+                        {devotional.topics && (
+                            <div className="topic-chips">
+                                {devotional.topics.map((topic, idx) => (
+                                    <span key={idx} className="topic-chip">{topic}</span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="empty-devotional">
+                        <p>No devotional yet. Click "New" to generate one!</p>
+                    </div>
+                )}
+            </section>
+
+            {/* Your Topics Section */}
+            {userTopics.length > 0 && (
+                <section className="blog-section topics-section">
+                    <h2>🎯 Your Topics</h2>
+                    <p className="section-desc">Based on your searches and questions</p>
+                    <div className="topics-grid">
+                        {userTopics.map((item, idx) => (
+                            <div key={idx} className="topic-card">
+                                <span className="topic-name">{item.topic}</span>
+                                <span className="topic-weight">{item.weight} searches</span>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* Trending Topics */}
+            {trendingTopics.length > 0 && (
+                <section className="blog-section trending-section">
+                    <h2>🔥 Trending Topics</h2>
+                    <div className="trending-list">
+                        {trendingTopics.map((item, idx) => (
+                            <span key={idx} className="trending-chip">
+                                #{item.topic}
+                            </span>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* Recommended Articles */}
+            <section className="blog-section articles-section">
+                <h2>📚 Recommended Reading</h2>
+                {posts.length === 0 ? (
+                    <div className="empty-posts">
+                        <p>No articles yet. Start searching to get personalized recommendations!</p>
+                    </div>
+                ) : (
+                    <div className="posts-grid">
+                        {posts.map(post => (
+                            <article
+                                key={post.id}
+                                className="post-card"
+                                onClick={() => setSelectedPost(post)}
+                            >
+                                <h3>{post.title}</h3>
+                                <p className="post-summary">{post.summary}</p>
+                                <div className="post-meta">
+                                    <div className="post-topics">
+                                        {(post.topics || []).slice(0, 3).map((topic, idx) => (
+                                            <span key={idx} className="post-topic">{topic}</span>
+                                        ))}
+                                    </div>
+                                    <span className="post-views">👁 {post.view_count || 0}</span>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            {/* Article Detail Modal */}
+            {selectedPost && (
+                <div className="article-modal-overlay" onClick={() => setSelectedPost(null)}>
+                    <div className="article-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="article-modal-header">
+                            <h2>{selectedPost.title}</h2>
+                            <button className="close-btn" onClick={() => setSelectedPost(null)}>✕</button>
+                        </div>
+                        <div className="article-modal-body">
+                            <div
+                                className="article-content"
+                                dangerouslySetInnerHTML={{ __html: formatContent(selectedPost.content) }}
+                            />
+                            {selectedPost.scripture_refs && selectedPost.scripture_refs.length > 0 && (
+                                <div className="scripture-refs">
+                                    <h4>📖 Scripture References</h4>
+                                    <div className="refs-list">
+                                        {selectedPost.scripture_refs.map((ref, idx) => (
+                                            <span
+                                                key={idx}
+                                                className="scripture-ref clickable"
+                                                onClick={(e) => handleScriptureClick(ref, e)}
+                                            >
+                                                {ref}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="article-topics">
+                                {(selectedPost.topics || []).map((topic, idx) => (
+                                    <span key={idx} className="topic-chip">{topic}</span>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default Blog;

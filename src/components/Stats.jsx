@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabaseClient';
 import { getUserStatistics, getUserHistory } from '../services/bibleService';
+import { isRateLimitEnabled, toggleRateLimit as toggleRateLimitSetting } from '../services/blogService';
 import './Stats.css';
 
 function Stats() {
@@ -36,14 +37,36 @@ function Stats() {
     const [pinInput, setPinInput] = useState('');
     const [authError, setAuthError] = useState(false);
 
+    // Admin Settings
+    const [rateLimitEnabled, setRateLimitEnabled] = useState(false);
+    const [rateLimitLoading, setRateLimitLoading] = useState(false);
+
     useEffect(() => {
         // Only fetch if authenticated
         if (isAuthenticated) {
             fetchLogs();
             fetchAIQuestions();
             fetchUserStats();
+            fetchRateLimitSetting();
         }
     }, [isAuthenticated]);
+
+    const fetchRateLimitSetting = async () => {
+        const enabled = await isRateLimitEnabled();
+        setRateLimitEnabled(enabled);
+    };
+
+    const handleToggleRateLimit = async () => {
+        setRateLimitLoading(true);
+        const newValue = !rateLimitEnabled;
+        const result = await toggleRateLimitSetting(newValue);
+        if (result.success) {
+            setRateLimitEnabled(newValue);
+        } else {
+            alert('Failed to update setting: ' + result.error);
+        }
+        setRateLimitLoading(false);
+    };
 
     const handleLogin = (e) => {
         e.preventDefault();
@@ -695,6 +718,36 @@ function Stats() {
                     </div>
                 </div>
             )}
+
+            {/* Admin Settings Section */}
+            <h2 className="section-title">⚙️ Admin Settings</h2>
+            <div className="stats-grid">
+                <div className="stat-card settings-card">
+                    <h3>Blog Rate Limit</h3>
+                    <div className="setting-row">
+                        <div className="setting-info">
+                            <p className="setting-desc">Limit AI devotionals to 1 per user per day</p>
+                            <p className="setting-status">
+                                Status: <strong>{rateLimitEnabled ? '🔒 Enabled' : '🔓 Disabled'}</strong>
+                            </p>
+                        </div>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={rateLimitEnabled}
+                                onChange={handleToggleRateLimit}
+                                disabled={rateLimitLoading}
+                            />
+                            <span className="slider"></span>
+                        </label>
+                    </div>
+                    <p className="setting-hint">
+                        {rateLimitEnabled
+                            ? '✅ Users get 1 AI devotional per day (reduces API costs)'
+                            : '⚡ Users can generate unlimited devotionals (testing mode)'}
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }

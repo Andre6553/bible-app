@@ -239,7 +239,7 @@ export const getVerseReference = (verse) => {
 /**
  * Get or create User ID for analytics
  */
-const getUserId = () => {
+export const getUserId = () => {
     let userId = localStorage.getItem('bible_user_id'); // Use same key as AI search
     if (!userId) {
         // Generate random ID (simple implementation)
