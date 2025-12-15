@@ -105,28 +105,28 @@ function Stats() {
         console.log('Selected User Object:', user);
         console.log('Total Local Logs Available:', logs.length);
         console.log('Total Local AI Questions Available:', aiQuestions.length);
-        
+
         setSelectedUser(user);
-        
+
         // 1. Immediate Local Filter
         const targetId = String(user.userId).trim();
         console.log('Target User ID (Trimmed):', targetId);
-        
+
         const localSearches = logs.filter(l => String(l.user_id).trim() === targetId).slice(0, 20);
         const localAi = aiQuestions.filter(q => String(q.user_id).trim() === targetId).slice(0, 20);
-        
-        console.log(`Local Filter Results:`, { 
-            foundSearches: localSearches.length, 
-            foundAiQuestions: localAi.length 
+
+        console.log(`Local Filter Results:`, {
+            foundSearches: localSearches.length,
+            foundAiQuestions: localAi.length
         });
 
         if (localSearches.length === 0 && localAi.length === 0) {
             console.warn('⚠️ No local history found. Dumping first 3 logs to check ID format:', logs.slice(0, 3));
         }
 
-        setSelectedUserHistory({ 
-            searches: localSearches, 
-            aiQuestions: localAi 
+        setSelectedUserHistory({
+            searches: localSearches,
+            aiQuestions: localAi
         });
 
         // 2. Fetch Deeper History (in background)
@@ -134,16 +134,16 @@ function Stats() {
         console.log('Fetching deeper history from server...');
         const history = await getUserHistory(user.userId);
         console.log('Server Fetch Result:', history);
-        
+
         if (history.success) {
             const serverHasData = history.searches.length > 0 || history.aiQuestions.length > 0;
             const localIsEmpty = localSearches.length === 0 && localAi.length === 0;
 
             if (serverHasData || localIsEmpty) {
                 console.log('Updating history with server data');
-                 setSelectedUserHistory({ 
-                    searches: history.searches, 
-                    aiQuestions: history.aiQuestions 
+                setSelectedUserHistory({
+                    searches: history.searches,
+                    aiQuestions: history.aiQuestions
                 });
             }
         }
@@ -436,7 +436,7 @@ function Stats() {
                     ) : (
                         <ul className="top-list">
                             {userStats.topUsers.map((u, idx) => (
-                                <li key={idx} className="top-item clickable-row" onClick={() => setSelectedUser(u)}>
+                                <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>
                                     <span className="rank">#{idx + 1}</span>
                                     <div className="user-info-col">
                                         <span className="term user-id-term">{u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}</span>
