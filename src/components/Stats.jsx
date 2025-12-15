@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabaseClient';
 import { getUserStatistics, getUserHistory } from '../services/bibleService';
-import { isRateLimitEnabled, toggleRateLimit as toggleRateLimitSetting } from '../services/blogService';
+import {
+    isRateLimitEnabled,
+    toggleRateLimit as toggleRateLimitSetting,
+    isSuperUser,
+    addSuperUser,
+    removeSuperUser
+} from '../services/blogService';
 import './Stats.css';
 
 function Stats() {
@@ -40,6 +46,8 @@ function Stats() {
     // Admin Settings
     const [rateLimitEnabled, setRateLimitEnabled] = useState(false);
     const [rateLimitLoading, setRateLimitLoading] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isUserSuper, setIsUserSuper] = useState(false);
 
     useEffect(() => {
         // Only fetch if authenticated
@@ -130,6 +138,11 @@ function Stats() {
         console.log('Total Local AI Questions Available:', aiQuestions.length);
 
         setSelectedUser(user);
+        setShowDeleteConfirm(false);
+
+        // Check if this user is a super user
+        const superStatus = await isSuperUser(user.userId);
+        setIsUserSuper(superStatus);
 
         // 1. Immediate Local Filter
         const targetId = String(user.userId).trim();
@@ -287,6 +300,73 @@ function Stats() {
         }
     };
 
+    // Toggle super user status
+    const toggleSuperUser = async (userId, currentStatus) => {
+        if (currentStatus) {
+            // Remove from super users
+            const result = await removeSuperUser(userId);
+            if (result.success) {
+                setIsUserSuper(false);
+            }
+        } else {
+            // Add to super users
+            const result = await addSuperUser(userId);
+            if (result.success) {
+                setIsUserSuper(true);
+            }
+        }
+    };
+
+    // Delete all data for a specific user (called after UI confirmation)
+    const deleteUserData = async (userId) => {
+        console.log('🗑️ Deleting user data for:', userId);
+        setShowDeleteConfirm(false);
+
+        try {
+            // Delete from search_logs
+            console.log('Deleting from search_logs...');
+            const { error: searchError } = await supabase
+                .from('search_logs')
+                .delete()
+                .eq('user_id', userId);
+
+            if (searchError) {
+                console.error('Error deleting search logs:', searchError);
+            } else {
+                console.log('✅ Search logs deleted');
+            }
+
+            // Delete from ai_questions
+            console.log('Deleting from ai_questions...');
+            const { error: aiError } = await supabase
+                .from('ai_questions')
+                .delete()
+                .eq('user_id', userId);
+
+            if (aiError) {
+                console.error('Error deleting AI questions:', aiError);
+            } else {
+                console.log('✅ AI questions deleted');
+            }
+
+            // Update local state
+            setLogs(prevLogs => prevLogs.filter(log => log.user_id !== userId));
+            setAiQuestions(prevQ => prevQ.filter(q => q.user_id !== userId));
+
+            // Refresh stats
+            fetchLogs();
+            fetchAIQuestions();
+            fetchUserStats();
+
+            // Close the modal
+            setSelectedUser(null);
+
+            alert(`✅ All data for user ${userId.substring(0, 15)}... has been deleted.`);
+        } catch (err) {
+            alert('Error deleting user data: ' + err.message);
+        }
+    };
+
     // Open date range modal
     const openDateRangeModal = (type) => {
         setDateRangeType(type);
@@ -430,7 +510,19 @@ function Stats() {
                                         onClick={() => { setSelectedItem(log); setItemType('search'); }}
                                     >
                                         <td>{new Date(log.created_at).toLocaleTimeString()}</td>
-                                        <td><span className="user-badge">{log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}</span></td>
+                                        <td>
+                                            <span
+                                                className="user-badge clickable-user"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (log.user_id) {
+                                                        handleUserClick({ userId: log.user_id, count: 1, device: 'Unknown' });
+                                                    }
+                                                }}
+                                            >
+                                                {log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}
+                                            </span>
+                                        </td>
                                         <td>{log.query}</td>
                                         <td>{log.version}</td>
                                     </tr>
@@ -529,7 +621,19 @@ function Stats() {
                                         onClick={() => { setSelectedItem(q); setItemType('ai'); }}
                                     >
                                         <td>{new Date(q.created_at).toLocaleString()}</td>
-                                        <td><span className="user-badge">{q.user_id ? q.user_id.substring(0, 8) + '...' : 'Anon'}</span></td>
+                                        <td>
+                                            <span
+                                                className="user-badge clickable-user"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (q.user_id) {
+                                                        handleUserClick({ userId: q.user_id, count: 1, device: 'Unknown' });
+                                                    }
+                                                }}
+                                            >
+                                                {q.user_id ? q.user_id.substring(0, 8) + '...' : 'Anon'}
+                                            </span>
+                                        </td>
                                         <td className="ai-q-cell">{q.question.substring(0, 80)}{q.question.length > 80 ? '...' : ''}</td>
                                     </tr>
                                 ))}
@@ -648,6 +752,19 @@ function Stats() {
                             <button className="close-modal-btn" onClick={() => setSelectedUser(null)}>✕</button>
                         </div>
                         <div className="detail-modal-body">
+                            {/* Super User Toggle */}
+                            <div className="super-user-toggle">
+                                <label className="super-checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={isUserSuper}
+                                        onChange={() => toggleSuperUser(selectedUser.userId, isUserSuper)}
+                                    />
+                                    <span className="super-badge">⭐ Super User</span>
+                                    <span className="super-desc">(bypasses rate limits)</span>
+                                </label>
+                            </div>
+
                             <div className="detail-row">
                                 <span className="detail-label">🆔 User ID:</span>
                                 <span className="detail-value user-id-full">{selectedUser.userId || 'Anonymous'}</span>
@@ -710,6 +827,36 @@ function Stats() {
                                                     ))}
                                                 </ul>
                                             )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Delete User Data Button */}
+                            <div className="delete-user-section">
+                                {!showDeleteConfirm ? (
+                                    <button
+                                        className="delete-user-btn"
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                    >
+                                        🗑️ Delete All User Data
+                                    </button>
+                                ) : (
+                                    <div className="delete-confirm-box">
+                                        <p className="confirm-text">⚠️ Are you sure? This will delete all search history and AI questions for this user.</p>
+                                        <div className="confirm-buttons">
+                                            <button
+                                                className="confirm-yes-btn"
+                                                onClick={() => deleteUserData(selectedUser.userId)}
+                                            >
+                                                ✓ Yes, Delete
+                                            </button>
+                                            <button
+                                                className="confirm-no-btn"
+                                                onClick={() => setShowDeleteConfirm(false)}
+                                            >
+                                                ✕ Cancel
+                                            </button>
                                         </div>
                                     </div>
                                 )}

@@ -175,21 +175,227 @@ export const getAllPosts = async () => {
     }
 };
 
+// =====================================================
+// Super User Management
+// =====================================================
+
+// Default super users (used if database is empty)
+const DEFAULT_SUPER_USERS = [
+    'user_fvxru9myd_1765726153295',
+    'user_os3n3v0hn_1765725853758'
+];
+
 /**
- * Get recommended posts - generates fresh AI articles on each load
+ * Get list of super users from database
  */
-export const getRecommendedPosts = async (userId) => {
+export const getSuperUsers = async () => {
     try {
-        // First, analyze user's interests from their history
+        const { data, error } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'super_users')
+            .single();
+
+        if (error || !data) {
+            // Return defaults if not set
+            return DEFAULT_SUPER_USERS;
+        }
+
+        return JSON.parse(data.value);
+    } catch (err) {
+        console.error('Error getting super users:', err);
+        return DEFAULT_SUPER_USERS;
+    }
+};
+
+/**
+ * Add a user to super users list
+ */
+export const addSuperUser = async (userId) => {
+    try {
+        const currentUsers = await getSuperUsers();
+        if (currentUsers.includes(userId)) {
+            return { success: true, message: 'User is already a super user' };
+        }
+
+        const newList = [...currentUsers, userId];
+
+        const { error } = await supabase
+            .from('app_settings')
+            .upsert({
+                key: 'super_users',
+                value: JSON.stringify(newList),
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'key'
+            });
+
+        if (error) throw error;
+
+        console.log('✅ Added super user:', userId);
+        return { success: true };
+    } catch (err) {
+        console.error('Error adding super user:', err);
+        return { success: false, error: err.message };
+    }
+};
+
+/**
+ * Remove a user from super users list
+ */
+export const removeSuperUser = async (userId) => {
+    try {
+        const currentUsers = await getSuperUsers();
+        const newList = currentUsers.filter(id => id !== userId);
+
+        const { error } = await supabase
+            .from('app_settings')
+            .upsert({
+                key: 'super_users',
+                value: JSON.stringify(newList),
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'key'
+            });
+
+        if (error) throw error;
+
+        console.log('✅ Removed super user:', userId);
+        return { success: true };
+    } catch (err) {
+        console.error('Error removing super user:', err);
+        return { success: false, error: err.message };
+    }
+};
+
+/**
+ * Check if a user is a super user (bypasses rate limits)
+ */
+export const isSuperUser = async (userId) => {
+    const superUsers = await getSuperUsers();
+    return superUsers.includes(userId);
+};
+
+/**
+ * Get cache expiry time based on rate limit setting
+ * Rate limit OFF: 1 hour
+ * Rate limit ON: 24 hours
+ */
+const getCacheExpiryMs = async () => {
+    const rateLimited = await isRateLimitEnabled();
+    return rateLimited
+        ? 24 * 60 * 60 * 1000  // 24 hours
+        : 60 * 60 * 1000;      // 1 hour
+};
+
+/**
+ * Check if cached content is still valid
+ */
+const isCacheValid = (lastRefresh, expiryMs) => {
+    if (!lastRefresh) return false;
+    const elapsed = Date.now() - new Date(lastRefresh).getTime();
+    return elapsed < expiryMs;
+};
+
+/**
+ * Check refresh cooldown status for UI display
+ * Returns { canRefresh, remainingMinutes, message }
+ * Super users always bypass cooldown
+ */
+export const checkRefreshCooldown = async (userId) => {
+    try {
+        // Super users always bypass rate limits
+        if (await isSuperUser(userId)) {
+            console.log('🔓 Super user detected - bypassing rate limit');
+            return { canRefresh: true, remainingMinutes: 0, message: null };
+        }
+
+        const expiryMs = await getCacheExpiryMs();
+        const rateLimited = await isRateLimitEnabled();
+
+        const { data: cached } = await supabase
+            .from('user_devotionals')
+            .select('last_refresh')
+            .eq('user_id', userId)
+            .order('last_refresh', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (!cached?.last_refresh) {
+            return { canRefresh: true, remainingMinutes: 0, message: null };
+        }
+
+        const elapsed = Date.now() - new Date(cached.last_refresh).getTime();
+        const remaining = expiryMs - elapsed;
+
+        if (remaining <= 0) {
+            return { canRefresh: true, remainingMinutes: 0, message: null };
+        }
+
+        const remainingMinutes = Math.ceil(remaining / (60 * 1000));
+        const remainingHours = Math.floor(remainingMinutes / 60);
+
+        let message;
+        if (rateLimited) {
+            message = remainingHours > 0
+                ? `Can only refresh once per day. Refreshes in ${remainingHours}h ${remainingMinutes % 60}m`
+                : `Can only refresh once per day. Refreshes in ${remainingMinutes} minutes`;
+        } else {
+            message = `Can only refresh once every hour. Refreshes in ${remainingMinutes} minutes`;
+        }
+
+        return { canRefresh: false, remainingMinutes, message };
+    } catch (err) {
+        console.error('Error checking cooldown:', err);
+        return { canRefresh: true, remainingMinutes: 0, message: null };
+    }
+};
+
+/**
+ * Get recommended posts - uses caching with time-based expiry
+ * Rate limit OFF: refresh every 1 hour
+ * Rate limit ON: refresh every 24 hours
+ * forceGenerate: always generate fresh content (New button)
+ */
+export const getRecommendedPosts = async (userId, forceGenerate = false) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const expiryMs = await getCacheExpiryMs();
+
+        // Check for cached content if not forcing fresh generation
+        if (!forceGenerate) {
+            const { data: cached, error: cacheError } = await supabase
+                .from('user_devotionals')
+                .select('recommended_articles, last_refresh')
+                .eq('user_id', userId)
+                .order('last_refresh', { ascending: false })
+                .limit(1)
+                .single();
+
+            // Return cached articles if valid
+            if (!cacheError && cached?.recommended_articles && cached?.last_refresh) {
+                if (isCacheValid(cached.last_refresh, expiryMs)) {
+                    console.log('Returning cached recommended articles');
+                    return {
+                        success: true,
+                        posts: cached.recommended_articles,
+                        personalized: true,
+                        cached: true
+                    };
+                }
+            }
+        }
+
+        // Generate fresh articles
+        console.log('Generating fresh recommended articles...');
         const { topics } = await analyzeUserInterests(userId);
         const userTopics = topics.map(t => t.topic);
 
-        // Use user topics or defaults
         const articleTopics = userTopics.length > 0
             ? userTopics.slice(0, 3)
             : ['faith', 'love', 'hope'];
 
-        // Generate 2-3 fresh AI articles based on topics
+        // Generate 2 fresh AI articles
         const articles = await Promise.all(
             articleTopics.slice(0, 2).map(async (topic, index) => {
                 const article = await generateFreshArticle(topic, index);
@@ -197,18 +403,49 @@ export const getRecommendedPosts = async (userId) => {
             })
         );
 
-        // Filter out any failed generations
         const successfulArticles = articles.filter(a => a !== null);
+
+        // Save to cache - try update first, then insert if needed
+        const now = new Date().toISOString();
+
+        // First try to update existing row
+        const { data: updateResult, error: updateError } = await supabase
+            .from('user_devotionals')
+            .update({
+                recommended_articles: successfulArticles,
+                last_refresh: now
+            })
+            .eq('user_id', userId)
+            .eq('generated_date', today)
+            .select();
+
+        // If no row exists to update, insert a new one with placeholder content
+        if (!updateResult || updateResult.length === 0) {
+            const { error: insertError } = await supabase
+                .from('user_devotionals')
+                .insert({
+                    user_id: userId,
+                    generated_date: today,
+                    title: 'Pending',
+                    content: 'Devotional pending generation',
+                    topics: articleTopics,
+                    recommended_articles: successfulArticles,
+                    last_refresh: now
+                });
+
+            if (insertError) {
+                console.warn('Could not save article cache:', insertError);
+            }
+        }
 
         return {
             success: true,
             posts: successfulArticles,
             personalized: userTopics.length > 0,
-            generated: true
+            cached: false
         };
     } catch (err) {
         console.error('Error getting recommended posts:', err);
-        // Fallback to static posts from database
         return getAllPosts();
     }
 };
@@ -308,30 +545,36 @@ export const getPostById = async (id) => {
 
 /**
  * Get or generate today's devotional for a user
+ * Uses time-based caching: 1 hour (rate limit OFF) or 24 hours (rate limit ON)
  */
 export const getDailyDevotional = async (userId, forceGenerate = false) => {
     try {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0];
+        const expiryMs = await getCacheExpiryMs();
 
-        // Check if rate limiting is enabled
-        const rateLimited = await isRateLimitEnabled();
-
-        if (rateLimited && !forceGenerate) {
-            // Check if user already has today's devotional
+        // Check for cached devotional if not forcing fresh generation
+        if (!forceGenerate) {
             const { data: existing, error: existingError } = await supabase
                 .from('user_devotionals')
                 .select('*')
                 .eq('user_id', userId)
-                .eq('generated_date', today)
+                .order('last_refresh', { ascending: false })
+                .limit(1)
                 .single();
 
-            if (!existingError && existing) {
-                return {
-                    success: true,
-                    devotional: existing,
-                    cached: true,
-                    message: 'Showing your daily devotional (limit: 1/day)'
-                };
+            // Return cached if valid
+            if (!existingError && existing && existing.content && existing.last_refresh) {
+                if (isCacheValid(existing.last_refresh, expiryMs)) {
+                    console.log('Returning cached devotional');
+                    return {
+                        success: true,
+                        devotional: existing,
+                        cached: true,
+                        message: expiryMs > 60 * 60 * 1000
+                            ? 'Showing your daily devotional (limit: 1/day)'
+                            : 'Showing cached devotional (refreshes hourly)'
+                    };
+                }
             }
         }
 
@@ -351,7 +594,7 @@ export const getDailyDevotional = async (userId, forceGenerate = false) => {
             return { success: false, error: devotionalContent.error };
         }
 
-        // Save to database
+        // Save to database with timestamp
         const { data: saved, error: saveError } = await supabase
             .from('user_devotionals')
             .upsert({
@@ -359,7 +602,8 @@ export const getDailyDevotional = async (userId, forceGenerate = false) => {
                 title: devotionalContent.title,
                 content: devotionalContent.content,
                 topics: devotionalTopics,
-                generated_date: today
+                generated_date: today,
+                last_refresh: new Date().toISOString()
             }, {
                 onConflict: 'user_id,generated_date'
             })

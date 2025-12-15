@@ -5,21 +5,26 @@ import {
     getRecommendedPosts,
     getDailyDevotional,
     getTrendingTopics,
-    analyzeUserInterests
+    analyzeUserInterests,
+    checkRefreshCooldown
 } from '../services/blogService';
+import { useSettings } from '../context/SettingsContext';
 import './Blog.css';
 
 function Blog() {
     const navigate = useNavigate();
+    const { settings } = useSettings();
     const [posts, setPosts] = useState([]);
     const [devotional, setDevotional] = useState(null);
     const [trendingTopics, setTrendingTopics] = useState([]);
     const [userTopics, setUserTopics] = useState([]);
     const [loading, setLoading] = useState(true);
     const [devotionalLoading, setDevotionalLoading] = useState(false);
+    const [postsLoading, setPostsLoading] = useState(false);
     const [selectedPost, setSelectedPost] = useState(null);
     const [error, setError] = useState(null);
     const [allBooks, setAllBooks] = useState([]);
+    const [cooldownMessage, setCooldownMessage] = useState(null);
 
     useEffect(() => {
         loadBlogContent();
@@ -72,13 +77,41 @@ function Blog() {
     };
 
     const refreshDevotional = async () => {
-        setDevotionalLoading(true);
         const userId = getUserId();
-        const result = await getDailyDevotional(userId, true); // Force generate
+
+        // Check cooldown first
+        const cooldown = await checkRefreshCooldown(userId);
+        if (!cooldown.canRefresh) {
+            setCooldownMessage(cooldown.message);
+            setTimeout(() => setCooldownMessage(null), 4000);
+            return;
+        }
+
+        setDevotionalLoading(true);
+        const result = await getDailyDevotional(userId, true);
         if (result.success) {
             setDevotional(result.devotional);
         }
         setDevotionalLoading(false);
+    };
+
+    const refreshPosts = async () => {
+        const userId = getUserId();
+
+        // Check cooldown first
+        const cooldown = await checkRefreshCooldown(userId);
+        if (!cooldown.canRefresh) {
+            setCooldownMessage(cooldown.message);
+            setTimeout(() => setCooldownMessage(null), 4000);
+            return;
+        }
+
+        setPostsLoading(true);
+        const result = await getRecommendedPosts(userId, true);
+        if (result.success) {
+            setPosts(result.posts);
+        }
+        setPostsLoading(false);
     };
 
     const formatContent = (content) => {
@@ -198,6 +231,13 @@ function Blog() {
                 </div>
             )}
 
+            {/* Cooldown Toast */}
+            {cooldownMessage && (
+                <div className="cooldown-toast">
+                    ⏳ {cooldownMessage}
+                </div>
+            )}
+
             {/* Daily Devotional Section */}
             <section className="blog-section devotional-section">
                 <div className="section-header">
@@ -216,6 +256,7 @@ function Blog() {
                         <h3>{devotional.title || 'Daily Devotional'}</h3>
                         <div
                             className="devotional-content"
+                            style={{ fontSize: `${settings.fontSize}px` }}
                             dangerouslySetInnerHTML={{ __html: formatContent(devotional.content) }}
                         />
                         {devotional.topics && (
@@ -265,7 +306,16 @@ function Blog() {
 
             {/* Recommended Articles */}
             <section className="blog-section articles-section">
-                <h2>📚 Recommended Reading</h2>
+                <div className="section-header">
+                    <h2>📚 Recommended Reading</h2>
+                    <button
+                        className="refresh-btn"
+                        onClick={refreshPosts}
+                        disabled={postsLoading}
+                    >
+                        {postsLoading ? '⏳' : '🔄'} New
+                    </button>
+                </div>
                 {posts.length === 0 ? (
                     <div className="empty-posts">
                         <p>No articles yet. Start searching to get personalized recommendations!</p>
@@ -305,6 +355,7 @@ function Blog() {
                         <div className="article-modal-body">
                             <div
                                 className="article-content"
+                                style={{ fontSize: `${settings.fontSize}px` }}
                                 dangerouslySetInnerHTML={{ __html: formatContent(selectedPost.content) }}
                             />
                             {selectedPost.scripture_refs && selectedPost.scripture_refs.length > 0 && (
