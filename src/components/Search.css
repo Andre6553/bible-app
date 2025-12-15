@@ -951,19 +951,27 @@
     font-style: italic;
 }
 
+.expand-btn,
 .collapse-btn {
     background: var(--bg-elevated);
     border: 1px solid var(--border-color);
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: var(--radius-md);
     color: var(--text-primary);
     cursor: pointer;
     font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
 }
 
+.expand-btn:hover,
 .collapse-btn:hover {
     background: var(--accent-primary);
     color: white;
+    border-color: var(--accent-primary);
 }
 
 /* Expanded AI Answer Mode */

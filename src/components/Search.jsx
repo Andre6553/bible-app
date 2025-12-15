@@ -72,6 +72,7 @@ function Search({ currentVersion, versions }) {
                     setAiQuestion(question);
                     setAiResponse(response);
                     setShowAIModal(showModal);
+                    if (expanded) setIsAnswerExpanded(expanded); // Restore expanded state
                 }
             }
         } catch (e) {
@@ -89,10 +90,11 @@ function Search({ currentVersion, versions }) {
                 question: aiQuestion,
                 response: aiResponse,
                 showModal: showAIModal,
+                expanded: isAnswerExpanded, // Save expanded state
                 timestamp: Date.now()
             }));
         }
-    }, [aiQuestion, aiResponse, showAIModal]);
+    }, [aiQuestion, aiResponse, showAIModal, isAnswerExpanded]);
 
     const loadBooks = async () => {
         const result = await getBooks();
@@ -817,7 +819,15 @@ Here are the available shortcuts to quickly ask questions:
                                     <div className="ai-response-header">
                                         <h3>📚 Biblical Answer:</h3>
                                         {!isAnswerExpanded && (
-                                            <span className="expand-hint">Double-tap to expand</span>
+                                            <button
+                                                className="expand-btn"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsAnswerExpanded(true);
+                                                }}
+                                            >
+                                                ⤢ Expand
+                                            </button>
                                         )}
                                         {isAnswerExpanded && (
                                             <button
