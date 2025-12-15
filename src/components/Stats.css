@@ -424,10 +424,20 @@
 .clickable-row {
     cursor: pointer;
     transition: background 0.2s;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-.clickable-row:hover {
+.clickable-row:hover,
+.clickable-row:active {
     background: var(--bg-tertiary) !important;
+}
+
+/* Ensure child elements don't block touch events */
+.clickable-row * {
+    pointer-events: none;
 }
 
 /* Detail Modal */
