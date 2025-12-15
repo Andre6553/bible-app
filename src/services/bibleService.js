@@ -350,26 +350,60 @@ export const getUserStatistics = async () => {
  */
 export const getUserHistory = async (userId) => {
     try {
+        const cleanUserId = userId?.trim();
+        if (!cleanUserId) return { success: false, searches: [], aiQuestions: [] };
+
+        // 1. Try Direct Query
         const searchReq = supabase
             .from('search_logs')
             .select('*')
-            .eq('user_id', userId)
+            .eq('user_id', cleanUserId)
             .order('created_at', { ascending: false })
             .limit(20);
 
         const aiReq = supabase
             .from('ai_questions')
             .select('*')
-            .eq('user_id', userId)
+            .eq('user_id', cleanUserId)
             .order('created_at', { ascending: false })
             .limit(20);
 
         const [searchRes, aiRes] = await Promise.all([searchReq, aiReq]);
 
+        let searches = searchRes.data || [];
+        let aiQuestions = aiRes.data || [];
+
+        // 2. Fallback: If no results, try client-side filtering (handles potential column type casting issues)
+        if (searches.length === 0) {
+            console.log('Direct search_logs query returned 0, trying fallback...');
+            const { data: allSearches } = await supabase
+                .from('search_logs')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(500); // Fetch recent 500
+
+            if (allSearches) {
+                // Manual loose comparison
+                searches = allSearches.filter(s => s.user_id && s.user_id.trim() === cleanUserId).slice(0, 20);
+            }
+        }
+
+        if (aiQuestions.length === 0) {
+            const { data: allAi } = await supabase
+                .from('ai_questions')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(500);
+
+            if (allAi) {
+                aiQuestions = allAi.filter(q => q.user_id && q.user_id.trim() === cleanUserId).slice(0, 20);
+            }
+        }
+
         return {
             success: true,
-            searches: searchRes.data || [],
-            aiQuestions: aiRes.data || []
+            searches,
+            aiQuestions
         };
     } catch (error) {
         console.error('Error getting user history:', error);
