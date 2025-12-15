@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabaseClient';
-import { getUserStatistics } from '../services/bibleService';
+import { getUserStatistics, getUserHistory } from '../services/bibleService';
 import './Stats.css';
 
 function Stats() {
