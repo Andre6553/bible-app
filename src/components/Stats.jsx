@@ -613,6 +613,47 @@ function Stats() {
                                     )}
                                 </div>
                             </div>
+
+                            {/* New History Section */}
+                            <div className="history-section">
+                                <h4>🕒 Recent Activity</h4>
+                                {historyLoading ? (
+                                    <p className="loading-text">Loading history...</p>
+                                ) : (
+                                    <div className="history-lists">
+                                        <div className="history-col">
+                                            <h5>🔍 Recent Searches</h5>
+                                            {selectedUserHistory.searches.length === 0 ? (
+                                                <p className="no-data-text">No recent searches</p>
+                                            ) : (
+                                                <ul className="mini-list">
+                                                    {selectedUserHistory.searches.map(log => (
+                                                        <li key={log.id} className="mini-item">
+                                                            <span className="mini-time">{new Date(log.created_at).toLocaleDateString()}</span>
+                                                            <span className="mini-text">{log.query}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                        <div className="history-col">
+                                            <h5>🤖 AI Questions</h5>
+                                            {selectedUserHistory.aiQuestions.length === 0 ? (
+                                                <p className="no-data-text">No AI questions</p>
+                                            ) : (
+                                                <ul className="mini-list">
+                                                    {selectedUserHistory.aiQuestions.map(q => (
+                                                        <li key={q.id} className="mini-item">
+                                                            <span className="mini-time">{new Date(q.created_at).toLocaleDateString()}</span>
+                                                            <span className="mini-text" title={q.question}>{q.question.substring(0, 40)}...</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
