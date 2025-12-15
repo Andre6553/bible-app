@@ -269,6 +269,32 @@
     color: rgba(255, 255, 255, 0.7);
 }
 
+.user-summary {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.user-summary h3 {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.user-summary .subtitle {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.user-summary .big-number {
+    color: white;
+}
+
+.user-id-term {
+    font-family: monospace;
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: normal;
+}
+
 .ai-q-text {
     font-size: 0.85rem;
     line-height: 1.3;

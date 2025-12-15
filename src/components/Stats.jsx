@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabaseClient';
+import { getUserStatistics } from '../services/bibleService';
 import './Stats.css';
 
 function Stats() {
@@ -8,6 +8,9 @@ function Stats() {
     const [aiQuestions, setAiQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // User Stats
+    const [userStats, setUserStats] = useState({ totalUsers: 0, topUsers: [] });
 
 
     const [stats, setStats] = useState({ total: 0, topTerms: [] });
@@ -30,6 +33,7 @@ function Stats() {
         if (isAuthenticated) {
             fetchLogs();
             fetchAIQuestions();
+            fetchUserStats();
         }
     }, [isAuthenticated]);
 
@@ -41,6 +45,13 @@ function Stats() {
         } else {
             setAuthError(true);
             setPinInput('');
+        }
+    };
+
+    const fetchUserStats = async () => {
+        const result = await getUserStatistics();
+        if (result.success) {
+            setUserStats(result.data);
         }
     };
 
@@ -345,6 +356,35 @@ function Stats() {
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            {/* User Activity Section */}
+            <h2 className="section-title">👥 User Activity</h2>
+            <div className="stats-grid">
+                {/* Total Users Card */}
+                <div className="stat-card summary-card user-summary">
+                    <h3>Total Users</h3>
+                    <div className="big-number">{userStats.totalUsers}</div>
+                    <p className="subtitle">Unique devices/browsers</p>
+                </div>
+
+                {/* Top Active Users Card */}
+                <div className="stat-card">
+                    <h3>🏆 Most Active Users</h3>
+                    {userStats.topUsers.length === 0 ? (
+                        <p className="no-data">No data yet</p>
+                    ) : (
+                        <ul className="top-list">
+                            {userStats.topUsers.map((u, idx) => (
+                                <li key={idx} className="top-item">
+                                    <span className="rank">#{idx + 1}</span>
+                                    <span className="term user-id-term">{u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}</span>
+                                    <span className="count">{u.count} actions</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
             </div>
 

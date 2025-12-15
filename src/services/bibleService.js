@@ -268,3 +268,53 @@ export const logSearch = async (query, version, testament) => {
         console.error('Analytics log error', err);
     }
 };
+
+/**
+ * Get User Statistics (Total Users, Most Active)
+ */
+export const getUserStatistics = async () => {
+    try {
+        // Fetch raw user_ids from both tables
+        // We limit to 5000 to keep it performant on client-side aggregation
+        const searchReq = supabase.from('search_logs').select('user_id').limit(5000);
+        const aiReq = supabase.from('ai_questions').select('user_id').limit(5000);
+
+        const [searchRes, aiRes] = await Promise.all([searchReq, aiReq]);
+
+        if (searchRes.error) throw searchRes.error;
+        if (aiRes.error) throw aiRes.error;
+
+        // Combined list of all actions
+        const allActions = [
+            ...searchRes.data.map(d => ({ user: d.user_id, type: 'search' })),
+            ...aiRes.data.map(d => ({ user: d.user_id, type: 'ai' }))
+        ];
+
+        // 1. Unique Users Count
+        const uniqueUsers = new Set(allActions.map(a => a.user)).size;
+
+        // 2. User Activity Count
+        const userCounts = {};
+        allActions.forEach(action => {
+            const uid = action.user || 'Anonymous';
+            userCounts[uid] = (userCounts[uid] || 0) + 1;
+        });
+
+        // 3. Sort by activity
+        const topUsers = Object.entries(userCounts)
+            .map(([userId, count]) => ({ userId, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5); // Top 5
+
+        return {
+            success: true,
+            data: {
+                totalUsers: uniqueUsers,
+                topUsers: topUsers
+            }
+        };
+    } catch (error) {
+        console.error('Error getting user stats:', error);
+        return { success: false, error: error.message };
+    }
+};
