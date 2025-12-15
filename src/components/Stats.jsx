@@ -101,46 +101,54 @@ function Stats() {
     };
 
     const handleUserClick = async (user) => {
-        console.log('Clicked User:', user);
-        console.log('Current Logs Count:', logs.length);
-
+        console.group('🔍 Debugging User Value');
+        console.log('Selected User Object:', user);
+        console.log('Total Local Logs Available:', logs.length);
+        console.log('Total Local AI Questions Available:', aiQuestions.length);
+        
         setSelectedUser(user);
-
+        
         // 1. Immediate Local Filter
-        // Normalizing IDs to ensure string comparison works
         const targetId = String(user.userId).trim();
-
+        console.log('Target User ID (Trimmed):', targetId);
+        
         const localSearches = logs.filter(l => String(l.user_id).trim() === targetId).slice(0, 20);
         const localAi = aiQuestions.filter(q => String(q.user_id).trim() === targetId).slice(0, 20);
-
-        console.log(`Local match for ${targetId}:`, { searches: localSearches.length, ai: localAi.length });
+        
+        console.log(`Local Filter Results:`, { 
+            foundSearches: localSearches.length, 
+            foundAiQuestions: localAi.length 
+        });
 
         if (localSearches.length === 0 && localAi.length === 0) {
-            console.warn(`⚠️ No local history found for ${targetId} despite having stats! Checking raw logs...`, logs.slice(0, 3));
+            console.warn('⚠️ No local history found. Dumping first 3 logs to check ID format:', logs.slice(0, 3));
         }
 
-        setSelectedUserHistory({
-            searches: localSearches,
-            aiQuestions: localAi
+        setSelectedUserHistory({ 
+            searches: localSearches, 
+            aiQuestions: localAi 
         });
 
         // 2. Fetch Deeper History (in background)
         setHistoryLoading(true);
+        console.log('Fetching deeper history from server...');
         const history = await getUserHistory(user.userId);
-        console.log('Server history fetch result:', history);
-
+        console.log('Server Fetch Result:', history);
+        
         if (history.success) {
             const serverHasData = history.searches.length > 0 || history.aiQuestions.length > 0;
             const localIsEmpty = localSearches.length === 0 && localAi.length === 0;
 
             if (serverHasData || localIsEmpty) {
-                setSelectedUserHistory({
-                    searches: history.searches,
-                    aiQuestions: history.aiQuestions
+                console.log('Updating history with server data');
+                 setSelectedUserHistory({ 
+                    searches: history.searches, 
+                    aiQuestions: history.aiQuestions 
                 });
             }
         }
         setHistoryLoading(false);
+        console.groupEnd();
     };
 
     const processAIStats = (data) => {
