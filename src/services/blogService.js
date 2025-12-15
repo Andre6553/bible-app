@@ -648,7 +648,8 @@ Structure:
 
 Format the scripture reference as **Book Chapter:Verse** in bold.
 Keep the tone warm, personal, and encouraging - like a friend sharing wisdom.
-Do not use overly formal or preachy language.`;
+Do not use overly formal or preachy language.
+Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - just begin directly with the content.`;
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
