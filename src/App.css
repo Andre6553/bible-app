@@ -39,6 +39,12 @@
     --transition-fast: 150ms ease;
     --transition-base: 200ms ease;
     --transition-slow: 300ms ease;
+
+    /* Safe Area Insets (for Notches/Home Bars on iOS & Android) */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
 }
 
 /* App Container */
@@ -46,6 +52,9 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    /* Fallback */
+    height: 100dvh;
+    /* Dynamic Height for Mobile Browsers */
     background: var(--bg-primary);
     color: var(--text-primary);
     overflow: hidden;

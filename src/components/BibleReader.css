@@ -12,6 +12,7 @@
 .bible-header {
     background: var(--bg-secondary);
     padding: var(--spacing-lg);
+    padding-top: calc(var(--spacing-lg) + var(--safe-top));
     border-bottom: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
@@ -257,8 +258,8 @@
     flex: 1;
     overflow-y: auto;
     padding: var(--spacing-lg);
-    padding-bottom: 200px;
-    /* Extra Space for Bottom Nav on mobile */
+    padding-bottom: calc(100px + var(--safe-bottom));
+    /* Extra Space for Bottom Nav on mobile + safe area */
     box-sizing: border-box;
 }
 

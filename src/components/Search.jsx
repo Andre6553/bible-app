@@ -843,10 +843,12 @@ Here are the available shortcuts to quickly ask questions:
                                 </div>
                             )}
 
-                            <div className="info-footer">
-                                <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
-                                <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
-                            </div>
+                            {!isAnswerExpanded && (
+                                <div className="info-footer">
+                                    <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
+                                    <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
+                                </div>
+                            )}
 
                             {/* AI History Section */}
                             {aiHistory.length > 0 && (

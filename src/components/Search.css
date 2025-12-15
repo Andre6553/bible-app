@@ -14,6 +14,7 @@
 .search-header {
     background: var(--bg-secondary);
     padding: var(--spacing-lg);
+    padding-top: calc(var(--spacing-lg) + var(--safe-top));
     border-bottom: 1px solid var(--border-subtle);
     box-shadow: var(--shadow-md);
 }
@@ -207,7 +208,8 @@
     overflow-y: auto;
     padding: var(--spacing-lg);
     padding-bottom: 160px;
-    /* Extra space for bottom nav */
+    padding-bottom: calc(160px + var(--safe-bottom));
+    /* Extra space for bottom nav + safe area */
     min-height: 0;
     /* Critical for nested flex scrolling */
     -webkit-overflow-scrolling: touch;
@@ -975,7 +977,9 @@
     background: var(--bg-primary);
     border-radius: 0;
     margin: 0;
-    padding: 20px;
+    padding: 0;
+    padding-top: var(--safe-top);
+    /* Respect notch */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -985,7 +989,11 @@
     flex: 1;
     overflow-y: auto;
     max-height: none;
-    padding-bottom: 80px;
+    padding: 20px;
+    padding-bottom: calc(80px + var(--safe-bottom));
+    border-left: none;
+    /* Remove border in full screen for cleaner look */
+    border-radius: 0;
     -webkit-overflow-scrolling: touch;
 }
 
