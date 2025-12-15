@@ -97,12 +97,12 @@ function Stats() {
 
     const fetchLogs = async () => {
         setLoading(true);
-        // Fetch last 1000 logs
+        // Fetch last 5000 logs to match stats calculation window
         const { data, error } = await supabase
             .from('search_logs')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(1000);
+            .limit(5000);
 
         if (error) {
             console.error("Error fetching available logs:", error);
@@ -121,7 +121,7 @@ function Stats() {
             .from('ai_questions')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(500);
+            .limit(5000);
 
         if (error) {
             console.error("Error fetching AI questions:", error);
@@ -130,6 +130,49 @@ function Stats() {
 
         processAIStats(data);
         setAiQuestions(data);
+    };
+
+    const handleUserClick = async (user) => {
+        console.log('Clicked User:', user);
+        console.log('Current Logs Count:', logs.length);
+
+        setSelectedUser(user);
+
+        // 1. Immediate Local Filter
+        // Normalizing IDs to ensure string comparison works
+        const targetId = String(user.userId).trim();
+
+        const localSearches = logs.filter(l => String(l.user_id).trim() === targetId).slice(0, 20);
+        const localAi = aiQuestions.filter(q => String(q.user_id).trim() === targetId).slice(0, 20);
+
+        console.log(`Local match for ${targetId}:`, { searches: localSearches.length, ai: localAi.length });
+
+        if (localSearches.length === 0 && localAi.length === 0) {
+            console.warn(`⚠️ No local history found for ${targetId} despite having stats! Checking raw logs...`, logs.slice(0, 3));
+        }
+
+        setSelectedUserHistory({
+            searches: localSearches,
+            aiQuestions: localAi
+        });
+
+        // 2. Fetch Deeper History (in background)
+        setHistoryLoading(true);
+        const history = await getUserHistory(user.userId);
+        console.log('Server history fetch result:', history);
+
+        if (history.success) {
+            const serverHasData = history.searches.length > 0 || history.aiQuestions.length > 0;
+            const localIsEmpty = localSearches.length === 0 && localAi.length === 0;
+
+            if (serverHasData || localIsEmpty) {
+                setSelectedUserHistory({
+                    searches: history.searches,
+                    aiQuestions: history.aiQuestions
+                });
+            }
+        }
+        setHistoryLoading(false);
     };
 
     const processAIStats = (data) => {
