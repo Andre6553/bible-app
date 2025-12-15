@@ -126,9 +126,17 @@ function Search({ currentVersion, versions }) {
             try {
                 const cached = sessionStorage.getItem('bible_search_cache');
                 if (cached) {
-                    const { query: cachedQuery, data, timestamp } = JSON.parse(cached);
-                    // Use cache if query matches and it's fresh (e.g. < 1 hour)
-                    if (cachedQuery === query && data && (Date.now() - timestamp < 3600000)) {
+                    const { query: cachedQuery, version: cachedVer, testament: cachedTest, data, timestamp } = JSON.parse(cached);
+                    // Use cache only if query, version AND testament match
+                    const currentVer = ver || 'all';
+                    const currentTest = test || 'all';
+
+                    if (cachedQuery === query &&
+                        cachedVer === currentVer &&
+                        cachedTest === currentTest &&
+                        data &&
+                        (Date.now() - timestamp < 3600000)) {
+
                         setResults(data);
                         setHasSearched(true);
                         setLoading(false);
@@ -158,6 +166,8 @@ function Search({ currentVersion, versions }) {
             try {
                 sessionStorage.setItem('bible_search_cache', JSON.stringify({
                     query: query.trim(),
+                    version: versionId,
+                    testament: testament,
                     data: result.data,
                     timestamp: Date.now()
                 }));
