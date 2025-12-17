@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { logError } from '../services/loggerService';
 
 import { supabase } from '../config/supabaseClient';
@@ -330,6 +330,37 @@ function Stats() {
         } catch (err) {
             console.error('[Stats] 💥 Exception in sendTestError:', err);
             alert("Failed to send test error: " + err.message);
+        }
+    };
+
+    // Copy Error Logic
+    const longPressTimer = useRef(null);
+
+    const handleCopyError = async (text) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            alert("📋 Error message copied to clipboard!");
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    };
+
+    const handleContextMenu = (e, text) => {
+        e.preventDefault();
+        handleCopyError(text);
+    };
+
+    const handleTouchStart = (e, text) => {
+        longPressTimer.current = setTimeout(() => {
+            handleCopyError(text);
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 800); // 800ms long press
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
         }
     };
 
@@ -1053,11 +1084,33 @@ function Stats() {
                                             key={err.id}
                                             className="clickable-row error-row"
                                             onClick={() => { setSelectedItem(err); setItemType('error'); }}
+                                            onContextMenu={(e) => handleContextMenu(e, err.error_message)}
+                                            onTouchStart={(e) => handleTouchStart(e, err.error_message)}
+                                            onTouchEnd={handleTouchEnd}
+                                            onTouchMove={handleTouchEnd}
                                         >
                                             <td>{new Date(err.created_at).toLocaleString()}</td>
-                                            <td className="error-msg-cell">
-                                                {err.error_message.substring(0, 50)}...
-                                                <span className="ver-badge">Build: {err.metadata?.version || '?'}</span>
+                                            <td className="error-msg-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                                                <span>
+                                                    {err.error_message.substring(0, 50)}...
+                                                    <span className="ver-badge">Build: {err.metadata?.version || '?'}</span>
+                                                </span>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleCopyError(err.error_message);
+                                                    }}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        fontSize: '1.2rem',
+                                                        padding: '5px'
+                                                    }}
+                                                    title="Copy Error"
+                                                >
+                                                    📋
+                                                </button>
                                             </td>
                                             <td>
                                                 {err.device_info?.os || 'Unknown'}
