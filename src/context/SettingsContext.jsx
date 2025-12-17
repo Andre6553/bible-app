@@ -21,7 +21,9 @@ export const SettingsProvider = ({ children }) => {
         const savedSettings = localStorage.getItem('bible_app_settings');
         if (savedSettings) {
             try {
-                setSettings(JSON.parse(savedSettings));
+                const parsed = JSON.parse(savedSettings);
+                // Merge with existing defaults to ensure new keys (like language) are preserved
+                setSettings(prev => ({ ...prev, ...parsed }));
             } catch (e) {
                 console.error("Failed to parse settings", e);
             }
