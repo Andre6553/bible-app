@@ -418,6 +418,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         const version = versions.find(v => v.id === versionId);
         if (version) {
             setCurrentVersion(version);
+            // Save to localStorage so it persists
+            localStorage.setItem('lastBibleVersion', version.id);
         }
     };
 

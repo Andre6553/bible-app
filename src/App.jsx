@@ -27,11 +27,22 @@ function App() {
         const result = await getVersions();
         if (result.success) {
             setVersions(result.data);
-            // Set first version as default
-            if (result.data.length > 0) {
-                const defaultVer = result.data.find(v => v.id === 'AFR53') || result.data[0];
-                setCurrentVersion(defaultVer);
+
+            // Check localStorage for last used version
+            const savedVersionId = localStorage.getItem('lastBibleVersion');
+            let selectedVersion = null;
+
+            if (savedVersionId) {
+                // Try to find the saved version
+                selectedVersion = result.data.find(v => v.id === savedVersionId);
             }
+
+            // Fallback to KJV if saved version not found, then first available
+            if (!selectedVersion) {
+                selectedVersion = result.data.find(v => v.id === 'KJV') || result.data[0];
+            }
+
+            setCurrentVersion(selectedVersion);
         }
         setLoading(false);
     };
