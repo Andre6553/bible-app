@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserId, getBooks } from '../services/bibleService';
 import {
@@ -14,6 +14,7 @@ import './Blog.css';
 function Blog() {
     const navigate = useNavigate();
     const { settings } = useSettings();
+    const prevLanguage = useRef(settings.language);
     const [posts, setPosts] = useState([]);
     const [devotional, setDevotional] = useState(null);
     const [trendingTopics, setTrendingTopics] = useState([]);
@@ -27,9 +28,12 @@ function Blog() {
     const [cooldownMessage, setCooldownMessage] = useState(null);
 
     useEffect(() => {
-        loadBlogContent();
+        // If language changed, force refresh
+        const force = settings.language !== prevLanguage.current;
+        loadBlogContent(force);
         loadBooks();
-    }, []);
+        prevLanguage.current = settings.language;
+    }, [settings.language]); // Reload when language changes
 
     const loadBooks = async () => {
         const result = await getBooks();
@@ -38,17 +42,17 @@ function Blog() {
         }
     };
 
-    const loadBlogContent = async () => {
+    const loadBlogContent = async (forceRefesh = false) => {
         setLoading(true);
         setError(null);
 
         try {
             const userId = getUserId();
 
-            // Load all content in parallel
+            // Load all content
             const [postsResult, devotionalResult, trendingResult, interestsResult] = await Promise.all([
-                getRecommendedPosts(userId),
-                getDailyDevotional(userId),
+                getRecommendedPosts(userId, forceRefesh, settings.language),
+                getDailyDevotional(userId, forceRefesh, settings.language),
                 getTrendingTopics(),
                 analyzeUserInterests(userId)
             ]);
@@ -88,7 +92,7 @@ function Blog() {
         }
 
         setDevotionalLoading(true);
-        const result = await getDailyDevotional(userId, true);
+        const result = await getDailyDevotional(userId, true, settings.language);
         if (result.success) {
             setDevotional(result.devotional);
         }
@@ -107,7 +111,7 @@ function Blog() {
         }
 
         setPostsLoading(true);
-        const result = await getRecommendedPosts(userId, true);
+        const result = await getRecommendedPosts(userId, true, settings.language);
         if (result.success) {
             setPosts(result.posts);
         }

@@ -527,12 +527,18 @@ export const checkRefreshCooldown = async (userId) => {
  * Rate limit ON: refresh every 24 hours
  * forceGenerate: always generate fresh content (New button)
  */
-export const getRecommendedPosts = async (userId, forceGenerate = false) => {
+export const getRecommendedPosts = async (userId, forceGenerate = false, language = 'en') => {
     try {
         const today = new Date().toISOString().split('T')[0];
         const expiryMs = await getCacheExpiryMs();
 
         // Check for cached content if not forcing fresh generation
+        // Note: For simplicity, we only cache English content for now or assume cache matches current desire.
+        // Ideally we should check if cached content matches requested language.
+        // For now, if language is not English, we maybe shouldn't use cache or we assume cache is mixed?
+        // Better: Check if we have language metadata. Since we don't, let's assume cache is only valid if we are not strict or just force gen for now 
+        // if user switches freq. 
+        // Let's pass language to generateFreshArticle either way.
         if (!forceGenerate) {
             const { data: cached, error: cacheError } = await supabase
                 .from('user_devotionals')
@@ -579,7 +585,7 @@ export const getRecommendedPosts = async (userId, forceGenerate = false) => {
         // Generate 2 fresh AI articles with history awareness
         const articles = await Promise.all(
             finalTopics.slice(0, 2).map(async (topic, index) => {
-                const article = await generateFreshArticle(topic, index, history.scriptures);
+                const article = await generateFreshArticle(topic, index, history.scriptures, language);
                 // Save to history for variety tracking
                 if (article) {
                     await saveDevotionalToHistory(userId, topic, article.scripture_refs?.[0], article.title);
@@ -639,7 +645,7 @@ export const getRecommendedPosts = async (userId, forceGenerate = false) => {
  * Generate a fresh article on a specific topic
  * Now includes diverse angles, seasonal context, and scripture avoidance
  */
-const generateFreshArticle = async (topic, index = 0, recentScriptures = []) => {
+const generateFreshArticle = async (topic, index = 0, recentScriptures = [], language = 'en') => {
     try {
         const { GoogleGenerativeAI } = await import('@google/generative-ai');
         const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
@@ -648,6 +654,11 @@ const generateFreshArticle = async (topic, index = 0, recentScriptures = []) => 
         // Get diverse angle with seasonal awareness
         const angle = getDiversePromptAngle();
         const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
+
+        // Language instruction
+        const langInstruction = language === 'af'
+            ? `\n\nIMPORTANT: Write the entire article in Afrikaans. For any scripture references, accurate Afrikaans text from the 1983 Vertaling (AFR83) or 1953 Vertaling (AFR53) MUST be used.`
+            : '';
 
         const prompt = `Write a short, inspiring Bible article (150-200 words) about "${topic}" with focus on: ${angle}.
 
@@ -658,13 +669,13 @@ Requirements:
 - End with a thought-provoking question or call to action
 - Do NOT include a title - just the content
 
-Tone: Warm, friendly, accessible - like a conversation with a wise friend.${scriptureAvoidance}`;
+Tone: Warm, friendly, accessible - like a conversation with a wise friend.${scriptureAvoidance}${langInstruction}`;
 
         const result = await model.generateContent(prompt);
         const content = result.response.text();
 
         // Generate title
-        const titlePrompt = `Create a catchy, engaging title (4-7 words) for an article about ${topic}. Return ONLY the title, no quotes.`;
+        const titlePrompt = `Create a catchy, engaging title (4-7 words) for an article about ${topic}. Return ONLY the title, no quotes.${language === 'af' ? ' Write in Afrikaans.' : ''}`;
         const titleResult = await model.generateContent(titlePrompt);
         const title = titleResult.response.text().trim().replace(/['"]/g, '');
 
@@ -729,7 +740,7 @@ export const getPostById = async (id) => {
  * Get or generate today's devotional for a user
  * Uses time-based caching: 1 hour (rate limit OFF) or 24 hours (rate limit ON)
  */
-export const getDailyDevotional = async (userId, forceGenerate = false) => {
+export const getDailyDevotional = async (userId, forceGenerate = false, language = 'en') => {
     try {
         const today = new Date().toISOString().split('T')[0];
         const expiryMs = await getCacheExpiryMs();
@@ -780,7 +791,7 @@ export const getDailyDevotional = async (userId, forceGenerate = false) => {
             : ['faith', 'hope', 'love'];
 
         // Generate new devotional using AI (with scripture avoidance)
-        const devotionalContent = await generateDevotionalWithAI(finalTopics, history.scriptures);
+        const devotionalContent = await generateDevotionalWithAI(finalTopics, history.scriptures, language);
 
         if (!devotionalContent.success) {
             return { success: false, error: devotionalContent.error };
@@ -831,7 +842,7 @@ export const getDailyDevotional = async (userId, forceGenerate = false) => {
  * Generate devotional content using Gemini AI
  * Now includes diverse angles and scripture avoidance
  */
-const generateDevotionalWithAI = async (topics, recentScriptures = []) => {
+const generateDevotionalWithAI = async (topics, recentScriptures = [], language = 'en') => {
     try {
         // Import the AI module dynamically to avoid circular dependencies
         const { GoogleGenerativeAI } = await import('@google/generative-ai');
@@ -840,6 +851,11 @@ const generateDevotionalWithAI = async (topics, recentScriptures = []) => {
         const topicList = topics.join(', ');
         const angle = getDiversePromptAngle();
         const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
+
+        // Language instruction
+        const langInstruction = language === 'af'
+            ? `\n\nIMPORTANT: Write the entire devotional in Afrikaans. Use proper Afrikaans grammar. For any scripture references, you MUST use the accurate text from the Afrikaans 1983 Vertaling (AFR83) or 1953 Vertaling (AFR53).`
+            : '';
 
         const prompt = `You are a warm, encouraging Bible teacher. Write a short daily devotional (250-350 words) focused on: ${topicList}.
 
@@ -855,7 +871,7 @@ Structure:
 Format the scripture reference as **Book Chapter:Verse** in bold.
 Keep the tone warm, personal, and encouraging - like a friend sharing wisdom.
 Do not use overly formal or preachy language.
-Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - just begin directly with the content.${scriptureAvoidance}`;
+Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - just begin directly with the content.${scriptureAvoidance}${langInstruction}`;
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
@@ -867,7 +883,7 @@ Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - ju
         const scriptureRef = scriptureMatch ? scriptureMatch[1] : null;
 
         // Generate a title based on topics
-        const titlePrompt = `Create a short, engaging title (5-8 words max) for a devotional about: ${topicList}. Return ONLY the title, no quotes or formatting.`;
+        const titlePrompt = `Create a short, engaging title (5-8 words max) for a devotional about: ${topicList}. Return ONLY the title, no quotes or formatting.${language === 'af' ? ' Write in Afrikaans.' : ''}`;
         const titleResult = await model.generateContent(titlePrompt);
         const title = titleResult.response.text().trim().replace(/['"]/g, '');
 

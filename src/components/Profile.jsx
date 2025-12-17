@@ -7,10 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS } from '../services/highlightService';
 import { getBooks, getVersions } from '../services/bibleService';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
+import { useSettings } from '../context/SettingsContext';
 import './Profile.css';
 
 function Profile() {
     const navigate = useNavigate();
+    const { settings, updateSettings } = useSettings();
     const [activeTab, setActiveTab] = useState('highlights');
     const [highlights, setHighlights] = useState([]);
     const [notes, setNotes] = useState([]);
@@ -258,6 +260,24 @@ function Profile() {
                         <span className="edit-icon">✏️</span>
                     </h1>
                 )}
+
+                <div className="language-selector">
+                    <span className="lang-label">Language</span>
+                    <div className="lang-toggle-container">
+                        <button
+                            className={`lang-btn ${settings.language === 'en' ? 'active' : ''}`}
+                            onClick={() => updateSettings({ language: 'en' })}
+                        >
+                            English
+                        </button>
+                        <button
+                            className={`lang-btn ${settings.language === 'af' ? 'active' : ''}`}
+                            onClick={() => updateSettings({ language: 'af' })}
+                        >
+                            Afrikaans
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Tabs */}
