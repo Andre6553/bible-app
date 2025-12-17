@@ -659,13 +659,17 @@ const generateFreshArticle = async (topic, index = 0, recentScriptures = [], lan
         const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
 
         // Language instruction
-        const langInstruction = language === 'af'
+        const isAf = language === 'af';
+        const langInstruction = isAf
             ? `\n\nIMPORTANT: Write the entire article in Afrikaans. For any scripture references, accurate Afrikaans text from the 1983 Vertaling (AFR83) or 1953 Vertaling (AFR53) MUST be used.`
             : '';
 
-        const prompt = `Write a short, inspiring Bible article (150-200 words) about "${topic}" with focus on: ${angle}.
+        const langPrefix = isAf ? 'SKRYF IN AFRIKAANS. ' : '';
+
+        const prompt = `${langPrefix}Write a short, inspiring Bible article (150-200 words) about "${topic}" with focus on: ${angle}.
 
 Requirements:
+- ${isAf ? 'Write in Afrikaans' : 'Write in English'}
 - Start with an engaging opening line
 - Include 1-2 relevant scripture references in **bold** format like **John 3:16**
 - Keep it practical and encouraging
@@ -856,11 +860,14 @@ const generateDevotionalWithAI = async (topics, recentScriptures = [], language 
         const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
 
         // Language instruction
-        const langInstruction = language === 'af'
+        const isAf = language === 'af';
+        const langInstruction = isAf
             ? `\n\nIMPORTANT: Write the entire devotional in Afrikaans. Use proper Afrikaans grammar. For any scripture references, you MUST use the accurate text from the Afrikaans 1983 Vertaling (AFR83) or 1953 Vertaling (AFR53).`
             : '';
 
-        const prompt = `You are a warm, encouraging Bible teacher. Write a short daily devotional (250-350 words) focused on: ${topicList}.
+        const langPrefix = isAf ? 'SKRYF IN AFRIKAANS. ' : '';
+
+        const prompt = `${langPrefix}You are a warm, encouraging Bible teacher. Write a short daily devotional (250-350 words) focused on: ${topicList}.
 
 Today's focus should be on: ${angle}
 
@@ -871,10 +878,12 @@ Structure:
 4. Practical application (one specific thing the reader can do today)
 5. Closing prayer (2-3 sentences)
 
-Format the scripture reference as **Book Chapter:Verse** in bold.
-Keep the tone warm, personal, and encouraging - like a friend sharing wisdom.
-Do not use overly formal or preachy language.
-Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - just begin directly with the content.${scriptureAvoidance}${langInstruction}`;
+Requirements:
+- ${isAf ? 'Write in Afrikaans' : 'Write in English'}
+- Format the scripture reference as **Book Chapter:Verse** in bold.
+- Keep the tone warm, personal, and encouraging - like a friend sharing wisdom.
+- Do not use overly formal or preachy language.
+- Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - just begin directly with the content.${scriptureAvoidance}${langInstruction}`;
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
