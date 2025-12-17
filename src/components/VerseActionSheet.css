@@ -12,6 +12,10 @@
     align-items: flex-end;
     justify-content: center;
     animation: fadeIn 0.2s ease;
+    /* iOS Safari fixes */
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 @keyframes fadeIn {
@@ -30,8 +34,19 @@
     background: var(--bg-secondary, #1e1e2e);
     border-radius: 20px 20px 0 0;
     padding: 12px 20px 24px;
-    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    /* iOS safe area + extra padding to ensure buttons visible */
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     animation: slideUp 0.3s ease;
+    /* iOS Safari fixes */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* Ensure minimum height so buttons are always visible */
+    min-height: 180px;
+    /* Prevent iOS rubber banding from hiding content */
+    position: relative;
+    box-sizing: border-box;
 }
 
 @keyframes slideUp {
