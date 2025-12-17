@@ -130,6 +130,8 @@ function Blog() {
         const result = await getDailyDevotional(userId, true, settings.language);
         if (result.success) {
             setDevotional(result.devotional);
+        } else {
+            alert(translations[settings.language].loading || 'Could not generate content');
         }
         setDevotionalLoading(false);
     };
@@ -149,6 +151,8 @@ function Blog() {
         const result = await getRecommendedPosts(userId, true, settings.language);
         if (result.success) {
             setPosts(result.posts);
+        } else {
+            alert(translations[settings.language].loading || 'Could not generate content');
         }
         setPostsLoading(false);
     };
