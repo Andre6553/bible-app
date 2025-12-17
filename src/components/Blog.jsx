@@ -131,7 +131,8 @@ function Blog() {
         if (result.success) {
             setDevotional(result.devotional);
         } else {
-            alert(translations[settings.language].loading || 'Could not generate content');
+            const msg = translations[settings.language].loading || 'Could not generate content';
+            alert(`${msg}\n\nDetails: ${result.error || 'Unknown error'}`);
         }
         setDevotionalLoading(false);
     };
@@ -152,7 +153,8 @@ function Blog() {
         if (result.success) {
             setPosts(result.posts);
         } else {
-            alert(translations[settings.language].loading || 'Could not generate content');
+            const msg = translations[settings.language].loading || 'Could not generate content';
+            alert(`${msg}\n\nDetails: ${result.error || 'Unknown error'}`);
         }
         setPostsLoading(false);
     };
