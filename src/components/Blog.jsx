@@ -27,6 +27,41 @@ function Blog() {
     const [allBooks, setAllBooks] = useState([]);
     const [cooldownMessage, setCooldownMessage] = useState(null);
 
+    const translations = {
+        en: {
+            title: '✨ For You',
+            subtitle: 'Personalized content based on your interests',
+            todaysInspiration: '🌅 Today\'s Inspiration',
+            newBtn: 'New',
+            yourTopics: '🎯 Your Topics',
+            topicsDesc: 'Based on your searches and questions',
+            trending: '🔥 Trending Topics',
+            recommended: '📚 Recommended Reading',
+            noDevotional: 'No devotional yet. Click "New" to generate one!',
+            noArticles: 'No articles yet. Start searching to get personalized recommendations!',
+            scriptureRefs: '📖 Scripture References',
+            tryAgain: 'Try Again',
+            loading: 'Could not load content. Please try again.'
+        },
+        af: {
+            title: '✨ Vir Jou',
+            subtitle: 'Gepersonaliseerde inhoud gebaseer op jou belangstellings',
+            todaysInspiration: '🌅 Vandag se Inspirasie',
+            newBtn: 'Nuut',
+            yourTopics: '🎯 Jou Onderwerpe',
+            topicsDesc: 'Gebaseer op jou soektogte en vrae',
+            trending: '🔥 Gewilde Onderwerpe',
+            recommended: '📚 Aanbevole Leesstof',
+            noDevotional: 'Geen dagstukkie nog nie. Kliek "Nuut" om een te genereer!',
+            noArticles: 'Geen artikels nie. Begin soek om aanbevelings te kry!',
+            scriptureRefs: '📖 Skrifverwysings',
+            tryAgain: 'Probeer Weer',
+            loading: 'Kon nie inhoud laai nie. Probeer asseblief weer.'
+        }
+    };
+
+    const t = translations[settings.language] || translations.en;
+
     useEffect(() => {
         // If language changed, force refresh
         const force = settings.language !== prevLanguage.current;
@@ -224,14 +259,14 @@ function Blog() {
         <div className="blog-page">
             {/* Header */}
             <div className="blog-header">
-                <h1>✨ For You</h1>
-                <p className="blog-subtitle">Personalized content based on your interests</p>
+                <h1>{t.title}</h1>
+                <p className="blog-subtitle">{t.subtitle}</p>
             </div>
 
             {error && (
                 <div className="blog-error">
                     <p>{error}</p>
-                    <button onClick={loadBlogContent}>Try Again</button>
+                    <button onClick={() => loadBlogContent(true)}>{t.tryAgain}</button>
                 </div>
             )}
 
@@ -245,13 +280,13 @@ function Blog() {
             {/* Daily Devotional Section */}
             <section className="blog-section devotional-section">
                 <div className="section-header">
-                    <h2>🌅 Today's Inspiration</h2>
+                    <h2>{t.todaysInspiration}</h2>
                     <button
                         className="refresh-btn"
                         onClick={refreshDevotional}
                         disabled={devotionalLoading}
                     >
-                        {devotionalLoading ? '⏳' : '🔄'} New
+                        {devotionalLoading ? '⏳' : '🔄'} {t.newBtn}
                     </button>
                 </div>
 
@@ -273,7 +308,7 @@ function Blog() {
                     </div>
                 ) : (
                     <div className="empty-devotional">
-                        <p>No devotional yet. Click "New" to generate one!</p>
+                        <p>{t.noDevotional}</p>
                     </div>
                 )}
             </section>
@@ -281,8 +316,8 @@ function Blog() {
             {/* Your Topics Section */}
             {userTopics.length > 0 && (
                 <section className="blog-section topics-section">
-                    <h2>🎯 Your Topics</h2>
-                    <p className="section-desc">Based on your searches and questions</p>
+                    <h2>{t.yourTopics}</h2>
+                    <p className="section-desc">{t.topicsDesc}</p>
                     <div className="topics-grid">
                         {userTopics.map((item, idx) => (
                             <div key={idx} className="topic-card">
@@ -297,7 +332,7 @@ function Blog() {
             {/* Trending Topics */}
             {trendingTopics.length > 0 && (
                 <section className="blog-section trending-section">
-                    <h2>🔥 Trending Topics</h2>
+                    <h2>{t.trending}</h2>
                     <div className="trending-list">
                         {trendingTopics.map((item, idx) => (
                             <span key={idx} className="trending-chip">
@@ -311,18 +346,18 @@ function Blog() {
             {/* Recommended Articles */}
             <section className="blog-section articles-section">
                 <div className="section-header">
-                    <h2>📚 Recommended Reading</h2>
+                    <h2>{t.recommended}</h2>
                     <button
                         className="refresh-btn"
                         onClick={refreshPosts}
                         disabled={postsLoading}
                     >
-                        {postsLoading ? '⏳' : '🔄'} New
+                        {postsLoading ? '⏳' : '🔄'} {t.newBtn}
                     </button>
                 </div>
                 {posts.length === 0 ? (
                     <div className="empty-posts">
-                        <p>No articles yet. Start searching to get personalized recommendations!</p>
+                        <p>{t.noArticles}</p>
                     </div>
                 ) : (
                     <div className="posts-grid">
@@ -364,7 +399,7 @@ function Blog() {
                             />
                             {selectedPost.scripture_refs && selectedPost.scripture_refs.length > 0 && (
                                 <div className="scripture-refs">
-                                    <h4>📖 Scripture References</h4>
+                                    <h4>{t.scriptureRefs}</h4>
                                     <div className="refs-list">
                                         {selectedPost.scripture_refs.map((ref, idx) => (
                                             <span
