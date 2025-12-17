@@ -474,8 +474,7 @@ const isCacheValid = (lastRefresh, expiryMs) => {
  */
 export const checkRefreshCooldown = async (userId) => {
     try {
-        // Super users always bypass rate limits - DISABLED by user request
-        /*
+        // Super users always bypass rate limits
         const isSuper = await isSuperUser(userId);
         console.log(`Checking cooldown for ${userId}. Super User: ${isSuper}`);
 
@@ -483,7 +482,6 @@ export const checkRefreshCooldown = async (userId) => {
             console.log('🔓 Super user detected - bypassing rate limit');
             return { canRefresh: true, remainingMinutes: 0, message: null };
         }
-        */
 
         const expiryMs = await getCacheExpiryMs();
         const rateLimited = await isRateLimitEnabled();
