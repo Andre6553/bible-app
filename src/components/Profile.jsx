@@ -262,7 +262,7 @@ function Profile() {
                 )}
 
                 <div className="language-selector">
-                    <span className="lang-label">Language</span>
+                    <span className="lang-label">For You Content in Afr / Eng</span>
                     <div className="lang-toggle-container">
                         <button
                             className={`lang-btn ${settings.language === 'en' ? 'active' : ''}`}
