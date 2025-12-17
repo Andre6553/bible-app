@@ -73,14 +73,45 @@ function Profile() {
 
         const reader = new FileReader();
         reader.onload = (event) => {
-            const base64 = event.target.result;
-            // Compress/resize if needed (basic check)
-            if (base64.length > 500000) {
-                alert('Image too large. Please choose a smaller image.');
-                return;
-            }
-            localStorage.setItem('profile_picture', base64);
-            setProfilePic(base64);
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Max dimensions for profile pic
+                const MAX_SIZE = 300;
+
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Compress to JPEG with 0.7 quality
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                try {
+                    localStorage.setItem('profile_picture', compressedBase64);
+                    setProfilePic(compressedBase64);
+                } catch (err) {
+                    alert('Image is still too large for storage. Please try a different one.');
+                    console.error('Storage error:', err);
+                }
+            };
+            img.src = event.target.result;
         };
         reader.readAsDataURL(file);
     };
