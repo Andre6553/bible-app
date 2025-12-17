@@ -635,7 +635,7 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
         return {
             success: true,
             posts: successfulArticles,
-            personalized: userTopics.length > 0,
+            personalized: topics.length > 0,
             cached: false
         };
     } catch (err) {
