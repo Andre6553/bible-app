@@ -141,7 +141,7 @@ const getSeasonalContext = (month, day, language = 'en') => {
             if (day >= 1 && day <= 23) {
                 return language === 'af'
                     ? 'die Kersfeestyd van afwagting en hoop'
-                    : 'the Advent season of anticipation and hope';
+                    : 'Christmas Time and the anticipation of Jesus\' birth';
             }
             if (day >= 27) {
                 return language === 'af'
