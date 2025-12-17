@@ -974,3 +974,76 @@
     color: var(--text-muted);
     font-size: 0.85rem;
 }
+
+/* ERROR LOGS SECTION */
+.error-summary {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    color: white;
+}
+
+.error-summary h3,
+.error-summary .big-number,
+.error-summary .subtitle {
+    color: white;
+}
+
+.clear-all-error {
+    border-color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.clear-all-error:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: white;
+    color: white;
+}
+
+.error-row {
+    border-left: 3px solid transparent;
+}
+
+.error-row:hover {
+    border-left-color: #ef4444;
+}
+
+.error-msg-cell {
+    color: #f87171;
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+.ver-badge {
+    margin-left: 6px;
+    font-size: 0.8rem;
+}
+
+.error-text-full {
+    color: #ef4444;
+    font-family: monospace;
+    background: #2d1a1a;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #7f1d1d;
+}
+
+.code-block {
+    background: var(--bg-tertiary);
+    padding: 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    overflow-x: auto;
+}
+
+.scroll-block {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.code-block pre {
+    margin: 0;
+}
+
+.full-width-card {
+    grid-column: 1 / -1;
+}

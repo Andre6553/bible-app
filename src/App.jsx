@@ -4,6 +4,8 @@ import ThemeHandler from './components/ThemeHandler';
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { getVersions } from './services/bibleService';
 import { Analytics } from "@vercel/analytics/react"
+import ErrorBoundary from './components/ErrorBoundary';
+import { initGlobalErrorListeners } from './services/loggerService';
 import './App.css';
 
 // Lazy load components
@@ -20,6 +22,7 @@ function App() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        initGlobalErrorListeners();
         loadVersions();
     }, []);
 
@@ -62,51 +65,53 @@ function App() {
             <Router>
                 <div className="app">
                     <Analytics />
-                    <div className="app-content">
-                        <Suspense fallback={
-                            <div className="loading-state">
-                                <div className="loading-spinner"></div>
-                            </div>
-                        }>
-                            <Routes>
-                                <Route
-                                    path="/bible"
-                                    element={
-                                        <BibleReader
-                                            currentVersion={currentVersion}
-                                            setCurrentVersion={setCurrentVersion}
-                                            versions={versions}
-                                        />
-                                    }
-                                />
-                                <Route
-                                    path="/search"
-                                    element={
-                                        <Search
-                                            currentVersion={currentVersion}
-                                            versions={versions}
-                                        />
-                                    }
-                                />
-                                <Route
-                                    path="/stats"
-                                    element={<Stats />}
-                                />
-                                <Route
-                                    path="/blog"
-                                    element={<Blog />}
-                                />
-                                <Route
-                                    path="/profile"
-                                    element={<Profile />}
-                                />
-                                <Route path="/" element={<Navigate to="/bible" replace />} />
-                            </Routes>
+                    <ErrorBoundary>
+                        <div className="app-content">
+                            <Suspense fallback={
+                                <div className="loading-state">
+                                    <div className="loading-spinner"></div>
+                                </div>
+                            }>
+                                <Routes>
+                                    <Route
+                                        path="/bible"
+                                        element={
+                                            <BibleReader
+                                                currentVersion={currentVersion}
+                                                setCurrentVersion={setCurrentVersion}
+                                                versions={versions}
+                                            />
+                                        }
+                                    />
+                                    <Route
+                                        path="/search"
+                                        element={
+                                            <Search
+                                                currentVersion={currentVersion}
+                                                versions={versions}
+                                            />
+                                        }
+                                    />
+                                    <Route
+                                        path="/stats"
+                                        element={<Stats />}
+                                    />
+                                    <Route
+                                        path="/blog"
+                                        element={<Blog />}
+                                    />
+                                    <Route
+                                        path="/profile"
+                                        element={<Profile />}
+                                    />
+                                    <Route path="/" element={<Navigate to="/bible" replace />} />
+                                </Routes>
+                            </Suspense>
+                        </div>
+                        <Suspense fallback={null}>
+                            <BottomNav />
                         </Suspense>
-                    </div>
-                    <Suspense fallback={null}>
-                        <BottomNav />
-                    </Suspense>
+                    </ErrorBoundary>
                 </div>
 
             </Router>

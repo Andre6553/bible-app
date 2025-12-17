@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { logError } from '../services/loggerService';
+
 import { supabase } from '../config/supabaseClient';
 import { getUserStatistics, getUserHistory } from '../services/bibleService';
 import {
@@ -13,6 +15,7 @@ import './Stats.css';
 function Stats() {
     const [logs, setLogs] = useState([]);
     const [aiQuestions, setAiQuestions] = useState([]);
+    const [errorLogs, setErrorLogs] = useState([]); // New Error Logs
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -32,7 +35,7 @@ function Stats() {
     const [aiStats, setAiStats] = useState({ total: 0, topQuestions: [] });
     // Modal for detail view
     const [selectedItem, setSelectedItem] = useState(null);
-    const [itemType, setItemType] = useState(null); // 'search' or 'ai'
+    const [itemType, setItemType] = useState(null); // 'search', 'ai', or 'error'
     // Date range delete
     const [showDateRangeModal, setShowDateRangeModal] = useState(false);
     const [dateRangeType, setDateRangeType] = useState(null); // 'search' or 'ai'
@@ -48,6 +51,7 @@ function Stats() {
     const [rateLimitLoading, setRateLimitLoading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isUserSuper, setIsUserSuper] = useState(false);
+    const [showClearErrorConfirm, setShowClearErrorConfirm] = useState(false);
 
     useEffect(() => {
         // Only fetch if authenticated
@@ -56,6 +60,7 @@ function Stats() {
             fetchAIQuestions();
             fetchUserStats();
             fetchRateLimitSetting();
+            fetchErrorLogs();
         }
     }, [isAuthenticated]);
 
@@ -129,6 +134,20 @@ function Stats() {
 
         processAIStats(data);
         setAiQuestions(data);
+    };
+
+    const fetchErrorLogs = async () => {
+        const { data, error } = await supabase
+            .from('app_errors')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1000);
+
+        if (error) {
+            console.error("Error fetching app errors:", error);
+            return;
+        }
+        setErrorLogs(data);
     };
 
     const handleUserClick = async (user) => {
@@ -262,10 +281,55 @@ function Stats() {
         if (error) {
             alert('Error deleting AI logs: ' + error.message);
         } else {
-            // Clear local state immediately
             setAiQuestions([]);
             setAiStats({ total: 0, topQuestions: [] });
             alert('✅ All AI question logs deleted!');
+        }
+    };
+
+    // Delete all Error logs
+    const clickClearErrors = () => {
+        setShowClearErrorConfirm(true);
+    };
+
+    const confirmClearErrors = async () => {
+        console.log('[Stats] 🗑️ Initiating Clear All (Custom UI Confirmed)...');
+        setShowClearErrorConfirm(false);
+
+        console.log('[Stats] 🚀 Sending delete request...');
+        // Match all rows
+        const { error } = await supabase
+            .from('app_errors')
+            .delete()
+            .neq('error_message', '_impossible_string_');
+
+        if (error) {
+            console.error('[Stats] ❌ Clear failed:', error);
+            alert('Error: ' + error.message);
+        } else {
+            console.log('[Stats] ✅ Clear successful');
+            setErrorLogs([]);
+            alert('✅ All error logs cleared.');
+        }
+    };
+
+    const sendTestError = async () => {
+        console.log('[Stats] ⚡ Initiating Test Crash...');
+        try {
+            const result = await logError(new Error("Test Crash Button Pressed"), {
+                metadata: { type: 'manual_test', user_action: 'clicked_test_button' }
+            });
+            console.log('[Stats] 🏁 logError returned:', result);
+
+            if (result && result.success) {
+                alert("⚡ Test error sent successfully!");
+                setTimeout(fetchErrorLogs, 500);
+            } else {
+                alert("❌ Failed to send. Check Console.");
+            }
+        } catch (err) {
+            console.error('[Stats] 💥 Exception in sendTestError:', err);
+            alert("Failed to send test error: " + err.message);
         }
     };
 
@@ -273,8 +337,12 @@ function Stats() {
     const deleteSingleEntry = async () => {
         if (!selectedItem) return;
 
-        const table = itemType === 'search' ? 'search_logs' : 'ai_questions';
-        const itemDesc = itemType === 'search' ? 'search log' : 'AI question';
+        let table = '';
+        if (itemType === 'search') table = 'search_logs';
+        else if (itemType === 'ai') table = 'ai_questions';
+        else if (itemType === 'error') table = 'app_errors';
+
+        const itemDesc = itemType === 'error' ? 'crash report' : (itemType === 'search' ? 'search log' : 'AI question');
 
         if (!window.confirm(`Are you sure you want to delete this ${itemDesc}?`)) {
             return;
@@ -292,9 +360,11 @@ function Stats() {
             if (itemType === 'search') {
                 setLogs(prevLogs => prevLogs.filter(log => log.id !== selectedItem.id));
                 processStats(logs.filter(log => log.id !== selectedItem.id));
-            } else {
+            } else if (itemType === 'ai') {
                 setAiQuestions(prevQ => prevQ.filter(q => q.id !== selectedItem.id));
                 processAIStats(aiQuestions.filter(q => q.id !== selectedItem.id));
+            } else if (itemType === 'error') {
+                setErrorLogs(prev => prev.filter(e => e.id !== selectedItem.id));
             }
             setSelectedItem(null);
         }
@@ -662,7 +732,7 @@ function Stats() {
                                 <span className="detail-label">👤 User ID:</span>
                                 <span className="detail-value user-id-full">{selectedItem.user_id || 'Anonymous'}</span>
                             </div>
-                            {itemType === 'search' ? (
+                            {itemType === 'search' && (
                                 <>
                                     <div className="detail-row">
                                         <span className="detail-label">🔎 Search Query:</span>
@@ -677,7 +747,9 @@ function Stats() {
                                         <span className="detail-value">{selectedItem.testament || 'All'}</span>
                                     </div>
                                 </>
-                            ) : (
+                            )}
+
+                            {itemType === 'ai' && (
                                 <>
                                     <div className="detail-row full-width">
                                         <span className="detail-label">❓ Question:</span>
@@ -687,6 +759,39 @@ function Stats() {
                                         <div className="detail-row full-width">
                                             <span className="detail-label">📚 Context Provided:</span>
                                             <p className="detail-value context-text">{selectedItem.context}</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {itemType === 'error' && (
+                                <>
+                                    <div className="detail-row full-width">
+                                        <span className="detail-label">🛑 Error Message:</span>
+                                        <p className="detail-value error-text-full">{selectedItem.error_message}</p>
+                                    </div>
+                                    <div className="detail-row full-width">
+                                        <span className="detail-label">📱 Device Info:</span>
+                                        <div className="code-block">
+                                            <pre>{JSON.stringify(selectedItem.device_info, null, 2)}</pre>
+                                        </div>
+                                    </div>
+                                    <div className="detail-row full-width">
+                                        <span className="detail-label">📍 URL:</span>
+                                        <p className="detail-value">{selectedItem.url}</p>
+                                    </div>
+                                    {selectedItem.stack_trace && (
+                                        <div className="detail-row full-width">
+                                            <span className="detail-label">🥞 Stack Trace:</span>
+                                            <div className="code-block scroll-block">
+                                                <pre>{selectedItem.stack_trace}</pre>
+                                                {selectedItem.component_stack && (
+                                                    <>
+                                                        <hr />
+                                                        <pre>{selectedItem.component_stack}</pre>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </>
@@ -702,171 +807,175 @@ function Stats() {
             )}
 
             {/* Date Range Delete Modal */}
-            {showDateRangeModal && (
-                <div className="detail-modal-overlay" onClick={() => setShowDateRangeModal(false)}>
-                    <div className="detail-modal date-range-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="detail-modal-header">
-                            <h3>📅 Delete {dateRangeType === 'search' ? 'Search Logs' : 'AI Questions'} by Date</h3>
-                            <button className="close-modal-btn" onClick={() => setShowDateRangeModal(false)}>✕</button>
-                        </div>
-                        <div className="detail-modal-body">
-                            <div className="date-input-group">
-                                <label>Start Date:</label>
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="date-input"
-                                />
+            {
+                showDateRangeModal && (
+                    <div className="detail-modal-overlay" onClick={() => setShowDateRangeModal(false)}>
+                        <div className="detail-modal date-range-modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="detail-modal-header">
+                                <h3>📅 Delete {dateRangeType === 'search' ? 'Search Logs' : 'AI Questions'} by Date</h3>
+                                <button className="close-modal-btn" onClick={() => setShowDateRangeModal(false)}>✕</button>
                             </div>
-                            <div className="date-input-group">
-                                <label>End Date:</label>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="date-input"
-                                />
+                            <div className="detail-modal-body">
+                                <div className="date-input-group">
+                                    <label>Start Date:</label>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="date-input"
+                                    />
+                                </div>
+                                <div className="date-input-group">
+                                    <label>End Date:</label>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="date-input"
+                                    />
+                                </div>
+                                <p className="date-range-info">
+                                    ⚠️ All records from {startDate || '(start)'} to {endDate || '(end)'} will be permanently deleted.
+                                </p>
                             </div>
-                            <p className="date-range-info">
-                                ⚠️ All records from {startDate || '(start)'} to {endDate || '(end)'} will be permanently deleted.
-                            </p>
-                        </div>
-                        <div className="detail-modal-footer">
-                            <button
-                                className="delete-entry-btn"
-                                onClick={deleteByDateRange}
-                                disabled={!startDate || !endDate}
-                            >
-                                🗑️ Delete Records in Range
-                            </button>
+                            <div className="detail-modal-footer">
+                                <button
+                                    className="delete-entry-btn"
+                                    onClick={deleteByDateRange}
+                                    disabled={!startDate || !endDate}
+                                >
+                                    🗑️ Delete Records in Range
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* User Detail Modal */}
-            {selectedUser && (
-                <div className="detail-modal-overlay" onClick={() => setSelectedUser(null)}>
-                    <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="detail-modal-header user-modal-header">
-                            <h3>👤 User Analysis</h3>
-                            <button className="close-modal-btn" onClick={() => setSelectedUser(null)}>✕</button>
-                        </div>
-                        <div className="detail-modal-body">
-                            {/* Super User Toggle */}
-                            <div className="super-user-toggle">
-                                <label className="super-checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={isUserSuper}
-                                        onChange={() => toggleSuperUser(selectedUser.userId, isUserSuper)}
-                                    />
-                                    <span className="super-badge">⭐ Super User</span>
-                                    <span className="super-desc">(bypasses rate limits)</span>
-                                </label>
+            {
+                selectedUser && (
+                    <div className="detail-modal-overlay" onClick={() => setSelectedUser(null)}>
+                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="detail-modal-header user-modal-header">
+                                <h3>👤 User Analysis</h3>
+                                <button className="close-modal-btn" onClick={() => setSelectedUser(null)}>✕</button>
                             </div>
+                            <div className="detail-modal-body">
+                                {/* Super User Toggle */}
+                                <div className="super-user-toggle">
+                                    <label className="super-checkbox-label">
+                                        <input
+                                            type="checkbox"
+                                            checked={isUserSuper}
+                                            onChange={() => toggleSuperUser(selectedUser.userId, isUserSuper)}
+                                        />
+                                        <span className="super-badge">⭐ Super User</span>
+                                        <span className="super-desc">(bypasses rate limits)</span>
+                                    </label>
+                                </div>
 
-                            <div className="detail-row">
-                                <span className="detail-label">🆔 User ID:</span>
-                                <span className="detail-value user-id-full">{selectedUser.userId || 'Anonymous'}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">⚡ Total Actions:</span>
-                                <span className="detail-value">{selectedUser.count} (Search + AI)</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">📱 Primary Device:</span>
-                                <span className="detail-value">{selectedUser.device}</span>
-                            </div>
+                                <div className="detail-row">
+                                    <span className="detail-label">🆔 User ID:</span>
+                                    <span className="detail-value user-id-full">{selectedUser.userId || 'Anonymous'}</span>
+                                </div>
+                                <div className="detail-row">
+                                    <span className="detail-label">⚡ Total Actions:</span>
+                                    <span className="detail-value">{selectedUser.count} (Search + AI)</span>
+                                </div>
+                                <div className="detail-row">
+                                    <span className="detail-label">📱 Primary Device:</span>
+                                    <span className="detail-value">{selectedUser.device}</span>
+                                </div>
 
-                            <div className="detail-row full-width">
-                                <span className="detail-label">🕵️ Detected User Agents:</span>
-                                <div className="user-agents-list">
-                                    {selectedUser.fullUserAgents && selectedUser.fullUserAgents.length > 0 ? (
-                                        selectedUser.fullUserAgents.map((ua, i) => (
-                                            <div key={i} className="ua-item">{ua}</div>
-                                        ))
+                                <div className="detail-row full-width">
+                                    <span className="detail-label">🕵️ Detected User Agents:</span>
+                                    <div className="user-agents-list">
+                                        {selectedUser.fullUserAgents && selectedUser.fullUserAgents.length > 0 ? (
+                                            selectedUser.fullUserAgents.map((ua, i) => (
+                                                <div key={i} className="ua-item">{ua}</div>
+                                            ))
+                                        ) : (
+                                            <p className="no-data-text">No device info recorded.</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* New History Section */}
+                                <div className="history-section">
+                                    <h4>🕒 Recent Activity</h4>
+                                    {historyLoading ? (
+                                        <p className="loading-text">Loading history...</p>
                                     ) : (
-                                        <p className="no-data-text">No device info recorded.</p>
+                                        <div className="history-lists">
+                                            <div className="history-col">
+                                                <h5>🔍 Recent Searches</h5>
+                                                {selectedUserHistory.searches.length === 0 ? (
+                                                    <p className="no-data-text">No recent searches</p>
+                                                ) : (
+                                                    <ul className="mini-list">
+                                                        {selectedUserHistory.searches.map(log => (
+                                                            <li key={log.id} className="mini-item">
+                                                                <span className="mini-time">{new Date(log.created_at).toLocaleDateString()}</span>
+                                                                <span className="mini-text">{log.query}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                            <div className="history-col">
+                                                <h5>🤖 AI Questions</h5>
+                                                {selectedUserHistory.aiQuestions.length === 0 ? (
+                                                    <p className="no-data-text">No AI questions</p>
+                                                ) : (
+                                                    <ul className="mini-list">
+                                                        {selectedUserHistory.aiQuestions.map(q => (
+                                                            <li key={q.id} className="mini-item">
+                                                                <span className="mini-time">{new Date(q.created_at).toLocaleDateString()}</span>
+                                                                <span className="mini-text" title={q.question}>{q.question.substring(0, 40)}...</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Delete User Data Button */}
+                                <div className="delete-user-section">
+                                    {!showDeleteConfirm ? (
+                                        <button
+                                            className="delete-user-btn"
+                                            onClick={() => setShowDeleteConfirm(true)}
+                                        >
+                                            🗑️ Delete All User Data
+                                        </button>
+                                    ) : (
+                                        <div className="delete-confirm-box">
+                                            <p className="confirm-text">⚠️ Are you sure? This will delete all search history and AI questions for this user.</p>
+                                            <div className="confirm-buttons">
+                                                <button
+                                                    className="confirm-yes-btn"
+                                                    onClick={() => deleteUserData(selectedUser.userId)}
+                                                >
+                                                    ✓ Yes, Delete
+                                                </button>
+                                                <button
+                                                    className="confirm-no-btn"
+                                                    onClick={() => setShowDeleteConfirm(false)}
+                                                >
+                                                    ✕ Cancel
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             </div>
-
-                            {/* New History Section */}
-                            <div className="history-section">
-                                <h4>🕒 Recent Activity</h4>
-                                {historyLoading ? (
-                                    <p className="loading-text">Loading history...</p>
-                                ) : (
-                                    <div className="history-lists">
-                                        <div className="history-col">
-                                            <h5>🔍 Recent Searches</h5>
-                                            {selectedUserHistory.searches.length === 0 ? (
-                                                <p className="no-data-text">No recent searches</p>
-                                            ) : (
-                                                <ul className="mini-list">
-                                                    {selectedUserHistory.searches.map(log => (
-                                                        <li key={log.id} className="mini-item">
-                                                            <span className="mini-time">{new Date(log.created_at).toLocaleDateString()}</span>
-                                                            <span className="mini-text">{log.query}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                        </div>
-                                        <div className="history-col">
-                                            <h5>🤖 AI Questions</h5>
-                                            {selectedUserHistory.aiQuestions.length === 0 ? (
-                                                <p className="no-data-text">No AI questions</p>
-                                            ) : (
-                                                <ul className="mini-list">
-                                                    {selectedUserHistory.aiQuestions.map(q => (
-                                                        <li key={q.id} className="mini-item">
-                                                            <span className="mini-time">{new Date(q.created_at).toLocaleDateString()}</span>
-                                                            <span className="mini-text" title={q.question}>{q.question.substring(0, 40)}...</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Delete User Data Button */}
-                            <div className="delete-user-section">
-                                {!showDeleteConfirm ? (
-                                    <button
-                                        className="delete-user-btn"
-                                        onClick={() => setShowDeleteConfirm(true)}
-                                    >
-                                        🗑️ Delete All User Data
-                                    </button>
-                                ) : (
-                                    <div className="delete-confirm-box">
-                                        <p className="confirm-text">⚠️ Are you sure? This will delete all search history and AI questions for this user.</p>
-                                        <div className="confirm-buttons">
-                                            <button
-                                                className="confirm-yes-btn"
-                                                onClick={() => deleteUserData(selectedUser.userId)}
-                                            >
-                                                ✓ Yes, Delete
-                                            </button>
-                                            <button
-                                                className="confirm-no-btn"
-                                                onClick={() => setShowDeleteConfirm(false)}
-                                            >
-                                                ✕ Cancel
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Admin Settings Section */}
             <h2 className="section-title">⚙️ Admin Settings</h2>
@@ -897,7 +1006,72 @@ function Stats() {
                     </p>
                 </div>
             </div>
-        </div>
+
+            {/* Error Logs Section */}
+            <h2 className="section-title">🚨 System Health & Crashes</h2>
+            <div className="stats-grid">
+                {/* Error Summary Card */}
+                <div className="stat-card summary-card error-summary">
+                    <h3>Total Crashes</h3>
+                    <div className="big-number">{errorLogs.length}</div>
+                    <p className="subtitle">Recorded Events</p>
+                    <div className="card-actions">
+                        {!showClearErrorConfirm ? (
+                            <button className="clear-all-btn clear-all-error" onClick={clickClearErrors}>
+                                🗑️ Clear All
+                            </button>
+                        ) : (
+                            <div className="confirm-row" style={{ display: 'flex', gap: '5px' }}>
+                                <button className="confirm-yes-btn" onClick={confirmClearErrors} style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Yes</button>
+                                <button className="confirm-no-btn" onClick={() => setShowClearErrorConfirm(false)} style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#555', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>No</button>
+                            </div>
+                        )}
+                        <button className="clear-all-btn" style={{ borderColor: '#fca5a5', color: '#fca5a5' }} onClick={sendTestError}>
+                            ⚡ Send Test Crash
+                        </button>
+                    </div>
+                </div>
+
+                {/* Recent Errors List */}
+                <div className="stat-card recent-list full-width-card">
+                    <h3>🛑 Crash Reports</h3>
+                    {errorLogs.length === 0 ? (
+                        <p className="no-data">No crashes recorded (System Healthy)</p>
+                    ) : (
+                        <div className="log-table-wrapper">
+                            <table className="log-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Message</th>
+                                        <th>Device</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {errorLogs.map((err) => (
+                                        <tr
+                                            key={err.id}
+                                            className="clickable-row error-row"
+                                            onClick={() => { setSelectedItem(err); setItemType('error'); }}
+                                        >
+                                            <td>{new Date(err.created_at).toLocaleString()}</td>
+                                            <td className="error-msg-cell">
+                                                {err.error_message.substring(0, 50)}...
+                                                <span className="ver-badge">Build: {err.metadata?.version || '?'}</span>
+                                            </td>
+                                            <td>
+                                                {err.device_info?.os || 'Unknown'}
+                                                {err.device_info?.screen ? ` (${err.device_info.screen.width}x${err.device_info.screen.height})` : ''}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div >
     );
 }
 
