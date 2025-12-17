@@ -6,6 +6,176 @@ import { getUserId } from './bibleService';
  */
 
 // =====================================================
+// Devotional History Tracking (Prevents Repetition)
+// =====================================================
+
+/**
+ * Get user's recent devotional history (last 365 days = 1 year)
+ */
+const getRecentDevotionalHistory = async (userId) => {
+    try {
+        const oneYearAgo = new Date();
+        oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+
+        const { data, error } = await supabase
+            .from('devotional_history')
+            .select('theme, scripture_ref, title_hash')
+            .eq('user_id', userId)
+            .gte('created_at', oneYearAgo.toISOString())
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.warn('Could not fetch devotional history:', error);
+            return { themes: [], scriptures: [], hashes: [] };
+        }
+
+        return {
+            themes: [...new Set(data.map(d => d.theme).filter(Boolean))],
+            scriptures: [...new Set(data.map(d => d.scripture_ref).filter(Boolean))],
+            hashes: data.map(d => d.title_hash).filter(Boolean)
+        };
+    } catch (err) {
+        console.error('Error getting devotional history:', err);
+        return { themes: [], scriptures: [], hashes: [] };
+    }
+};
+
+/**
+ * Save devotional to history
+ */
+const saveDevotionalToHistory = async (userId, theme, scriptureRef, title) => {
+    try {
+        const titleHash = title ? simpleHash(title) : null;
+
+        await supabase
+            .from('devotional_history')
+            .upsert({
+                user_id: userId,
+                generated_date: new Date().toISOString().split('T')[0],
+                theme: theme,
+                scripture_ref: scriptureRef,
+                title_hash: titleHash
+            }, {
+                onConflict: 'user_id,generated_date,theme'
+            });
+    } catch (err) {
+        console.warn('Could not save to devotional history:', err);
+    }
+};
+
+/**
+ * Simple hash function for content comparison
+ */
+const simpleHash = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return hash.toString(36);
+};
+
+/**
+ * Get topics that haven't been used recently
+ */
+const getUnusedTopics = async (userId, allTopics) => {
+    const history = await getRecentDevotionalHistory(userId);
+    const recentThemes = history.themes;
+
+    // Filter out recently used topics
+    const unusedTopics = allTopics.filter(t => !recentThemes.includes(t.topic));
+
+    // If all topics have been used, return the least recently used ones
+    if (unusedTopics.length === 0) {
+        return allTopics.slice(0, 3);
+    }
+
+    return unusedTopics;
+};
+
+/**
+ * Get diverse prompt angle based on day, season, and randomness
+ */
+const getDiversePromptAngle = () => {
+    const now = new Date();
+    const month = now.getMonth(); // 0-11
+    const day = now.getDate();
+    const dayOfWeek = now.getDay();
+
+    // Check for special seasons/holidays
+    const seasonalContext = getSeasonalContext(month, day);
+
+    const baseAngles = [
+        'practical daily application with a specific action step',
+        'deep encouragement for someone facing challenges',
+        'gratitude and thanksgiving with reflection questions',
+        'a gentle challenge to grow in faith',
+        'comfort and peace for anxious hearts',
+        'wisdom for making decisions',
+        'joy and celebration of God\'s goodness',
+        'perseverance and strength in difficult times'
+    ];
+
+    const randomIndex = Math.floor(Math.random() * baseAngles.length);
+    const baseAngle = baseAngles[(dayOfWeek + randomIndex) % baseAngles.length];
+
+    // Combine base angle with seasonal context
+    if (seasonalContext) {
+        return `${baseAngle}, with themes appropriate for ${seasonalContext}`;
+    }
+
+    return baseAngle;
+};
+
+/**
+ * Get seasonal context based on current date
+ */
+const getSeasonalContext = (month, day) => {
+    // Christmas Season (Dec 1-31)
+    if (month === 11) {
+        if (day >= 24 && day <= 26) return 'Christmas Day celebrations';
+        if (day >= 1 && day <= 23) return 'the Advent season of anticipation and hope';
+        if (day >= 27) return 'the Christmas season of gratitude and new beginnings';
+    }
+
+    // New Year (Dec 31 - Jan 7)
+    if ((month === 11 && day === 31) || (month === 0 && day <= 7)) {
+        return 'New Year - fresh starts, reflection, and purpose';
+    }
+
+    // Easter season (approximate - March/April)
+    if (month === 2 || month === 3) {
+        if (month === 2) return 'the Lenten season of reflection and preparation';
+        if (month === 3 && day <= 21) return 'the Easter season of resurrection and new life';
+    }
+
+    // Thanksgiving (November)
+    if (month === 10 && day >= 20 && day <= 30) {
+        return 'the season of Thanksgiving and gratitude';
+    }
+
+    // Mother's Day / Father's Day (May/June)
+    if (month === 4 && day >= 8 && day <= 14) return 'honoring mothers and family';
+    if (month === 5 && day >= 15 && day <= 21) return 'honoring fathers and family';
+
+    // Fall/Back to school (September)
+    if (month === 8) return 'new beginnings and transitions';
+
+    return null; // No special season
+};
+
+/**
+ * Get instruction to avoid recent scriptures
+ */
+const getScriptureAvoidanceInstruction = (recentScriptures) => {
+    if (recentScriptures.length === 0) return '';
+
+    const scriptureList = recentScriptures.slice(0, 10).join(', ');
+    return `\n\nIMPORTANT: Please choose a DIFFERENT scripture. Avoid these recently used ones: ${scriptureList}`;
+};
+
+// =====================================================
 // App Settings
 // =====================================================
 
@@ -580,19 +750,38 @@ export const getDailyDevotional = async (userId, forceGenerate = false) => {
 
         // Analyze user's interests for personalization
         const { topics } = await analyzeUserInterests(userId);
-        const topTopics = topics.slice(0, 3).map(t => t.topic);
 
-        // If no topics, use defaults
-        const devotionalTopics = topTopics.length > 0
-            ? topTopics
+        // Get history to avoid repetition
+        const history = await getRecentDevotionalHistory(userId);
+
+        // Get unused topics (rotate through interests)
+        const availableTopics = topics.length > 0 ? topics : [
+            { topic: 'faith' }, { topic: 'hope' }, { topic: 'love' },
+            { topic: 'peace' }, { topic: 'joy' }, { topic: 'grace' }
+        ];
+        const unusedTopics = await getUnusedTopics(userId, availableTopics);
+        const devotionalTopics = unusedTopics.slice(0, 3).map(t => t.topic || t);
+
+        // If no topics available, use seasonal defaults
+        const finalTopics = devotionalTopics.length > 0
+            ? devotionalTopics
             : ['faith', 'hope', 'love'];
 
-        // Generate new devotional using AI
-        const devotionalContent = await generateDevotionalWithAI(devotionalTopics);
+        // Generate new devotional using AI (with scripture avoidance)
+        const devotionalContent = await generateDevotionalWithAI(finalTopics, history.scriptures);
 
         if (!devotionalContent.success) {
             return { success: false, error: devotionalContent.error };
         }
+
+        // Save to history (prevents repetition in future)
+        const mainTopic = finalTopics[0];
+        await saveDevotionalToHistory(
+            userId,
+            mainTopic,
+            devotionalContent.scriptureRef,
+            devotionalContent.title
+        );
 
         // Save to database with timestamp
         const { data: saved, error: saveError } = await supabase
@@ -601,7 +790,7 @@ export const getDailyDevotional = async (userId, forceGenerate = false) => {
                 user_id: userId,
                 title: devotionalContent.title,
                 content: devotionalContent.content,
-                topics: devotionalTopics,
+                topics: finalTopics,
                 generated_date: today,
                 last_refresh: new Date().toISOString()
             }, {
@@ -628,16 +817,21 @@ export const getDailyDevotional = async (userId, forceGenerate = false) => {
 
 /**
  * Generate devotional content using Gemini AI
+ * Now includes diverse angles and scripture avoidance
  */
-const generateDevotionalWithAI = async (topics) => {
+const generateDevotionalWithAI = async (topics, recentScriptures = []) => {
     try {
         // Import the AI module dynamically to avoid circular dependencies
         const { GoogleGenerativeAI } = await import('@google/generative-ai');
         const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
         const topicList = topics.join(', ');
+        const angle = getDiversePromptAngle();
+        const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
 
         const prompt = `You are a warm, encouraging Bible teacher. Write a short daily devotional (250-350 words) focused on: ${topicList}.
+
+Today's focus should be on: ${angle}
 
 Structure:
 1. Opening thought (1-2 sentences connecting to daily life)
@@ -649,12 +843,16 @@ Structure:
 Format the scripture reference as **Book Chapter:Verse** in bold.
 Keep the tone warm, personal, and encouraging - like a friend sharing wisdom.
 Do not use overly formal or preachy language.
-Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - just begin directly with the content.`;
+Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - just begin directly with the content.${scriptureAvoidance}`;
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
         const result = await model.generateContent(prompt);
         const content = result.response.text();
+
+        // Extract scripture reference from content
+        const scriptureMatch = content.match(/\*\*([^*]+)\*\*/);
+        const scriptureRef = scriptureMatch ? scriptureMatch[1] : null;
 
         // Generate a title based on topics
         const titlePrompt = `Create a short, engaging title (5-8 words max) for a devotional about: ${topicList}. Return ONLY the title, no quotes or formatting.`;
@@ -664,7 +862,8 @@ Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - ju
         return {
             success: true,
             title: title,
-            content: content
+            content: content,
+            scriptureRef: scriptureRef
         };
     } catch (err) {
         console.error('Error generating devotional with AI:', err);
