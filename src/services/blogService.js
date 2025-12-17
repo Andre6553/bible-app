@@ -637,7 +637,7 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
         };
     } catch (err) {
         console.error('Error getting recommended posts:', err);
-        return getAllPosts();
+        return { success: false, error: 'Could not generate content. Please try again.' };
     }
 };
 
