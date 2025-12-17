@@ -135,8 +135,11 @@ const getSeasonalContext = (month, day) => {
     // Christmas Season (Dec 1-31)
     if (month === 11) {
         if (day >= 24 && day <= 26) return 'Christmas Day celebrations';
-        if (day >= 1 && day <= 23) return 'the Advent season of anticipation and hope';
-        if (day >= 27) return 'the Christmas season of gratitude and new beginnings';
+        // Only include Advent/Christmas prep ~50% of the time to vary content
+        if (Math.random() > 0.5) {
+            if (day >= 1 && day <= 23) return 'the Advent season of anticipation and hope';
+            if (day >= 27) return 'the Christmas season of gratitude and new beginnings';
+        }
     }
 
     // New Year (Dec 31 - Jan 7)
