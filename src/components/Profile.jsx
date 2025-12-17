@@ -32,6 +32,7 @@ function Profile() {
     const [downloadedVersions, setDownloadedVersions] = useState([]);
     const [downloadProgress, setDownloadProgress] = useState({});
     const [storageUsage, setStorageUsage] = useState('0 B');
+    const [selectedStudyId, setSelectedStudyId] = useState(null);
 
     useEffect(() => {
         loadData();
@@ -234,7 +235,10 @@ function Profile() {
                     <button
                         key={tab.id}
                         className={`profile-tab ${activeTab === tab.id ? 'active' : ''}`}
-                        onClick={() => setActiveTab(tab.id)}
+                        onClick={() => {
+                            setActiveTab(tab.id);
+                            if (tab.id !== 'notes') setSelectedStudyId(null); // Clear filter when leaving notes context (optional, but good UX)
+                        }}
                     >
                         {tab.label} <span className="tab-count">{tab.count}</span>
                     </button>
@@ -287,13 +291,21 @@ function Profile() {
                         {/* Notes Tab */}
                         {activeTab === 'notes' && (
                             <div className="notes-list">
-                                {notes.length === 0 ? (
+                                {selectedStudyId && (
+                                    <div className="filter-banner">
+                                        <span>
+                                            Filtering by study: <strong>{studies.find(s => s.id === selectedStudyId)?.name}</strong>
+                                        </span>
+                                        <button onClick={() => setSelectedStudyId(null)}>Clear Filter</button>
+                                    </div>
+                                )}
+                                {(selectedStudyId ? notes.filter(n => n.study_id === selectedStudyId) : notes).length === 0 ? (
                                     <div className="empty-state">
                                         <p>No notes yet</p>
                                         <p className="empty-hint">Add notes to verses for personal study</p>
                                     </div>
                                 ) : (
-                                    notes.map(note => (
+                                    (selectedStudyId ? notes.filter(n => n.study_id === selectedStudyId) : notes).map(note => (
                                         <div
                                             key={note.id}
                                             className="note-item"
@@ -337,7 +349,15 @@ function Profile() {
                                     studies.map(study => {
                                         const studyNotes = notes.filter(n => n.study_id === study.id);
                                         return (
-                                            <div key={study.id} className="study-item">
+                                            <div
+                                                key={study.id}
+                                                className="study-item"
+                                                onClick={() => {
+                                                    setSelectedStudyId(study.id);
+                                                    setActiveTab('notes');
+                                                }}
+                                                style={{ cursor: 'pointer' }}
+                                            >
                                                 <div
                                                     className="study-color-bar"
                                                     style={{ backgroundColor: study.color }}
