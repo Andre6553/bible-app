@@ -132,21 +132,44 @@ bible-study-app/
 └── vite.config.js             # Vite & PWA configuration
 ```
 
-## Usage
+## 📱 User Manual & Features
 
-### Reading the Bible
+### 📖 Bible Reader
+- **Version Selection**: Tap the version badge (e.g., "KJV") in the top right to switch between **AFR83, NLT, AFR53, KJV, AMP**.
+- **Navigation**: usage the bottom bar to open the "Bible" tab. Tap the **Book Name** (e.g., "John 3") to open the quick book selector.
+- **Chapter Nav**: Use the Left/Right arrows at the bottom to flip chapters instantly.
 
-1. Select a Bible version from the dropdown (top-right)
-2. Click "Select Book" to choose a book
-3. Use the chapter navigation arrows to move between chapters
-4. Tap any verse to highlight it
+### 🔍 Search
+- **Keyword Search**: Go to the **Search** tab and type any phrase (e.g., "love neighbor").
+- **Filtering**: Choose to search "All Versions" or a specific one.
+- **Results**: Click any verse result to jump directly to that location in the Bible Reader.
 
-### Searching
+### ✍️ Daily Inspiration (Blog)
+- **Daily Devotional**: A fresh, AI-generated devotional greets you every day based on diverse themes.
+- **Recommended Reading**: Personalized articles based on your interests.
+- **Language Toggle**: 
+    - Go to **Profile** page.
+    - Switch between **English** and **Afrikaans**.
+    - This localizes all blog content, headers, and even scripture references (using correct AFR53/83 texts).
+- **"New" (Nuut) Button**:
+    - Don't like today's content? Tap **"New"** (or **"Nuut"**) to generate fresh content immediately.
+    - **Note**: Regular users can refresh once per hour (or day, depending on settings). **Super Users** have unlimited refreshes.
 
-1. Navigate to the Search tab
-2. Enter keywords or phrases
-3. Select a specific version or search across all versions
-4. Results show matching verses with highlighted search terms
+### 👤 Profile & Settings
+- **Personalize**: Set your display name.
+- **Stats**: View your reading streaks and highlights.
+
+### 🛠️ Admin & Shortcuts
+There is a hidden **Diagnostics & Shortcuts Menu** for power users and admins (to view error logs, system health, and test crashes).
+
+- **How to Access**: 
+    1. Go to the app.
+    2. Tap the **Profile (User Icon)** in the bottom navigation bar **5 times quickly**.
+    3. You will be taken to the hidden `/stats` page.
+- **Features**:
+    - View System Health.
+    - View/Clear Error Logs.
+    - Test System Stability.
 
 ## Technologies Used
 
