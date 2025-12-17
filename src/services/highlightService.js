@@ -12,17 +12,19 @@ import { getUserId } from './bibleService';
 
 /**
  * Get all highlights for a chapter
+ * Cross-version: highlights show in ALL Bible versions
  */
 export const getChapterHighlights = async (bookId, chapter, version) => {
     const userId = getUserId();
     try {
+        // Note: version param kept for API compatibility but not used in query
         const { data, error } = await supabase
             .from('verse_highlights')
             .select('*')
             .eq('user_id', userId)
             .eq('book_id', bookId)
-            .eq('chapter', chapter)
-            .eq('version', version);
+            .eq('chapter', chapter);
+        // Removed .eq('version', version) - highlights now cross-version
 
         if (error) throw error;
 
@@ -40,25 +42,34 @@ export const getChapterHighlights = async (bookId, chapter, version) => {
 
 /**
  * Save or update a verse highlight
+ * Cross-version: same highlight applies to all Bible versions
  */
 export const saveHighlight = async (bookId, chapter, verse, version, color) => {
     const userId = getUserId();
     try {
+        // First, delete any existing highlight for this verse (any version)
+        await supabase
+            .from('verse_highlights')
+            .delete()
+            .eq('user_id', userId)
+            .eq('book_id', bookId)
+            .eq('chapter', chapter)
+            .eq('verse', verse);
+
+        // Then insert the new highlight
         const { error } = await supabase
             .from('verse_highlights')
-            .upsert({
+            .insert({
                 user_id: userId,
                 book_id: bookId,
                 chapter,
                 verse,
-                version,
+                version, // Still store version for reference
                 color
-            }, {
-                onConflict: 'user_id,book_id,chapter,verse,version'
             });
 
         if (error) throw error;
-        console.log('✅ Highlight saved');
+        console.log('✅ Highlight saved (cross-version)');
         return { success: true };
     } catch (err) {
         console.error('Error saving highlight:', err);
@@ -68,18 +79,20 @@ export const saveHighlight = async (bookId, chapter, verse, version, color) => {
 
 /**
  * Remove a verse highlight
+ * Cross-version: removes highlight from all versions
  */
 export const removeHighlight = async (bookId, chapter, verse, version) => {
     const userId = getUserId();
     try {
+        // Remove highlight regardless of version
         const { error } = await supabase
             .from('verse_highlights')
             .delete()
             .eq('user_id', userId)
             .eq('book_id', bookId)
             .eq('chapter', chapter)
-            .eq('verse', verse)
-            .eq('version', version);
+            .eq('verse', verse);
+        // Removed .eq('version', version) - removes from all versions
 
         if (error) throw error;
         return { success: true };
