@@ -559,16 +559,31 @@ export const getRecommendedPosts = async (userId, forceGenerate = false) => {
         // Generate fresh articles
         console.log('Generating fresh recommended articles...');
         const { topics } = await analyzeUserInterests(userId);
-        const userTopics = topics.map(t => t.topic);
 
-        const articleTopics = userTopics.length > 0
-            ? userTopics.slice(0, 3)
+        // Get history to avoid repetition
+        const history = await getRecentDevotionalHistory(userId);
+
+        // Get unused topics (rotate through interests)
+        const availableTopics = topics.length > 0 ? topics : [
+            { topic: 'faith' }, { topic: 'love' }, { topic: 'hope' },
+            { topic: 'peace' }, { topic: 'prayer' }, { topic: 'wisdom' }
+        ];
+        const unusedTopics = await getUnusedTopics(userId, availableTopics);
+        const articleTopics = unusedTopics.slice(0, 3).map(t => t.topic || t);
+
+        // Fallback to defaults if needed
+        const finalTopics = articleTopics.length > 0
+            ? articleTopics
             : ['faith', 'love', 'hope'];
 
-        // Generate 2 fresh AI articles
+        // Generate 2 fresh AI articles with history awareness
         const articles = await Promise.all(
-            articleTopics.slice(0, 2).map(async (topic, index) => {
-                const article = await generateFreshArticle(topic, index);
+            finalTopics.slice(0, 2).map(async (topic, index) => {
+                const article = await generateFreshArticle(topic, index, history.scriptures);
+                // Save to history for variety tracking
+                if (article) {
+                    await saveDevotionalToHistory(userId, topic, article.scripture_refs?.[0], article.title);
+                }
                 return article;
             })
         );
@@ -622,22 +637,19 @@ export const getRecommendedPosts = async (userId, forceGenerate = false) => {
 
 /**
  * Generate a fresh article on a specific topic
+ * Now includes diverse angles, seasonal context, and scripture avoidance
  */
-const generateFreshArticle = async (topic, index = 0) => {
+const generateFreshArticle = async (topic, index = 0, recentScriptures = []) => {
     try {
         const { GoogleGenerativeAI } = await import('@google/generative-ai');
         const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-        // Vary the angle based on index for diversity
-        const angles = [
-            'practical daily application',
-            'deep biblical understanding',
-            'encouragement and hope'
-        ];
-        const angle = angles[index % angles.length];
+        // Get diverse angle with seasonal awareness
+        const angle = getDiversePromptAngle();
+        const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
 
-        const prompt = `Write a short, inspiring Bible article (150-200 words) about "${topic}" focusing on ${angle}.
+        const prompt = `Write a short, inspiring Bible article (150-200 words) about "${topic}" with focus on: ${angle}.
 
 Requirements:
 - Start with an engaging opening line
@@ -646,7 +658,7 @@ Requirements:
 - End with a thought-provoking question or call to action
 - Do NOT include a title - just the content
 
-Tone: Warm, friendly, accessible - like a conversation with a wise friend.`;
+Tone: Warm, friendly, accessible - like a conversation with a wise friend.${scriptureAvoidance}`;
 
         const result = await model.generateContent(prompt);
         const content = result.response.text();
