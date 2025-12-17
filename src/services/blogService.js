@@ -97,14 +97,14 @@ const getUnusedTopics = async (userId, allTopics) => {
 /**
  * Get diverse prompt angle based on day, season, and randomness
  */
-const getDiversePromptAngle = () => {
+const getDiversePromptAngle = (language = 'en') => {
     const now = new Date();
     const month = now.getMonth(); // 0-11
     const day = now.getDate();
     const dayOfWeek = now.getDay();
 
     // Check for special seasons/holidays
-    const seasonalContext = getSeasonalContext(month, day);
+    const seasonalContext = getSeasonalContext(month, day, language);
 
     const baseAngles = [
         'practical daily application with a specific action step',
@@ -131,14 +131,23 @@ const getDiversePromptAngle = () => {
 /**
  * Get seasonal context based on current date
  */
-const getSeasonalContext = (month, day) => {
+const getSeasonalContext = (month, day, language = 'en') => {
     // Christmas Season (Dec 1-31)
     if (month === 11) {
-        if (day >= 24 && day <= 26) return 'Christmas Day celebrations';
+        if (day >= 24 && day <= 26) return language === 'af' ? 'Kersdag vieringe' : 'Christmas Day celebrations';
+
         // Only include Advent/Christmas prep ~30% of the time to vary content
         if (Math.random() > 0.7) {
-            if (day >= 1 && day <= 23) return 'the Advent season of anticipation and hope';
-            if (day >= 27) return 'the Christmas season of gratitude and new beginnings';
+            if (day >= 1 && day <= 23) {
+                return language === 'af'
+                    ? 'die Kersfeestyd van afwagting en hoop'
+                    : 'the Advent season of anticipation and hope';
+            }
+            if (day >= 27) {
+                return language === 'af'
+                    ? 'die Kerstyd van dankbaarheid'
+                    : 'the Christmas season of gratitude and new beginnings';
+            }
         }
     }
 
@@ -658,7 +667,7 @@ const generateFreshArticle = async (topic, index = 0, recentScriptures = [], lan
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
         // Get diverse angle with seasonal awareness
-        const angle = getDiversePromptAngle();
+        const angle = getDiversePromptAngle(language);
         const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
 
         // Language instruction
@@ -859,7 +868,7 @@ const generateDevotionalWithAI = async (topics, recentScriptures = [], language 
         const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
         const topicList = topics.join(', ');
-        const angle = getDiversePromptAngle();
+        const angle = getDiversePromptAngle(language);
         const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
 
         // Language instruction
