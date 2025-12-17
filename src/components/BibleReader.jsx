@@ -93,6 +93,31 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         }
     }, [selectedBook, selectedChapter, currentVersion]);
 
+    // Scroll to target verse after verses load
+    useEffect(() => {
+        // Only scroll when: we have a target, verses are loaded, and loading is complete
+        if (targetVerse && verses.length > 0 && !loading) {
+            console.log('🎯 Target verse set:', targetVerse, 'Verses loaded:', verses.length);
+            // Delay to ensure DOM is fully rendered
+            setTimeout(() => {
+                console.log('🎯 Attempting to scroll to verse:', targetVerse);
+                scrollToVerse(targetVerse);
+                setTargetVerse(null); // Clear after scrolling
+            }, 300);
+        }
+    }, [targetVerse, verses, loading]);
+
+    // Save last reading position
+    useEffect(() => {
+        if (selectedBook && selectedChapter && currentVersion) {
+            localStorage.setItem('lastReadPosition', JSON.stringify({
+                bookId: selectedBook.id,
+                chapter: selectedChapter,
+                version: currentVersion.id
+            }));
+        }
+    }, [selectedBook, selectedChapter, currentVersion]);
+
     const loadHighlights = async () => {
         if (!selectedBook || !currentVersion) return;
         const result = await getChapterHighlights(selectedBook.id, selectedChapter, currentVersion.id);
@@ -118,6 +143,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     const scrollToVerse = (verseNum) => {
         const element = document.getElementById(`verse-${verseNum}`);
+        console.log('🎯 scrollToVerse called for:', verseNum, 'Element found:', !!element);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // Add highlight effect
@@ -142,6 +168,23 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     if (location.state.chapter) setSelectedChapter(location.state.chapter);
                     if (location.state.targetVerse) setTargetVerse(location.state.targetVerse);
                     return; // Skip default
+                }
+            }
+
+            // Check for last reading position
+            const lastPosition = localStorage.getItem('lastReadPosition');
+            if (lastPosition) {
+                try {
+                    const { bookId, chapter, version } = JSON.parse(lastPosition);
+                    const book = result.data.all.find(b => b.id == bookId);
+                    if (book) {
+                        console.log('📚 Restoring last reading position:', book.name_full, chapter);
+                        setSelectedBook(book);
+                        setSelectedChapter(chapter || 1);
+                        return; // Skip default
+                    }
+                } catch (e) {
+                    console.warn('Error parsing last position', e);
                 }
             }
 

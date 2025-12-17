@@ -89,6 +89,38 @@
     margin-top: 1rem;
 }
 
+/* Scrollable user list container */
+.scrollable-user-list {
+    max-height: 350px;
+    overflow-y: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 0.5rem;
+    background: var(--bg-tertiary);
+}
+
+.scrollable-user-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollable-user-list::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.scrollable-user-list::-webkit-scrollbar-thumb {
+    background: var(--accent-primary);
+    border-radius: 4px;
+}
+
+.scrollable-user-list::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-dark);
+}
+
+.scrollable-user-list .top-list {
+    margin-top: 0;
+}
+
 .top-item {
     display: flex;
     justify-content: space-between;

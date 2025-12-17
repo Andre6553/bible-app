@@ -545,22 +545,24 @@ function Stats() {
 
                 {/* Top Active Users Card */}
                 <div className="stat-card">
-                    <h3>🏆 Most Active Users</h3>
+                    <h3>🏆 Most Active Users ({userStats.topUsers.length})</h3>
                     {userStats.topUsers.length === 0 ? (
                         <p className="no-data">No data yet</p>
                     ) : (
-                        <ul className="top-list">
-                            {userStats.topUsers.map((u, idx) => (
-                                <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>
-                                    <span className="rank">#{idx + 1}</span>
-                                    <div className="user-info-col">
-                                        <span className="term user-id-term">{u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}</span>
-                                        <span className="device-badge">{u.device}</span>
-                                    </div>
-                                    <span className="count">{u.count} actions</span>
-                                </li>
-                            ))}
-                        </ul>
+                        <div className="scrollable-user-list">
+                            <ul className="top-list">
+                                {userStats.topUsers.map((u, idx) => (
+                                    <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>
+                                        <span className="rank">#{idx + 1}</span>
+                                        <div className="user-info-col">
+                                            <span className="term user-id-term">{u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}</span>
+                                            <span className="device-badge">{u.device}</span>
+                                        </div>
+                                        <span className="count">{u.count} actions</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     )}
                 </div>
             </div>

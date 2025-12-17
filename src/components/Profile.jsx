@@ -5,7 +5,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS } from '../services/highlightService';
-import { getBooks } from '../services/bibleService';
+import { getBooks, getVersions } from '../services/bibleService';
+import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
 import './Profile.css';
 
 function Profile() {
@@ -26,6 +27,12 @@ function Profile() {
     // Confirm delete dialog
     const [confirmDelete, setConfirmDelete] = useState({ show: false, type: '', id: null, name: '' });
 
+    // Downloads state
+    const [versions, setVersions] = useState([]);
+    const [downloadedVersions, setDownloadedVersions] = useState([]);
+    const [downloadProgress, setDownloadProgress] = useState({});
+    const [storageUsage, setStorageUsage] = useState('0 B');
+
     useEffect(() => {
         loadData();
     }, []);
@@ -45,6 +52,17 @@ function Profile() {
         if (studyRes.success) setStudies(studyRes.collections);
         if (labelRes.success) setLabels(labelRes.labels);
         if (bookRes.success) setBooks(bookRes.data.all || []);
+
+        // Load versions and download status
+        const versionsRes = await getVersions();
+        if (versionsRes.success) setVersions(versionsRes.data);
+
+        const downloaded = await getDownloadedVersions();
+        setDownloadedVersions(downloaded);
+
+        const usage = await getStorageUsage();
+        setStorageUsage(usage.formatted);
+
         setLoading(false);
     };
 
@@ -129,7 +147,46 @@ function Profile() {
         { id: 'highlights', label: '📌 Highlights', count: highlights.length },
         { id: 'notes', label: '📝 Notes', count: notes.length },
         { id: 'studies', label: '📚 Studies', count: studies.length },
+        { id: 'downloads', label: '📥 Downloads', count: downloadedVersions.length },
     ];
+
+    // Download handlers
+    const handleDownload = async (versionId) => {
+        setDownloadProgress(prev => ({ ...prev, [versionId]: 0 }));
+
+        const result = await downloadVersion(versionId, (progress) => {
+            setDownloadProgress(prev => ({ ...prev, [versionId]: progress }));
+        });
+
+        if (result.success) {
+            const downloaded = await getDownloadedVersions();
+            setDownloadedVersions(downloaded);
+            const usage = await getStorageUsage();
+            setStorageUsage(usage.formatted);
+        }
+
+        setDownloadProgress(prev => {
+            const updated = { ...prev };
+            delete updated[versionId];
+            return updated;
+        });
+    };
+
+    const handleDeleteDownload = async (versionId) => {
+        await deleteOfflineVersion(versionId);
+        const downloaded = await getDownloadedVersions();
+        setDownloadedVersions(downloaded);
+        const usage = await getStorageUsage();
+        setStorageUsage(usage.formatted);
+    };
+
+    const isDownloaded = (versionId) => {
+        return downloadedVersions.some(v => v.version_id === versionId);
+    };
+
+    const getDownloadInfo = (versionId) => {
+        return downloadedVersions.find(v => v.version_id === versionId);
+    };
 
     return (
         <div className="profile-page">
@@ -300,6 +357,68 @@ function Profile() {
                                         );
                                     })
                                 )}
+                            </div>
+                        )}
+
+                        {/* Downloads Tab */}
+                        {activeTab === 'downloads' && (
+                            <div className="downloads-list">
+                                <div className="storage-info">
+                                    <span>💾 Storage used: {storageUsage}</span>
+                                </div>
+
+                                {versions.map(version => {
+                                    const downloaded = isDownloaded(version.id);
+                                    const info = getDownloadInfo(version.id);
+                                    const progress = downloadProgress[version.id];
+                                    const isDownloading = progress !== undefined;
+
+                                    return (
+                                        <div key={version.id} className="download-item">
+                                            <div className="download-status">
+                                                {downloaded ? '✅' : '⬜'}
+                                            </div>
+                                            <div className="download-info">
+                                                <span className="download-name">{version.name}</span>
+                                                <span className="download-abbrev">{version.abbreviation}</span>
+                                                {downloaded && info && (
+                                                    <span className="download-size">
+                                                        {formatBytes(info.size_bytes)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="download-actions">
+                                                {isDownloading ? (
+                                                    <div className="download-progress">
+                                                        <div
+                                                            className="progress-bar"
+                                                            style={{ width: `${progress}%` }}
+                                                        />
+                                                        <span className="progress-text">{progress}%</span>
+                                                    </div>
+                                                ) : downloaded ? (
+                                                    <button
+                                                        className="delete-download-btn"
+                                                        onClick={() => handleDeleteDownload(version.id)}
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        className="download-btn"
+                                                        onClick={() => handleDownload(version.id)}
+                                                    >
+                                                        ⬇️ Download
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                <p className="download-hint">
+                                    Downloaded versions are available offline
+                                </p>
                             </div>
                         )}
                     </>

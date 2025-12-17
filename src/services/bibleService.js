@@ -6,7 +6,13 @@ import { supabase } from '../config/supabaseClient';
 
 export const SUPPORTED_VERSIONS = [
     { id: 'AFR53', name: 'Afrikaans 1953', abbreviation: 'AFR53' },
-    { id: 'KJV', name: 'King James Version', abbreviation: 'KJV' }
+    { id: 'KJV', name: 'King James Version', abbreviation: 'KJV' },
+    { id: 'NKJV', name: 'New King James Version', abbreviation: 'NKJV' },
+    { id: 'NLT', name: 'New Living Translation', abbreviation: 'NLT' },
+    { id: 'AMP', name: 'Amplified Bible', abbreviation: 'AMP' },
+    { id: 'AFR83', name: 'Afrikaans 1983', abbreviation: 'AFR83' },
+    { id: 'AFRNLV', name: 'Afrikaanse Nuwe Lewe', abbreviation: 'AFR NLV' },
+    { id: 'XHO22', name: 'Xhosa 2022', abbreviation: 'XHO22' },
 ];
 
 /**
@@ -50,6 +56,7 @@ export const getBooks = async () => {
 /**
  * Get a specific chapter with all verses
  * Caches the last 10 opened chapters in localStorage
+ * Also checks IndexedDB for offline downloaded versions
  */
 export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
     const cacheKey = `chapter_${bookId}_${chapter}_${versionId}`;
@@ -65,7 +72,19 @@ export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
         console.warn('Error reading from localStorage', e);
     }
 
-    // 2. Fetch from network
+    // 2. Check IndexedDB for offline version
+    try {
+        const { getOfflineChapter } = await import('./offlineService');
+        const offlineData = await getOfflineChapter(bookId, chapter, versionId);
+        if (offlineData && offlineData.length > 0) {
+            console.log('📴 Serving chapter from offline storage');
+            return { success: true, data: offlineData };
+        }
+    } catch (e) {
+        console.warn('Error checking offline storage', e);
+    }
+
+    // 3. Fetch from network
     try {
         const { data, error } = await supabase
             .from('verses')
@@ -329,8 +348,7 @@ export const getUserStatistics = async () => {
                 device: getDeviceName(stats.devices),
                 fullUserAgents: [...new Set(stats.devices)].slice(0, 5) // Store unique UAs
             }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5); // Top 5
+            .sort((a, b) => b.count - a.count); // Return all users, sorted by activity
 
         return {
             success: true,
