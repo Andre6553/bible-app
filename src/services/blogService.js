@@ -1060,23 +1060,38 @@ export const getTrendingTopics = async () => {
 
         if (error) throw error;
 
-        // Count topic occurrences
-        const topicKeywords = ['love', 'faith', 'prayer', 'forgiveness', 'peace', 'hope', 'grace', 'healing', 'wisdom', 'strength'];
+        // Count topic occurrences (Bilingual Support)
+        const topicKeywords = {
+            'love': ['love', 'liefde'],
+            'faith': ['faith', 'geloof'],
+            'prayer': ['prayer', 'gebed'],
+            'forgiveness': ['forgive', 'vergewe'],
+            'peace': ['peace', 'vrede'],
+            'hope': ['hope', 'hoop'],
+            'grace': ['grace', 'genade'],
+            'healing': ['healing', 'genesing'],
+            'wisdom': ['wisdom', 'wysheid'],
+            'strength': ['strength', 'krag']
+        };
+
         const counts = {};
 
         (data || []).forEach(item => {
             const query = item.query.toLowerCase();
-            topicKeywords.forEach(topic => {
-                if (query.includes(topic)) {
+            for (const [topic, keywords] of Object.entries(topicKeywords)) {
+                if (keywords.some(kw => query.includes(kw))) {
                     counts[topic] = (counts[topic] || 0) + 1;
                 }
-            });
+            }
         });
 
         const trending = Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5)
-            .map(([topic, count]) => ({ topic, count }));
+            .map(([topic, count]) => ({
+                topic: topic.charAt(0).toUpperCase() + topic.slice(1),
+                count
+            }));
 
         return { success: true, topics: trending };
     } catch (err) {
