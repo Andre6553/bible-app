@@ -20,12 +20,12 @@
     align-items: center;
     justify-content: center;
     gap: var(--spacing-xs);
-    padding: var(--spacing-sm) var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-sm);
     border-radius: var(--radius-lg);
     transition: all var(--transition-base);
     color: var(--text-muted);
     text-decoration: none;
-    min-width: 80px;
+    min-width: 60px;
     position: relative;
 }
 

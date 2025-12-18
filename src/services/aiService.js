@@ -310,3 +310,57 @@ export async function askBibleQuestion(userId, question, verses = []) {
         };
     }
 }
+/**
+ * Get AI hints for Inductive Bible Study steps
+ */
+export async function getInductiveStudyHints(userId, step, bookName, chapter, verseStart, verseEnd, language = 'en') {
+    try {
+        const { remaining } = await getUserRemainingQuota(userId);
+        if (remaining <= 0) return { success: false, error: 'Quota exceeded' };
+
+        const ref = `${bookName} ${chapter}:${verseStart}${verseEnd && verseEnd !== verseStart ? '-' + verseEnd : ''}`;
+
+        let prompt = `You are a Bible study assistant helping a user with the Inductive Bible Study method for the passage: ${ref}. 
+        The language should be: ${language === 'af' ? 'Afrikaans' : 'English'}.
+        
+        Current Step: ${step} (1=Observation, 2=Interpretation, 3=Application).
+        
+        Rules:
+        - If Step 1 (Observation): Provide a concise list of Who, What, Where, When, Why, How. Suggest 3-5 repeated "Key Words" or "Themes". Identify any prominent Commands or Promises.
+        - If Step 2 (Interpretation): Provide the historical context, author information, and the original intended meaning for the first audience. Suggest 2-3 related cross-references.
+        - If Step 3 (Application): Suggest 3 practical, personal application points and one concrete "Action Step".
+        
+        Format the response as a valid JSON object with the following structure:
+        {
+            "hints": {
+                // If step 1: 
+                "who": "...", "what": "...", "where": "...", "keywords": ["...", "..."], "commands": "...", "promises": "..."
+                // If step 2:
+                "author": "...", "context": "...", "meaning": "...", "crossRefs": "..."
+                // If step 3:
+                "god": "...", "myself": "...", "change": "...", "action": "..."
+            }
+        }`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        // Clean markdown JSON if present
+        const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+        const data = JSON.parse(jsonStr);
+
+        // Map data back to log
+        await supabase.from('ai_questions').insert({
+            user_id: userId,
+            question: `Inductive Hint Step ${step} for ${ref}`,
+            answer: text,
+            cached: false
+        });
+
+        return { success: true, hints: data.hints };
+    } catch (error) {
+        console.error('Study hints error:', error);
+        return { success: false, error: error.message };
+    }
+}

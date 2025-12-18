@@ -282,6 +282,20 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         setExistingNote(null);
     };
 
+    // Handle starting inductive study
+    const handleStartStudy = () => {
+        if (!selectedVerse || !selectedBook) return;
+        setShowActionSheet(false);
+        navigate('/study/new', {
+            state: {
+                bookId: selectedBook.id,
+                bookName: selectedBook.name_full,
+                chapter: selectedChapter,
+                verse: selectedVerse.verse
+            }
+        });
+    };
+
     // Close action sheet
     const handleCloseActionSheet = () => {
         setShowActionSheet(false);
@@ -823,6 +837,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     currentColor={highlights[selectedVerse.verse]}
                     onHighlight={handleHighlight}
                     onNote={handleOpenNote}
+                    onStudy={handleStartStudy}
                     onCopy={() => { }}
                     onClose={handleCloseActionSheet}
                 />

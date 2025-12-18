@@ -68,11 +68,11 @@ export const AFRIKAANS_BOOK_NAMES = {
     "Revelation": "Openbaring"
 };
 
-export const getLocalizedBookName = (bookName, versionId) => {
+export const getLocalizedBookName = (bookName, langOrVersion) => {
     if (!bookName) return '';
 
-    // Normalize version ID to check for Afrikaans
-    const isAfrikaans = ['AFR53', 'AFR83'].includes(versionId);
+    // Check if it's a version ID or a simple language code
+    const isAfrikaans = ['AFR53', 'AFR83', 'af', 'afrikaans'].includes(langOrVersion?.toLowerCase());
 
     if (isAfrikaans) {
         return AFRIKAANS_BOOK_NAMES[bookName] || bookName;

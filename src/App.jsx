@@ -13,6 +13,8 @@ const BibleReader = lazy(() => import('./components/BibleReader'));
 const Search = lazy(() => import('./components/Search'));
 const Stats = lazy(() => import('./components/Stats'));
 const Blog = lazy(() => import('./components/Blog'));
+const Study = lazy(() => import('./components/Study'));
+const InductiveEditor = lazy(() => import('./components/InductiveEditor'));
 const Profile = lazy(() => import('./components/Profile'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 
@@ -99,6 +101,14 @@ function App() {
                                     <Route
                                         path="/blog"
                                         element={<Blog />}
+                                    />
+                                    <Route
+                                        path="/study"
+                                        element={<Study />}
+                                    />
+                                    <Route
+                                        path="/study/:id"
+                                        element={<InductiveEditor />}
                                     />
                                     <Route
                                         path="/profile"

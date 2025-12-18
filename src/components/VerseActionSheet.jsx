@@ -14,6 +14,7 @@ function VerseActionSheet({
     currentColor,
     onHighlight,
     onNote,
+    onStudy,
     onCopy,
     onClose
 }) {
@@ -79,6 +80,10 @@ function VerseActionSheet({
                     <button className="action-btn" onClick={onNote}>
                         <span className="action-icon">📝</span>
                         <span className="action-label">Note</span>
+                    </button>
+                    <button className="action-btn" onClick={onStudy}>
+                        <span className="action-icon">📖</span>
+                        <span className="action-label">Study</span>
                     </button>
                     <button className="action-btn" onClick={handleCopy}>
                         <span className="action-icon">{copied ? '✓' : '📋'}</span>
