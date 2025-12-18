@@ -270,23 +270,23 @@ export const analyzeUserInterests = async (userId) => {
             ...(questions || []).map(q => q.question)
         ].join(' ').toLowerCase();
 
-        // Common Bible topics to look for
+        // Common Bible topics (Bilingual Support: English & Afrikaans)
         const topicKeywords = {
-            'love': ['love', 'loving', 'loved', 'beloved'],
-            'faith': ['faith', 'believe', 'believing', 'trust'],
-            'prayer': ['prayer', 'pray', 'praying'],
-            'forgiveness': ['forgive', 'forgiveness', 'forgiving', 'pardon'],
-            'peace': ['peace', 'peaceful', 'calm', 'anxiety', 'worry'],
-            'hope': ['hope', 'hoping', 'hopeful'],
-            'grace': ['grace', 'gracious', 'mercy'],
-            'salvation': ['salvation', 'saved', 'saving', 'eternal life'],
-            'healing': ['healing', 'heal', 'healed', 'health'],
-            'wisdom': ['wisdom', 'wise', 'understanding'],
-            'strength': ['strength', 'strong', 'power', 'courage'],
-            'joy': ['joy', 'joyful', 'happiness', 'happy'],
-            'family': ['family', 'marriage', 'children', 'parents'],
-            'fear': ['fear', 'afraid', 'scared', 'anxiety'],
-            'purpose': ['purpose', 'calling', 'meant', 'plan']
+            'love': ['love', 'loving', 'loved', 'beloved', 'liefde', 'lief'],
+            'faith': ['faith', 'believe', 'believing', 'trust', 'geloof', 'glo'],
+            'prayer': ['prayer', 'pray', 'praying', 'gebed', 'bid'],
+            'forgiveness': ['forgive', 'forgiveness', 'forgiving', 'pardon', 'vergewe', 'vergifnis'],
+            'peace': ['peace', 'peaceful', 'calm', 'anxiety', 'worry', 'vrede', 'rustigheid'],
+            'hope': ['hope', 'hoping', 'hopeful', 'hoop'],
+            'grace': ['grace', 'gracious', 'mercy', 'genade', 'barmhartigheid'],
+            'salvation': ['salvation', 'saved', 'saving', 'eternal life', 'redding', 'saligheid'],
+            'healing': ['healing', 'heal', 'healed', 'health', 'genesing', 'genees'],
+            'wisdom': ['wisdom', 'wise', 'understanding', 'wysheid', 'verstand'],
+            'strength': ['strength', 'strong', 'power', 'courage', 'sterkte', 'krag', 'moed'],
+            'joy': ['joy', 'joyful', 'happiness', 'happy', 'vreugde', 'blydskap'],
+            'family': ['family', 'marriage', 'children', 'parents', 'familie', 'gesin', 'huwelik'],
+            'fear': ['fear', 'afraid', 'scared', 'anxiety', 'vrees', 'bang'],
+            'purpose': ['purpose', 'calling', 'meant', 'plan', 'doel', 'roeping']
         };
 
         const foundTopics = {};
@@ -302,11 +302,31 @@ export const analyzeUserInterests = async (userId) => {
             }
         }
 
+        // Generic Fallback: Extract frequent words if few topics are found
+        if (Object.keys(foundTopics).length < 2) {
+            const stopWords = new Set(['bible', 'verse', 'chapter', 'what', 'does', 'say', 'about', 'the', 'and', 'for', 'die', 'van', 'vanuit', 'oor', 'hoe', 'waar', 'wat', 'is', 'om', 'te', 'met', 'by', 'aan']);
+            const words = allText.split(/[\s,?.!]+/)
+                .filter(w => w.length > 4 && !stopWords.has(w));
+
+            const wordCounts = {};
+            words.forEach(w => wordCounts[w] = (wordCounts[w] || 0) + 1);
+
+            Object.entries(wordCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .forEach(([word, count]) => {
+                    if (!foundTopics[word]) foundTopics[word] = count;
+                });
+        }
+
         // Sort by frequency
         const sortedTopics = Object.entries(foundTopics)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([topic, weight]) => ({ topic, weight }));
+            .slice(0, 6) // Increased to 6 for better variety
+            .map(([topic, weight]) => ({
+                topic: topic.charAt(0).toUpperCase() + topic.slice(1),
+                weight
+            }));
 
         return { success: true, topics: sortedTopics };
     } catch (err) {
@@ -316,8 +336,125 @@ export const analyzeUserInterests = async (userId) => {
 };
 
 /**
- * Get saved user interests from database
+ * Get saved user keyword preferences from database
  */
+export const getKeywordPreferences = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', `keyword_prefs_${userId}`)
+            .single();
+
+        if (error || !data) return { highlighted: {}, used: [] };
+        return JSON.parse(data.value);
+    } catch (err) {
+        return { highlighted: {}, used: [] };
+    }
+};
+
+/**
+ * Save user keyword preferences to database
+ */
+export const saveKeywordPreferences = async (userId, prefs) => {
+    try {
+        await supabase
+            .from('app_settings')
+            .upsert({
+                key: `keyword_prefs_${userId}`,
+                value: JSON.stringify(prefs),
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'key' });
+        return { success: true };
+    } catch (err) {
+        console.error('Error saving keyword prefs:', err);
+        return { success: false, error: err.message };
+    }
+};
+
+/**
+ * Extract last 50 unique search words, merged with defaults
+ */
+export const getSearchKeywords = async (userId) => {
+    try {
+        // 1. Get recent searches
+        const { data: searches } = await supabase
+            .from('search_logs')
+            .select('query')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        const STOP_WORDS = new Set(['BIBLE', 'VERSE', 'CHAPTER', 'WHAT', 'DOES', 'SAY', 'ABOUT', 'THE', 'AND', 'FOR', 'DIE', 'VAN', 'VANUIT', 'OOR', 'HOE', 'WAAR', 'WAT', 'IS', 'OM', 'TE', 'MET', 'BY', 'AAN', 'THIS', 'THAT', 'WITH', 'FROM']);
+        const DEFAULTS = ['Faith', 'Hope', 'Love', 'Grace', 'Patience', 'Prayer'];
+
+        let words = [];
+        if (searches && searches.length > 0) {
+            const allText = searches.map(s => s.query).join(' ').toUpperCase();
+            words = [...new Set(allText.split(/[\s,?.!]+/)
+                .filter(w => w.length > 3 && !STOP_WORDS.has(w)))]
+                .slice(0, 50)
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+        }
+
+        // Merge with defaults if empty or few
+        const finalWords = [...new Set([...words, ...DEFAULTS])].slice(0, 50);
+
+        // 2. Map with highlight status from preferences
+        const prefs = await getKeywordPreferences(userId);
+
+        return finalWords.map(word => ({
+            word,
+            isHighlighted: prefs.highlighted[word] !== false // Default to true for new words
+        }));
+    } catch (err) {
+        console.error('Error getting search keywords:', err);
+        return [];
+    }
+};
+
+/**
+ * Toggle highlight status of a keyword
+ */
+export const toggleKeywordHighlight = async (userId, word, isHighlighted) => {
+    const prefs = await getKeywordPreferences(userId);
+    prefs.highlighted[word] = isHighlighted;
+    return await saveKeywordPreferences(userId, prefs);
+};
+
+/**
+ * Pick 2 topics for generation using rotation logic
+ */
+export const pickTopicsForGeneration = async (userId) => {
+    const keywords = await getSearchKeywords(userId);
+    const highlighted = keywords.filter(k => k.isHighlighted).map(k => k.word);
+
+    if (highlighted.length === 0) {
+        return ['Faith', 'Hope']; // Absolute fallback
+    }
+
+    const prefs = await getKeywordPreferences(userId);
+    const used = prefs.used || [];
+
+    // Filter out already used ones
+    let available = highlighted.filter(h => !used.includes(h));
+
+    // Reset if all have been used
+    if (available.length < 2) {
+        prefs.used = [];
+        available = highlighted;
+    }
+
+    // Shuffle and pick 2
+    const shuffled = [...available].sort(() => 0.5 - Math.random());
+    const picked = shuffled.slice(0, 2);
+
+    // Update used list
+    prefs.used = [...new Set([...used, ...picked])];
+    await saveKeywordPreferences(userId, prefs);
+
+    return picked;
+};
 export const getUserInterests = async (userId) => {
     try {
         const { data, error } = await supabase
@@ -577,27 +714,10 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
             }
         }
 
-        // Generate fresh articles
-        console.log('Generating fresh recommended articles...');
-        const { topics } = await analyzeUserInterests(userId);
-
-        // Get history to avoid repetition
+        // Generate 2 fresh AI articles with history awareness and keyword rotation
         const history = await getRecentDevotionalHistory(userId);
+        const finalTopics = await pickTopicsForGeneration(userId);
 
-        // Get unused topics (rotate through interests)
-        const availableTopics = topics.length > 0 ? topics : [
-            { topic: 'faith' }, { topic: 'love' }, { topic: 'hope' },
-            { topic: 'peace' }, { topic: 'prayer' }, { topic: 'wisdom' }
-        ];
-        const unusedTopics = await getUnusedTopics(userId, availableTopics);
-        const articleTopics = unusedTopics.slice(0, 3).map(t => t.topic || t);
-
-        // Fallback to defaults if needed
-        const finalTopics = articleTopics.length > 0
-            ? articleTopics
-            : ['faith', 'love', 'hope'];
-
-        // Generate 2 fresh AI articles with history awareness
         const articles = await Promise.all(
             finalTopics.slice(0, 2).map(async (topic, index) => {
                 const article = await generateFreshArticle(topic, index, history.scriptures, language);
@@ -634,7 +754,7 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
                     generated_date: today,
                     title: 'Pending',
                     content: 'Devotional pending generation',
-                    topics: articleTopics,
+                    topics: finalTopics,
                     recommended_articles: successfulArticles,
                     last_refresh: now
                 });
@@ -647,7 +767,7 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
         return {
             success: true,
             posts: successfulArticles,
-            personalized: topics.length > 0,
+            personalized: finalTopics.length > 0,
             cached: false
         };
     } catch (err) {

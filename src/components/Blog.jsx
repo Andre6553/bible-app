@@ -6,7 +6,9 @@ import {
     getDailyDevotional,
     getTrendingTopics,
     analyzeUserInterests,
-    checkRefreshCooldown
+    checkRefreshCooldown,
+    getSearchKeywords,
+    toggleKeywordHighlight
 } from '../services/blogService';
 import { useSettings } from '../context/SettingsContext';
 import './Blog.css';
@@ -26,6 +28,7 @@ function Blog() {
     const [error, setError] = useState(null);
     const [allBooks, setAllBooks] = useState([]);
     const [cooldownMessage, setCooldownMessage] = useState(null);
+    const [searchKeywords, setSearchKeywords] = useState([]);
 
     const translations = {
         en: {
@@ -37,26 +40,34 @@ function Blog() {
             topicsDesc: 'Based on your searches and questions',
             trending: '🔥 Trending Topics',
             recommended: '📚 Recommended Reading',
-            noDevotional: 'No devotional yet. Click "New" to generate one!',
-            noArticles: 'No articles yet. Start searching to get personalized recommendations!',
+            noDevotional: 'No devotional yet. Click "New" to generate one based on your interests!',
+            noArticles: 'No personalized articles yet. Keep searching or asking questions to get recommendations!',
+            yourTopicsEmpty: 'Start searching to unlock personalized topics!',
             scriptureRefs: '📖 Scripture References',
             tryAgain: 'Try Again',
-            loading: 'Could not load content. Please try again.'
+            loading: 'Could not load content. Please try again.',
+            interestKeywords: '🔍 Search Keywords',
+            interestKeywordsDesc: 'Toggle keywords to include/exclude them from recommendations. New searches are auto-highlighted.',
+            searchesLabel: 'searches'
         },
         af: {
             title: '✨ Vir Jou',
             subtitle: 'Gepersonaliseerde inhoud gebaseer op jou belangstellings',
-            todaysInspiration: '🌅 Vandag se Inspirasie',
+            todaysInspiration: 'Vandag se Inspirasie',
             newBtn: 'Nuut',
             yourTopics: '🎯 Jou Onderwerpe',
             topicsDesc: 'Gebaseer op jou soektogte en vrae',
             trending: '🔥 Gewilde Onderwerpe',
             recommended: '📚 Aanbevole Leesstof',
-            noDevotional: 'Geen dagstukkie nog nie. Kliek "Nuut" om een te genereer!',
-            noArticles: 'Geen artikels nie. Begin soek om aanbevelings te kry!',
+            noDevotional: 'Geen dagstukkie nog nie. Kliek "Nuut" om een te genereer gebaseer op jou belangstellings!',
+            noArticles: 'Geen gepersonaliseerde artikels nie. Hou aan soek of vrae vra om aanbevelings te kry!',
+            yourTopicsEmpty: 'Begin soek om gepersonaliseerde onderwerpe te ontsluit!',
             scriptureRefs: '📖 Skrifverwysings',
             tryAgain: 'Probeer Weer',
-            loading: 'Kon nie inhoud laai nie. Probeer asseblief weer.'
+            loading: 'Kon nie inhoud laai nie. Probeer asseblief weer.',
+            interestKeywords: '🔍 Soek Sleutelwoorde',
+            interestKeywordsDesc: 'Skakel sleutelwoorde aan/af vir jou aanbevelings. Nuwe soektogte word outomaties beklemtoon.',
+            searchesLabel: 'soektogte'
         }
     };
 
@@ -85,11 +96,12 @@ function Blog() {
             const userId = getUserId();
 
             // Load all content
-            const [postsResult, devotionalResult, trendingResult, interestsResult] = await Promise.all([
+            const [postsResult, devotionalResult, trendingResult, interestsResult, keywordsResult] = await Promise.all([
                 getRecommendedPosts(userId, forceRefesh, settings.language),
                 getDailyDevotional(userId, forceRefesh, settings.language),
                 getTrendingTopics(),
-                analyzeUserInterests(userId)
+                analyzeUserInterests(userId),
+                getSearchKeywords(userId)
             ]);
 
             if (postsResult.success) {
@@ -107,6 +119,8 @@ function Blog() {
             if (interestsResult.success) {
                 setUserTopics(interestsResult.topics);
             }
+
+            setSearchKeywords(keywordsResult || []);
         } catch (err) {
             console.error('Error loading blog content:', err);
             setError('Could not load content. Please try again.');
@@ -157,6 +171,25 @@ function Blog() {
             alert(`${msg}\n\nDetails: ${result.error || 'Unknown error'}`);
         }
         setPostsLoading(false);
+        // Refresh keywords too as generation might have updated used status
+        const keywords = await getSearchKeywords(userId);
+        setSearchKeywords(keywords);
+    };
+
+    const handleKeywordToggle = async (word) => {
+        const userId = getUserId();
+        const keyword = searchKeywords.find(k => k.word === word);
+        if (!keyword) return;
+
+        const newStatus = !keyword.isHighlighted;
+
+        // Optimistic update
+        setSearchKeywords(prev => prev.map(k =>
+            k.word === word ? { ...k, isHighlighted: newStatus } : k
+        ));
+
+        // Persist
+        await toggleKeywordHighlight(userId, word, newStatus);
     };
 
     const formatContent = (content) => {
@@ -320,20 +353,24 @@ function Blog() {
             </section>
 
             {/* Your Topics Section */}
-            {userTopics.length > 0 && (
-                <section className="blog-section topics-section">
-                    <h2>{t.yourTopics}</h2>
-                    <p className="section-desc">{t.topicsDesc}</p>
+            <section className="blog-section topics-section">
+                <h2>{t.yourTopics}</h2>
+                <p className="section-desc">{t.topicsDesc}</p>
+                {userTopics.length > 0 ? (
                     <div className="topics-grid">
                         {userTopics.map((item, idx) => (
                             <div key={idx} className="topic-card">
                                 <span className="topic-name">{item.topic}</span>
-                                <span className="topic-weight">{item.weight} searches</span>
+                                <span className="topic-weight">{item.weight} {settings.language === 'af' ? 'soektogte' : 'searches'}</span>
                             </div>
                         ))}
                     </div>
-                </section>
-            )}
+                ) : (
+                    <div className="empty-topics-hint">
+                        <p>{t.yourTopicsEmpty}</p>
+                    </div>
+                )}
+            </section>
 
             {/* Trending Topics */}
             {trendingTopics.length > 0 && (
@@ -387,6 +424,26 @@ function Blog() {
                         ))}
                     </div>
                 )}
+            </section>
+
+            {/* Keyword Management Section - Listed beneath Recommended Reading */}
+            <section className="blog-section keyword-management">
+                <div className="section-header">
+                    <h2>{t.interestKeywords}</h2>
+                </div>
+                <p className="section-desc">{t.interestKeywordsDesc}</p>
+                <div className="keyword-buttons">
+                    {searchKeywords.map((item, idx) => (
+                        <button
+                            key={idx}
+                            className={`keyword-btn ${item.isHighlighted ? 'highlighted' : ''}`}
+                            onClick={() => handleKeywordToggle(item.word)}
+                        >
+                            {item.word}
+                            {item.isHighlighted && <span className="check-mark">✓</span>}
+                        </button>
+                    ))}
+                </div>
             </section>
 
             {/* Article Detail Modal */}

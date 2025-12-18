@@ -240,6 +240,16 @@
     transform: translateY(-2px);
 }
 
+.empty-topics-hint {
+    text-align: center;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    color: #888;
+    font-size: 0.9rem;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
 .topic-name {
     display: block;
     font-size: 1rem;
@@ -252,6 +262,59 @@
 .topic-weight {
     font-size: 0.75rem;
     color: #888;
+}
+
+/* Keyword Management */
+.keyword-management {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+    padding: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.keyword-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.keyword-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #a0a0a0;
+    padding: 8px 16px;
+    border-radius: 25px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.keyword-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.keyword-btn.highlighted {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.keyword-btn.highlighted:hover {
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.check-mark {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #fff;
 }
 
 /* Trending */

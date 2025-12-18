@@ -194,6 +194,22 @@ There is a hidden **Diagnostics & Shortcuts Menu** for power users and admins (t
 - Optimized bundle size
 - Fast initial load with Vite
 
+## 🔑 Project Credentials & Backend
+
+For administrative purposes, here are the key connections and credentials used by this app:
+
+- **GitHub Repository**: [Andre6553/bible-app](https://github.com/Andre6553/bible-app)
+- **Google Gemini API**: Used for AI devotionals and research.
+    - **Endpoint**: `https://generativelanguage.googleapis.com`
+    - **Key**: Managed via `VITE_GEMINI_API_KEY` in `.env`
+- **Supabase Backend**: Core database and authentication.
+    - **URL**: `https://fikjnvkzhemamtlwsrin.supabase.co`
+    - **Keys**: Managed in `src/config/supabaseClient.js`
+- **Vercel Deployment**: [bible-app-phi-one.vercel.app](https://bible-app-phi-one.vercel.app)
+
+> [!NOTE]
+> You can also view these live in the **Admin Stats** page (under "Project Credentials & Backend") after unlocking with the admin PIN.
+
 ## License
 
 This project is open source and available under the MIT License.

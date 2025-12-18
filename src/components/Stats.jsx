@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { logError } from '../services/loggerService';
 
-import { supabase } from '../config/supabaseClient';
+import { supabase, supabaseUrl, supabaseKey } from '../config/supabaseClient';
 import { getUserStatistics, getUserHistory } from '../services/bibleService';
 import {
     isRateLimitEnabled,
@@ -1122,6 +1122,48 @@ function Stats() {
                             </table>
                         </div>
                     )}
+                </div>
+            </div>
+            {/* Project Credentials Section */}
+            <h2 className="section-title">🔑 Project Credentials & Backend</h2>
+            <div className="stats-grid">
+                <div className="stat-card credentials-card full-width-card">
+                    <h3>Project Connections</h3>
+                    <div className="credentials-grid">
+                        <div className="credential-item">
+                            <span className="credential-label">📂 GitHub Repository:</span>
+                            <span className="credential-value">
+                                <a href="https://github.com/Andre6553/bible-app" target="_blank" rel="noopener noreferrer">
+                                    Andre6553/bible-app 🌐
+                                </a>
+                            </span>
+                        </div>
+                        <div className="credential-item">
+                            <span className="credential-label">🤖 Google Gemini API:</span>
+                            <span className="credential-value code-style">
+                                {import.meta.env.VITE_GEMINI_API_KEY || 'Not Configured'}
+                                <span className="api-url"> (URL: https://generativelanguage.googleapis.com)</span>
+                            </span>
+                        </div>
+                        <div className="credential-item">
+                            <span className="credential-label">🛢️ Supabase Backend:</span>
+                            <div className="credential-value code-block-small">
+                                <p><strong>URL:</strong> {supabaseUrl}</p>
+                                <p><strong>Anon Key:</strong> {supabaseKey}</p>
+                            </div>
+                        </div>
+                        <div className="credential-item">
+                            <span className="credential-label">🚀 Vercel Deployment:</span>
+                            <span className="credential-value">
+                                <a href="https://bible-app-phi-one.vercel.app" target="_blank" rel="noopener noreferrer">
+                                    bible-app-phi-one.vercel.app 🔗
+                                </a>
+                            </span>
+                        </div>
+                    </div>
+                    <div className="credential-hint">
+                        💡 These keys are managed via environment variables and project configurations.
+                    </div>
                 </div>
             </div>
         </div >

@@ -1047,3 +1047,87 @@
 .full-width-card {
     grid-column: 1 / -1;
 }
+
+/* Credentials Section */
+.credentials-card {
+    background: linear-gradient(135deg, #1e1e3f 0%, #2d2d5f 100%);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.credentials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.credential-item {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1.2rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.credential-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.credential-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.credential-value a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.credential-value a:hover {
+    text-decoration: underline;
+    opacity: 0.8;
+}
+
+.code-style {
+    font-family: monospace;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    display: block;
+    word-break: break-all;
+}
+
+.api-url {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 4px;
+}
+
+.code-block-small {
+    font-family: monospace;
+    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 5px;
+}
+
+.code-block-small p {
+    margin: 4px 0;
+    word-break: break-all;
+}
+
+.credential-hint {
+    margin-top: 1.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+}
