@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS public.word_studies (
     lemma TEXT,
     transliteration TEXT,
     analysis JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, book_id, chapter, verse, word)
 );
 
 -- Basic RLS for word_studies

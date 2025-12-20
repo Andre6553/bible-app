@@ -7,16 +7,40 @@ import { getUserId } from './bibleService';
 export const saveWordStudy = async (study) => {
     try {
         const userId = getUserId();
-        const { data, error } = await supabase
+
+        // 1. Check if it already exists (since we might not have a UNIQUE constraint in DB yet)
+        const { data: existing } = await supabase
             .from('word_studies')
-            .upsert({
-                ...study,
-                user_id: userId
-            }, {
-                onConflict: 'user_id, book_id, chapter, verse, word'
-            })
-            .select()
-            .single();
+            .select('id')
+            .eq('user_id', userId)
+            .eq('book_id', study.book_id)
+            .eq('chapter', study.chapter)
+            .eq('verse', study.verse)
+            .eq('word', study.word)
+            .maybeSingle();
+
+        let data, error;
+
+        if (existing) {
+            // Update existing
+            const result = await supabase
+                .from('word_studies')
+                .update({ ...study, updated_at: new Date().toISOString() })
+                .eq('id', existing.id)
+                .select()
+                .single();
+            data = result.data;
+            error = result.error;
+        } else {
+            // Insert new
+            const result = await supabase
+                .from('word_studies')
+                .insert({ ...study, user_id: userId })
+                .select()
+                .single();
+            data = result.data;
+            error = result.error;
+        }
 
         if (error) throw error;
         return { success: true, data };
