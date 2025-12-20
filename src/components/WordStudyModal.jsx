@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getWordStudy } from '../services/aiService';
 import { getUserId, getVerseByReference, getOriginalVerse, getVerseCount } from '../services/bibleService';
 import { saveWordStudy, deleteWordStudy, checkIsWordStudySaved } from '../services/wordStudyService';
+import { useSettings } from '../context/SettingsContext';
 import './WordStudyModal.css';
 
 function WordStudyModal({
@@ -14,6 +15,7 @@ function WordStudyModal({
     initialStudyData = null,
     onClose
 }) {
+    const { settings } = useSettings();
     // Current verse being studied
     const [currentVerse, setCurrentVerse] = useState({
         verse: initialVerse,
@@ -75,7 +77,7 @@ function WordStudyModal({
 
         try {
             const userId = getUserId();
-            const result = await getWordStudy(userId, currentVerse.ref, currentVerse.text, currentVerse.originalText, cleanedWord);
+            const result = await getWordStudy(userId, currentVerse.ref, currentVerse.text, currentVerse.originalText, cleanedWord, settings.language);
             if (result.success) {
                 setStudyData(result.data);
                 // Check if this specific word study is already saved
@@ -141,7 +143,8 @@ function WordStudyModal({
 
         try {
             // 1. Fetch translation
-            const verseRes = await getVerseByReference(ref);
+            const targetVersion = settings.language === 'af' ? 'AFR53' : 'KJV';
+            const verseRes = await getVerseByReference(ref, targetVersion);
             if (!verseRes.success) throw new Error('Could not find verse');
 
             const newVerse = verseRes.data;
@@ -150,8 +153,12 @@ function WordStudyModal({
             const originalRes = await getOriginalVerse(newVerse.book_id, newVerse.chapter, newVerse.verse);
             if (!originalRes.success) throw new Error('Original text not available');
 
-            // 3. Save current to history
-            setHistory(prev => [...prev, currentVerse]);
+            // 3. Save current to history - INCLUDE current study state
+            setHistory(prev => [...prev, {
+                verse: currentVerse,
+                selectedWord: selectedWord,
+                studyData: studyData
+            }]);
 
             // 4. Update current state
             setCurrentVerse({
@@ -162,7 +169,7 @@ function WordStudyModal({
                 originalVersion: originalRes.version
             });
 
-            // 5. Reset study data
+            // 5. Reset study data for new verse
             setStudyData(null);
             setSelectedWord(null);
 
@@ -176,11 +183,13 @@ function WordStudyModal({
     const handleBack = () => {
         if (history.length === 0) return;
 
-        const previousVerse = history[history.length - 1];
+        const previousState = history[history.length - 1];
         setHistory(prev => prev.slice(0, -1));
-        setCurrentVerse(previousVerse);
-        setStudyData(null);
-        setSelectedWord(null);
+
+        // Restore previous verse and its study state
+        setCurrentVerse(previousState.verse);
+        setSelectedWord(previousState.selectedWord);
+        setStudyData(previousState.studyData);
     };
 
     return (
@@ -273,7 +282,94 @@ function WordStudyModal({
                                         disabled={saving}
                                         title={isSaved ? 'Remove from Profile' : 'Save to Profile'}
                                     >
-                                        {saving ? '...' : isSaved ? '★' : '☆'}
+                                        {saving ? (
+                                            <span className="ws-save-spinner">...</span>
+                                        ) : isSaved ? (
+                                            // Filled Bookmark Icon (Saved)
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M5 21V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V21L12 17L5 21Z" />
+                                            </svg>
+                                        ) : (
+                                            // Outline Bookmark Icon (Unsaved)
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M19 21L12 17L5 21V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V21Z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                    <button
+                                        className="ws-save-btn"
+                                        onClick={async () => {
+                                            if (!studyData) return;
+                                            const text = `
+Word Study: ${studyData.word?.original} (${studyData.word?.transliteration})
+Verse: ${currentVerse.ref}
+
+Contextual Meaning:
+${studyData.word?.contextualMeaning || ''}
+
+Lexical Definition:
+${studyData.word?.definition || ''}
+
+Cultural & Theological Nuance:
+${studyData.word?.culturalNuance || ''}
+
+Related Verses:
+${studyData.relatedVerses?.map(v => `- ${v.label}`).join('\n') || ''}
+`.trim();
+
+                                            const copyToClipboard = async (textToCopy) => {
+                                                // 1. Try modern API (works on HTTPS/localhost)
+                                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                                    try {
+                                                        await navigator.clipboard.writeText(textToCopy);
+                                                        return true;
+                                                    } catch (err) {
+                                                        console.warn('Clipboard API failed, trying fallback...', err);
+                                                    }
+                                                }
+
+                                                // 2. Fallback for HTTP / Older Browsers / WebViews
+                                                try {
+                                                    const textArea = document.createElement("textarea");
+                                                    textArea.value = textToCopy;
+
+                                                    // Ensure valid style so it doesn't break layout but is invisible
+                                                    textArea.style.position = "fixed";
+                                                    textArea.style.left = "-9999px";
+                                                    textArea.style.top = "0";
+                                                    textArea.setAttribute('readonly', '');
+
+                                                    document.body.appendChild(textArea);
+
+                                                    // Select text - iOS compat
+                                                    textArea.select();
+                                                    textArea.setSelectionRange(0, 99999);
+
+                                                    const successful = document.execCommand('copy');
+                                                    document.body.removeChild(textArea);
+
+                                                    return successful;
+                                                } catch (err) {
+                                                    console.error('Copy fallback failed', err);
+                                                    return false;
+                                                }
+                                            };
+
+                                            const success = await copyToClipboard(text);
+                                            if (success) {
+                                                alert('Copied to clipboard! 📋');
+                                            } else {
+                                                alert('Could not copy automatically. Please try valid HTTPS context.');
+                                            }
+                                        }}
+                                        title="Copy to Clipboard"
+                                        style={{ marginLeft: '8px' }}
+                                    >
+                                        {/* Copy Icon */}
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
                                     </button>
                                 </div>
                                 <div className="ws-lemma-row">
@@ -304,15 +400,19 @@ function WordStudyModal({
                                     <div className="ws-related">
                                         <h4>Related Verses</h4>
                                         <div className="ws-related-list">
-                                            {studyData.relatedVerses.map((ref, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    className="ws-related-chip"
-                                                    onClick={() => handleNavigateVerse(ref)}
-                                                >
-                                                    {ref}
-                                                </button>
-                                            ))}
+                                            {studyData.relatedVerses.map((item, idx) => {
+                                                const ref = typeof item === 'string' ? item : item.ref;
+                                                const label = typeof item === 'string' ? item : item.label;
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        className="ws-related-chip"
+                                                        onClick={() => handleNavigateVerse(ref)}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}

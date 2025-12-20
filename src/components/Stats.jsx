@@ -542,7 +542,10 @@ function Stats() {
         <div className="stats-page">
             <div className="stats-header-row">
                 <h1 className="stats-title">Search Analytics 📊</h1>
-                <button className="logout-btn" onClick={() => setIsAuthenticated(false)}>Lock 🔒</button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="logout-btn" style={{ background: '#4a90d9' }} onClick={() => window.location.href = '/admin'}>API Dashboard 📈</button>
+                    <button className="logout-btn" onClick={() => setIsAuthenticated(false)}>Lock 🔒</button>
+                </div>
             </div>
 
             {error && (

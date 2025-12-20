@@ -246,11 +246,10 @@ function Blog() {
             // Find matching book
             let book = allBooks.find(b => {
                 const dbName = normalizeBookName(b.name_full);
-                const bookId = String(b.id).toLowerCase();
-                return dbName === targetName || bookId === bookName.toLowerCase();
+                return dbName === targetName;
             });
 
-            // Fallback: partial match
+            // Fallback: partial match if strict match failed
             if (!book) {
                 book = allBooks.find(b => {
                     const dbName = normalizeBookName(b.name_full);
@@ -276,6 +275,62 @@ function Blog() {
         } catch (err) {
             console.error('Error parsing scripture reference:', err);
             navigate(`/search?q=${encodeURIComponent(ref)}`);
+        }
+    };
+
+    const handleCopy = (text, e) => {
+        if (e) e.stopPropagation();
+
+        if (!text) {
+            alert('Nothing to copy!');
+            return;
+        }
+
+        console.log('Attempting to copy:', text.substring(0, 50) + '...');
+
+        // Helper for fallback
+        const fallbackCopy = (textToCopy) => {
+            try {
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+
+                // Ensure valid style so it doesn't break layout but is invisible
+                textArea.style.position = "fixed";
+                textArea.style.left = "-9999px";
+                textArea.style.top = "0";
+                textArea.setAttribute('readonly', '');
+
+                document.body.appendChild(textArea);
+
+                // Select text - iOS compat
+                textArea.select();
+                textArea.setSelectionRange(0, 99999);
+
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                if (successful) {
+                    alert('Copied to clipboard! 📋');
+                } else {
+                    alert('Copy failed. Please copy manually.');
+                }
+            } catch (err) {
+                console.error('Fallback copy failed', err);
+                alert('Copy failed.');
+            }
+        };
+
+        // 1. Check if we can use modern API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text)
+                .then(() => alert('Copied to clipboard! 📋'))
+                .catch((err) => {
+                    console.warn('Clipboard API failed, trying fallback...', err);
+                    fallbackCopy(text);
+                });
+        } else {
+            // 2. Immediate fallback for non-secure contexts
+            fallbackCopy(text);
         }
     };
 
@@ -331,7 +386,24 @@ function Blog() {
 
                 {devotional ? (
                     <div className="devotional-card">
-                        <h3>{devotional.title || 'Daily Devotional'}</h3>
+                        <div className="devotional-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                            <h3 style={{ margin: 0 }}>{devotional.title || 'Daily Devotional'}</h3>
+                            <button
+                                className="icon-btn"
+                                onClick={(e) => {
+                                    const content = devotional.content || '';
+                                    const text = `${devotional.title || 'Devotional'}\n\n${content}\n\nTopics: ${(devotional.topics || []).join(', ')}`;
+                                    handleCopy(text, e);
+                                }}
+                                title="Copy content"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>
                         <div
                             className="devotional-content"
                             style={{ fontSize: `${settings.fontSize}px` }}
@@ -452,7 +524,23 @@ function Blog() {
                     <div className="article-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="article-modal-header">
                             <h2>{selectedPost.title}</h2>
-                            <button className="close-btn" onClick={() => setSelectedPost(null)}>✕</button>
+                            <div className="modal-actions">
+                                <button
+                                    className="icon-btn"
+                                    onClick={(e) => {
+                                        const text = `${selectedPost.title}\n\n${selectedPost.content}\n\nTopics: ${(selectedPost.topics || []).join(', ')}`;
+                                        handleCopy(text, e);
+                                    }}
+                                    title="Copy article"
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', marginRight: '8px' }}
+                                >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                </button>
+                                <button className="close-btn" onClick={() => setSelectedPost(null)}>✕</button>
+                            </div>
                         </div>
                         <div className="article-modal-body">
                             <div

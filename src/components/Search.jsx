@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference, getBooks } from '../services/bibleService';
 import { askBibleQuestion, getUserRemainingQuota } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
+import { getLocalizedBookName } from '../constants/bookNames';
 import './Search.css';
 
 // Generate or retrieve user ID from localStorage
@@ -694,7 +695,7 @@ Here are the available shortcuts to quickly ask questions:
                                     }}>
                                         <div className="result-header">
                                             <span className="result-ref">
-                                                {getVerseReference(verse)}
+                                                {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
                                             </span>
                                             <span className="result-version">
                                                 {verse.version}

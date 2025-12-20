@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabaseClient';
 import { getUserId } from './bibleService';
+import { logApiCall } from './adminService';
 
 /**
  * Blog Service - Handles personalized content and AI devotionals
@@ -813,6 +814,9 @@ Tone: Warm, friendly, accessible - like a conversation with a wise friend.${scri
         const result = await model.generateContent(prompt);
         const content = result.response.text();
 
+        // Log successful API call
+        logApiCall('generateFreshArticle', 'success', 'gemini-2.0-flash', { topic, language });
+
         // Generate title
         const titlePrompt = `Create a catchy, engaging title (4-7 words) for an article about ${topic}. Return ONLY the title, no quotes.${language === 'af' ? ' Write in Afrikaans.' : ''}`;
         const titleResult = await model.generateContent(titlePrompt);
@@ -833,6 +837,7 @@ Tone: Warm, friendly, accessible - like a conversation with a wise friend.${scri
         };
     } catch (err) {
         console.error(`Error generating article for topic "${topic}":`, err);
+        logApiCall('generateFreshArticle', 'error', 'gemini-2.0-flash', { topic, error: err.message });
         return null;
     }
 };
@@ -1022,6 +1027,9 @@ Requirements:
         const result = await model.generateContent(prompt);
         const content = result.response.text();
 
+        // Log successful API call
+        logApiCall('generateDevotionalWithAI', 'success', 'gemini-2.0-flash', { topics: topicList });
+
         // Extract scripture reference from content
         const scriptureMatch = content.match(/\*\*([^*]+)\*\*/);
         const scriptureRef = scriptureMatch ? scriptureMatch[1] : null;
@@ -1039,12 +1047,15 @@ Requirements:
         };
     } catch (err) {
         console.error('Error generating devotional with AI:', err);
+        logApiCall('generateDevotionalWithAI', 'error', 'gemini-2.0-flash', { error: err.message });
         return {
             success: false,
             error: 'Could not generate devotional. Please try again later.'
         };
     }
 };
+
+
 
 /**
  * Get trending topics across all users

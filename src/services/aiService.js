@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from '../config/supabaseClient';
+import { logApiCall } from './adminService';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
@@ -254,6 +255,9 @@ export async function askBibleQuestion(userId, question, verses = []) {
         const response = await result.response;
         const answer = response.text();
 
+        // Log successful API call
+        logApiCall('askBibleQuestion', 'success', 'gemini-2.0-flash', { userId });
+
         // 5. Save to cache (for reuse) - Non-blocking
         saveCachedAnswer(question, answer).catch(console.error);
 
@@ -283,6 +287,8 @@ export async function askBibleQuestion(userId, question, verses = []) {
 
     } catch (error) {
         console.error('AI question error:', error);
+        // Log failed API call
+        logApiCall('askBibleQuestion', 'error', 'gemini-2.0-flash', { userId, error: error.message });
 
         // More specific error messages
         let errorMessage = 'Failed to get AI response. Please try again.';
@@ -346,6 +352,9 @@ export async function getInductiveStudyHints(userId, step, bookName, chapter, ve
         const response = await result.response;
         const text = response.text();
 
+        // Log successful API call
+        logApiCall('getInductiveStudyHints', 'success', 'gemini-2.0-flash', { userId, step, ref });
+
         // Clean markdown JSON if present
         const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
         const data = JSON.parse(jsonStr);
@@ -361,6 +370,7 @@ export async function getInductiveStudyHints(userId, step, bookName, chapter, ve
         return { success: true, hints: data.hints };
     } catch (error) {
         console.error('Study hints error:', error);
+        logApiCall('getInductiveStudyHints', 'error', 'gemini-2.0-flash', { userId, error: error.message });
         return { success: false, error: error.message };
     }
 }
@@ -374,12 +384,13 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         if (remaining <= 0) return { success: false, error: 'Quota exceeded' };
 
         let prompt = `You are a Biblical language scholar (Greek and Hebrew). Analyze the following:
+        
+        CRITICAL INSTRUCTION: You MUST provide the explanation, definitions, and cultural nuances in ${language === 'af' ? 'AFRIKAANS' : 'ENGLISH'}.
+        
         Verse Reference: ${verseRef}
         Translation Text: "${verseText}"
         Original Language Text: "${originalText}"
         ${selectedWord ? `Target Word to Study: "${selectedWord}"` : 'General Verse Analysis (Original Languages focus)'}
-        
-        The user's preferred language for the explanation is: ${language === 'af' ? 'Afrikaans' : 'English'}.
 
         Provide a deep dive into the original Greek or Hebrew word(s). 
         
@@ -400,12 +411,20 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
                 "contextualMeaning": "...", // Usage in this specific verse context
                 "culturalNuance": "..." // Historical/theological significance
             },
-            "relatedVerses": ["Book Chapter:Verse", "..."] // 2-3 other verses using this same root meaningfully
+            "relatedVerses": [
+                {
+                    "ref": "Book Chapter:Verse", // Standard English reference for system lookup
+                    "label": "..." // Localized reference for display (e.g. "Johannes 3:16")
+                }
+            ] // 2-3 other verses using this same root meaningfully
         }`;
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
+
+        // Log successful API call
+        logApiCall('getWordStudy', 'success', 'gemini-2.0-flash', { userId, verseRef });
 
         // Clean markdown JSON if present
         const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
@@ -422,6 +441,7 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         return { success: true, data: data };
     } catch (error) {
         console.error('Word study error:', error);
+        logApiCall('getWordStudy', 'error', 'gemini-2.0-flash', { userId, error: error.message });
         return { success: false, error: error.message };
     }
 }

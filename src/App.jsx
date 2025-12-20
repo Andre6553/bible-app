@@ -16,6 +16,7 @@ const Blog = lazy(() => import('./components/Blog'));
 const Study = lazy(() => import('./components/Study'));
 const InductiveEditor = lazy(() => import('./components/InductiveEditor'));
 const Profile = lazy(() => import('./components/Profile'));
+const Admin = lazy(() => import('./components/Admin'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 
 function App() {
@@ -113,6 +114,10 @@ function App() {
                                     <Route
                                         path="/profile"
                                         element={<Profile />}
+                                    />
+                                    <Route
+                                        path="/admin"
+                                        element={<Admin />}
                                     />
                                     <Route path="/" element={<Navigate to="/bible" replace />} />
                                 </Routes>

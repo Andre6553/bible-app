@@ -72,7 +72,7 @@ export const getLocalizedBookName = (bookName, langOrVersion) => {
     if (!bookName) return '';
 
     // Check if it's a version ID or a simple language code
-    const isAfrikaans = ['AFR53', 'AFR83', 'af', 'afrikaans'].includes(langOrVersion?.toLowerCase());
+    const isAfrikaans = ['afr53', 'afr83', 'af', 'afrikaans'].includes(langOrVersion?.toLowerCase());
 
     if (isAfrikaans) {
         return AFRIKAANS_BOOK_NAMES[bookName] || bookName;
