@@ -23,6 +23,24 @@
 .study-header .subtitle {
     color: #888;
     font-size: 1rem;
+    padding: 0 10px;
+}
+
+/* Mobile Responsiveness for Header */
+@media (max-width: 768px) {
+    .study-container {
+        padding: 15px;
+        padding-bottom: 90px;
+    }
+
+    .study-header h1 {
+        font-size: 1.8rem;
+        word-wrap: break-word;
+    }
+
+    .study-header .subtitle {
+        font-size: 0.9rem;
+    }
 }
 
 .study-card {
@@ -143,6 +161,31 @@
     align-items: center;
     gap: 15px;
     margin-bottom: 25px;
+}
+
+@media (max-width: 768px) {
+    .editor-container {
+        padding: 12px;
+        padding-bottom: 90px;
+    }
+
+    .editor-fields {
+        padding: 15px;
+        border-radius: 18px;
+    }
+
+    .editor-steps {
+        padding: 5px;
+        gap: 5px;
+        overflow-x: auto;
+        justify-content: flex-start;
+    }
+
+    .step-item {
+        padding: 8px 5px;
+        font-size: 0.8rem;
+        min-width: 100px;
+    }
 }
 
 .editor-steps {
