@@ -431,3 +431,104 @@ export const getUserHistory = async (userId) => {
         return { success: false, searches: [], aiQuestions: [] };
     }
 };
+/**
+ * Get the original language (Greek or Hebrew) text for a specific verse
+ */
+export const getOriginalVerse = async (bookId, chapter, verse) => {
+    try {
+        // 1. Get book testament
+        const { data: book } = await supabase
+            .from('books')
+            .select('testament')
+            .eq('id', bookId)
+            .single();
+
+        if (!book) throw new Error('Book not found');
+
+        const versionId = book.testament === 'NT' ? 'SBLGNT' : 'WLC';
+
+        const { data, error } = await supabase
+            .from('verses')
+            .select('text')
+            .eq('book_id', bookId)
+            .eq('chapter', chapter)
+            .eq('verse', verse)
+            .eq('version', versionId)
+            .single();
+
+        if (error) throw error;
+        return { success: true, text: data?.text, version: versionId };
+    } catch (error) {
+        console.error('Error fetching original verse:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Get a specific verse by ID components
+ */
+export const getVerse = async (bookId, chapter, verse, versionId = 'KJV') => {
+    try {
+        const { data, error } = await supabase
+            .from('verses')
+            .select(`
+                id,
+                book_id,
+                chapter,
+                verse,
+                text,
+                version,
+                books (
+                    id,
+                    name_full,
+                    testament
+                )
+            `)
+            .eq('book_id', bookId)
+            .eq('chapter', chapter)
+            .eq('verse', verse)
+            .eq('version', versionId)
+            .single();
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error fetching verse:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Find a verse by a reference string like "John 3:16" or "1 John 1:1"
+ */
+export const getVerseByReference = async (refString, versionId = 'KJV') => {
+    try {
+        // Simple parser for "Book Chapter:Verse"
+        const match = refString.match(/(.+?)\s+(\d+)[:\s]+(\d+)/);
+        if (!match) throw new Error('Invalid reference format');
+
+        const [_, bookName, chapter, verse] = match;
+        let bookId;
+
+        // 1. If bookName is a number, it's likely a direct ID
+        if (/^\d+$/.test(bookName.trim())) {
+            bookId = parseInt(bookName.trim());
+        } else {
+            // Find book ID by name
+            const { data: books, error: bookError } = await supabase
+                .from('books')
+                .select('id')
+                .ilike('name_full', `%${bookName.trim()}%`)
+                .limit(1);
+
+            if (bookError || !books || books.length === 0) throw new Error('Book not found');
+            bookId = books[0].id;
+        }
+
+        // 2. Get the verse
+        return await getVerse(bookId, parseInt(chapter), parseInt(verse), versionId);
+    } catch (error) {
+        console.error('Error fetching verse by reference:', error);
+        return { success: false, error: error.message };
+    }
+};

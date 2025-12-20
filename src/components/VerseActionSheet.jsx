@@ -15,6 +15,7 @@ function VerseActionSheet({
     onHighlight,
     onNote,
     onStudy,
+    onWordStudy,
     onCopy,
     onClose
 }) {
@@ -80,6 +81,10 @@ function VerseActionSheet({
                     <button className="action-btn" onClick={onNote}>
                         <span className="action-icon">📝</span>
                         <span className="action-label">Note</span>
+                    </button>
+                    <button className="action-btn" onClick={onWordStudy}>
+                        <span className="action-icon">📜</span>
+                        <span className="action-label">Word Study</span>
                     </button>
                     <button className="action-btn" onClick={onStudy}>
                         <span className="action-icon">📖</span>

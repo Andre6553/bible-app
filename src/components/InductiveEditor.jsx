@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getStudyById, saveInductiveStudy } from '../services/studyService';
 import { getInductiveStudyHints } from '../services/aiService';
 import { getLocalizedBookName } from '../constants/bookNames';
-import { getUserId } from '../services/bibleService';
+import { getUserId, getVerseCount, getChapter } from '../services/bibleService';
 import { useSettings } from '../context/SettingsContext';
 import './Study.css';
 
@@ -51,6 +51,9 @@ function InductiveEditor() {
         }
     });
 
+    const [verseCount, setVerseCount] = useState(0);
+    const [verses, setVerses] = useState([]);
+
     useEffect(() => {
         if (id && id !== 'new') {
             loadStudy();
@@ -58,6 +61,8 @@ function InductiveEditor() {
             // New study from Bible reader
             const { bookId, bookName, chapter, verse, verseEnd } = location.state;
             const end = verseEnd || verse;
+
+            const bookDisp = getLocalizedBookName(bookName, settings.language) || `Book ${bookId}`;
             setStudy(prev => ({
                 ...prev,
                 book_id: bookId,
@@ -66,20 +71,56 @@ function InductiveEditor() {
                 verse_start: verse,
                 verse_end: end,
                 title: verse === end
-                    ? `${getLocalizedBookName(bookName, settings.language)} ${chapter}:${verse}`
-                    : `${getLocalizedBookName(bookName, settings.language)} ${chapter}:${verse}-${end}`
+                    ? `${bookDisp} ${chapter}:${verse}`
+                    : `${bookDisp} ${chapter}:${verse}-${end}`
             }));
             setLoading(false);
         } else {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, location.state]);
+
+    useEffect(() => {
+        if (study.book_id && study.chapter) {
+            loadVerseCount();
+            loadPassageText();
+        }
+    }, [study.book_id, study.chapter, study.verse_start, study.verse_end]);
+
+    const loadVerseCount = async () => {
+        console.log('📊 Loading verse count for:', study.book_id, study.chapter);
+        const count = await getVerseCount(study.book_id, study.chapter);
+        setVerseCount(count.data || 0);
+    };
+
+    const loadPassageText = async () => {
+        console.log('📖 Loading passage text for:', study.book_id, study.chapter, study.verse_start, study.verse_end);
+        const result = await getChapter(study.book_id, study.chapter, 'KJV');
+        if (result.success) {
+            const filtered = result.data.filter(v => v.verse >= study.verse_start && v.verse <= study.verse_end);
+            console.log('✅ Passage loaded, verses:', filtered.length);
+            setVerses(filtered);
+        } else {
+            console.error('❌ Failed to load passage:', result.error);
+        }
+    };
 
     const loadStudy = async () => {
         setLoading(true);
         const result = await getStudyById(id);
         if (result.success) {
-            setStudy(result.study);
+            const s = result.study;
+            setStudy(s);
+            // Ensure title is clear if missing
+            if (!s.title && s.book_id) {
+                const bookDisp = getLocalizedBookName(s.book_name, settings.language) || `Book ${s.book_id}`;
+                setStudy(prev => ({
+                    ...prev,
+                    title: s.verse_start === s.verse_end
+                        ? `${bookDisp} ${s.chapter}:${s.verse_start}`
+                        : `${bookDisp} ${s.chapter}:${s.verse_start}-${s.verse_end}`
+                }));
+            }
         }
         setLoading(false);
     };
@@ -146,6 +187,20 @@ function InductiveEditor() {
             alert('AI Assistance failed: ' + result.error);
         }
         setAiLoading(false);
+    };
+
+    const updateRange = (start, end) => {
+        setStudy(prev => {
+            const bookDisp = getLocalizedBookName(prev.book_name, settings.language) || `Book ${prev.book_id}`;
+            return {
+                ...prev,
+                verse_start: start,
+                verse_end: end,
+                title: start === end
+                    ? `${bookDisp} ${prev.chapter}:${start}`
+                    : `${bookDisp} ${prev.chapter}:${start}-${end}`
+            };
+        });
     };
 
     const handleSave = async () => {
@@ -253,8 +308,41 @@ function InductiveEditor() {
     return (
         <div className="editor-container">
             <header className="editor-header">
-                <button className="back-btn" onClick={() => navigate('/study')}>‹</button>
+                <div className="header-top">
+                    <button className="back-btn" onClick={() => navigate('/study')}>‹</button>
+                    <div className="range-picker">
+                        <span>Verse</span>
+                        <select
+                            value={study.verse_start}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                updateRange(val, Math.max(val, study.verse_end));
+                            }}
+                        >
+                            {[...Array(verseCount)].map((_, i) => (
+                                <option key={i + 1} value={i + 1}>{i + 1}</option>
+                            ))}
+                        </select>
+                        <span>to</span>
+                        <select
+                            value={study.verse_end}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                updateRange(Math.min(val, study.verse_start), val);
+                            }}
+                        >
+                            {[...Array(verseCount)].map((_, i) => (
+                                <option key={i + 1} value={i + 1}>{i + 1}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
                 <h2>{study.title}</h2>
+                <div className="passage-context">
+                    {verses.map(v => (
+                        <p key={v.id}><sup>{v.verse}</sup> {v.text}</p>
+                    ))}
+                </div>
             </header>
 
             <div className="editor-steps">

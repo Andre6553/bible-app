@@ -364,3 +364,64 @@ export async function getInductiveStudyHints(userId, step, bookName, chapter, ve
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Get deep analysis for a specific word or verse in original languages
+ */
+export async function getWordStudy(userId, verseRef, verseText, originalText, selectedWord = null, language = 'en') {
+    try {
+        const { remaining } = await getUserRemainingQuota(userId);
+        if (remaining <= 0) return { success: false, error: 'Quota exceeded' };
+
+        let prompt = `You are a Biblical language scholar (Greek and Hebrew). Analyze the following:
+        Verse Reference: ${verseRef}
+        Translation Text: "${verseText}"
+        Original Language Text: "${originalText}"
+        ${selectedWord ? `Target Word to Study: "${selectedWord}"` : 'General Verse Analysis (Original Languages focus)'}
+        
+        The user's preferred language for the explanation is: ${language === 'af' ? 'Afrikaans' : 'English'}.
+
+        Provide a deep dive into the original Greek or Hebrew word(s). 
+        
+        Rules:
+        1. Identify the correct original word (lemma) even if the grammar in the verse is inflected.
+        2. Provide accurate transliteration.
+        3. Explain the specific contextual nuance of this word in THIS verse.
+        4. Include cultural or historical background if relevant.
+
+        Format the response as a single valid JSON object with this structure:
+        {
+            "word": {
+                "original": "...", // The word in Greek/Hebrew characters
+                "transliteration": "...", // Phonetic 
+                "lemma": "...", // Lexical root
+                "strongs": "...", // Strong's number (prefix G or H)
+                "definition": "...", // Concise dictionary meaning
+                "contextualMeaning": "...", // Usage in this specific verse context
+                "culturalNuance": "..." // Historical/theological significance
+            },
+            "relatedVerses": ["Book Chapter:Verse", "..."] // 2-3 other verses using this same root meaningfully
+        }`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        // Clean markdown JSON if present
+        const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+        const data = JSON.parse(jsonStr);
+
+        // Log the question
+        await supabase.from('ai_questions').insert({
+            user_id: userId,
+            question: `Word Study: ${selectedWord || 'General'} in ${verseRef}`,
+            answer: text,
+            cached: false
+        });
+
+        return { success: true, data: data };
+    } catch (error) {
+        console.error('Word study error:', error);
+        return { success: false, error: error.message };
+    }
+}

@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getBooks, getChapter, getChapterCount, getVerseCount } from '../services/bibleService';
+import WordStudyModal from './WordStudyModal';
+import {
+    getChapter,
+    getVersions,
+    getBooks,
+    getUserId,
+    getOriginalVerse,
+    getChapterCount,
+    getVerseCount
+} from '../services/bibleService';
 import { getChapterHighlights, saveHighlight, removeHighlight, getVerseNote, saveNote, HIGHLIGHT_COLORS } from '../services/highlightService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { useSettings } from '../context/SettingsContext';
@@ -48,6 +57,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [showActionSheet, setShowActionSheet] = useState(false);
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [existingNote, setExistingNote] = useState(null);
+    const [showWordStudyModal, setShowWordStudyModal] = useState(false);
+    const [wordStudyData, setWordStudyData] = useState(null);
 
     useEffect(() => {
         loadBooks();
@@ -142,7 +153,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     }, []);
 
     const scrollToVerse = (verseNum) => {
-        const element = document.getElementById(`verse-${verseNum}`);
+        const element = document.getElementById(`verse - ${verseNum} `);
         console.log('🎯 scrollToVerse called for:', verseNum, 'Element found:', !!element);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -306,22 +317,42 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     // Handle starting inductive study
     const handleStartStudy = () => {
-        if (selectedVerses.length === 0 || !selectedBook) return;
+        if (selectedVerses.length === 0) return;
 
-        const versesSorted = [...selectedVerses].sort((a, b) => a.verse - b.verse);
-        const verseStart = versesSorted[0].verse;
-        const verseEnd = versesSorted[versesSorted.length - 1].verse;
+        // Sort selected verses to get the range
+        const sorted = [...selectedVerses].sort((a, b) => a.verse - b.verse);
+        const verseStart = sorted[0].verse;
+        const verseEnd = sorted[sorted.length - 1].verse;
 
-        setShowActionSheet(false);
         navigate('/study/new', {
             state: {
-                bookId: selectedBook.id,
-                bookName: selectedBook.name_full,
+                book_id: selectedBook.id,
+                book_name: selectedBook.name_full,
                 chapter: selectedChapter,
-                verse: verseStart,
-                verseEnd: verseEnd
+                verse_start: verseStart,
+                verse_end: verseEnd
             }
         });
+        handleCloseActionSheet();
+    };
+
+    const handleWordStudy = async () => {
+        if (selectedVerses.length === 0) return;
+        const firstVerse = selectedVerses[0];
+
+        // Fetch original text for the first selected verse
+        const result = await getOriginalVerse(selectedBook.id, selectedChapter, firstVerse.verse);
+        if (result.success) {
+            setWordStudyData({
+                verse: firstVerse,
+                originalText: result.text,
+                originalVersion: result.version
+            });
+            setShowWordStudyModal(true);
+        } else {
+            alert('Original language text not available for this verse.');
+        }
+        handleCloseActionSheet();
     };
 
     // Close action sheet
@@ -339,9 +370,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         const end = versesSorted[versesSorted.length - 1].verse;
 
         if (start === end) {
-            return `${bookName} ${selectedChapter}:${start}`;
+            return `${bookName} ${selectedChapter}:${start} `;
         }
-        return `${bookName} ${selectedChapter}:${start}-${end}`;
+        return `${bookName} ${selectedChapter}:${start} -${end} `;
     };
 
     // --- Search / Context Menu Logic ---
@@ -409,7 +440,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     const searchSelection = (testament = 'all') => {
         if (contextMenu.text) {
-            navigate(`/search?q=${encodeURIComponent(contextMenu.text)}&version=${currentVersion?.id || 'all'}&testament=${testament}`);
+            navigate(`/ search ? q = ${encodeURIComponent(contextMenu.text)}& version=${currentVersion?.id || 'all'}& testament=${testament} `);
         }
         setContextMenu(prev => ({ ...prev, visible: false }));
     };
@@ -587,8 +618,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 )}
                                 <h2>
                                     {selectionStage === 'books' && "Select Book"}
-                                    {selectionStage === 'chapters' && `${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)}`}
-                                    {selectionStage === 'verses' && `${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)} ${tempSelectedChapter}`}
+                                    {selectionStage === 'chapters' && `${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)} `}
+                                    {selectionStage === 'verses' && `${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)} ${tempSelectedChapter} `}
                                 </h2>
                             </div>
                             <button className="close-btn" onClick={() => setShowBookSelector(false)}>✕</button>
@@ -604,7 +635,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             {books.oldTestament?.map(book => (
                                                 <div
                                                     key={book.id}
-                                                    className={`book-item ${selectedBook?.id === book.id ? 'active' : ''}`}
+                                                    className={`book - item ${selectedBook?.id === book.id ? 'active' : ''} `}
                                                     onClick={() => handleBookClick(book)}
                                                 >
                                                     {getLocalizedBookName(book.name_full, currentVersion?.id)}
@@ -618,7 +649,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             {books.newTestament?.map(book => (
                                                 <div
                                                     key={book.id}
-                                                    className={`book-item ${selectedBook?.id === book.id ? 'active' : ''}`}
+                                                    className={`book - item ${selectedBook?.id === book.id ? 'active' : ''} `}
                                                     onClick={() => handleBookClick(book)}
                                                 >
                                                     {getLocalizedBookName(book.name_full, currentVersion?.id)}
@@ -636,7 +667,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                         {Array.from({ length: chapterCount }, (_, i) => i + 1).map(num => (
                                             <div
                                                 key={num}
-                                                className={`number-item ${selectedBook?.id === tempSelectedBook?.id && selectedChapter === num ? 'current' : ''}`}
+                                                className={`number - item ${selectedBook?.id === tempSelectedBook?.id && selectedChapter === num ? 'current' : ''} `}
                                                 onClick={() => handleChapterClick(num)}
                                             >
                                                 {num}
@@ -683,15 +714,15 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         <div
                             className="verses-list"
                             style={{
-                                fontSize: `${settings.fontSize}px`,
+                                fontSize: `${settings.fontSize} px`,
                                 fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
                             }}
                         >
                             {verses.map(verse => (
                                 <div
                                     key={verse.id}
-                                    id={`verse-${verse.verse}`}
-                                    className={`verse-item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
+                                    id={`verse - ${verse.verse} `}
+                                    className={`verse - item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''} `}
                                     onClick={(e) => handleVerseTap(verse, e)}
                                     style={{
                                         backgroundColor: highlights[verse.verse]
@@ -799,9 +830,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             <div
                                 className="settings-preview"
                                 style={{
-                                    fontSize: `${settings.fontSize}px`,
+                                    fontSize: `${settings.fontSize} px`,
                                     fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif',
-                                    borderLeft: `4px solid ${settings.themeColor}`
+                                    borderLeft: `4px solid ${settings.themeColor} `
                                 }}
                             >
                                 <p>In the beginning God created the heaven and the earth.</p>
@@ -834,11 +865,11 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 <h3>Font Style</h3>
                                 <div className="settings-control">
                                     <button
-                                        className={`settings-toggle ${settings.fontFamily === 'sans-serif' ? 'active' : ''}`}
+                                        className={`settings - toggle ${settings.fontFamily === 'sans-serif' ? 'active' : ''} `}
                                         onClick={() => updateSettings({ fontFamily: 'sans-serif' })}
                                     >Modern (Sans)</button>
                                     <button
-                                        className={`settings-toggle ${settings.fontFamily === 'serif' ? 'active' : ''}`}
+                                        className={`settings - toggle ${settings.fontFamily === 'serif' ? 'active' : ''} `}
                                         onClick={() => updateSettings({ fontFamily: 'serif' })}
                                         style={{ fontFamily: 'serif' }}
                                     >Classic (Serif)</button>
@@ -851,10 +882,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                     {THEME_COLORS.map(color => (
                                         <button
                                             key={color}
-                                            className={`color-swatch ${settings.themeColor === color ? 'active' : ''}`}
+                                            className={`color - swatch ${settings.themeColor === color ? 'active' : ''} `}
                                             style={{ backgroundColor: color }}
                                             onClick={() => updateSettings({ themeColor: color })}
-                                            aria-label={`Select color ${color}`}
+                                            aria-label={`Select color ${color} `}
                                         />
                                     ))}
                                 </div>
@@ -873,6 +904,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     currentColor={selectedVerses.length === 1 ? highlights[selectedVerses[0].verse] : null}
                     onHighlight={handleHighlight}
                     onNote={handleOpenNote}
+                    onWordStudy={handleWordStudy}
                     onStudy={handleStartStudy}
                     onCopy={() => { }}
                     onClose={handleCloseActionSheet}
@@ -891,6 +923,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         setShowNoteModal(false);
                         setSelectedVerses([]);
                         setExistingNote(null);
+                    }}
+                />
+            )}
+
+            {showWordStudyModal && wordStudyData && (
+                <WordStudyModal
+                    verse={wordStudyData.verse}
+                    verseText={wordStudyData.verse.text}
+                    verseRef={getVerseRef()}
+                    originalText={wordStudyData.originalText}
+                    originalVersion={wordStudyData.originalVersion}
+                    onClose={() => {
+                        setShowWordStudyModal(false);
+                        setWordStudyData(null);
+                        setSelectedVerses([]);
                     }}
                 />
             )}
