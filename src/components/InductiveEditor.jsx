@@ -56,15 +56,18 @@ function InductiveEditor() {
             loadStudy();
         } else if (location.state) {
             // New study from Bible reader
-            const { bookId, bookName, chapter, verse } = location.state;
+            const { bookId, bookName, chapter, verse, verseEnd } = location.state;
+            const end = verseEnd || verse;
             setStudy(prev => ({
                 ...prev,
                 book_id: bookId,
                 book_name: bookName,
                 chapter: chapter,
                 verse_start: verse,
-                verse_end: verse,
-                title: `${getLocalizedBookName(bookName, settings.language)} ${chapter}:${verse}`
+                verse_end: end,
+                title: verse === end
+                    ? `${getLocalizedBookName(bookName, settings.language)} ${chapter}:${verse}`
+                    : `${getLocalizedBookName(bookName, settings.language)} ${chapter}:${verse}-${end}`
             }));
             setLoading(false);
         } else {

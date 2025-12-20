@@ -21,7 +21,7 @@ function VerseActionSheet({
     const [copied, setCopied] = useState(false);
 
     const handleCopy = async () => {
-        const textToCopy = `${verseText} - ${verseRef}`;
+        const textToCopy = verseText ? `${verseText} - ${verseRef}` : verseRef;
         try {
             await navigator.clipboard.writeText(textToCopy);
             setCopied(true);

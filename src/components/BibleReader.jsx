@@ -44,7 +44,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     // Highlight State
     const [highlights, setHighlights] = useState({}); // { verseNum: color }
-    const [selectedVerse, setSelectedVerse] = useState(null); // Currently tapped verse
+    const [selectedVerses, setSelectedVerses] = useState([]); // Array of verse objects
     const [showActionSheet, setShowActionSheet] = useState(false);
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [existingNote, setExistingNote] = useState(null);
@@ -226,47 +226,68 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         setLoading(false);
     };
 
-    // Verse tap handler - single tap to select
+    // Verse tap handler - toggle selection
     const handleVerseTap = (verse, e) => {
         // Don't trigger for text selection (long press/drag)
         const selection = window.getSelection();
         if (selection && selection.toString().length > 0) return;
 
         e.stopPropagation();
-        setSelectedVerse(verse);
-        setShowActionSheet(true);
+
+        setSelectedVerses(prev => {
+            const isSelected = prev.some(v => v.verse === verse.verse);
+            let next;
+            if (isSelected) {
+                next = prev.filter(v => v.verse !== verse.verse);
+            } else {
+                next = [...prev, verse].sort((a, b) => a.verse - b.verse);
+            }
+
+            if (next.length > 0) {
+                setShowActionSheet(true);
+            } else {
+                setShowActionSheet(false);
+            }
+            return next;
+        });
     };
 
     // Handle highlight color selection
     const handleHighlight = async (color) => {
-        if (!selectedVerse || !selectedBook || !currentVersion) return;
+        if (selectedVerses.length === 0 || !selectedBook || !currentVersion) return;
 
-        if (color === null) {
-            // Remove highlight
-            await removeHighlight(selectedBook.id, selectedChapter, selectedVerse.verse, currentVersion.id);
-            setHighlights(prev => {
-                const updated = { ...prev };
-                delete updated[selectedVerse.verse];
-                return updated;
+        const promises = selectedVerses.map(v => {
+            if (color === null) {
+                return removeHighlight(selectedBook.id, selectedChapter, v.verse, currentVersion.id);
+            } else {
+                return saveHighlight(selectedBook.id, selectedChapter, v.verse, currentVersion.id, color);
+            }
+        });
+
+        await Promise.all(promises);
+
+        setHighlights(prev => {
+            const updated = { ...prev };
+            selectedVerses.forEach(v => {
+                if (color === null) {
+                    delete updated[v.verse];
+                } else {
+                    updated[v.verse] = color;
+                }
             });
-        } else {
-            // Add/update highlight
-            await saveHighlight(selectedBook.id, selectedChapter, selectedVerse.verse, currentVersion.id, color);
-            setHighlights(prev => ({
-                ...prev,
-                [selectedVerse.verse]: color
-            }));
-        }
+            return updated;
+        });
+
         setShowActionSheet(false);
-        setSelectedVerse(null);
+        setSelectedVerses([]);
     };
 
     // Handle opening note modal
     const handleOpenNote = async () => {
-        if (!selectedVerse || !selectedBook || !currentVersion) return;
+        if (selectedVerses.length === 0 || !selectedBook || !currentVersion) return;
 
-        // Check for existing note
-        const result = await getVerseNote(selectedBook.id, selectedChapter, selectedVerse.verse, currentVersion.id);
+        const primaryVerse = selectedVerses[0].verse;
+        const result = await getVerseNote(selectedBook.id, selectedChapter, primaryVerse, currentVersion.id);
         setExistingNote(result.note);
         setShowActionSheet(false);
         setShowNoteModal(true);
@@ -274,24 +295,31 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     // Handle saving note
     const handleSaveNote = async (noteText, studyId, labelIds) => {
-        if (!selectedVerse || !selectedBook || !currentVersion) return;
+        if (selectedVerses.length === 0 || !selectedBook || !currentVersion) return;
 
-        await saveNote(selectedBook.id, selectedChapter, selectedVerse.verse, currentVersion.id, noteText, studyId, labelIds);
+        const primaryVerse = selectedVerses[0].verse;
+        await saveNote(selectedBook.id, selectedChapter, primaryVerse, currentVersion.id, noteText, studyId, labelIds);
         setShowNoteModal(false);
-        setSelectedVerse(null);
+        setSelectedVerses([]);
         setExistingNote(null);
     };
 
     // Handle starting inductive study
     const handleStartStudy = () => {
-        if (!selectedVerse || !selectedBook) return;
+        if (selectedVerses.length === 0 || !selectedBook) return;
+
+        const versesSorted = [...selectedVerses].sort((a, b) => a.verse - b.verse);
+        const verseStart = versesSorted[0].verse;
+        const verseEnd = versesSorted[versesSorted.length - 1].verse;
+
         setShowActionSheet(false);
         navigate('/study/new', {
             state: {
                 bookId: selectedBook.id,
                 bookName: selectedBook.name_full,
                 chapter: selectedChapter,
-                verse: selectedVerse.verse
+                verse: verseStart,
+                verseEnd: verseEnd
             }
         });
     };
@@ -299,13 +327,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     // Close action sheet
     const handleCloseActionSheet = () => {
         setShowActionSheet(false);
-        setSelectedVerse(null);
+        setSelectedVerses([]);
     };
 
     // Get verse reference string
-    const getVerseRef = (verse) => {
+    const getVerseRef = () => {
+        if (selectedVerses.length === 0) return '';
         const bookName = getLocalizedBookName(selectedBook?.name_full, currentVersion?.id);
-        return `${bookName} ${selectedChapter}:${verse.verse}`;
+        const versesSorted = [...selectedVerses].sort((a, b) => a.verse - b.verse);
+        const start = versesSorted[0].verse;
+        const end = versesSorted[versesSorted.length - 1].verse;
+
+        if (start === end) {
+            return `${bookName} ${selectedChapter}:${start}`;
+        }
+        return `${bookName} ${selectedChapter}:${start}-${end}`;
     };
 
     // --- Search / Context Menu Logic ---
@@ -655,7 +691,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 <div
                                     key={verse.id}
                                     id={`verse-${verse.verse}`}
-                                    className={`verse-item ${selectedVerse?.verse === verse.verse ? 'verse-selected' : ''}`}
+                                    className={`verse-item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
                                     onClick={(e) => handleVerseTap(verse, e)}
                                     style={{
                                         backgroundColor: highlights[verse.verse]
@@ -829,12 +865,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             )}
 
             {/* Verse Action Sheet */}
-            {showActionSheet && selectedVerse && (
+            {showActionSheet && selectedVerses.length > 0 && (
                 <VerseActionSheet
-                    verse={selectedVerse}
-                    verseText={selectedVerse.text}
-                    verseRef={getVerseRef(selectedVerse)}
-                    currentColor={highlights[selectedVerse.verse]}
+                    verse={selectedVerses[0]}
+                    verseText={selectedVerses.length === 1 ? selectedVerses[0].text : ''}
+                    verseRef={getVerseRef()}
+                    currentColor={selectedVerses.length === 1 ? highlights[selectedVerses[0].verse] : null}
                     onHighlight={handleHighlight}
                     onNote={handleOpenNote}
                     onStudy={handleStartStudy}
@@ -844,16 +880,16 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             )}
 
             {/* Note Modal */}
-            {showNoteModal && selectedVerse && (
+            {showNoteModal && selectedVerses.length > 0 && (
                 <NoteModal
-                    verse={selectedVerse}
-                    verseText={selectedVerse.text}
-                    verseRef={getVerseRef(selectedVerse)}
+                    verse={selectedVerses[0]}
+                    verseText={selectedVerses[0].text}
+                    verseRef={getVerseRef()}
                     existingNote={existingNote}
                     onSave={handleSaveNote}
                     onClose={() => {
                         setShowNoteModal(false);
-                        setSelectedVerse(null);
+                        setSelectedVerses([]);
                         setExistingNote(null);
                     }}
                 />
