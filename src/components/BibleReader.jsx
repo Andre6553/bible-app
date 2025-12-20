@@ -714,7 +714,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         <div
                             className="verses-list"
                             style={{
-                                fontSize: `${settings.fontSize} px`,
+                                fontSize: `${settings.fontSize}px`,
                                 fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
                             }}
                         >
@@ -830,9 +830,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             <div
                                 className="settings-preview"
                                 style={{
-                                    fontSize: `${settings.fontSize} px`,
+                                    fontSize: `${settings.fontSize}px`,
                                     fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif',
-                                    borderLeft: `4px solid ${settings.themeColor} `
+                                    borderLeft: `4px solid ${settings.themeColor}`
                                 }}
                             >
                                 <p>In the beginning God created the heaven and the earth.</p>
