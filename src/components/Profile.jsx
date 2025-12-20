@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS } from '../services/highlightService';
 import { getBooks, getVersions } from '../services/bibleService';
+import { getLocalizedBookName } from '../constants/bookNames';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
 import { useSettings } from '../context/SettingsContext';
 import './Profile.css';
@@ -124,8 +125,10 @@ function Profile() {
     };
 
     const getBookName = (bookId) => {
-        const book = books.find(b => b.id === bookId);
-        return book?.name_full || bookId;
+        // Use loose equality (==) because bookId might be string from DB but number in books array
+        const book = books.find(b => b.id == bookId);
+        const name = book?.name_full || bookId;
+        return getLocalizedBookName(name, settings.language);
     };
 
     const getColorName = (colorHex) => {
