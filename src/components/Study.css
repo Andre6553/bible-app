@@ -205,13 +205,26 @@
 }
 
 .range-picker select {
-    background: none;
-    border: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #6366f1;
     font-weight: 700;
     cursor: pointer;
     font-size: 0.85rem;
     outline: none;
+    padding: 2px 24px 2px 8px;
+    border-radius: 6px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    transition: all 0.2s;
+}
+
+.range-picker select:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: #6366f1;
 }
 
 .range-picker select option {
