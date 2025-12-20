@@ -282,6 +282,71 @@
     color: var(--text-muted, #64748b);
 }
 
+/* Word Studies List */
+.word-studies-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.word-study-item {
+    padding: 16px;
+    background: var(--bg-secondary, #1e1e2e);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    border-left: 4px solid #ffd700;
+}
+
+.word-study-item:hover {
+    background: var(--bg-tertiary, #2d2d3d);
+    transform: translateY(-2px);
+}
+
+.ws-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    padding-right: 32px;
+}
+
+.ws-item-word {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.ws-translation-word {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffd700;
+}
+
+.ws-lemma-word {
+    font-size: 0.9rem;
+    color: var(--text-muted, #64748b);
+    font-style: italic;
+}
+
+.ws-item-ref {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-primary, #6366f1);
+}
+
+.ws-item-summary {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #a1a1aa);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 /* Responsive */
 @media (min-width: 768px) {
     .profile-page {

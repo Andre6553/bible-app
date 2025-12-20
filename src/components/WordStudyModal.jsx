@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getWordStudy } from '../services/aiService';
 import { getUserId, getVerseByReference, getOriginalVerse, getVerseCount } from '../services/bibleService';
+import { saveWordStudy, deleteWordStudy, checkIsWordStudySaved } from '../services/wordStudyService';
 import './WordStudyModal.css';
 
 function WordStudyModal({
@@ -9,6 +10,8 @@ function WordStudyModal({
     verseRef: initialVerseRef,
     originalText: initialOriginalText,
     originalVersion: initialOriginalVersion,
+    initialSelectedWord = null,
+    initialStudyData = null,
     onClose
 }) {
     // Current verse being studied
@@ -35,10 +38,32 @@ function WordStudyModal({
     // Navigation History
     const [history, setHistory] = useState([]);
 
-    const [selectedWord, setSelectedWord] = useState(null);
-    const [studyData, setStudyData] = useState(null);
+    const [selectedWord, setSelectedWord] = useState(initialSelectedWord);
+    const [studyData, setStudyData] = useState(initialStudyData);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [isSaved, setIsSaved] = useState(!!initialStudyData);
+    const [savedId, setSavedId] = useState(null); // Will be checked on handleWordTap or passed if needed
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        // If we opened with initial data, we should still try to find the saved ID 
+        // in case the user wants to unsave right away
+        const findId = async () => {
+            if (initialStudyData && initialSelectedWord) {
+                const saveCheck = await checkIsWordStudySaved(
+                    currentVerse.verse.book_id,
+                    currentVerse.verse.chapter,
+                    currentVerse.verse.verse,
+                    initialSelectedWord
+                );
+                if (saveCheck.success) {
+                    setSavedId(saveCheck.id);
+                }
+            }
+        };
+        findId();
+    }, []);
 
     const handleWordTap = async (word) => {
         if (!word || word.trim() === '') return;
@@ -53,6 +78,17 @@ function WordStudyModal({
             const result = await getWordStudy(userId, currentVerse.ref, currentVerse.text, currentVerse.originalText, cleanedWord);
             if (result.success) {
                 setStudyData(result.data);
+                // Check if this specific word study is already saved
+                const saveCheck = await checkIsWordStudySaved(
+                    currentVerse.verse.book_id,
+                    currentVerse.verse.chapter,
+                    currentVerse.verse.verse,
+                    cleanedWord
+                );
+                if (saveCheck.success) {
+                    setIsSaved(saveCheck.saved);
+                    setSavedId(saveCheck.id);
+                }
             } else {
                 setError(result.error);
             }
@@ -60,6 +96,42 @@ function WordStudyModal({
             setError('Failed to fetch study data');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleSave = async () => {
+        if (saving || !studyData || !selectedWord) return;
+        setSaving(true);
+
+        try {
+            if (isSaved && savedId) {
+                const result = await deleteWordStudy(savedId);
+                if (result.success) {
+                    setIsSaved(false);
+                    setSavedId(null);
+                }
+            } else {
+                const studyToSave = {
+                    verse_ref: currentVerse.ref,
+                    book_id: currentVerse.verse.book_id,
+                    chapter: currentVerse.verse.chapter,
+                    verse: currentVerse.verse.verse,
+                    word: selectedWord,
+                    original_word: studyData.word.original,
+                    lemma: studyData.word.lemma,
+                    transliteration: studyData.word.transliteration,
+                    analysis: studyData
+                };
+                const result = await saveWordStudy(studyToSave);
+                if (result.success) {
+                    setIsSaved(true);
+                    setSavedId(result.data.id);
+                }
+            }
+        } catch (err) {
+            console.error('Error toggling save:', err);
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -191,8 +263,18 @@ function WordStudyModal({
                         {studyData && (
                             <div className="ws-data">
                                 <div className="ws-word-header">
-                                    <h3 className="ws-original">{studyData.word.original}</h3>
-                                    <span className="ws-translit">{studyData.word.transliteration}</span>
+                                    <div className="ws-word-info">
+                                        <h3 className="ws-original">{studyData.word.original}</h3>
+                                        <span className="ws-translit">{studyData.word.transliteration}</span>
+                                    </div>
+                                    <button
+                                        className={`ws-save-btn ${isSaved ? 'saved' : ''} ${saving ? 'saving' : ''}`}
+                                        onClick={handleToggleSave}
+                                        disabled={saving}
+                                        title={isSaved ? 'Remove from Profile' : 'Save to Profile'}
+                                    >
+                                        {saving ? '...' : isSaved ? '★' : '☆'}
+                                    </button>
                                 </div>
                                 <div className="ws-lemma-row">
                                     <span className="ws-label">Lemma:</span> {studyData.word.lemma}

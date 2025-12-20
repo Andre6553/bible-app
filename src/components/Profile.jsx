@@ -8,6 +8,8 @@ import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHi
 import { getBooks, getVersions } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
+import { getSavedWordStudies, deleteWordStudy as removeSavedWordStudy } from '../services/wordStudyService';
+import WordStudyModal from './WordStudyModal';
 import { useSettings } from '../context/SettingsContext';
 import './Profile.css';
 
@@ -18,9 +20,11 @@ function Profile() {
     const [highlights, setHighlights] = useState([]);
     const [notes, setNotes] = useState([]);
     const [studies, setStudies] = useState([]);
+    const [wordStudies, setWordStudies] = useState([]);
     const [labels, setLabels] = useState([]);
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedWordStudy, setSelectedWordStudy] = useState(null);
 
     // Profile settings (stored locally)
     const [profilePic, setProfilePic] = useState(localStorage.getItem('profile_picture') || null);
@@ -43,10 +47,11 @@ function Profile() {
 
     const loadData = async () => {
         setLoading(true);
-        const [highlightRes, noteRes, studyRes, labelRes, bookRes] = await Promise.all([
+        const [highlightRes, noteRes, studyRes, wordStudyRes, labelRes, bookRes] = await Promise.all([
             getAllHighlights(),
             getAllNotes(),
             getStudyCollections(),
+            getSavedWordStudies(),
             getLabels(),
             getBooks()
         ]);
@@ -54,6 +59,7 @@ function Profile() {
         if (highlightRes.success) setHighlights(highlightRes.highlights);
         if (noteRes.success) setNotes(noteRes.notes);
         if (studyRes.success) setStudies(studyRes.collections);
+        if (wordStudyRes.success) setWordStudies(wordStudyRes.studies);
         if (labelRes.success) setLabels(labelRes.labels);
         if (bookRes.success) setBooks(bookRes.data.all || []);
 
@@ -171,6 +177,10 @@ function Profile() {
             const result = await deleteStudyCollection(id);
             success = result.success;
             if (success) setStudies(studies.filter(x => x.id !== id));
+        } else if (type === 'word study') {
+            const result = await removeSavedWordStudy(id);
+            success = result.success;
+            if (success) setWordStudies(wordStudies.filter(x => x.id !== id));
         }
 
         setConfirmDelete({ show: false, type: '', id: null, name: '' });
@@ -184,6 +194,7 @@ function Profile() {
         { id: 'highlights', label: '📌 Highlights', count: highlights.length },
         { id: 'notes', label: '📝 Notes', count: notes.length },
         { id: 'studies', label: '📚 Studies', count: studies.length },
+        { id: 'wordStudies', label: '📜 Word Studies', count: wordStudies.length },
         { id: 'downloads', label: '📥 Downloads', count: downloadedVersions.length },
     ];
 
@@ -434,6 +445,43 @@ function Profile() {
                             </div>
                         )}
 
+                        {/* Word Studies Tab */}
+                        {activeTab === 'wordStudies' && (
+                            <div className="word-studies-list">
+                                {wordStudies.length === 0 ? (
+                                    <div className="empty-state">
+                                        <p>No word studies yet</p>
+                                        <p className="empty-hint">Use "Word Study" while reading and tap the ★ icon to save</p>
+                                    </div>
+                                ) : (
+                                    wordStudies.map(ws => (
+                                        <div
+                                            key={ws.id}
+                                            className="word-study-item"
+                                            onClick={() => setSelectedWordStudy(ws)}
+                                        >
+                                            <div className="ws-item-header">
+                                                <div className="ws-item-word">
+                                                    <span className="ws-translation-word">{ws.word}</span>
+                                                    <span className="ws-lemma-word">({ws.lemma})</span>
+                                                </div>
+                                                <div className="ws-item-ref">{ws.verse_ref}</div>
+                                            </div>
+                                            <div className="ws-item-summary">
+                                                {ws.analysis.word?.transliteration} • {ws.analysis.word?.contextualMeaning?.substring(0, 60)}...
+                                            </div>
+                                            <button
+                                                className="delete-btn"
+                                                onClick={(e) => openDeleteConfirm('word study', ws.id, `${ws.word} (${ws.verse_ref})`, e)}
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+
                         {/* Downloads Tab */}
                         {activeTab === 'downloads' && (
                             <div className="downloads-list">
@@ -512,6 +560,23 @@ function Profile() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Word Study Modal View */}
+            {selectedWordStudy && (
+                <WordStudyModal
+                    verse={{
+                        book_id: selectedWordStudy.book_id,
+                        chapter: selectedWordStudy.chapter,
+                        verse: selectedWordStudy.verse
+                    }}
+                    verseText={selectedWordStudy.analysis.verseText || ''}
+                    verseRef={selectedWordStudy.verse_ref}
+                    originalText={selectedWordStudy.original_word} // This is actually handled internally by the modal's currentVerse logic if we pass enough props
+                    initialSelectedWord={selectedWordStudy.word}
+                    initialStudyData={selectedWordStudy.analysis}
+                    onClose={() => setSelectedWordStudy(null)}
+                />
             )}
         </div>
     );
