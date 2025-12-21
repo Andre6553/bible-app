@@ -441,7 +441,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     const searchSelection = (testament = 'all') => {
         if (contextMenu.text) {
-            navigate(`/ search ? q = ${encodeURIComponent(contextMenu.text)}& version=${currentVersion?.id || 'all'}& testament=${testament} `);
+            navigate(`/search?q=${encodeURIComponent(contextMenu.text)}&version=${currentVersion?.id || 'all'}&testament=${testament}`);
         }
         setContextMenu(prev => ({ ...prev, visible: false }));
     };
