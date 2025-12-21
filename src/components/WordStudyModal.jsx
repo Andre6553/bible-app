@@ -44,6 +44,46 @@ function WordStudyModal({
     const [studyData, setStudyData] = useState(initialStudyData);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    const translations = {
+        en: {
+            wordStudy: "Word Study",
+            lemma: "Lemma",
+            relatedNoun: "Related Noun",
+            grammar: "Grammar",
+            verse: "Verse",
+            contextualMeaning: "Contextual Meaning in this Verse",
+            whatThisWordDoes: "What This Word Does",
+            lexicalDefinition: "Lexical Definition",
+            culturalNuance: "Cultural & Historical Nuance",
+            theologicalConnection: "Theological Connection",
+            relatedVerses: "Related Verses",
+            back: "Back",
+            close: "Close",
+            instruction: "Tap a word to see its original meaning:",
+            emptyState: "Select a word above to dive deeper into the original language."
+        },
+        af: {
+            wordStudy: "Woordstudie",
+            lemma: "Lemma",
+            relatedNoun: "Verwante Naamwoord",
+            grammar: "Grammatika",
+            verse: "Vers",
+            contextualMeaning: "Kontekstuele Betekenis in hierdie Vers",
+            whatThisWordDoes: "Wat Hierdie Woord Doen",
+            lexicalDefinition: "Leksikale Definisie",
+            culturalNuance: "Kulturele & Historiese Nuanse",
+            theologicalConnection: "Teologiese Verband",
+            relatedVerses: "Verwante Verse",
+            back: "Terug",
+            close: "Maak Toe",
+            instruction: "Tik op 'n woord om die oorspronklike betekenis te sien:",
+            emptyState: "Kies 'n woord hierbo om dieper in die oorspronklike taal te delf."
+        }
+    };
+
+    const t = translations[settings.language] || translations.en;
+
     const [isSaved, setIsSaved] = useState(!!initialStudyData);
     const [savedId, setSavedId] = useState(null); // Will be checked on handleWordTap or passed if needed
     const [saving, setSaving] = useState(false);
@@ -197,10 +237,10 @@ function WordStudyModal({
             <div className="word-study-modal">
                 <div className="word-study-header">
                     <div className="ws-header-left">
-                        <button className="ws-close-btn" onClick={onClose} title="Close">✕</button>
+                        <button className="ws-close-btn" onClick={onClose} title={t.close}>✕</button>
                         {history.length > 0 && (
-                            <button className="ws-back-btn" onClick={handleBack} title="Back to previous study">
-                                ← Back
+                            <button className="ws-back-btn" onClick={handleBack} title={t.back}>
+                                ← {t.back}
                             </button>
                         )}
                     </div>
@@ -240,7 +280,7 @@ function WordStudyModal({
 
                     {/* Translation with Word Selection */}
                     <div className="translation-select-section">
-                        <p className="ws-instruction">Tap a word to see its original meaning:</p>
+                        <p className="ws-instruction">{t.instruction}</p>
                         <div className="words-container">
                             {currentVerse.text.split(/(\s+)/).map((part, i) => {
                                 if (part.trim() === '') return <span key={i}>{part}</span>;
@@ -304,30 +344,30 @@ function WordStudyModal({
                                                 `${studyData.word.grammar.form || ''}${studyData.word.grammar.linguisticFunction ? ` — ${studyData.word.grammar.linguisticFunction}` : studyData.word.grammar.analysis ? ` — ${studyData.word.grammar.analysis}` : ''}${studyData.word.grammar.contextualSignificance ? `\n  → ${studyData.word.grammar.contextualSignificance}` : ''}`
                                                 : '';
                                             const relatedNounText = studyData.word?.relatedNoun ?
-                                                `\nRelated Noun: ${studyData.word.relatedNoun.original} (${studyData.word.relatedNoun.transliteration})${studyData.word.relatedNoun.strongs ? ` ${studyData.word.relatedNoun.strongs}` : ''}${studyData.word.relatedNoun.connection ? `\n  ${studyData.word.relatedNoun.connection}` : ''}`
+                                                `\n${t.relatedNoun}: ${studyData.word.relatedNoun.original} (${studyData.word.relatedNoun.transliteration})${studyData.word.relatedNoun.strongs ? ` ${studyData.word.relatedNoun.strongs}` : ''}${studyData.word.relatedNoun.connection ? `\n  ${studyData.word.relatedNoun.connection}` : ''}`
                                                 : '';
                                             const text = `
-Word Study: ${studyData.word?.original} (${studyData.word?.transliteration})
-Lemma: ${studyData.word?.lemma || ''} ${studyData.word?.strongs ? `(${studyData.word.strongs})` : ''}${relatedNounText}
-Grammar: ${grammarText}
-Verse: ${currentVerse.ref}
+${t.wordStudy}: ${studyData.word?.original} (${studyData.word?.transliteration})
+${t.lemma}: ${studyData.word?.lemma || ''} ${studyData.word?.strongs ? `(${studyData.word.strongs})` : ''}${relatedNounText}
+${t.grammar}: ${grammarText}
+${t.verse}: ${currentVerse.ref}
 
-Contextual Meaning:
+${t.contextualMeaning}:
 ${studyData.word?.contextualMeaning || ''}
 
-What This Word Does:
+${t.whatThisWordDoes}:
 ${studyData.word?.actionFocus || ''}
 
-Lexical Definition:
+${t.lexicalDefinition}:
 ${studyData.word?.definition || ''}
 
-Cultural & Historical Nuance:
+${t.culturalNuance}:
 ${studyData.word?.culturalNuance || ''}
 
-Theological Connection:
+${t.theologicalConnection}:
 ${studyData.word?.theologicalConnection || ''}
 
-Related Verses:
+${t.relatedVerses}:
 ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` : ''}`).join('\n') || ''}
 `.trim();
 
@@ -387,7 +427,7 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` :
                                     </button>
                                 </div>
                                 <div className="ws-lemma-row">
-                                    <span className="ws-label">Lemma:</span> {studyData.word.lemma}
+                                    <span className="ws-label">{t.lemma}:</span> {studyData.word.lemma}
                                     {studyData.word.strongs && (
                                         <span className="ws-strongs">({studyData.word.strongs})</span>
                                     )}
@@ -395,7 +435,7 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` :
 
                                 {studyData.word.relatedNoun && (
                                     <div className="ws-related-noun">
-                                        <span className="ws-label">Related Noun:</span>
+                                        <span className="ws-label">{t.relatedNoun}:</span>
                                         <span className="ws-noun-original">{studyData.word.relatedNoun.original}</span>
                                         <span className="ws-noun-translit">({studyData.word.relatedNoun.transliteration})</span>
                                         {studyData.word.relatedNoun.strongs && (
@@ -410,7 +450,7 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` :
                                 {studyData.word.grammar && (
                                     <div className="ws-grammar-section">
                                         <div className="ws-grammar-row">
-                                            <span className="ws-label">Grammar:</span>
+                                            <span className="ws-label">{t.grammar}:</span>
                                             <span className="ws-grammar-form">{studyData.word.grammar.form}</span>
                                         </div>
                                         {(studyData.word.grammar.linguisticFunction || studyData.word.grammar.analysis) && (
@@ -429,39 +469,39 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` :
                                 )}
 
                                 <div className="ws-detail">
-                                    <h4>Contextual Meaning in this Verse</h4>
+                                    <h4>{t.contextualMeaning}</h4>
                                     <p>{studyData.word.contextualMeaning}</p>
                                 </div>
 
                                 {studyData.word.actionFocus && (
                                     <div className="ws-detail divider">
-                                        <h4>What This Word Does</h4>
+                                        <h4>{t.whatThisWordDoes}</h4>
                                         <p>{studyData.word.actionFocus}</p>
                                     </div>
                                 )}
 
                                 <div className="ws-detail divider">
-                                    <h4>Lexical Definition</h4>
+                                    <h4>{t.lexicalDefinition}</h4>
                                     <p>{studyData.word.definition}</p>
                                 </div>
 
                                 {studyData.word.culturalNuance && (
                                     <div className="ws-detail divider">
-                                        <h4>Cultural & Historical Nuance</h4>
+                                        <h4>{t.culturalNuance}</h4>
                                         <p>{studyData.word.culturalNuance}</p>
                                     </div>
                                 )}
 
                                 {studyData.word.theologicalConnection && (
                                     <div className="ws-detail divider">
-                                        <h4>Theological Connection</h4>
+                                        <h4>{t.theologicalConnection}</h4>
                                         <p>{studyData.word.theologicalConnection}</p>
                                     </div>
                                 )}
 
                                 {studyData.relatedVerses && studyData.relatedVerses.length > 0 && (
                                     <div className="ws-related">
-                                        <h4>Related Verses</h4>
+                                        <h4>{t.relatedVerses}</h4>
                                         <div className="ws-related-list">
                                             {studyData.relatedVerses.map((item, idx) => {
                                                 const ref = typeof item === 'string' ? item : item.ref;
@@ -488,7 +528,7 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` :
                         {!selectedWord && !loading && (
                             <div className="ws-empty-state">
                                 <div className="ws-empty-icon">📜</div>
-                                <p>Select a word above to dive deeper into the original language.</p>
+                                <p>{t.emptyState}</p>
                             </div>
                         )}
                     </div>
