@@ -42,6 +42,7 @@ function Search({ currentVersion, versions }) {
     const [showShortcutMenu, setShowShortcutMenu] = useState(false); // Shortcut popup
     const [showMainShortcutMenu, setShowMainShortcutMenu] = useState(false); // Main search shortcut popup
     const [isAnswerExpanded, setIsAnswerExpanded] = useState(false); // Fullscreen answer mode
+    const [copyStatus, setCopyStatus] = useState('Copy'); // 'Copy' or 'Copied!'
     const userId = getUserId();
 
     const AI_SHORTCUTS = [
@@ -354,6 +355,20 @@ Here are the available shortcuts to quickly ask questions:
         } else {
             setAiResponse(`❌ ${result.error}`);
         }
+    };
+
+    const copyToClipboard = () => {
+        if (!aiResponse) return;
+
+        // Clean text: Remove [[ and ]] delimiters
+        const cleanText = aiResponse.replace(/\[\[/g, '').replace(/\]\]/g, '');
+
+        navigator.clipboard.writeText(cleanText).then(() => {
+            setCopyStatus('Copied!');
+            setTimeout(() => setCopyStatus('Copy'), 2000);
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+        });
     };
 
 
@@ -829,28 +844,40 @@ Here are the available shortcuts to quickly ask questions:
                                 >
                                     <div className="ai-response-header">
                                         <h3>📚 Biblical Answer:</h3>
-                                        {!isAnswerExpanded && (
+                                        <div className="ai-response-actions">
                                             <button
-                                                className="expand-btn"
+                                                className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setIsAnswerExpanded(true);
+                                                    copyToClipboard();
                                                 }}
+                                                title="Copy to clipboard"
                                             >
-                                                ⤢ Expand
+                                                {copyStatus === 'Copied!' ? '✅ ' : '📋 '}{copyStatus}
                                             </button>
-                                        )}
-                                        {isAnswerExpanded && (
-                                            <button
-                                                className="collapse-btn"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setIsAnswerExpanded(false);
-                                                }}
-                                            >
-                                                ✕ Close
-                                            </button>
-                                        )}
+                                            {!isAnswerExpanded && (
+                                                <button
+                                                    className="expand-btn"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsAnswerExpanded(true);
+                                                    }}
+                                                >
+                                                    ⤢ Expand
+                                                </button>
+                                            )}
+                                            {isAnswerExpanded && (
+                                                <button
+                                                    className="collapse-btn"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsAnswerExpanded(false);
+                                                    }}
+                                                >
+                                                    ✕ Close
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="ai-answer">
                                         {formatAIResponse(aiResponse)}

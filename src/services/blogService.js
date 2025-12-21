@@ -308,7 +308,7 @@ export const analyzeUserInterests = async (userId) => {
             const stopWords = new Set(['bible', 'verse', 'chapter', 'what', 'does', 'say', 'about', 'the', 'and', 'for', 'die', 'van', 'vanuit', 'oor', 'hoe', 'waar', 'wat', 'is', 'om', 'te', 'met', 'by', 'aan']);
             const words = allText.split(/[\s,?.!]+/)
                 .map(w => w.startsWith('/') ? w.slice(1) : w)
-                .filter(w => w.length > 4 && !stopWords.has(w));
+                .filter(w => w.length > 2 && !stopWords.has(w));
 
             const wordCounts = {};
             words.forEach(w => wordCounts[w] = (wordCounts[w] || 0) + 1);
@@ -395,7 +395,7 @@ export const getSearchKeywords = async (userId) => {
             const allText = searches.map(s => s.query).join(' ').toUpperCase();
             words = [...new Set(allText.split(/[\s,?.!]+/)
                 .map(w => w.startsWith('/') ? w.slice(1) : w)
-                .filter(w => w.length > 3 && !STOP_WORDS.has(w)))]
+                .filter(w => w.length > 2 && !STOP_WORDS.has(w)))]
                 .slice(0, 50)
                 .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
         }

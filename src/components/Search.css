@@ -939,6 +939,39 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+    gap: var(--spacing-md);
+}
+
+.ai-response-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.copy-btn {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.copy-btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-primary);
+}
+
+.copy-btn.success {
+    color: #4CAF50;
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.1);
 }
 
 .ai-response-header h3 {
