@@ -129,38 +129,40 @@ const Admin = () => {
     }
 
     return (
-        <div className="admin-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', color: settings.theme === 'dark' ? '#fff' : '#333' }}>
-            <div className="admin-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className={`admin-container ${settings.theme === 'dark' ? 'dark-mode' : 'light-mode'}`}>
+            <div className="admin-header">
                 <h1>API Usage Dashboard</h1>
-                <div>
-                    <button onClick={() => setIsAuthenticated(false)} style={{ padding: '8px 16px', background: '#666', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' }}>
+                <div className="admin-header-buttons">
+                    <button className="btn-lock" onClick={() => setIsAuthenticated(false)}>
                         Lock 🔒
                     </button>
-                    <button onClick={() => navigate('/')} style={{ padding: '8px 16px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    <button className="btn-back" onClick={() => navigate('/')}>
                         Back to App
                     </button>
                 </div>
             </div>
 
-            <div className="admin-controls" style={{ marginBottom: '20px', padding: '15px', background: settings.theme === 'dark' ? '#333' : '#f5f5f5', borderRadius: '8px' }}>
-                <label style={{ marginRight: '10px' }}>
-                    Start Date:
-                    <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        style={{ marginLeft: '5px', padding: '5px' }}
-                    />
-                </label>
-                <label>
-                    End Date:
-                    <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        style={{ marginLeft: '5px', padding: '5px' }}
-                    />
-                </label>
+            <div className="admin-controls">
+                <div className="control-group">
+                    <label>
+                        Start Date:
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                        />
+                    </label>
+                </div>
+                <div className="control-group">
+                    <label>
+                        End Date:
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                        />
+                    </label>
+                </div>
             </div>
 
             {loading ? (
@@ -168,55 +170,55 @@ const Admin = () => {
             ) : (
                 <div className="admin-stats">
                     {/* Summary Cards */}
-                    <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                        <div className="stat-card" style={{ background: settings.theme === 'dark' ? '#444' : '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    <div className="stats-grid">
+                        <div className="stat-card">
                             <h3>Total Calls</h3>
-                            <p style={{ fontSize: '2em', fontWeight: 'bold' }}>{totalCalls}</p>
+                            <p className="stat-value">{totalCalls}</p>
                         </div>
-                        <div className="stat-card" style={{ background: settings.theme === 'dark' ? '#444' : '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                        <div className="stat-card">
                             <h3>Success Rate</h3>
-                            <p style={{ fontSize: '2em', fontWeight: 'bold', color: '#4caf50' }}>
+                            <p className="stat-value success">
                                 {totalCalls > 0 ? Math.round((successCount / totalCalls) * 100) : 0}%
                             </p>
                         </div>
-                        <div className="stat-card" style={{ background: settings.theme === 'dark' ? '#444' : '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                        <div className="stat-card">
                             <h3>Errors</h3>
-                            <p style={{ fontSize: '2em', fontWeight: 'bold', color: '#f44336' }}>{errorCount}</p>
+                            <p className="stat-value error">{errorCount}</p>
                         </div>
                     </div>
 
-                    <div className="details-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div className="details-grid">
                         {/* Usage by Endpoint */}
-                        <div className="chart-section" style={{ background: settings.theme === 'dark' ? '#444' : '#fff', padding: '20px', borderRadius: '8px' }}>
+                        <div className="chart-section">
                             <h3>Usage by Endpoint</h3>
-                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                            <ul className="endpoint-list">
                                 {Object.entries(byEndpoint).map(([endpoint, count]) => (
-                                    <li key={endpoint} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                                    <li key={endpoint} className="endpoint-item">
                                         <span>{endpoint}</span>
-                                        <strong>{count}</strong>
+                                        <span className="endpoint-count">{count}</span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
 
                         {/* Recent Calls Log */}
-                        <div className="log-section" style={{ background: settings.theme === 'dark' ? '#444' : '#fff', padding: '20px', borderRadius: '8px' }}>
+                        <div className="log-section">
                             <h3>Recent Calls</h3>
-                            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <div className="log-table-wrapper">
+                                <table className="log-table">
                                     <thead>
-                                        <tr style={{ textAlign: 'left' }}>
-                                            <th style={{ padding: '8px' }}>Time</th>
-                                            <th style={{ padding: '8px' }}>Endpoint</th>
-                                            <th style={{ padding: '8px' }}>Status</th>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Endpoint</th>
+                                            <th>Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {stats.slice(0, 50).map((log) => (
-                                            <tr key={log.id} style={{ borderBottom: '1px solid #eee' }}>
-                                                <td style={{ padding: '8px' }}>{new Date(log.created_at).toLocaleTimeString()}</td>
-                                                <td style={{ padding: '8px' }}>{log.endpoint}</td>
-                                                <td style={{ padding: '8px', color: log.status === 'success' ? 'green' : 'red' }}>{log.status}</td>
+                                            <tr key={log.id}>
+                                                <td>{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                                <td>{log.endpoint}</td>
+                                                <td className={`status-${log.status}`}>{log.status}</td>
                                             </tr>
                                         ))}
                                     </tbody>
