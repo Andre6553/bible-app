@@ -333,6 +333,34 @@
     margin-left: 8px;
 }
 
+.ws-related-noun {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    background: rgba(var(--accent-rgb), 0.08);
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.ws-noun-original {
+    font-size: 1.1rem;
+    color: var(--accent-color);
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.ws-noun-translit {
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-left: 4px;
+}
+
+.ws-noun-connection {
+    margin: 8px 0 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
 .ws-detail {
     margin-bottom: 20px;
 }
@@ -358,9 +386,64 @@
 
 .ws-related-list {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-direction: column;
+    gap: 10px;
     margin-top: 8px;
+}
+
+.ws-related-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.ws-related-usage {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.ws-grammar-section {
+    margin-bottom: 20px;
+    padding: 12px;
+    background: rgba(var(--accent-rgb), 0.05);
+    border-radius: 8px;
+    border-left: 3px solid var(--accent-color);
+}
+
+.ws-grammar-row {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 6px;
+}
+
+.ws-grammar-form {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.ws-grammar-detail {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-top: 4px;
+}
+
+.ws-grammar-function {
+    color: var(--text-secondary);
+}
+
+.ws-grammar-context {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-color);
+}
+
+.ws-grammar-analysis {
+    color: var(--text-secondary);
+    font-style: italic;
 }
 
 .ws-related-chip {

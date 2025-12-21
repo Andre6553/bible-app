@@ -300,21 +300,35 @@ function WordStudyModal({
                                         className="ws-save-btn"
                                         onClick={async () => {
                                             if (!studyData) return;
+                                            const grammarText = studyData.word?.grammar ?
+                                                `${studyData.word.grammar.form || ''}${studyData.word.grammar.linguisticFunction ? ` — ${studyData.word.grammar.linguisticFunction}` : studyData.word.grammar.analysis ? ` — ${studyData.word.grammar.analysis}` : ''}${studyData.word.grammar.contextualSignificance ? `\n  → ${studyData.word.grammar.contextualSignificance}` : ''}`
+                                                : '';
+                                            const relatedNounText = studyData.word?.relatedNoun ?
+                                                `\nRelated Noun: ${studyData.word.relatedNoun.original} (${studyData.word.relatedNoun.transliteration})${studyData.word.relatedNoun.strongs ? ` ${studyData.word.relatedNoun.strongs}` : ''}${studyData.word.relatedNoun.connection ? `\n  ${studyData.word.relatedNoun.connection}` : ''}`
+                                                : '';
                                             const text = `
 Word Study: ${studyData.word?.original} (${studyData.word?.transliteration})
+Lemma: ${studyData.word?.lemma || ''} ${studyData.word?.strongs ? `(${studyData.word.strongs})` : ''}${relatedNounText}
+Grammar: ${grammarText}
 Verse: ${currentVerse.ref}
 
 Contextual Meaning:
 ${studyData.word?.contextualMeaning || ''}
 
+What This Word Does:
+${studyData.word?.actionFocus || ''}
+
 Lexical Definition:
 ${studyData.word?.definition || ''}
 
-Cultural & Theological Nuance:
+Cultural & Historical Nuance:
 ${studyData.word?.culturalNuance || ''}
 
+Theological Connection:
+${studyData.word?.theologicalConnection || ''}
+
 Related Verses:
-${studyData.relatedVerses?.map(v => `- ${v.label}`).join('\n') || ''}
+${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` : ''}`).join('\n') || ''}
 `.trim();
 
                                             const copyToClipboard = async (textToCopy) => {
@@ -379,10 +393,52 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}`).join('\n') || ''}
                                     )}
                                 </div>
 
+                                {studyData.word.relatedNoun && (
+                                    <div className="ws-related-noun">
+                                        <span className="ws-label">Related Noun:</span>
+                                        <span className="ws-noun-original">{studyData.word.relatedNoun.original}</span>
+                                        <span className="ws-noun-translit">({studyData.word.relatedNoun.transliteration})</span>
+                                        {studyData.word.relatedNoun.strongs && (
+                                            <span className="ws-strongs">{studyData.word.relatedNoun.strongs}</span>
+                                        )}
+                                        {studyData.word.relatedNoun.connection && (
+                                            <p className="ws-noun-connection">{studyData.word.relatedNoun.connection}</p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {studyData.word.grammar && (
+                                    <div className="ws-grammar-section">
+                                        <div className="ws-grammar-row">
+                                            <span className="ws-label">Grammar:</span>
+                                            <span className="ws-grammar-form">{studyData.word.grammar.form}</span>
+                                        </div>
+                                        {(studyData.word.grammar.linguisticFunction || studyData.word.grammar.analysis) && (
+                                            <div className="ws-grammar-detail">
+                                                <span className="ws-grammar-function">
+                                                    {studyData.word.grammar.linguisticFunction || studyData.word.grammar.analysis}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {studyData.word.grammar.contextualSignificance && (
+                                            <div className="ws-grammar-context">
+                                                <em>{studyData.word.grammar.contextualSignificance}</em>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="ws-detail">
                                     <h4>Contextual Meaning in this Verse</h4>
                                     <p>{studyData.word.contextualMeaning}</p>
                                 </div>
+
+                                {studyData.word.actionFocus && (
+                                    <div className="ws-detail divider">
+                                        <h4>What This Word Does</h4>
+                                        <p>{studyData.word.actionFocus}</p>
+                                    </div>
+                                )}
 
                                 <div className="ws-detail divider">
                                     <h4>Lexical Definition</h4>
@@ -391,8 +447,15 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}`).join('\n') || ''}
 
                                 {studyData.word.culturalNuance && (
                                     <div className="ws-detail divider">
-                                        <h4>Cultural & Theological Nuance</h4>
+                                        <h4>Cultural & Historical Nuance</h4>
                                         <p>{studyData.word.culturalNuance}</p>
+                                    </div>
+                                )}
+
+                                {studyData.word.theologicalConnection && (
+                                    <div className="ws-detail divider">
+                                        <h4>Theological Connection</h4>
+                                        <p>{studyData.word.theologicalConnection}</p>
                                     </div>
                                 )}
 
@@ -403,14 +466,17 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}`).join('\n') || ''}
                                             {studyData.relatedVerses.map((item, idx) => {
                                                 const ref = typeof item === 'string' ? item : item.ref;
                                                 const label = typeof item === 'string' ? item : item.label;
+                                                const usage = typeof item === 'object' ? item.usage : null;
                                                 return (
-                                                    <button
-                                                        key={idx}
-                                                        className="ws-related-chip"
-                                                        onClick={() => handleNavigateVerse(ref)}
-                                                    >
-                                                        {label}
-                                                    </button>
+                                                    <div key={idx} className="ws-related-item">
+                                                        <button
+                                                            className="ws-related-chip"
+                                                            onClick={() => handleNavigateVerse(ref)}
+                                                        >
+                                                            {label}
+                                                        </button>
+                                                        {usage && <span className="ws-related-usage">— {usage}</span>}
+                                                    </div>
                                                 );
                                             })}
                                         </div>

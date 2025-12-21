@@ -383,40 +383,103 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         const { remaining } = await getUserRemainingQuota(userId);
         if (remaining <= 0) return { success: false, error: 'Quota exceeded' };
 
-        let prompt = `You are a Biblical language scholar (Greek and Hebrew). Analyze the following:
-        
-        CRITICAL INSTRUCTION: You MUST provide the explanation, definitions, and cultural nuances in ${language === 'af' ? 'AFRIKAANS' : 'ENGLISH'}.
-        
+        let prompt = `You are a Biblical language scholar specializing in Greek and Hebrew word studies. Apply rigorous word study methodology to analyze the following:
+
+        CRITICAL INSTRUCTION: You MUST provide ALL explanations, definitions, and nuances in ${language === 'af' ? 'AFRIKAANS' : 'ENGLISH'}.
+
         Verse Reference: ${verseRef}
         Translation Text: "${verseText}"
         Original Language Text: "${originalText}"
         ${selectedWord ? `Target Word to Study: "${selectedWord}"` : 'General Verse Analysis (Original Languages focus)'}
 
-        Provide a deep dive into the original Greek or Hebrew word(s). 
-        
-        Rules:
-        1. Identify the correct original word (lemma) even if the grammar in the verse is inflected.
-        2. Provide accurate transliteration.
-        3. Explain the specific contextual nuance of this word in THIS verse.
-        4. Include cultural or historical background if relevant.
+        STANDARD WORD STUDY PRINCIPLES - Follow these carefully:
+
+        1. SEPARATE GRAMMAR FROM THEOLOGY
+           - Explain what the grammatical form does linguistically (tense, aspect, voice, mood)
+           - Do NOT claim that grammar itself creates theological meaning
+           - If theological significance is present, attribute it to CONTEXT, not grammar alone
+           - Use phrasing like: "Viewed grammatically as..., which in this context carries..."
+           - AORIST CAUTION: Do NOT overemphasize the aorist as inherently "punctiliar" or "once-for-all" independent of context. In narrative, the aorist often simply presents action straightforwardly. Let context determine significance.
+
+        2. CONTEXT GOVERNS MEANING
+           - NEVER define a word as having a fixed or absolute meaning
+           - State that meaning is determined by the immediate passage, author, and theological setting
+           - AVOID phrases like "this word always means" or "this word inherently signifies"
+           - Use qualifying phrases: "In this context...", "As used here...", "Within this passage..."
+
+        3. AVOID ABSOLUTE WORD HIERARCHIES
+           - Do NOT present one word as inherently superior or more "divine" than others
+           - When contrasting related terms (e.g., agapē, philia, eros), clarify that distinctions arise from usage and context, not intrinsic moral ranking
+           - Use phrasing like: "Often distinguished in context rather than by definition"
+
+        4. EMPHASIZE FUNCTION OVER ABSTRACT DEFINITION
+           - Explain what the word DOES in the verse, not only what it can mean lexically
+           - Describe how meaning is revealed through action, relationship, covenant, command, or response
+
+        5. USE LEXICONS RESPONSIBLY
+           - Base definitions on recognized sources (BDAG, HALOT, BDB)
+           - Present definitions as ranges of meaning, narrowed by context
+           - Avoid devotional paraphrasing disguised as lexical definition
+           - SEMANTIC RANGE NOTE: Acknowledge that words like ἀγαπάω are not exclusively "selfless" in all uses (e.g., John 3:19 people "love" darkness; John 12:43 loving human praise). State when the elevated sense predominates in context.
+
+        6. CULTURAL NUANCE WITHOUT SPECULATION
+           - Acknowledge how words were used in the original language period
+           - Do NOT claim a term was "newly invented" unless historically verifiable
+           - State that biblical authors often deepen or redirect existing terms theologically
+
+        7. THEOLOGY MUST FLOW FROM THE TEXT
+           - Theological connections must be demonstrably grounded in the verse or author's broader theology
+           - Avoid importing later doctrinal systems unless clearly supported by Scripture
+           - Show how doctrine emerges from divine action described in the text
+
+        8. SUPPORT WITH SCRIPTURE
+           - Include 2-3 related verses where the same word or concept appears
+           - Use these to confirm consistent or developing usage across biblical authors
+
+        9. PRECISION WITH ACCESSIBILITY
+           - Maintain scholarly accuracy while using language accessible to non-specialists
+           - Avoid unnecessary technical overload
+
+        REQUIRED: Include at least one qualifying phrase per section: "In this context...", "As used here...", or "Within this passage..."
+
+        AVOID THESE SPECIFIC PHRASINGS:
+        - Do NOT call any word "unconditional" without qualification. Instead use: "given without regard to merit" or "not conditioned on human worthiness"
+        - Do NOT use "highest form of love" or similar hierarchical language. Instead use: "deep, self-giving devotion" or "sacrificial commitment"
+        - Do NOT claim words "always mean" something — use contextual qualifiers
+        - For ἀγαπάω: Do NOT claim it meant "romantic love" in classical Greek (this overstates its range). Instead use: "affection within familial and relational contexts"
+        - GREEK ORTHOGRAPHY: Use correct polytonic Greek with proper breathing marks and accents (e.g., ἠγάπησεν not ηγαπησεν)
 
         Format the response as a single valid JSON object with this structure:
         {
             "word": {
-                "original": "...", // The word in Greek/Hebrew characters
-                "transliteration": "...", // Phonetic 
-                "lemma": "...", // Lexical root
+                "original": "...", // The exact word as it appears in the verse (conjugated form)
+                "transliteration": "...", // Phonetic pronunciation
+                "lemma": "...", // Lexical/dictionary form (root form of verb)
                 "strongs": "...", // Strong's number (prefix G or H)
-                "definition": "...", // Concise dictionary meaning
-                "contextualMeaning": "...", // Usage in this specific verse context
-                "culturalNuance": "..." // Historical/theological significance
+                "relatedNoun": { // OPTIONAL - include if a related noun form exists (e.g., ἀγαπάω → ἀγάπη)
+                    "original": "...", // The noun form in Greek/Hebrew
+                    "transliteration": "...", // Phonetic pronunciation of noun
+                    "strongs": "...", // Strong's number of noun if different
+                    "connection": "..." // Brief explanation: "The related noun form represents the conceptual idea and is often used in teaching to describe the quality or essence of the action expressed by the verb."
+                },
+                "grammar": {
+                    "form": "...", // FULL morphological form including person/number (e.g., "Aorist Active Indicative 3rd person singular" or "Qal Perfect 3ms")
+                    "linguisticFunction": "...", // What this form does grammatically (aspect, action type)
+                    "contextualSignificance": "..." // How this form functions IN THIS CONTEXT (not absolute claims)
+                },
+                "definition": "...", // Direct BDAG/HALOT style: e.g., "to show love by beneficent action, to love" with extensions narrowed by context
+                "contextualMeaning": "...", // What this word means specifically in THIS verse - use "In this context..."
+                "actionFocus": "...", // What the word DOES - action, relationship, covenant, command, response
+                "culturalNuance": "...", // Historical usage, how biblical authors adapt common terms
+                "theologicalConnection": "..." // How this relates to doctrine AS GROUNDED IN THIS TEXT
             },
             "relatedVerses": [
                 {
                     "ref": "Book Chapter:Verse", // Standard English reference for system lookup
-                    "label": "..." // Localized reference for display (e.g. "Johannes 3:16")
+                    "label": "...", // Localized reference for display
+                    "usage": "..." // How the word functions in that verse, confirming consistent or developing usage
                 }
-            ] // 2-3 other verses using this same root meaningfully
+            ] // 2-3 verses showing the word's usage pattern
         }`;
 
         const result = await model.generateContent(prompt);
