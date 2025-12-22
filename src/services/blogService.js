@@ -348,10 +348,10 @@ export const getKeywordPreferences = async (userId) => {
             .eq('key', `keyword_prefs_${userId}`)
             .single();
 
-        if (error || !data) return { highlighted: {}, used: [] };
+        if (error || !data) return { highlighted: {}, used: [], hidden: {} };
         return JSON.parse(data.value);
     } catch (err) {
-        return { highlighted: {}, used: [] };
+        return { highlighted: {}, used: [], hidden: {} };
     }
 };
 
@@ -404,12 +404,15 @@ export const getSearchKeywords = async (userId) => {
         const finalWords = [...new Set([...words, ...DEFAULTS])].slice(0, 50);
 
         // 2. Map with highlight status from preferences
+        // 2. Map with highlight status and filter hidden
         const prefs = await getKeywordPreferences(userId);
 
-        return finalWords.map(word => ({
-            word,
-            isHighlighted: prefs.highlighted[word] !== false // Default to true for new words
-        }));
+        return finalWords
+            .filter(word => !prefs.hidden?.[word]) // Filter out hidden words
+            .map(word => ({
+                word,
+                isHighlighted: prefs.highlighted[word] !== false // Default to true for new words
+            }));
     } catch (err) {
         console.error('Error getting search keywords:', err);
         return [];
@@ -422,6 +425,16 @@ export const getSearchKeywords = async (userId) => {
 export const toggleKeywordHighlight = async (userId, word, isHighlighted) => {
     const prefs = await getKeywordPreferences(userId);
     prefs.highlighted[word] = isHighlighted;
+    return await saveKeywordPreferences(userId, prefs);
+};
+
+/**
+ * Hide (delete) a keyword so it doesn't appear again
+ */
+export const hideSearchKeyword = async (userId, word) => {
+    const prefs = await getKeywordPreferences(userId);
+    if (!prefs.hidden) prefs.hidden = {};
+    prefs.hidden[word] = true;
     return await saveKeywordPreferences(userId, prefs);
 };
 

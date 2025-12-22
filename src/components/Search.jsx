@@ -193,13 +193,19 @@ function Search({ currentVersion, versions }) {
 
     const highlightText = (text, query) => {
         if (!query) return text;
+        const terms = query.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        if (terms.length === 0) return text;
 
-        const parts = text.split(new RegExp(`(${query})`, 'gi'));
-        return parts.map((part, index) =>
-            part.toLowerCase() === query.toLowerCase() ?
+        // Escape terms for regex and join with |
+        const escapedTerms = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        const parts = text.split(new RegExp(`(${escapedTerms})`, 'gi'));
+
+        return parts.map((part, index) => {
+            const isMatch = terms.some(t => t.toLowerCase() === part.toLowerCase());
+            return isMatch ?
                 <mark key={index} className="highlight">{part}</mark> :
-                part
-        );
+                part;
+        });
     };
 
     const handleFilterChange = (key, value) => {

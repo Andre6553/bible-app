@@ -8,7 +8,8 @@ import {
     analyzeUserInterests,
     checkRefreshCooldown,
     getSearchKeywords,
-    toggleKeywordHighlight
+    toggleKeywordHighlight,
+    hideSearchKeyword
 } from '../services/blogService';
 import { useSettings } from '../context/SettingsContext';
 import './Blog.css';
@@ -29,6 +30,7 @@ function Blog() {
     const [allBooks, setAllBooks] = useState([]);
     const [cooldownMessage, setCooldownMessage] = useState(null);
     const [searchKeywords, setSearchKeywords] = useState([]);
+    const [isEditMode, setIsEditMode] = useState(false);
 
     const translations = {
         en: {
@@ -48,7 +50,10 @@ function Blog() {
             loading: 'Could not load content. Please try again.',
             interestKeywords: '🔍 Search Keywords',
             interestKeywordsDesc: 'Toggle keywords to include/exclude them from recommendations. New searches are auto-highlighted.',
-            searchesLabel: 'searches'
+            interestKeywordsDescEdit: 'Tap a keyword to delete it permanently.',
+            searchesLabel: 'searches',
+            manageBtn: 'Manage',
+            doneBtn: 'Done'
         },
         af: {
             title: '✨ Vir Jou',
@@ -67,7 +72,10 @@ function Blog() {
             loading: 'Kon nie inhoud laai nie. Probeer asseblief weer.',
             interestKeywords: '🔍 Soek Sleutelwoorde',
             interestKeywordsDesc: 'Skakel sleutelwoorde aan/af vir jou aanbevelings. Nuwe soektogte word outomaties beklemtoon.',
-            searchesLabel: 'soektogte'
+            interestKeywordsDescEdit: 'Raak \'n sleutelwoord om dit permanent te verwyder.',
+            searchesLabel: 'soektogte',
+            manageBtn: 'Bestuur',
+            doneBtn: 'Klaar'
         }
     };
 
@@ -177,6 +185,11 @@ function Blog() {
     };
 
     const handleKeywordToggle = async (word) => {
+        if (isEditMode) {
+            handleKeywordDelete(word);
+            return;
+        }
+
         const userId = getUserId();
         const keyword = searchKeywords.find(k => k.word === word);
         if (!keyword) return;
@@ -190,6 +203,18 @@ function Blog() {
 
         // Persist
         await toggleKeywordHighlight(userId, word, newStatus);
+    };
+
+    const handleKeywordDelete = async (word) => {
+        if (!window.confirm(`Delete "${word}"?`)) return;
+
+        const userId = getUserId();
+
+        // Optimistic delete
+        setSearchKeywords(prev => prev.filter(k => k.word !== word));
+
+        // Persist
+        await hideSearchKeyword(userId, word);
     };
 
     const formatContent = (content) => {
@@ -500,19 +525,28 @@ function Blog() {
 
             {/* Keyword Management Section - Listed beneath Recommended Reading */}
             <section className="blog-section keyword-management">
-                <div className="section-header">
+                <div className="section-header" style={{ justifyContent: 'space-between' }}>
                     <h2>{t.interestKeywords}</h2>
+                    <button
+                        className={`manage-btn ${isEditMode ? 'active' : ''}`}
+                        onClick={() => setIsEditMode(!isEditMode)}
+                    >
+                        {isEditMode ? t.doneBtn : t.manageBtn}
+                    </button>
                 </div>
-                <p className="section-desc">{t.interestKeywordsDesc}</p>
-                <div className="keyword-buttons">
+                <p className="section-desc">
+                    {isEditMode ? t.interestKeywordsDescEdit : t.interestKeywordsDesc}
+                </p>
+                <div className={`keyword-buttons ${isEditMode ? 'edit-mode' : ''}`}>
                     {searchKeywords.map((item, idx) => (
                         <button
                             key={idx}
-                            className={`keyword-btn ${item.isHighlighted ? 'highlighted' : ''}`}
+                            className={`keyword-btn ${item.isHighlighted ? 'highlighted' : ''} ${isEditMode ? 'deletable' : ''}`}
                             onClick={() => handleKeywordToggle(item.word)}
                         >
+                            {isEditMode && <span className="delete-icon">✕</span>}
                             {item.word}
-                            {item.isHighlighted && <span className="check-mark">✓</span>}
+                            {!isEditMode && item.isHighlighted && <span className="check-mark">✓</span>}
                         </button>
                     ))}
                 </div>

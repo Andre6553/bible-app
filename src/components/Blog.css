@@ -317,6 +317,55 @@
     color: #fff;
 }
 
+.keyword-buttons.edit-mode {
+    gap: 12px;
+}
+
+.keyword-btn.deletable {
+    border-color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+    color: #ff6b6b;
+    padding-left: 12px;
+}
+
+.keyword-btn.deletable:hover {
+    background: rgba(255, 107, 107, 0.2);
+    border-color: #ff6b6b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
+    color: #ff6b6b;
+}
+
+.delete-icon {
+    font-weight: bold;
+    font-size: 1.1em;
+    line-height: 1;
+    margin-right: 4px;
+}
+
+.manage-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #a0a0a0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.manage-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.manage-btn.active {
+    background: #eed;
+    color: #1a1a2e;
+    border-color: #eed;
+    font-weight: 600;
+}
+
 /* Trending */
 .trending-list {
     display: flex;

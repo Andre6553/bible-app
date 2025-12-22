@@ -201,6 +201,7 @@ export const searchVerses = async (searchQuery, versionId = null, testament = 'a
     try {
         // Use !inner join if we need to filter by testament, otherwise standard join
         const bookJoin = testament !== 'all' ? 'books!inner' : 'books';
+        const terms = searchQuery.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
         let query = supabase
             .from('verses')
@@ -216,12 +217,20 @@ export const searchVerses = async (searchQuery, versionId = null, testament = 'a
                     name_full,
                     testament
                 )
-            `)
-            .ilike('text', `%${searchQuery}%`)
-            .order('book_id')
+            `);
+
+        if (terms.length > 1) {
+            // Support multiple words via OR clause: text.ilike.%term1%,text.ilike.%term2%
+            const orFilter = terms.map(t => `text.ilike.%${t}%`).join(',');
+            query = query.or(orFilter);
+        } else {
+            query = query.ilike('text', `%${searchQuery}%`);
+        }
+
+        query = query.order('book_id')
             .order('chapter')
             .order('verse')
-            .limit(1000); // Increased limit to find more results
+            .limit(1000);
 
         // Filter by version if specified, otherwise search all
         if (versionId && versionId !== 'all') {
