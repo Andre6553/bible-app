@@ -15,6 +15,7 @@ import { getLocalizedBookName } from '../constants/bookNames';
 import { useSettings } from '../context/SettingsContext';
 import VerseActionSheet from './VerseActionSheet';
 import NoteModal from './NoteModal';
+import BibleHelpModal from './BibleHelpModal';
 import './BibleReader.css';
 
 const THEME_COLORS = [
@@ -746,203 +747,146 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
             {/* Info / Help Modal */}
             {showInfo && (
-                <div className="book-selector-modal" onClick={() => setShowInfo(false)}>
-                    <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>How to use this App</h2>
-                            <button className="close-btn" onClick={() => setShowInfo(false)}>✕</button>
-                        </div>
-                        <div className="modal-body info-body">
-                            <div className="info-section">
-                                <h3>📖 Reading the Bible</h3>
-                                <p>Tap the <strong>Book Name</strong> button to browse books, chapters, and verses. Use the <strong>&lt; / &gt;</strong> arrows to navigate between chapters.</p>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>🔍 Search</h3>
-                                <p>Go to the <strong>Search</strong> tab to find verses by keyword. You can filter by Bible version and Testament (Old/New).</p>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>🤖 AI Research</h3>
-                                <p>Ask any Bible question! Click <strong>"AI Research"</strong> in Search to get AI-powered answers with scripture references. Click the references to jump directly to those verses.</p>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>⚡ AI Shortcuts</h3>
-                                <p>Use quick commands in AI Research for faster questions:</p>
-                                <p style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>
-                                    <strong>/story</strong> - Tell me the story of...<br />
-                                    <strong>/explain</strong> - Explain...<br />
-                                    <strong>/meaning</strong> - What is the biblical meaning of...<br />
-                                    <strong>/who</strong> - Who was...<br />
-                                    <strong>/what</strong> - What was...<br />
-                                    <strong>/why</strong> - Why did...<br />
-                                    <strong>/teach</strong> - What does the Bible teach...<br />
-                                    <strong>/compare</strong> - Compare in the Bible...<br />
-                                    <strong>/help</strong> - Show all shortcuts
-                                </p>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>✨ For You (Blog)</h3>
-                                <p>Discover personalized content! Get a <strong>daily devotional</strong> based on your interests, browse <strong>trending topics</strong>, and read <strong>recommended articles</strong> tailored to your search history.</p>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>📝 Quick Search</h3>
-                                <p><strong>Select any word</strong> in the Bible text, then choose to search for it in the Old or New Testament.</p>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>🌍 Bible Versions</h3>
-                                <p>Switch between <strong>KJV</strong> (English) and <strong>AFR53</strong> (Afrikaans) using the dropdown at the top.</p>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>⚙️ Settings</h3>
-                                <p>Customize your reading experience! Adjust <strong>font size</strong>, choose between <strong>modern or classic fonts</strong>, and personalize your <strong>theme color</strong>.</p>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>⚡ Offline Use</h3>
-                                <p>This app works offline! Chapters you've read are saved automatically for reading without internet.</p>
-                            </div>
-
-                            <div className="info-footer">
-                                <p>Version 3.0.0</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <BibleHelpModal
+                    onClose={() => setShowInfo(false)}
+                    language={settings.language}
+                />
             )}
 
             {/* Settings Modal */}
-            {showSettings && (
-                <div className="book-selector-modal" onClick={() => setShowSettings(false)}>
-                    <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Reader Settings ⚙️</h2>
-                            <button className="close-btn" onClick={() => setShowSettings(false)}>✕</button>
-                        </div>
-                        <div className="modal-body info-body">
-
-                            {/* Live Preview */}
-                            <div
-                                className="settings-preview"
-                                style={{
-                                    fontSize: `${settings.fontSize}px`,
-                                    fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif',
-                                    borderLeft: `4px solid ${settings.themeColor}`
-                                }}
-                            >
-                                <p>In the beginning God created the heaven and the earth.</p>
+            {
+                showSettings && (
+                    <div className="book-selector-modal" onClick={() => setShowSettings(false)}>
+                        <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>Reader Settings ⚙️</h2>
+                                <button className="close-btn" onClick={() => setShowSettings(false)}>✕</button>
                             </div>
+                            <div className="modal-body info-body">
 
-                            <div className="info-section">
-                                <h3>Text Size: {settings.fontSize}px</h3>
-                                <div className="settings-control">
-                                    <button
-                                        className="settings-btn"
-                                        onClick={() => updateSettings({ fontSize: Math.max(12, settings.fontSize - 2) })}
-                                    >A-</button>
-                                    <input
-                                        type="range"
-                                        min="12"
-                                        max="32"
-                                        step="2"
-                                        value={settings.fontSize}
-                                        onChange={(e) => updateSettings({ fontSize: parseInt(e.target.value) })}
-                                        className="settings-slider"
-                                    />
-                                    <button
-                                        className="settings-btn"
-                                        onClick={() => updateSettings({ fontSize: Math.min(32, settings.fontSize + 2) })}
-                                    >A+</button>
+                                {/* Live Preview */}
+                                <div
+                                    className="settings-preview"
+                                    style={{
+                                        fontSize: `${settings.fontSize}px`,
+                                        fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif',
+                                        borderLeft: `4px solid ${settings.themeColor}`
+                                    }}
+                                >
+                                    <p>In the beginning God created the heaven and the earth.</p>
                                 </div>
-                            </div>
 
-                            <div className="info-section">
-                                <h3>Font Style</h3>
-                                <div className="settings-control">
-                                    <button
-                                        className={`settings-toggle ${settings.fontFamily === 'sans-serif' ? 'active' : ''}`}
-                                        onClick={() => updateSettings({ fontFamily: 'sans-serif' })}
-                                    >Modern (Sans)</button>
-                                    <button
-                                        className={`settings-toggle ${settings.fontFamily === 'serif' ? 'active' : ''}`}
-                                        onClick={() => updateSettings({ fontFamily: 'serif' })}
-                                        style={{ fontFamily: 'serif' }}
-                                    >Classic (Serif)</button>
-                                </div>
-                            </div>
-
-                            <div className="info-section">
-                                <h3>Theme Color</h3>
-                                <div className="color-grid">
-                                    {THEME_COLORS.map(color => (
+                                <div className="info-section">
+                                    <h3>Text Size: {settings.fontSize}px</h3>
+                                    <div className="settings-control">
                                         <button
-                                            key={color}
-                                            className={`color-swatch ${settings.themeColor === color ? 'active' : ''}`}
-                                            style={{ backgroundColor: color }}
-                                            onClick={() => updateSettings({ themeColor: color })}
-                                            aria-label={`Select color ${color}`}
+                                            className="settings-btn"
+                                            onClick={() => updateSettings({ fontSize: Math.max(12, settings.fontSize - 2) })}
+                                        >A-</button>
+                                        <input
+                                            type="range"
+                                            min="12"
+                                            max="32"
+                                            step="2"
+                                            value={settings.fontSize}
+                                            onChange={(e) => updateSettings({ fontSize: parseInt(e.target.value) })}
+                                            className="settings-slider"
                                         />
-                                    ))}
+                                        <button
+                                            className="settings-btn"
+                                            onClick={() => updateSettings({ fontSize: Math.min(32, settings.fontSize + 2) })}
+                                        >A+</button>
+                                    </div>
+                                </div>
+
+                                <div className="info-section">
+                                    <h3>Font Style</h3>
+                                    <div className="settings-control">
+                                        <button
+                                            className={`settings-toggle ${settings.fontFamily === 'sans-serif' ? 'active' : ''}`}
+                                            onClick={() => updateSettings({ fontFamily: 'sans-serif' })}
+                                        >Modern (Sans)</button>
+                                        <button
+                                            className={`settings-toggle ${settings.fontFamily === 'serif' ? 'active' : ''}`}
+                                            onClick={() => updateSettings({ fontFamily: 'serif' })}
+                                            style={{ fontFamily: 'serif' }}
+                                        >Classic (Serif)</button>
+                                    </div>
+                                </div>
+
+                                <div className="info-section">
+                                    <h3>Theme Color</h3>
+                                    <div className="color-grid">
+                                        {THEME_COLORS.map(color => (
+                                            <button
+                                                key={color}
+                                                className={`color-swatch ${settings.themeColor === color ? 'active' : ''}`}
+                                                style={{ backgroundColor: color }}
+                                                onClick={() => updateSettings({ themeColor: color })}
+                                                aria-label={`Select color ${color}`}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Verse Action Sheet */}
-            {showActionSheet && selectedVerses.length > 0 && (
-                <VerseActionSheet
-                    verse={selectedVerses[0]}
-                    verseText={selectedVerses.length === 1 ? selectedVerses[0].text : ''}
-                    verseRef={getVerseRef()}
-                    currentColor={selectedVerses.length === 1 ? highlights[selectedVerses[0].verse] : null}
-                    onHighlight={handleHighlight}
-                    onNote={handleOpenNote}
-                    onWordStudy={handleWordStudy}
-                    onStudy={handleStartStudy}
-                    onCopy={() => { }}
-                    onClose={handleCloseActionSheet}
-                />
-            )}
+            {
+                showActionSheet && selectedVerses.length > 0 && (
+                    <VerseActionSheet
+                        verse={selectedVerses[0]}
+                        verseText={selectedVerses.length === 1 ? selectedVerses[0].text : ''}
+                        verseRef={getVerseRef()}
+                        currentColor={selectedVerses.length === 1 ? highlights[selectedVerses[0].verse] : null}
+                        onHighlight={handleHighlight}
+                        onNote={handleOpenNote}
+                        onWordStudy={handleWordStudy}
+                        onStudy={handleStartStudy}
+                        onCopy={() => { }}
+                        onClose={handleCloseActionSheet}
+                    />
+                )
+            }
 
             {/* Note Modal */}
-            {showNoteModal && selectedVerses.length > 0 && (
-                <NoteModal
-                    verse={selectedVerses[0]}
-                    verseText={selectedVerses[0].text}
-                    verseRef={getVerseRef()}
-                    existingNote={existingNote}
-                    onSave={handleSaveNote}
-                    onClose={() => {
-                        setShowNoteModal(false);
-                        setSelectedVerses([]);
-                        setExistingNote(null);
-                    }}
-                />
-            )}
+            {
+                showNoteModal && selectedVerses.length > 0 && (
+                    <NoteModal
+                        verse={selectedVerses[0]}
+                        verseText={selectedVerses[0].text}
+                        verseRef={getVerseRef()}
+                        existingNote={existingNote}
+                        onSave={handleSaveNote}
+                        onClose={() => {
+                            setShowNoteModal(false);
+                            setSelectedVerses([]);
+                            setExistingNote(null);
+                        }}
+                    />
+                )
+            }
 
-            {showWordStudyModal && wordStudyData && (
-                <WordStudyModal
-                    verse={wordStudyData.verse}
-                    verseText={wordStudyData.verse.text}
-                    verseRef={wordStudyData.ref}
-                    originalText={wordStudyData.originalText}
-                    originalVersion={wordStudyData.originalVersion}
-                    onClose={() => {
-                        setShowWordStudyModal(false);
-                        setWordStudyData(null);
-                        setSelectedVerses([]);
-                    }}
-                />
-            )}
-        </div>
+            {
+                showWordStudyModal && wordStudyData && (
+                    <WordStudyModal
+                        verse={wordStudyData.verse}
+                        verseText={wordStudyData.verse.text}
+                        verseRef={wordStudyData.ref}
+                        originalText={wordStudyData.originalText}
+                        originalVersion={wordStudyData.originalVersion}
+                        onClose={() => {
+                            setShowWordStudyModal(false);
+                            setWordStudyData(null);
+                            setSelectedVerses([]);
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 }
 
