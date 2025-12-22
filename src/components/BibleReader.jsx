@@ -26,6 +26,7 @@ import VerseActionSheet from './VerseActionSheet';
 import NoteModal from './NoteModal';
 import BibleHelpModal from './BibleHelpModal';
 import OmniDefinitionModal from './OmniDefinitionModal';
+import ChapterSummaryModal from './ChapterSummaryModal';
 import './BibleReader.css';
 
 const THEME_COLORS = [
@@ -72,6 +73,38 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [existingNote, setExistingNote] = useState(null);
     const [showWordStudyModal, setShowWordStudyModal] = useState(false);
     const [wordStudyData, setWordStudyData] = useState(null);
+    const [showChapterSummary, setShowChapterSummary] = useState(false);
+
+    // Parallel Reading (Split View) State
+    const [isSplitView, setIsSplitView] = useState(false);
+    const [secondVersion, setSecondVersion] = useState(null);
+    const [secondVerses, setSecondVerses] = useState([]);
+
+    // Scroll Synchronization Refs
+    const primaryScrollRef = useRef(null);
+    const secondaryScrollRef = useRef(null);
+    const isSyncingScroll = useRef(false);
+
+    const handleScroll = (source, target) => {
+        if (!isSplitView || isSyncingScroll.current) return;
+        if (!source.current || !target.current) return;
+
+        isSyncingScroll.current = true;
+
+        // Calculate the percentage scrolled in the source
+        const sourceScrollTop = source.current.scrollTop;
+        const sourceScrollHeight = source.current.scrollHeight - source.current.clientHeight;
+        const scrollPercentage = sourceScrollTop / sourceScrollHeight;
+
+        // Apply same percentage to the target
+        const targetScrollHeight = target.current.scrollHeight - target.current.clientHeight;
+        target.current.scrollTop = scrollPercentage * targetScrollHeight;
+
+        // Reset the flag after a short timeout to prevent feedback loops
+        setTimeout(() => {
+            isSyncingScroll.current = false;
+        }, 50);
+    };
 
     useEffect(() => {
         loadBooks();
@@ -108,7 +141,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             loadChapterCount();
             loadChapter();
         }
-    }, [selectedBook, selectedChapter, currentVersion]);
+    }, [selectedBook, selectedChapter, currentVersion, isSplitView, secondVersion]);
 
     // Load highlights when chapter changes
     useEffect(() => {
@@ -137,11 +170,13 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             localStorage.setItem('lastReadPosition', JSON.stringify({
                 bookId: selectedBook.id,
                 chapter: selectedChapter,
-                version: currentVersion.id
+                version: currentVersion.id,
+                secondaryVersion: secondVersion?.id,
+                isSplitView
             }));
             loadCategories();
         }
-    }, [selectedBook, selectedChapter, currentVersion]);
+    }, [selectedBook, selectedChapter, currentVersion, secondVersion, isSplitView]);
 
     const loadHighlights = async () => {
         if (!selectedBook || !currentVersion) return;
@@ -207,12 +242,20 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             const lastPosition = localStorage.getItem('lastReadPosition');
             if (lastPosition) {
                 try {
-                    const { bookId, chapter, version } = JSON.parse(lastPosition);
+                    const { bookId, chapter, version, secondaryVersion, isSplitView: wasSplit } = JSON.parse(lastPosition);
                     const book = result.data.all.find(b => b.id == bookId);
                     if (book) {
                         console.log('📚 Restoring last reading position:', book.name_full, chapter);
                         setSelectedBook(book);
                         setSelectedChapter(chapter || 1);
+
+                        if (wasSplit && secondaryVersion) {
+                            const secVer = versions.find(v => v.id === secondaryVersion);
+                            if (secVer) {
+                                setSecondVersion(secVer);
+                                setIsSplitView(true);
+                            }
+                        }
                         return; // Skip default
                     }
                 } catch (e) {
@@ -251,11 +294,27 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const loadChapter = async () => {
         if (!selectedBook || !currentVersion) return;
         setLoading(true);
-        const result = await getChapter(selectedBook.id, selectedChapter, currentVersion.id);
-        if (result.success) {
-            setVerses(result.data || []);
+
+        try {
+            // Load main version
+            const result = await getChapter(selectedBook.id, selectedChapter, currentVersion.id);
+            if (result.success) {
+                setVerses(result.data || []);
+            }
+
+            // Load second version if in split view
+            if (isSplitView && secondVersion) {
+                const result2 = await getChapter(selectedBook.id, selectedChapter, secondVersion.id);
+                if (result2.success) {
+                    setSecondVerses(result2.data || []);
+                }
+            }
+        } catch (err) {
+            console.error("Error loading chapter:", err);
+            setError("Failed to load verses.");
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     // Verse tap handler - original tap for simple selection maybe?
@@ -298,6 +357,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         if (window.navigator && window.navigator.vibrate) {
             window.navigator.vibrate(50);
         }
+    };
+
+    const toggleSplitView = () => {
+        if (!isSplitView && !secondVersion) {
+            // Pick a default second version (different from current)
+            const other = versions.find(v => v.id !== currentVersion.id);
+            setSecondVersion(other);
+        }
+        setIsSplitView(!isSplitView);
+    };
+
+    const handleSecondVersionChange = (e) => {
+        const verId = e.target.value;
+        const ver = versions.find(v => v.id === verId);
+        setSecondVersion(ver);
     };
 
     // Handle highlight color selection
@@ -625,7 +699,11 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         >
                             ‹
                         </button>
-                        <span className="chapter-display">
+                        <span className="chapter-display" onClick={() => {
+                            setTempSelectedBook(selectedBook);
+                            setSelectionStage('chapters');
+                            setShowBookSelector(true);
+                        }}>
                             {['AFR53', 'AFR83'].includes(currentVersion?.id) ? 'Hoofstuk' : 'Chapter'} {selectedChapter}
                         </span>
                         <button
@@ -635,6 +713,28 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         >
                             ›
                         </button>
+
+                        <button
+                            className={`split-view-toggle ${isSplitView ? 'active' : ''}`}
+                            onClick={toggleSplitView}
+                            title={settings.language === 'af' ? 'Parallelle Lees' : 'Parallel Reading'}
+                            style={{ marginLeft: '8px' }}
+                        >
+                            {isSplitView ? '📖📖' : '📖'}
+                        </button>
+
+                        {isSplitView && (
+                            <select
+                                className="second-version-select"
+                                value={secondVersion?.id}
+                                onChange={handleSecondVersionChange}
+                                style={{ marginLeft: '8px' }}
+                            >
+                                {versions.map(v => (
+                                    <option key={v.id} value={v.id}>{v.abbreviation}</option>
+                                ))}
+                            </select>
+                        )}
                     </div>
                 </div>
             </div>
@@ -759,45 +859,104 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             )}
 
             {/* Verses Display */}
-            <div className="verses-container">
+            <div className={`verses-container ${isSplitView ? 'split-view' : ''}`}>
                 {loading ? (
                     <div className="loading-state">
                         <div className="loading-spinner"></div>
                         <p>Loading chapter...</p>
                     </div>
                 ) : verses.length > 0 ? (
-                    <div className="verses-content">
-                        <h2 className="chapter-title">
-                            {getLocalizedBookName(verses[0]?.books?.name_full, currentVersion?.id)} {selectedChapter}
-                            <span className="version-badge">{currentVersion?.abbreviation}</span>
-                        </h2>
+                    <div className="verses-layout">
+                        {/* Primary Version Column */}
                         <div
-                            className="verses-list"
-                            style={{
-                                fontSize: `${settings.fontSize}px`,
-                                fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
-                            }}
+                            className="verses-content primary-column"
+                            ref={primaryScrollRef}
+                            onScroll={() => handleScroll(primaryScrollRef, secondaryScrollRef)}
                         >
-                            {verses.map(verse => (
+                            <h2 className="chapter-title">
+                                {getLocalizedBookName(verses[0]?.books?.name_full, currentVersion?.id)} {selectedChapter}
+                                <span className="version-badge">{currentVersion?.abbreviation}</span>
+                                {!isSplitView && (
+                                    <button
+                                        className="summary-btn"
+                                        onClick={() => setShowChapterSummary(true)}
+                                        title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}
+                                    >
+                                        {settings.language === 'af' ? 'Opsoming' : 'Summaries'} 📝
+                                    </button>
+                                )}
+                            </h2>
+                            <div
+                                className="verses-list"
+                                style={{
+                                    fontSize: `${settings.fontSize}px`,
+                                    fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
+                                }}
+                            >
+                                {verses.map(verse => (
+                                    <div
+                                        key={verse.id}
+                                        id={`verse-${verse.verse}`}
+                                        className={`verse-item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
+                                        onClick={(e) => handleVerseTap(verse, e)}
+                                        onContextMenu={(e) => handleLongPress(verse, e)}
+                                        style={{
+                                            backgroundColor: highlights[verse.verse]
+                                                ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
+                                                : 'transparent'
+                                        }}
+                                    >
+                                        <span className="verse-number">{verse.verse}</span>
+                                        <span className="verse-text">
+                                            {renderVerseText(verse)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Secondary Version Column (Split View) */}
+                        {isSplitView && (
+                            <div
+                                className="verses-content secondary-column"
+                                ref={secondaryScrollRef}
+                                onScroll={() => handleScroll(secondaryScrollRef, primaryScrollRef)}
+                            >
+                                <h2 className="chapter-title">
+                                    {getLocalizedBookName(verses[0]?.books?.name_full, secondVersion?.id)} {selectedChapter}
+                                    <span className="version-badge">{secondVersion?.abbreviation}</span>
+                                    <button
+                                        className="summary-btn"
+                                        onClick={() => setShowChapterSummary(true)}
+                                        title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}
+                                    >
+                                        {settings.language === 'af' ? 'Opsoming' : 'Summaries'} 📝
+                                    </button>
+                                </h2>
                                 <div
-                                    key={verse.id}
-                                    id={`verse-${verse.verse}`}
-                                    className={`verse-item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
-                                    onClick={(e) => handleVerseTap(verse, e)}
-                                    onContextMenu={(e) => handleLongPress(verse, e)}
+                                    className="verses-list"
                                     style={{
-                                        backgroundColor: highlights[verse.verse]
-                                            ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
-                                            : 'transparent'
+                                        fontSize: `${settings.fontSize}px`,
+                                        fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
                                     }}
                                 >
-                                    <span className="verse-number">{verse.verse}</span>
-                                    <span className="verse-text">
-                                        {renderVerseText(verse)}
-                                    </span>
+                                    {secondVerses.length > 0 ? (
+                                        secondVerses.map(verse => (
+                                            <div
+                                                key={`sec-${verse.id}`}
+                                                className="verse-item plain"
+                                                style={{ cursor: 'default' }}
+                                            >
+                                                <span className="verse-number">{verse.verse}</span>
+                                                <span className="verse-text">{verse.text}</span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="loading-state-small">Loading...</div>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="empty-state">
@@ -812,6 +971,16 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     onClose={() => setShowDefinition(false)}
                 />
             )}
+
+            {/* Chapter Summary Modal */}
+            <ChapterSummaryModal
+                isOpen={showChapterSummary}
+                onClose={() => setShowChapterSummary(false)}
+                bookName={selectedBook?.name_full}
+                chapter={selectedChapter}
+                verses={verses}
+                language={settings.language}
+            />
 
             {/* Info / Help Modal */}
             {showInfo && (

@@ -157,6 +157,43 @@
     color: var(--text-secondary);
     min-width: 90px;
     text-align: center;
+    cursor: pointer;
+}
+
+.split-view-toggle {
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.split-view-toggle:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+
+.split-view-toggle.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}
+
+.second-version-select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 4px 8px;
+    color: var(--text-primary);
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
 }
 
 /* Book Selector Modal */
@@ -296,14 +333,67 @@
     flex: 1;
     overflow-y: auto;
     padding: var(--spacing-lg);
-    padding-bottom: calc(100px + var(--safe-bottom));
-    /* Extra Space for Bottom Nav on mobile + safe area */
+    padding-bottom: calc(120px + var(--safe-bottom));
+    /* Increased padding for bottom nav */
     box-sizing: border-box;
+    scroll-behavior: smooth;
+}
+
+.verses-container.split-view {
+    overflow-y: hidden;
+    padding: 0;
 }
 
 .verses-content {
     max-width: 800px;
     margin: 0 auto;
+    width: 100%;
+}
+
+.verses-container.split-view .verses-content {
+    max-width: none;
+    margin: 0;
+}
+
+.verses-layout {
+    display: flex;
+    gap: var(--spacing-xl);
+    width: 100%;
+}
+
+.verses-container.split-view .verses-layout {
+    display: flex;
+    gap: var(--spacing-xl);
+    width: 100%;
+    height: 100%;
+}
+
+.primary-column,
+.secondary-column {
+    flex: 1;
+    min-width: 0;
+    /* Prevent overflow */
+}
+
+.verses-container.split-view .primary-column,
+.verses-container.split-view .secondary-column {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    height: 100%;
+    padding: var(--spacing-lg);
+    padding-bottom: calc(120px + var(--safe-bottom));
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+}
+
+.secondary-column {
+    border-left: 1px solid var(--border-subtle);
+    padding-left: var(--spacing-xl);
+}
+
+.verses-container.split-view .secondary-column {
+    border-left: 1px solid var(--border-subtle);
 }
 
 .chapter-title {
@@ -314,6 +404,29 @@
     align-items: center;
     gap: var(--spacing-md);
     flex-wrap: wrap;
+}
+
+.summary-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.summary-btn:hover {
+    background: var(--bg-elevated);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    transform: translateY(-1px);
 }
 
 .version-badge {
@@ -384,6 +497,20 @@
     padding-bottom: calc(var(--spacing-sm) - 2px);
 }
 
+.verse-item.plain {
+    cursor: default;
+}
+
+.verse-item.plain:hover {
+    background: transparent;
+}
+
+.loading-state-small {
+    padding: var(--spacing-xl);
+    text-align: center;
+    color: var(--text-muted);
+}
+
 /* Loading State */
 .loading-state {
     display: flex;
@@ -429,6 +556,44 @@
 
     .chapter-title {
         font-size: 1.5rem;
+    }
+
+    .verses-container.split-view {
+        overflow-y: hidden;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+    }
+
+    .verses-container.split-view .verses-layout {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        gap: 0;
+    }
+
+    .verses-container.split-view .primary-column,
+    .verses-container.split-view .secondary-column {
+        flex: 1;
+        height: 50%;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+        box-sizing: border-box;
+    }
+
+    .verses-container.split-view .secondary-column {
+        border-left: none;
+        border-top: 2px solid var(--border-subtle);
+        padding-top: var(--spacing-lg);
+        padding-bottom: calc(120px + var(--safe-bottom));
+    }
+
+    .summary-btn {
+        margin-left: 0;
+        width: auto;
+        padding: 4px 10px;
+        font-size: 0.75rem;
     }
 }
 
@@ -616,6 +781,8 @@
     gap: var(--spacing-xl);
     display: flex;
     flex-direction: column;
+    padding-bottom: 40px;
+    /* Extra padding at bottom of modal body */
 }
 
 .info-section h3 {

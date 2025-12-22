@@ -554,3 +554,67 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Generate a concise summary and structured outline for a Bible chapter
+ */
+export async function getChapterSummary(userId, bookName, chapter, verses = [], language = 'en') {
+    try {
+        const { remaining } = await getUserRemainingQuota(userId);
+        if (remaining <= 0) return { success: false, error: 'Daily quota exceeded. Try again tomorrow!' };
+
+        const ref = `${bookName} ${chapter}`;
+        const contextText = verses.length > 0
+            ? verses.map(v => `${v.verse}: ${v.text}`).join('\n')
+            : 'No verse text provided';
+
+        const outputLanguage = language === 'af' ? 'Afrikaans' : 'English';
+
+        let prompt = `You are a Bible scholar. Generate a concise summary and a structured outline for ${ref}.
+        
+        The output MUST be 100% in ${outputLanguage}.
+        
+        **Chapter Text Context:**
+        ${contextText}
+        
+        **Requirements:**
+        1. **Summary:** A single, powerful paragraph (max 100 words) capturing the main message and theme of the chapter.
+        2. **Outline:** A structured list of the chapter's sections, including verse ranges and brief titles (e.g., "1-10: The Creation of Light").
+        
+        Format the response as a valid JSON object with this structure:
+        {
+            "summary": "...",
+            "outline": [
+                { "range": "1-10", "title": "..." },
+                { "range": "11-20", "title": "..." }
+            ]
+        }`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        // Log successful API call
+        logApiCall('getChapterSummary', 'success', 'gemini-2.0-flash', { userId, ref });
+
+        // Clean markdown JSON if present
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : text;
+        const data = JSON.parse(jsonStr);
+
+        // Log to ai_questions for history/visibility
+        await supabase.from('ai_questions').insert({
+            user_id: userId,
+            question: `Chapter Summary: ${ref}`,
+            answer: text,
+            cached: false
+        });
+
+        return { success: true, data };
+    } catch (error) {
+        console.error('Chapter summary error:', error);
+        logApiCall('getChapterSummary', 'error', 'gemini-2.0-flash', { userId, error: error.message });
+        return { success: false, error: error.message };
+    }
+}
+
