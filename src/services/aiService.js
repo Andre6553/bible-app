@@ -484,6 +484,16 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
 
         REQUIRED: Include at least one qualifying phrase per section: "In this context...", "As used here...", or "Within this passage..."
 
+        CRITICAL INSTRUCTION - LANGUAGE ENFORCEMENT:
+        - Output MUST be 100% in ${language === 'af' ? 'AFRIKAANS' : 'ENGLISH'}.
+        - Translate ALL explanations, labels, headers, and descriptions.
+        - Do NOT mix English into Afrikaans output (except for necessary theological terms like 'Lemma').
+
+        CRITICAL INSTRUCTION - SCRIPTURE CITATIONS:
+        - "relatedVerses" -> "ref" MUST be a valid Bible Reference (e.g., "Genesis 6:8", "Exodus 33:17").
+        - Do NOT use titles like "Lineage of Levi" in the "ref" field. Use the "label" field for titles.
+        - If the AI puts a title in "ref", the system is broken.
+
         Format the response as a single valid JSON object with this structure:
         {
             "word": {
