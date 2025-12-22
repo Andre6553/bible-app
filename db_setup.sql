@@ -22,7 +22,10 @@ ALTER TABLE books ENABLE ROW LEVEL SECURITY;
 ALTER TABLE verses ENABLE ROW LEVEL SECURITY;
 
 -- Create policies to allow public read access
+DROP POLICY IF EXISTS "Allow public read access on books" ON books;
 CREATE POLICY "Allow public read access on books" ON books FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read access on verses" ON verses;
 CREATE POLICY "Allow public read access on verses" ON verses FOR SELECT USING (true);
 
 -- Seed Books (Basic set for demo)

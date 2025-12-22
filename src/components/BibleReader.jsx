@@ -867,64 +867,68 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     </div>
                 ) : verses.length > 0 ? (
                     <div className="verses-layout">
-                        {/* Primary Version Column */}
-                        <div
-                            className="verses-content primary-column"
-                            ref={primaryScrollRef}
-                            onScroll={() => handleScroll(primaryScrollRef, secondaryScrollRef)}
-                        >
-                            <h2 className="chapter-title">
-                                {getLocalizedBookName(verses[0]?.books?.name_full, currentVersion?.id)} {selectedChapter}
-                                <span className="version-badge">{currentVersion?.abbreviation}</span>
-                                {!isSplitView && (
-                                    <button
-                                        className="summary-btn"
-                                        onClick={() => setShowChapterSummary(true)}
-                                        title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}
-                                    >
-                                        {settings.language === 'af' ? 'Opsoming' : 'Summaries'} 📝
-                                    </button>
-                                )}
-                            </h2>
+                        {/* Integrated Parallel Layout (Sync like one) */}
+                        {isSplitView ? (
                             <div
-                                className="verses-list"
+                                className="verses-content integrated-split-view"
+                                ref={primaryScrollRef}
                                 style={{
                                     fontSize: `${settings.fontSize}px`,
                                     fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
                                 }}
                             >
-                                {verses.map(verse => (
-                                    <div
-                                        key={verse.id}
-                                        id={`verse-${verse.verse}`}
-                                        className={`verse-item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
-                                        onClick={(e) => handleVerseTap(verse, e)}
-                                        onContextMenu={(e) => handleLongPress(verse, e)}
-                                        style={{
-                                            backgroundColor: highlights[verse.verse]
-                                                ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
-                                                : 'transparent'
-                                        }}
-                                    >
-                                        <span className="verse-number">{verse.verse}</span>
-                                        <span className="verse-text">
-                                            {renderVerseText(verse)}
-                                        </span>
+                                <div className="integrated-header">
+                                    <div className="header-label primary">
+                                        <span className="version-badge">{currentVersion?.abbreviation}</span>
                                     </div>
-                                ))}
+                                    <div className="header-label secondary">
+                                        <span className="version-badge">{secondVersion?.abbreviation}</span>
+                                        <button
+                                            className="summary-btn"
+                                            onClick={() => setShowChapterSummary(true)}
+                                            title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}
+                                        >
+                                            {settings.language === 'af' ? 'Opsoming' : 'Summaries'} 📝
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="integrated-verses-list">
+                                    {verses.map((verse) => {
+                                        const secondVerse = secondVerses.find(sv => sv.verse === verse.verse);
+                                        return (
+                                            <div key={verse.id} className="verse-row-integrated">
+                                                <div
+                                                    className={`verse-box primary ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
+                                                    onClick={(e) => handleVerseTap(verse, e)}
+                                                    onContextMenu={(e) => handleLongPress(verse, e)}
+                                                    style={{
+                                                        backgroundColor: highlights[verse.verse]
+                                                            ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
+                                                            : 'transparent'
+                                                    }}
+                                                >
+                                                    <span className="verse-number">{verse.verse}</span>
+                                                    <span className="verse-text">{renderVerseText(verse)}</span>
+                                                </div>
+                                                <div className="verse-box secondary">
+                                                    <span className="verse-text">
+                                                        {secondVerse ? secondVerse.text : '...'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
-
-                        {/* Secondary Version Column (Split View) */}
-                        {isSplitView && (
+                        ) : (
+                            /* Standard Single Version Layout */
                             <div
-                                className="verses-content secondary-column"
-                                ref={secondaryScrollRef}
-                                onScroll={() => handleScroll(secondaryScrollRef, primaryScrollRef)}
+                                className="verses-content primary-column"
+                                ref={primaryScrollRef}
                             >
                                 <h2 className="chapter-title">
-                                    {getLocalizedBookName(verses[0]?.books?.name_full, secondVersion?.id)} {selectedChapter}
-                                    <span className="version-badge">{secondVersion?.abbreviation}</span>
+                                    {getLocalizedBookName(verses[0]?.books?.name_full, currentVersion?.id)} {selectedChapter}
+                                    <span className="version-badge">{currentVersion?.abbreviation}</span>
                                     <button
                                         className="summary-btn"
                                         onClick={() => setShowChapterSummary(true)}
@@ -940,20 +944,25 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                         fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
                                     }}
                                 >
-                                    {secondVerses.length > 0 ? (
-                                        secondVerses.map(verse => (
-                                            <div
-                                                key={`sec-${verse.id}`}
-                                                className="verse-item plain"
-                                                style={{ cursor: 'default' }}
-                                            >
-                                                <span className="verse-number">{verse.verse}</span>
-                                                <span className="verse-text">{verse.text}</span>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="loading-state-small">Loading...</div>
-                                    )}
+                                    {verses.map(verse => (
+                                        <div
+                                            key={verse.id}
+                                            id={`verse-${verse.verse}`}
+                                            className={`verse-item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
+                                            onClick={(e) => handleVerseTap(verse, e)}
+                                            onContextMenu={(e) => handleLongPress(verse, e)}
+                                            style={{
+                                                backgroundColor: highlights[verse.verse]
+                                                    ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
+                                                    : 'transparent'
+                                            }}
+                                        >
+                                            <span className="verse-number">{verse.verse}</span>
+                                            <span className="verse-text">
+                                                {renderVerseText(verse)}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}

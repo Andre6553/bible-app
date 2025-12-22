@@ -1,0 +1,332 @@
+[
+  {
+    "id": 1,
+    "name_full": "Genesis",
+    "order": 1
+  },
+  {
+    "id": 2,
+    "name_full": "Exodus",
+    "order": 2
+  },
+  {
+    "id": 3,
+    "name_full": "Leviticus",
+    "order": 3
+  },
+  {
+    "id": 4,
+    "name_full": "Numbers",
+    "order": 4
+  },
+  {
+    "id": 5,
+    "name_full": "Deuteronomy",
+    "order": 5
+  },
+  {
+    "id": 10,
+    "name_full": "Joshua",
+    "order": 6
+  },
+  {
+    "id": 11,
+    "name_full": "Judges",
+    "order": 7
+  },
+  {
+    "id": 12,
+    "name_full": "Ruth",
+    "order": 8
+  },
+  {
+    "id": 13,
+    "name_full": "1 Samuel",
+    "order": 9
+  },
+  {
+    "id": 14,
+    "name_full": "2 Samuel",
+    "order": 10
+  },
+  {
+    "id": 15,
+    "name_full": "1 Kings",
+    "order": 11
+  },
+  {
+    "id": 16,
+    "name_full": "2 Kings",
+    "order": 12
+  },
+  {
+    "id": 17,
+    "name_full": "1 Chronicles",
+    "order": 13
+  },
+  {
+    "id": 18,
+    "name_full": "2 Chronicles",
+    "order": 14
+  },
+  {
+    "id": 19,
+    "name_full": "Ezra",
+    "order": 15
+  },
+  {
+    "id": 20,
+    "name_full": "Nehemiah",
+    "order": 16
+  },
+  {
+    "id": 21,
+    "name_full": "Esther",
+    "order": 17
+  },
+  {
+    "id": 22,
+    "name_full": "Job",
+    "order": 18
+  },
+  {
+    "id": 23,
+    "name_full": "Psalms",
+    "order": 19
+  },
+  {
+    "id": 24,
+    "name_full": "Proverbs",
+    "order": 20
+  },
+  {
+    "id": 25,
+    "name_full": "Ecclesiastes",
+    "order": 21
+  },
+  {
+    "id": 26,
+    "name_full": "Song of Solomon",
+    "order": 22
+  },
+  {
+    "id": 27,
+    "name_full": "Isaiah",
+    "order": 23
+  },
+  {
+    "id": 28,
+    "name_full": "Jeremiah",
+    "order": 24
+  },
+  {
+    "id": 29,
+    "name_full": "Lamentations",
+    "order": 25
+  },
+  {
+    "id": 30,
+    "name_full": "Ezekiel",
+    "order": 26
+  },
+  {
+    "id": 31,
+    "name_full": "Daniel",
+    "order": 27
+  },
+  {
+    "id": 32,
+    "name_full": "Hosea",
+    "order": 28
+  },
+  {
+    "id": 33,
+    "name_full": "Joel",
+    "order": 29
+  },
+  {
+    "id": 34,
+    "name_full": "Amos",
+    "order": 30
+  },
+  {
+    "id": 35,
+    "name_full": "Obadiah",
+    "order": 31
+  },
+  {
+    "id": 36,
+    "name_full": "Jonah",
+    "order": 32
+  },
+  {
+    "id": 37,
+    "name_full": "Micah",
+    "order": 33
+  },
+  {
+    "id": 38,
+    "name_full": "Nahum",
+    "order": 34
+  },
+  {
+    "id": 39,
+    "name_full": "Habakkuk",
+    "order": 35
+  },
+  {
+    "id": 40,
+    "name_full": "Zephaniah",
+    "order": 36
+  },
+  {
+    "id": 41,
+    "name_full": "Haggai",
+    "order": 37
+  },
+  {
+    "id": 42,
+    "name_full": "Zechariah",
+    "order": 38
+  },
+  {
+    "id": 43,
+    "name_full": "Malachi",
+    "order": 39
+  },
+  {
+    "id": 44,
+    "name_full": "Matthew",
+    "order": 40
+  },
+  {
+    "id": 45,
+    "name_full": "Mark",
+    "order": 41
+  },
+  {
+    "id": 46,
+    "name_full": "Luke",
+    "order": 42
+  },
+  {
+    "id": 6,
+    "name_full": "John",
+    "order": 43
+  },
+  {
+    "id": 7,
+    "name_full": "Acts",
+    "order": 44
+  },
+  {
+    "id": 8,
+    "name_full": "Romans",
+    "order": 45
+  },
+  {
+    "id": 47,
+    "name_full": "1 Corinthians",
+    "order": 46
+  },
+  {
+    "id": 48,
+    "name_full": "2 Corinthians",
+    "order": 47
+  },
+  {
+    "id": 49,
+    "name_full": "Galatians",
+    "order": 48
+  },
+  {
+    "id": 50,
+    "name_full": "Ephesians",
+    "order": 49
+  },
+  {
+    "id": 51,
+    "name_full": "Philippians",
+    "order": 50
+  },
+  {
+    "id": 52,
+    "name_full": "Colossians",
+    "order": 51
+  },
+  {
+    "id": 53,
+    "name_full": "1 Thessalonians",
+    "order": 52
+  },
+  {
+    "id": 54,
+    "name_full": "2 Thessalonians",
+    "order": 53
+  },
+  {
+    "id": 55,
+    "name_full": "1 Timothy",
+    "order": 54
+  },
+  {
+    "id": 56,
+    "name_full": "2 Timothy",
+    "order": 55
+  },
+  {
+    "id": 57,
+    "name_full": "Titus",
+    "order": 56
+  },
+  {
+    "id": 58,
+    "name_full": "Philemon",
+    "order": 57
+  },
+  {
+    "id": 59,
+    "name_full": "Hebrews",
+    "order": 58
+  },
+  {
+    "id": 60,
+    "name_full": "James",
+    "order": 59
+  },
+  {
+    "id": 61,
+    "name_full": "1 Peter",
+    "order": 60
+  },
+  {
+    "id": 62,
+    "name_full": "2 Peter",
+    "order": 61
+  },
+  {
+    "id": 63,
+    "name_full": "1 John",
+    "order": 62
+  },
+  {
+    "id": 64,
+    "name_full": "2 John",
+    "order": 63
+  },
+  {
+    "id": 65,
+    "name_full": "3 John",
+    "order": 64
+  },
+  {
+    "id": 66,
+    "name_full": "Jude",
+    "order": 65
+  },
+  {
+    "id": 67,
+    "name_full": "Revelation",
+    "order": 66
+  }
+]
