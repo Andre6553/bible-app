@@ -12,8 +12,12 @@ const BibleHelpModal = ({ onClose, language }) => {
                     text: "Tap the **Book Name** button to browse books, chapters, and verses. Use the **< / >** arrows to navigate between chapters."
                 },
                 {
+                    title: "📚 Word Study (Original Languages)",
+                    text: "Tap any verse number, select **'Word Study'**, then tap any Greek or Hebrew word to find its deep meaning, grammar, and usage."
+                },
+                {
                     title: "🔍 Search",
-                    text: "Go to the **Search** tab to find verses by keyword. You can filter by Bible version and Testament (Old/New)."
+                    text: "Go to the **Search** tab to find verses by keyword. Supports **multi-word search** (e.g., 'grace, mercy') to find verses with ANY of the words. You can filter by Bible version and Testament (Old/New)."
                 },
                 {
                     title: "🤖 AI Research",
@@ -57,8 +61,12 @@ const BibleHelpModal = ({ onClose, language }) => {
                     text: "Tik op die **Boeknaam** knoppie om deur boeke, hoofstukke en verse te blaai. Gebruik die **< / >** pyle om tussen hoofstukke te navigeer."
                 },
                 {
+                    title: "📚 Woordstudie (Oorspronklike Tale)",
+                    text: "Tik op enige versnommer, kies **'Woordstudie'**, en tik dan op enige Griekse of Hebreeuse woord om sy diepgaande betekenis, grammatika en gebruik te vind."
+                },
+                {
                     title: "🔍 Soek",
-                    text: "Gaan na die **Soek** (Search) oortjie om verse per sleutelwoord te vind. Jy kan filter volgens Bybelweergawe en Testament (Ou/Nuut)."
+                    text: "Gaan na die **Soek** (Search) oortjie om verse per sleutelwoord te vind. Ondersteun **veelvuldige woordsoektog** (bv. 'genade, barmhartigheid'). Jy kan filter volgens Bybelweergawe en Testament (Ou/Nuut)."
                 },
                 {
                     title: "🤖 AI Navorsing",

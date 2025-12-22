@@ -16,6 +16,7 @@ import { useSettings } from '../context/SettingsContext';
 import VerseActionSheet from './VerseActionSheet';
 import NoteModal from './NoteModal';
 import BibleHelpModal from './BibleHelpModal';
+import OmniDefinitionModal from './OmniDefinitionModal';
 import './BibleReader.css';
 
 const THEME_COLORS = [
@@ -48,6 +49,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [tempSelectedChapter, setTempSelectedChapter] = useState(1);
     const [targetVerse, setTargetVerse] = useState(null); // For scrolling to verse
     const [showInfo, setShowInfo] = useState(false); // Info Modal state
+    const [showDefinition, setShowDefinition] = useState(false); // Omni Definition Modal state
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, text: '', step: 'initial' });
@@ -527,7 +529,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     <div className="header-left">
                         <button className="info-btn icon-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
                         <button className="info-btn icon-btn" onClick={() => setShowInfo(true)} title="App Info">ℹ️</button>
-                        <h1 className="app-title">Bible Study</h1>
+                        <h1
+                            className="app-title"
+                            onClick={() => setShowDefinition(true)}
+                            style={{ cursor: 'pointer' }}
+                            title="Click to see what Omni means"
+                        >
+                            Omni Bible
+                        </h1>
                     </div>
                     <select
                         className="version-selector select"
@@ -744,6 +753,13 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     </div>
                 )}
             </div>
+
+            {/* Omni Definition Modal */}
+            {showDefinition && (
+                <OmniDefinitionModal
+                    onClose={() => setShowDefinition(false)}
+                />
+            )}
 
             {/* Info / Help Modal */}
             {showInfo && (
