@@ -273,8 +273,72 @@ export const getUserId = () => {
         // Generate random ID (simple implementation)
         userId = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
         localStorage.setItem('bible_user_id', userId);
+
+        // Initialize new user (check for auto-super-user)
+        initializeNewUser(userId).catch(err => console.error('User initialization failed:', err));
     }
     return userId;
+};
+
+/**
+ * Initialize a new user (Internal Logic)
+ * Checks if 'super_users_auto' is enabled and adds user if true.
+ * Implemented directly here to avoid circular dependency with blogService.
+ */
+const initializeNewUser = async (userId) => {
+    try {
+        console.log('[InitUser] 🆕 Initializing new user:', userId);
+
+        // 1. Check if Auto-SuperUser is enabled
+        const { data: setting, error } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'super_users_auto')
+            .single();
+
+        if (error) console.error('[InitUser] ⚠️ Error fetching setting:', error);
+
+        console.log('[InitUser] ⚙️ Auto-SuperUser Setting Value:', setting?.value);
+
+        if (setting?.value !== 'true') {
+            console.log('[InitUser] ⏭️ Skipping promotion (Feature is OFF)');
+            return;
+        }
+
+        console.log('✨ Auto-SuperUser enabled: Promoting new user', userId);
+
+        // 2. Fetch current super users directly
+        const { data: currentListData } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'super_users')
+            .single();
+
+        let currentUsers = [];
+        if (currentListData?.value) {
+            try {
+                currentUsers = JSON.parse(currentListData.value);
+            } catch (e) {
+                console.warn('Failed to parse super_users JSON', e);
+            }
+        }
+
+        if (currentUsers.includes(userId)) return;
+
+        // 3. Add user and save
+        const newList = [...currentUsers, userId];
+        await supabase
+            .from('app_settings')
+            .upsert({
+                key: 'super_users',
+                value: JSON.stringify(newList),
+                updated_at: new Date().toISOString()
+            });
+
+        console.log('✅ New user successfully auto-promoted to Super User');
+    } catch (err) {
+        console.error('Error in initializeNewUser:', err);
+    }
 };
 
 /**

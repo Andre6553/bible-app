@@ -604,6 +604,45 @@ export const removeSuperUser = async (userId) => {
 };
 
 /**
+ * Check if "Auto Super User" for new users is enabled
+ */
+export const isSuperUserAutoEnabled = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'super_users_auto')
+            .single();
+
+        if (error) return false; // Default to off
+        return data?.value === 'true';
+    } catch (err) {
+        return false;
+    }
+};
+
+/**
+ * Toggle "Auto Super User" setting
+ */
+export const toggleSuperUserAuto = async (enabled) => {
+    try {
+        const { error } = await supabase
+            .from('app_settings')
+            .upsert({
+                key: 'super_users_auto',
+                value: enabled ? 'true' : 'false',
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) throw error;
+        return { success: true };
+    } catch (err) {
+        console.error('Error toggling auto-super-user:', err);
+        return { success: false, error: err.message };
+    }
+};
+
+/**
  * Check if a user is a super user (bypasses rate limits)
  */
 export const isSuperUser = async (userId) => {

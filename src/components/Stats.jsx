@@ -8,7 +8,9 @@ import {
     toggleRateLimit as toggleRateLimitSetting,
     isSuperUser,
     addSuperUser,
-    removeSuperUser
+    removeSuperUser,
+    isSuperUserAutoEnabled,
+    toggleSuperUserAuto
 } from '../services/blogService';
 import './Stats.css';
 
@@ -49,6 +51,8 @@ function Stats() {
     // Admin Settings
     const [rateLimitEnabled, setRateLimitEnabled] = useState(false);
     const [rateLimitLoading, setRateLimitLoading] = useState(false);
+    const [superAutoEnabled, setSuperAutoEnabled] = useState(false);
+    const [superAutoLoading, setSuperAutoLoading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isUserSuper, setIsUserSuper] = useState(false);
     const [showClearErrorConfirm, setShowClearErrorConfirm] = useState(false);
@@ -60,6 +64,7 @@ function Stats() {
             fetchAIQuestions();
             fetchUserStats();
             fetchRateLimitSetting();
+            fetchSuperAutoSetting();
             fetchErrorLogs();
         }
     }, [isAuthenticated]);
@@ -69,9 +74,15 @@ function Stats() {
         setRateLimitEnabled(enabled);
     };
 
+    const fetchSuperAutoSetting = async () => {
+        const enabled = await isSuperUserAutoEnabled();
+        setSuperAutoEnabled(enabled);
+    };
+
     const handleToggleRateLimit = async () => {
         setRateLimitLoading(true);
         const newValue = !rateLimitEnabled;
+        console.log('🔘 Rate Limit Toggle Clicked. New Value:', newValue ? 'ON' : 'OFF');
         const result = await toggleRateLimitSetting(newValue);
         if (result.success) {
             setRateLimitEnabled(newValue);
@@ -79,6 +90,19 @@ function Stats() {
             alert('Failed to update setting: ' + result.error);
         }
         setRateLimitLoading(false);
+    };
+
+    const handleToggleSuperAuto = async () => {
+        const newValue = !superAutoEnabled;
+        console.log('🔘 Super User Auto Toggle Clicked. New Value:', newValue ? 'ON' : 'OFF');
+        setSuperAutoLoading(true);
+        const result = await toggleSuperUserAuto(newValue);
+        if (result.success) {
+            setSuperAutoEnabled(newValue);
+        } else {
+            alert('Failed to update setting: ' + result.error);
+        }
+        setSuperAutoLoading(false);
     };
 
     const handleLogin = (e) => {
@@ -468,6 +492,25 @@ function Stats() {
         }
     };
 
+    // Fully delete user (Data + Super User status)
+    const handleDeleteUserFully = async (userId) => {
+        console.log('💀 Fully deleting user:', userId);
+
+        // 1. Remove from super users list first
+        const superResult = await removeSuperUser(userId);
+        if (superResult.success) {
+            console.log('✅ Removed from Super Users list');
+        } else {
+            console.warn('⚠️ Could not remove from Super Users (maybe not in list or error):', superResult.error);
+        }
+
+        // 2. Delete all data (reuses existing logic)
+        await deleteUserData(userId);
+
+        // UI feedback already handled by deleteUserData's alert, but we can add a specific log
+        console.log('🏁 User full deletion sequence complete');
+    };
+
     // Open date range modal
     const openDateRangeModal = (type) => {
         setDateRangeType(type);
@@ -520,6 +563,8 @@ function Stats() {
                 <div className="stats-login-card">
                     <h2>Admin Access 🔒</h2>
                     <form onSubmit={handleLogin}>
+                        {/* Hidden username field for accessibility/password managers */}
+                        <input type="text" autoComplete="username" style={{ display: 'none' }} />
                         <input
                             type="password"
                             value={pinInput}
@@ -527,6 +572,7 @@ function Stats() {
                             placeholder="Enter PIN"
                             className="pin-input"
                             autoFocus
+                            autoComplete="current-password"
                         />
                         {authError && <p className="error-msg">Incorrect PIN</p>}
                         <button type="submit" className="login-btn">Unlock</button>
@@ -976,22 +1022,35 @@ function Stats() {
                                     )}
                                 </div>
 
-                                {/* Delete User Data Button */}
+                                {/* Delete User Data Buttons */}
                                 <div className="delete-user-section">
                                     {!showDeleteConfirm ? (
-                                        <button
-                                            className="delete-user-btn"
-                                            onClick={() => setShowDeleteConfirm(true)}
-                                        >
-                                            🗑️ Delete All User Data
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                            <button
+                                                className="delete-user-btn"
+                                                onClick={() => setShowDeleteConfirm('data')}
+                                            >
+                                                🗑️ Delete History Logs
+                                            </button>
+                                            <button
+                                                className="delete-user-btn"
+                                                style={{ backgroundColor: '#dc2626' }}
+                                                onClick={() => setShowDeleteConfirm('full')}
+                                            >
+                                                💀 Delete User Fully
+                                            </button>
+                                        </div>
                                     ) : (
                                         <div className="delete-confirm-box">
-                                            <p className="confirm-text">⚠️ Are you sure? This will delete all search history and AI questions for this user.</p>
+                                            <p className="confirm-text">
+                                                {showDeleteConfirm === 'full'
+                                                    ? '⚠️ NUKE USER? This deletes logs AND removes Super User status. It will happen immediately.'
+                                                    : '⚠️ Clear history? This deletes all search/AI logs but keeps the user ID alive.'}
+                                            </p>
                                             <div className="confirm-buttons">
                                                 <button
                                                     className="confirm-yes-btn"
-                                                    onClick={() => deleteUserData(selectedUser.userId)}
+                                                    onClick={() => showDeleteConfirm === 'full' ? handleDeleteUserFully(selectedUser.userId) : deleteUserData(selectedUser.userId)}
                                                 >
                                                     ✓ Yes, Delete
                                                 </button>
@@ -1037,6 +1096,30 @@ function Stats() {
                         {rateLimitEnabled
                             ? '✅ Users get 1 AI devotional per day (reduces API costs)'
                             : '⚡ Users can generate unlimited devotionals (testing mode)'}
+                    </p>
+
+                    {/* New Super User Auto Toggle */}
+                    <div className="setting-row" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #333' }}>
+                        <div className="setting-info">
+                            <p className="setting-desc">Auto-SuperUser for New Users</p>
+                            <p className="setting-status">
+                                Status: <strong>{superAutoEnabled ? '🔒 Enabled' : '🔓 Disabled'}</strong>
+                            </p>
+                        </div>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={superAutoEnabled}
+                                onChange={handleToggleSuperAuto}
+                                disabled={superAutoLoading}
+                            />
+                            <span className="slider"></span>
+                        </label>
+                    </div>
+                    <p className="setting-hint">
+                        {superAutoEnabled
+                            ? '✅ New users automatically become Super Users (no rate limits)'
+                            : '⚡ New users start with standard rate limits'}
                     </p>
                 </div>
             </div>
