@@ -437,49 +437,71 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         7. NEGATIVE CONTROLS (Counterexample)
            - Prove the word does not ALWAYS mean this.
            - Rule: Include at least one example where the same word is used differently or negatively.
-
+        
         8. SCHOLAR TEST
-           - "Would this interpretation survive a first-year seminary classroom?"
-           - If no -> downgrade certainty tag.
+            - "Would this interpretation survive a first-year seminary classroom?"
+            - If no -> downgrade certainty tag.
+
+        HEBREW/ARAMAIC SPECIFIC REFINEMENTS (Apply when analyzing Hebrew/OT texts):
+        
+        A. GENDER RESTRAINT
+           - Do not specify "Masculine" / "Feminine" for nouns unless it affects agreement or interpretation.
+           - Default to "Noun (Singular / Plural)" if gender is not contextually relevant.
+
+        B. IDIOMATIC RESPECT
+           - Treat phrases like "find favor in the eyes of" as whole units.
+           - Explain the idiom's total meaning (perception/standing) rather than dissecting components.
+
+        C. VERB AGENCY & NARRATIVE LOGIC
+           - Do not rephrase stative verbs as explicit divine actions unless grammatically supported.
+           - Describe "favor" or "grace" as relational standing, not implied causation.
+           - Do NOT import Pauline theology (e.g., "unmerited grace") into OT narrative unless explicitly present.
+           - Case Study: If "righteousness" and "favor" coexist (Gen 6:8-9), treat as co-existing facts, not causal explanations.
+
+        D. MANDATORY NEGATIVE CONTROLS (Targeting Abstract Nouns)
+           - For words with secular & theological range (e.g., חֵן/Chen), explicitly state usage cautions.
+           - Always provide a counterexample where the word is used non-theologically.
+
+        REQUIRED: Include at least one qualifying phrase per section: "In this context...", "As used here...", or "Within this passage..."
 
         Format the response as a single valid JSON object with this structure:
         {
             "word": {
-                "original": "...", 
-                "transliteration": "...",
-                "lemma": "...", 
-                "strongs": "...", 
-                "relatedNoun": {
-                    "original": "...",
+                "original": "...",
                     "transliteration": "...",
-                    "strongs": "...",
-                    "connection": "..."
+                        "lemma": "...",
+                            "strongs": "...",
+                                "relatedNoun": {
+                    "original": "...",
+                        "transliteration": "...",
+                            "strongs": "...",
+                                "connection": "..."
                 },
                 "grammar": {
-                    "form": "...", 
-                    "linguisticFunction": "...", 
-                    "contextualSignificance": "..."
+                    "form": "...",
+                        "linguisticFunction": "...",
+                            "contextualSignificance": "..."
                 },
-                "definition": "...", 
-                "contextualMeaning": "...", 
-                "actionFocus": "...", 
-                "culturalNuance": "...", 
-                "theologicalConnection": "...",
-                "usageCaution": "...", // WARNING: Only if applicable (Danger List or general caution)
-                "confidenceTag": "...", // "Clearly Indicates" | "Likely Suggests" | "May Imply"
-                "counterExample": { // REQUIRED: Negative control
+                "definition": "...",
+                    "contextualMeaning": "...",
+                        "actionFocus": "...",
+                            "culturalNuance": "...",
+                                "theologicalConnection": "...",
+                                    "usageCaution": "...", // WARNING: Only if applicable (Danger List or general caution)
+                                        "confidenceTag": "...", // "Clearly Indicates" | "Likely Suggests" | "May Imply"
+                                            "counterExample": { // REQUIRED: Negative control
                     "ref": "Verse Ref",
-                    "context": "Briefly explain the different/negative usage here"
+                        "context": "Briefly explain the different/negative usage here"
                 }
             },
             "relatedVerses": [
                 {
-                    "ref": "Book Chapter:Verse", 
+                    "ref": "Book Chapter:Verse",
                     "label": "...",
                     "usage": "..."
                 }
             ]
-        }`;
+        } `;
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
@@ -489,13 +511,13 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         logApiCall('getWordStudy', 'success', 'gemini-2.0-flash', { userId, verseRef });
 
         // Clean markdown JSON if present
-        const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+        const jsonStr = text.replace(/```json\n ?|\n ? ```/g, '').trim();
         const data = JSON.parse(jsonStr);
 
         // Log the question
         await supabase.from('ai_questions').insert({
             user_id: userId,
-            question: `Word Study: ${selectedWord || 'General'} in ${verseRef}`,
+            question: `Word Study: ${selectedWord || 'General'} in ${verseRef} `,
             answer: text,
             cached: false
         });
