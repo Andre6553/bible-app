@@ -4,6 +4,7 @@ import { searchVerses, getVerseReference, getBooks } from '../services/bibleServ
 import { askBibleQuestion, getUserRemainingQuota } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
 import { getLocalizedBookName } from '../constants/bookNames';
+import SearchHelpModal from './SearchHelpModal';
 import './Search.css';
 
 // Generate or retrieve user ID from localStorage
@@ -43,6 +44,7 @@ function Search({ currentVersion, versions }) {
     const [showMainShortcutMenu, setShowMainShortcutMenu] = useState(false); // Main search shortcut popup
     const [isAnswerExpanded, setIsAnswerExpanded] = useState(false); // Fullscreen answer mode
     const [copyStatus, setCopyStatus] = useState('Copy'); // 'Copy' or 'Copied!'
+    const [showHelpModal, setShowHelpModal] = useState(false);
     const userId = getUserId();
 
     const AI_SHORTCUTS = [
@@ -515,7 +517,16 @@ Here are the available shortcuts to quickly ask questions:
     return (
         <div className="search-page">
             <div className="search-header">
-                <h1 className="search-title">Search the Bible</h1>
+                <div className="header-top-row">
+                    <h1 className="search-title">Search the Bible</h1>
+                    <button
+                        className="info-btn"
+                        onClick={() => setShowHelpModal(true)}
+                        title="Help & Info"
+                    >
+                        ℹ️
+                    </button>
+                </div>
 
                 <div className="search-input-container">
                     <form onSubmit={handleSearch} className="search-form">
@@ -953,6 +964,14 @@ Here are the available shortcuts to quickly ask questions:
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Help Info Modal */}
+            {showHelpModal && (
+                <SearchHelpModal
+                    onClose={() => setShowHelpModal(false)}
+                    language={settings.language}
+                />
             )}
         </div>
     );
