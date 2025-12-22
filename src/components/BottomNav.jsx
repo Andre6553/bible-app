@@ -1,10 +1,31 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
+import { useSettings } from '../context/SettingsContext';
 import './BottomNav.css';
 
 function BottomNav() {
     const navigate = useNavigate();
+    const { settings } = useSettings();
     const clickTracker = useRef({ count: 0, lastTime: 0 });
+
+    const translations = {
+        en: {
+            bible: "Bible",
+            search: "Search",
+            study: "Study",
+            foryou: "For You",
+            profile: "Profile"
+        },
+        af: {
+            bible: "Bybel",
+            search: "Soek",
+            study: "Studie",
+            foryou: "Vir Jou",
+            profile: "Profiel"
+        }
+    };
+
+    const t = translations[settings.language] || translations.en;
 
     const handleProfileClick = (e) => {
         const now = Date.now();
@@ -36,7 +57,7 @@ function BottomNav() {
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
                 <span className="nav-icon">📖</span>
-                <span className="nav-label">Bible</span>
+                <span className="nav-label">{t.bible}</span>
             </NavLink>
 
             <NavLink
@@ -44,7 +65,7 @@ function BottomNav() {
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
                 <span className="nav-icon">🔍</span>
-                <span className="nav-label">Search</span>
+                <span className="nav-label">{t.search}</span>
             </NavLink>
 
             <NavLink
@@ -52,7 +73,7 @@ function BottomNav() {
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
                 <span className="nav-icon">✍️</span>
-                <span className="nav-label">Study</span>
+                <span className="nav-label">{t.study}</span>
             </NavLink>
 
             <NavLink
@@ -60,7 +81,7 @@ function BottomNav() {
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
                 <span className="nav-icon">✨</span>
-                <span className="nav-label">For You</span>
+                <span className="nav-label">{t.foryou}</span>
             </NavLink>
 
             <NavLink
@@ -69,7 +90,7 @@ function BottomNav() {
                 onClick={handleProfileClick}
             >
                 <span className="nav-icon">👤</span>
-                <span className="nav-label">Profile</span>
+                <span className="nav-label">{t.profile}</span>
             </NavLink>
         </nav>
     );
