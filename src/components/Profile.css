@@ -165,6 +165,29 @@
 }
 
 /* Highlights List */
+.highlights-grouped-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.highlight-category-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.category-header {
+    font-size: 1.1rem;
+    color: var(--accent-primary, #6366f1);
+    margin: 0 0 4px;
+    padding-left: 8px;
+    border-left: 4px solid var(--accent-primary, #6366f1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .highlights-list,
 .notes-list,
 .studies-list {

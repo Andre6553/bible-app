@@ -122,6 +122,56 @@ export const getAllHighlights = async () => {
     }
 };
 
+/**
+ * Get all highlight color categories/labels for a user
+ */
+export const getHighlightCategories = async () => {
+    const userId = getUserId();
+    try {
+        const { data, error } = await supabase
+            .from('highlight_categories')
+            .select('*')
+            .eq('user_id', userId);
+
+        if (error) throw error;
+
+        // Return as map: color -> label
+        const categoryMap = {};
+        data?.forEach(c => {
+            categoryMap[c.color] = c.label;
+        });
+        return { success: true, categories: categoryMap };
+    } catch (err) {
+        console.error('Error fetching highlight categories:', err);
+        return { success: false, categories: {} };
+    }
+};
+
+/**
+ * Save or update a highlight color category/label
+ */
+export const saveHighlightCategory = async (color, label) => {
+    const userId = getUserId();
+    try {
+        const { error } = await supabase
+            .from('highlight_categories')
+            .upsert({
+                user_id: userId,
+                color,
+                label,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,color'
+            });
+
+        if (error) throw error;
+        return { success: true };
+    } catch (err) {
+        console.error('Error saving highlight category:', err);
+        return { success: false, error: err.message };
+    }
+};
+
 // =====================================================
 // Study Collections
 // =====================================================
@@ -388,7 +438,13 @@ export const HIGHLIGHT_COLORS = [
     { name: 'yellow', color: '#eab308', bg: 'rgba(234, 179, 8, 0.3)' },
     { name: 'green', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.3)' },
     { name: 'blue', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.3)' },
+    { name: 'red', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.3)' },
+    { name: 'rose', color: '#fb7185', bg: 'rgba(251, 113, 133, 0.3)' },
+    { name: 'teal', color: '#14b8a6', bg: 'rgba(20, 184, 166, 0.3)' },
+    { name: 'indigo', color: '#6366f1', bg: 'rgba(99, 102, 241, 0.3)' },
     { name: 'orange', color: '#f97316', bg: 'rgba(249, 115, 22, 0.3)' },
+    { name: 'amber', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.3)' },
     { name: 'pink', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.3)' },
-    { name: 'purple', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.3)' }
+    { name: 'purple', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.3)' },
+    { name: 'gray', color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.3)' }
 ];

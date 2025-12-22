@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS } from '../services/highlightService';
+import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories } from '../services/highlightService';
 import { getBooks, getVersions } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
@@ -22,6 +22,7 @@ function Profile() {
     const [studies, setStudies] = useState([]);
     const [wordStudies, setWordStudies] = useState([]);
     const [labels, setLabels] = useState([]);
+    const [categories, setCategories] = useState({});
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedWordStudy, setSelectedWordStudy] = useState(null);
@@ -47,13 +48,14 @@ function Profile() {
 
     const loadData = async () => {
         setLoading(true);
-        const [highlightRes, noteRes, studyRes, wordStudyRes, labelRes, bookRes] = await Promise.all([
+        const [highlightRes, noteRes, studyRes, wordStudyRes, labelRes, bookRes, categoryRes] = await Promise.all([
             getAllHighlights(),
             getAllNotes(),
             getStudyCollections(),
             getSavedWordStudies(),
             getLabels(),
-            getBooks()
+            getBooks(),
+            getHighlightCategories()
         ]);
 
         if (highlightRes.success) setHighlights(highlightRes.highlights);
@@ -62,6 +64,7 @@ function Profile() {
         if (wordStudyRes.success) setWordStudies(wordStudyRes.studies);
         if (labelRes.success) setLabels(labelRes.labels);
         if (bookRes.success) setBooks(bookRes.data.all || []);
+        if (categoryRes.success) setCategories(categoryRes.categories);
 
         // Load versions and download status
         const versionsRes = await getVersions();
@@ -318,35 +321,50 @@ function Profile() {
                     <>
                         {/* Highlights Tab */}
                         {activeTab === 'highlights' && (
-                            <div className="highlights-list">
+                            <div className="highlights-grouped-container">
                                 {highlights.length === 0 ? (
                                     <div className="empty-state">
                                         <p>No highlights yet</p>
                                         <p className="empty-hint">Tap on a verse while reading to add highlights</p>
                                     </div>
                                 ) : (
-                                    highlights.map(h => (
-                                        <div
-                                            key={h.id}
-                                            className="highlight-item"
-                                            onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}
-                                        >
-                                            <div
-                                                className="highlight-color-dot"
-                                                style={{ backgroundColor: h.color }}
-                                            />
-                                            <div className="highlight-info">
-                                                <span className="highlight-ref">
-                                                    {getBookName(h.book_id)} {h.chapter}:{h.verse}
-                                                </span>
-                                                <span className="highlight-version">{h.version}</span>
+                                    // Group highlights by category label
+                                    Object.entries(
+                                        highlights.reduce((acc, h) => {
+                                            const label = categories[h.color] || 'Other Highlights';
+                                            if (!acc[label]) acc[label] = [];
+                                            acc[label].push(h);
+                                            return acc;
+                                        }, {})
+                                    ).map(([label, group]) => (
+                                        <div key={label} className="highlight-category-group">
+                                            <h2 className="category-header">{label}</h2>
+                                            <div className="highlights-list">
+                                                {group.map(h => (
+                                                    <div
+                                                        key={h.id}
+                                                        className="highlight-item"
+                                                        onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}
+                                                    >
+                                                        <div
+                                                            className="highlight-color-dot"
+                                                            style={{ backgroundColor: h.color }}
+                                                        />
+                                                        <div className="highlight-info">
+                                                            <span className="highlight-ref">
+                                                                {getBookName(h.book_id)} {h.chapter}:{h.verse}
+                                                            </span>
+                                                            <span className="highlight-version">{h.version}</span>
+                                                        </div>
+                                                        <button
+                                                            className="delete-btn"
+                                                            onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:${h.verse}`, e)}
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <button
-                                                className="delete-btn"
-                                                onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:${h.verse}`, e)}
-                                            >
-                                                🗑️
-                                            </button>
                                         </div>
                                     ))
                                 )}

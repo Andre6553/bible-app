@@ -10,7 +10,16 @@ import {
     getChapterCount,
     getVerseCount
 } from '../services/bibleService';
-import { getChapterHighlights, saveHighlight, removeHighlight, getVerseNote, saveNote, HIGHLIGHT_COLORS } from '../services/highlightService';
+import {
+    getChapterHighlights,
+    saveHighlight,
+    removeHighlight,
+    getVerseNote,
+    saveNote,
+    HIGHLIGHT_COLORS,
+    getHighlightCategories,
+    saveHighlightCategory
+} from '../services/highlightService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { useSettings } from '../context/SettingsContext';
 import VerseActionSheet from './VerseActionSheet';
@@ -56,6 +65,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     // Highlight State
     const [highlights, setHighlights] = useState({}); // { verseNum: color }
+    const [categories, setCategories] = useState({}); // { colorHex: label }
     const [selectedVerses, setSelectedVerses] = useState([]); // Array of verse objects
     const [showActionSheet, setShowActionSheet] = useState(false);
     const [showNoteModal, setShowNoteModal] = useState(false);
@@ -129,6 +139,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 chapter: selectedChapter,
                 version: currentVersion.id
             }));
+            loadCategories();
         }
     }, [selectedBook, selectedChapter, currentVersion]);
 
@@ -137,6 +148,13 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         const result = await getChapterHighlights(selectedBook.id, selectedChapter, currentVersion.id);
         if (result.success) {
             setHighlights(result.highlights);
+        }
+    };
+
+    const loadCategories = async () => {
+        const result = await getHighlightCategories();
+        if (result.success) {
+            setCategories(result.categories);
         }
     };
 
@@ -240,13 +258,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         setLoading(false);
     };
 
-    // Verse tap handler - toggle selection
+    // Verse tap handler - original tap for simple selection maybe?
+    // User requested specifically "Long Press" for highlighting.
     const handleVerseTap = (verse, e) => {
-        // Don't trigger for text selection (long press/drag)
+        // Simple tap toggles selection/action sheet
+        e.stopPropagation();
+
         const selection = window.getSelection();
         if (selection && selection.toString().length > 0) return;
-
-        e.stopPropagation();
 
         setSelectedVerses(prev => {
             const isSelected = prev.some(v => v.verse === verse.verse);
@@ -264,6 +283,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             }
             return next;
         });
+    };
+
+    // Long press handler for premium feel
+    const handleLongPress = (verse, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Auto-select this verse and show action sheet
+        setSelectedVerses([verse]);
+        setShowActionSheet(true);
+
+        // Haptic feedback if available
+        if (window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate(50);
+        }
     };
 
     // Handle highlight color selection
@@ -294,6 +328,16 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
         setShowActionSheet(false);
         setSelectedVerses([]);
+    };
+
+    const handleSaveCategory = async (color, label) => {
+        const result = await saveHighlightCategory(color, label);
+        if (result.success) {
+            setCategories(prev => ({
+                ...prev,
+                [color]: label
+            }));
+        }
     };
 
     // Handle opening note modal
@@ -735,6 +779,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                     id={`verse-${verse.verse}`}
                                     className={`verse-item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
                                     onClick={(e) => handleVerseTap(verse, e)}
+                                    onContextMenu={(e) => handleLongPress(verse, e)}
                                     style={{
                                         backgroundColor: highlights[verse.verse]
                                             ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
@@ -742,7 +787,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                     }}
                                 >
                                     <span className="verse-number">{verse.verse}</span>
-                                    <span className="verse-text">{verse.text}</span>
+                                    <span className="verse-text">
+                                        {verse.text}
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -830,6 +877,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                     </div>
                                 </div>
 
+
                                 <div className="info-section">
                                     <h3>Theme Color</h3>
                                     <div className="color-grid">
@@ -858,7 +906,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         verseText={selectedVerses.length === 1 ? selectedVerses[0].text : ''}
                         verseRef={getVerseRef()}
                         currentColor={selectedVerses.length === 1 ? highlights[selectedVerses[0].verse] : null}
+                        categories={categories}
                         onHighlight={handleHighlight}
+                        onSaveCategory={handleSaveCategory}
                         onNote={handleOpenNote}
                         onWordStudy={handleWordStudy}
                         onStudy={handleStartStudy}
