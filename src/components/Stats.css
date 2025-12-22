@@ -278,6 +278,12 @@
     color: var(--text-primary);
 }
 
+.list-super-badge {
+    color: #fbbf24;
+    font-size: 1.1rem;
+    cursor: help;
+}
+
 /* AI Stats Section */
 .section-title {
     margin-top: 2.5rem;

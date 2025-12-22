@@ -10,7 +10,8 @@ import {
     addSuperUser,
     removeSuperUser,
     isSuperUserAutoEnabled,
-    toggleSuperUserAuto
+    toggleSuperUserAuto,
+    getSuperUsers
 } from '../services/blogService';
 import './Stats.css';
 
@@ -55,6 +56,7 @@ function Stats() {
     const [superAutoLoading, setSuperAutoLoading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isUserSuper, setIsUserSuper] = useState(false);
+    const [allSuperUsers, setAllSuperUsers] = useState([]);
     const [showClearErrorConfirm, setShowClearErrorConfirm] = useState(false);
 
     useEffect(() => {
@@ -121,6 +123,9 @@ function Stats() {
         if (result.success) {
             setUserStats(result.data);
         }
+        // Also fetch super users list for badges
+        const superList = await getSuperUsers();
+        setAllSuperUsers(superList);
     };
 
     const fetchLogs = async () => {
@@ -432,12 +437,14 @@ function Stats() {
             const result = await removeSuperUser(userId);
             if (result.success) {
                 setIsUserSuper(false);
+                setAllSuperUsers(prev => prev.filter(id => id !== userId));
             }
         } else {
             // Add to super users
             const result = await addSuperUser(userId);
             if (result.success) {
                 setIsUserSuper(true);
+                setAllSuperUsers(prev => [...prev, userId]);
             }
         }
     };
@@ -500,6 +507,7 @@ function Stats() {
         const superResult = await removeSuperUser(userId);
         if (superResult.success) {
             console.log('✅ Removed from Super Users list');
+            setAllSuperUsers(prev => prev.filter(id => id !== userId));
         } else {
             console.warn('⚠️ Could not remove from Super Users (maybe not in list or error):', superResult.error);
         }
@@ -705,7 +713,10 @@ function Stats() {
                                     <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>
                                         <span className="rank">#{idx + 1}</span>
                                         <div className="user-info-col">
-                                            <span className="term user-id-term">{u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}</span>
+                                            <span className="term user-id-term">
+                                                {u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}
+                                                {allSuperUsers.includes(u.userId) && <span className="list-super-badge" title="Super User"> ⭐</span>}
+                                            </span>
                                             <span className="device-badge">{u.device}</span>
                                         </div>
                                         <span className="count">{u.count} actions</span>
