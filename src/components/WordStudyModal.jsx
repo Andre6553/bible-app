@@ -62,7 +62,6 @@ function WordStudyModal({
             close: "Close",
             instruction: "Tap a word to see its original meaning:",
             emptyState: "Select a word above to dive deeper into the original language.",
-            usageCaution: "Usage Caution",
             confidenceTag: "Certainty",
             counterExample: "Negative Control / Counterexample"
         },
@@ -82,7 +81,6 @@ function WordStudyModal({
             close: "Maak Toe",
             instruction: "Tik op 'n woord om die oorspronklike betekenis te sien:",
             emptyState: "Kies 'n woord hierbo om dieper in die oorspronklike taal te delf.",
-            usageCaution: "Gebruikswaarskuwing",
             confidenceTag: "Sekerheid",
             counterExample: "Teenvorbeeld / Negatiewe Kontrole"
         }
@@ -366,8 +364,6 @@ ${t.verse}: ${currentVerse.ref}
 ${t.contextualMeaning}:
 ${studyData.word?.contextualMeaning || ''}
 
-${studyData.word?.usageCaution ? `⚠️ ${t.usageCaution.toUpperCase()}:\n${studyData.word.usageCaution}\n` : ''}
-
 ${t.whatThisWordDoes}:
 ${studyData.word?.actionFocus || ''}
 
@@ -447,13 +443,6 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` :
                                         <span className="ws-strongs">({studyData.word.strongs})</span>
                                     )}
                                 </div>
-
-                                {studyData.word.usageCaution && (
-                                    <div className="ws-usage-caution">
-                                        <h4>⚠ {t.usageCaution}</h4>
-                                        <p>{studyData.word.usageCaution}</p>
-                                    </div>
-                                )}
 
                                 {studyData.word.relatedNoun && (
                                     <div className="ws-related-noun">

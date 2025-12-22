@@ -95,6 +95,7 @@ export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
                 verse,
                 text,
                 version,
+                red_letters,
                 books (
                     id,
                     name_full,
@@ -212,6 +213,7 @@ export const searchVerses = async (searchQuery, versionId = null, testament = 'a
                 verse,
                 text,
                 version,
+                red_letters,
                 ${bookJoin} (
                     id,
                     name_full,
@@ -551,6 +553,7 @@ export const getVerse = async (bookId, chapter, verse, versionId = 'KJV') => {
                 verse,
                 text,
                 version,
+                red_letters,
                 books (
                     id,
                     name_full,

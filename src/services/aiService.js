@@ -397,7 +397,7 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
             ? `\n\nCRITICAL DANGER WORD RULE: ${LEXICAL_DANGER_LIST[selectedWord.toLowerCase().replace(/[^\w]/g, '')]}`
             : '';
 
-        let prompt = `Generate biblical word studies by first identifying grammatical form, then determining meaning strictly from immediate context and authorial usage, before consulting lexical ranges. Avoid absolute definitions, prevent grammar-based theological claims, and include at least one counterexample or usage caution where the word carries a different sense elsewhere. Theology must arise from textual usage, not lexicon alone. High-risk words require explicit clarification notes. Use qualifying language ("in this context") and ensure interpretations could withstand academic scrutiny.
+        let prompt = `Generate biblical word studies by first identifying grammatical form, then determining meaning strictly from immediate context and authorial usage, before consulting lexical ranges. Avoid absolute definitions, prevent grammar-based theological claims, and ensure interpretations could withstand academic scrutiny.
 
         CRITICAL INSTRUCTION: You MUST provide ALL explanations, definitions, and nuances in ${language === 'af' ? 'AFRIKAANS' : 'ENGLISH'}.
         
@@ -462,20 +462,15 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
            - Focus on perspective or effect (e.g., Noah as recipient, God as source).
            - Avoid causal or merit-based statements unless explicit.
 
-        5. USAGE CAUTION (Mandatory)
-           - Note multiple meanings or possible misunderstandings.
-           - Warn against overinterpretation or projecting later theology.
-           - Example: "Do not assume unconditional favor unless text specifies it."
-
-        6. CULTURAL & HISTORICAL NUANCE
+        5. CULTURAL & HISTORICAL NUANCE
            - Explain idioms (e.g., "find favor"), metaphors, or historical usage.
            - Clarify original audience understanding.
-
-        7. NEGATIVE CONTROL / COUNTEREXAMPLE
+ 
+        6. NEGATIVE CONTROL / COUNTEREXAMPLE
            - Include at least one example where word is used differently.
            - Show how meaning shifts in other contexts (e.g., חֵן as charm vs favor).
-
-        8. THEOLOGICAL CONNECTION (Neutrality)
+ 
+        7. THEOLOGICAL CONNECTION (Neutrality)
            - Connect carefully to narrative/themes without assuming causation/merit.
            - Use phrasing: "Introduces the theme of...", "Prefigures...".
            - Avoid projecting later Christian doctrine unless explicitly in context.
@@ -517,8 +512,7 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
                         "actionFocus": "...",
                             "culturalNuance": "...",
                                 "theologicalConnection": "...",
-                                    "usageCaution": "...", // WARNING: Only if applicable (Danger List or general caution)
-                                        "confidenceTag": "...", // "Clearly Indicates" | "Likely Suggests" | "May Imply"
+                                    "confidenceTag": "...", // "Clearly Indicates" | "Likely Suggests" | "May Imply"
                                             "counterExample": { // REQUIRED: Negative control
                     "ref": "Verse Ref",
                         "context": "Briefly explain the different/negative usage here"

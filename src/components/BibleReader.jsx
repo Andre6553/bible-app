@@ -565,6 +565,11 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         );
     }
 
+    // --- Red Letter Helper ---
+    const renderVerseText = (verse) => {
+        return verse.text;
+    };
+
     return (
         <div className="bible-reader">
             {/* Header */}
@@ -788,7 +793,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 >
                                     <span className="verse-number">{verse.verse}</span>
                                     <span className="verse-text">
-                                        {verse.text}
+                                        {renderVerseText(verse)}
                                     </span>
                                 </div>
                             ))}
@@ -876,6 +881,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                         >Classic (Serif)</button>
                                     </div>
                                 </div>
+
 
 
                                 <div className="info-section">

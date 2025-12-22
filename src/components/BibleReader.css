@@ -92,6 +92,44 @@
     border-radius: var(--radius-lg);
 }
 
+.nav-and-toggle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.red-letter-quick-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+}
+
+.toggle-switch.small {
+    width: 40px;
+    height: 22px;
+}
+
+.toggle-switch.small .slider::before {
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+}
+
+.toggle-switch.small input:checked+.slider::before {
+    transform: translateX(18px);
+}
+
+
 .chapter-btn {
     width: 36px;
     height: 36px;
@@ -379,9 +417,11 @@
     }
 
     .book-selector-btn,
+    .nav-and-toggle,
     .chapter-nav {
         width: 100%;
     }
+
 
     .books-grid {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
