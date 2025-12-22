@@ -61,7 +61,10 @@ function WordStudyModal({
             back: "Back",
             close: "Close",
             instruction: "Tap a word to see its original meaning:",
-            emptyState: "Select a word above to dive deeper into the original language."
+            emptyState: "Select a word above to dive deeper into the original language.",
+            usageCaution: "Usage Caution",
+            confidenceTag: "Certainty",
+            counterExample: "Negative Control / Counterexample"
         },
         af: {
             wordStudy: "Woordstudie",
@@ -78,7 +81,10 @@ function WordStudyModal({
             back: "Terug",
             close: "Maak Toe",
             instruction: "Tik op 'n woord om die oorspronklike betekenis te sien:",
-            emptyState: "Kies 'n woord hierbo om dieper in die oorspronklike taal te delf."
+            emptyState: "Kies 'n woord hierbo om dieper in die oorspronklike taal te delf.",
+            usageCaution: "Gebruikswaarskuwing",
+            confidenceTag: "Sekerheid",
+            counterExample: "Teenvorbeeld / Negatiewe Kontrole"
         }
     };
 
@@ -315,6 +321,11 @@ function WordStudyModal({
                                     <div className="ws-word-info">
                                         <h3 className="ws-original">{studyData.word.original}</h3>
                                         <span className="ws-translit">{studyData.word.transliteration}</span>
+                                        {studyData.word.confidenceTag && (
+                                            <span className="ws-confidence-tag">
+                                                {studyData.word.confidenceTag}
+                                            </span>
+                                        )}
                                     </div>
                                     <button
                                         className={`ws-save-btn ${isSaved ? 'saved' : ''} ${saving ? 'saving' : ''}`}
@@ -355,6 +366,8 @@ ${t.verse}: ${currentVerse.ref}
 ${t.contextualMeaning}:
 ${studyData.word?.contextualMeaning || ''}
 
+${studyData.word?.usageCaution ? `⚠️ ${t.usageCaution.toUpperCase()}:\n${studyData.word.usageCaution}\n` : ''}
+
 ${t.whatThisWordDoes}:
 ${studyData.word?.actionFocus || ''}
 
@@ -363,6 +376,8 @@ ${studyData.word?.definition || ''}
 
 ${t.culturalNuance}:
 ${studyData.word?.culturalNuance || ''}
+
+${studyData.word?.counterExample ? `${t.counterExample}:\n" ${studyData.word.counterExample.ref} - ${studyData.word.counterExample.context}\n` : ''}
 
 ${t.theologicalConnection}:
 ${studyData.word?.theologicalConnection || ''}
@@ -433,6 +448,13 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` :
                                     )}
                                 </div>
 
+                                {studyData.word.usageCaution && (
+                                    <div className="ws-usage-caution">
+                                        <h4>⚠ {t.usageCaution}</h4>
+                                        <p>{studyData.word.usageCaution}</p>
+                                    </div>
+                                )}
+
                                 {studyData.word.relatedNoun && (
                                     <div className="ws-related-noun">
                                         <span className="ws-label">{t.relatedNoun}:</span>
@@ -489,6 +511,13 @@ ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` :
                                     <div className="ws-detail divider">
                                         <h4>{t.culturalNuance}</h4>
                                         <p>{studyData.word.culturalNuance}</p>
+                                    </div>
+                                )}
+
+                                {studyData.word.counterExample && (
+                                    <div className="ws-detail divider counter-example">
+                                        <h4>{t.counterExample}</h4>
+                                        <p><strong>{studyData.word.counterExample.ref}</strong> — {studyData.word.counterExample.context}</p>
                                     </div>
                                 )}
 
