@@ -452,13 +452,18 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
            - Treat phrases like "find favor in the eyes of" as whole units.
            - Explain the idiom's total meaning (perception/standing) rather than dissecting components.
 
-        C. VERB AGENCY & NARRATIVE LOGIC
+        C. VERB AGENCY & CAUSAL RESTRAINT
            - Do not rephrase stative verbs as explicit divine actions unless grammatically supported.
-           - Describe "favor" or "grace" as relational standing, not implied causation.
-           - Do NOT import Pauline theology (e.g., "unmerited grace") into OT narrative unless explicitly present.
-           - Case Study: If "righteousness" and "favor" coexist (Gen 6:8-9), treat as co-existing facts, not causal explanations.
+           - Avoid stating causal reasons ("based on inner quality") unless explicit in the text.
+           - Use neutral narrative language: "divine distinction", "favorable standing", "contrast with wickedness".
+           - Allow subsequent verses to supply explanation; do not assume it.
 
-        D. MANDATORY NEGATIVE CONTROLS (Targeting Abstract Nouns)
+        D. NARRATIVE NEUTRALITY IN THEOLOGY
+           - Distinguish between what the verse states and what later theology develops.
+           - Use phrases: "lays the groundwork for...", "introduces a theme developed later...".
+           - Avoid retroactive theological causation (importing NT concepts into OT narrative facts).
+
+        E. MANDATORY NEGATIVE CONTROLS (Targeting Abstract Nouns)
            - For words with secular & theological range (e.g., חֵן/Chen), explicitly state usage cautions.
            - Always provide a counterexample where the word is used non-theologically.
 
@@ -511,13 +516,14 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         logApiCall('getWordStudy', 'success', 'gemini-2.0-flash', { userId, verseRef });
 
         // Clean markdown JSON if present
-        const jsonStr = text.replace(/```json\n ?|\n ? ```/g, '').trim();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : text;
         const data = JSON.parse(jsonStr);
 
         // Log the question
         await supabase.from('ai_questions').insert({
             user_id: userId,
-            question: `Word Study: ${selectedWord || 'General'} in ${verseRef} `,
+            question: `Word Study: ${selectedWord || 'General'} in ${verseRef}`,
             answer: text,
             cached: false
         });
