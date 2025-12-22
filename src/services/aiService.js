@@ -439,39 +439,46 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
            - Rule: Include at least one example where the same word is used differently or negatively.
         
         8. SCHOLAR TEST
-            - "Would this interpretation survive a first-year seminary classroom?"
-            - If no -> downgrade certainty tag.
-
         HEBREW/ARAMAIC SPECIFIC REFINEMENTS (Apply when analyzing Hebrew/OT texts):
         
-        A. LEMMA & RELATED FORMS
+        1. LEMMA & RELATED FORMS
            - Always identify the lemma (dictionary form).
            - List related nouns/verbs ONLY if direct derivational/contextual relationship exists.
-           - If no relationship exists, explicitly state "None".
+           - If no related form exists, explicitly write "None".
 
-        B. GRAMMAR AS FUNCTION
-           - Provide Part of Speech, Number, Gender (if relevant), Case/Construct.
-           - Explain function (subject, object, modifier) without implying causation.
-           - Example: do not say "result of Noah's action" if verb is 'māṣā'; frame as "divine perception/status".
+        2. GRAMMAR (Function over Causation)
+           - Identify Part of Speech, Number, Gender (if relevant), Case/Construct.
+           - Explain grammatical role (subject, object, modifier).
+           - Avoid implying causation from grammar.
+           - Emphasize function in context (e.g., divine perception, object of favor).
 
-        C. CONTEXTUAL MEANING & IDIOMS
-           - Focus on literal/idiomatic meaning in context.
-           - Treat idioms (e.g., "find favor in eyes of") as whole units; explain total meaning.
-           - Indicate action/state/quality without imposing external doctrine.
+        3. CONTEXTUAL MEANING
+           - Describe meaning in immediate verse context.
+           - Focus on literal, idiomatic, or relational meaning.
+           - Avoid importing later theological doctrines unless explicit in context.
 
-        D. WHAT THIS WORD DOES (Functional Description)
-           - Describe function: "indicates favorable standing", "emphasizes relational quality", "expresses divine favor".
-           - Avoid causal language unless explicitly stated.
+        4. WHAT THIS WORD DOES (Functional Role)
+           - Explain function: what it expresses, emphasizes, or denotes.
+           - Focus on perspective or effect (e.g., Noah as recipient, God as source).
+           - Avoid causal or merit-based statements unless explicit.
 
-        E. USAGE CAUTION & NEGATIVE CONTROL
-           - Note possible misapplications or over-interpretation.
-           - MANDATORY: Include counterexample verse using word differently/secularly.
-           - Explicitly state meaning changes with context.
+        5. USAGE CAUTION (Mandatory)
+           - Note multiple meanings or possible misunderstandings.
+           - Warn against overinterpretation or projecting later theology.
+           - Example: "Do not assume unconditional favor unless text specifies it."
 
-        F. THEOLOGICAL CONNECTION (Neutrality)
-           - Connect to narrative/themes without overreaching.
-           - Use phrasing: "lays the groundwork for...", "introduces the theme of...", "prepares for...".
-           - Avoid retroactive theological causation (importing NT concepts).
+        6. CULTURAL & HISTORICAL NUANCE
+           - Explain idioms (e.g., "find favor"), metaphors, or historical usage.
+           - Clarify original audience understanding.
+
+        7. NEGATIVE CONTROL / COUNTEREXAMPLE
+           - Include at least one example where word is used differently.
+           - Show how meaning shifts in other contexts (e.g., חֵן as charm vs favor).
+
+        8. THEOLOGICAL CONNECTION (Neutrality)
+           - Connect carefully to narrative/themes without assuming causation/merit.
+           - Use phrasing: "Introduces the theme of...", "Prefigures...".
+           - Avoid projecting later Christian doctrine unless explicitly in context.
 
         REQUIRED: Include at least one qualifying phrase per section: "In this context...", "As used here...", or "Within this passage..."
 
