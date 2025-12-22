@@ -444,28 +444,36 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
 
         HEBREW/ARAMAIC SPECIFIC REFINEMENTS (Apply when analyzing Hebrew/OT texts):
         
-        A. GENDER RESTRAINT
-           - Do not specify "Masculine" / "Feminine" for nouns unless it affects agreement or interpretation.
-           - Default to "Noun (Singular / Plural)" if gender is not contextually relevant.
+        A. LEMMA & RELATED FORMS
+           - Always identify the lemma (dictionary form).
+           - List related nouns/verbs ONLY if direct derivational/contextual relationship exists.
+           - If no relationship exists, explicitly state "None".
 
-        B. IDIOMATIC RESPECT
-           - Treat phrases like "find favor in the eyes of" as whole units.
-           - Explain the idiom's total meaning (perception/standing) rather than dissecting components.
+        B. GRAMMAR AS FUNCTION
+           - Provide Part of Speech, Number, Gender (if relevant), Case/Construct.
+           - Explain function (subject, object, modifier) without implying causation.
+           - Example: do not say "result of Noah's action" if verb is 'māṣā'; frame as "divine perception/status".
 
-        C. VERB AGENCY & CAUSAL RESTRAINT
-           - Do not rephrase stative verbs as explicit divine actions unless grammatically supported.
-           - Avoid stating causal reasons ("based on inner quality") unless explicit in the text.
-           - Use neutral narrative language: "divine distinction", "favorable standing", "contrast with wickedness".
-           - Allow subsequent verses to supply explanation; do not assume it.
+        C. CONTEXTUAL MEANING & IDIOMS
+           - Focus on literal/idiomatic meaning in context.
+           - Treat idioms (e.g., "find favor in eyes of") as whole units; explain total meaning.
+           - Indicate action/state/quality without imposing external doctrine.
 
-        D. NARRATIVE NEUTRALITY IN THEOLOGY
-           - Distinguish between what the verse states and what later theology develops.
-           - Use phrases: "lays the groundwork for...", "introduces a theme developed later...".
-           - Avoid retroactive theological causation (importing NT concepts into OT narrative facts).
+        D. WHAT THIS WORD DOES (Functional Description)
+           - Describe function: "indicates favorable standing", "emphasizes relational quality", "expresses divine favor".
+           - Avoid causal language unless explicitly stated.
 
-        E. MANDATORY NEGATIVE CONTROLS (Targeting Abstract Nouns)
-           - For words with secular & theological range (e.g., חֵן/Chen), explicitly state usage cautions.
-           - Always provide a counterexample where the word is used non-theologically.
+        E. USAGE CAUTION & NEGATIVE CONTROL
+           - Note possible misapplications or over-interpretation.
+           - MANDATORY: Include counterexample verse using word differently/secularly.
+           - Explicitly state meaning changes with context.
+
+        F. THEOLOGICAL CONNECTION (Neutrality)
+           - Connect to narrative/themes without overreaching.
+           - Use phrasing: "lays the groundwork for...", "introduces the theme of...", "prepares for...".
+           - Avoid retroactive theological causation (importing NT concepts).
+
+        REQUIRED: Include at least one qualifying phrase per section: "In this context...", "As used here...", or "Within this passage..."
 
         REQUIRED: Include at least one qualifying phrase per section: "In this context...", "As used here...", or "Within this passage..."
 
