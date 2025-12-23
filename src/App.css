@@ -67,7 +67,7 @@
     overflow-y: auto;
     /* Allow scrolling */
     overflow-x: hidden;
-    padding-bottom: 70px;
+    padding-bottom: calc(90px + var(--safe-bottom, 0px));
     -webkit-overflow-scrolling: touch;
     /* Smooth scrolling on iOS */
 }
