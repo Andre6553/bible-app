@@ -52,9 +52,11 @@ function Profile() {
         checkUser();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-            if (_event === 'SIGNED_IN') {
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
                 loadData();
+                checkUser();
             }
         });
 

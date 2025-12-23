@@ -271,8 +271,22 @@ export const getVerseReference = (verse) => {
  */
 export const getUserId = async () => {
     try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // First check: get session
+        let { data: { session } } = await supabase.auth.getSession();
+
+        // If no session, wait just a tiny bit and try one more time 
+        // (helps with fast page loads where session isn't quite ready)
+        if (!session) {
+            await new Promise(r => setTimeout(r, 150));
+            const retry = await supabase.auth.getSession();
+            session = retry.data.session;
+        }
+
         if (session?.user) {
+            // If logged in, we definitely don't want a guest ID sticking around
+            if (localStorage.getItem('bible_user_id')) {
+                localStorage.removeItem('bible_user_id');
+            }
             return session.user.id;
         }
     } catch (e) {
