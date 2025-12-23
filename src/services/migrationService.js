@@ -56,9 +56,15 @@ export const migrateAnonymousData = async (newUserId) => {
     }
 
     // Clear the old user ID from localStorage as it's no longer needed
-    // (We actually keep it until migration is confirmed successful or user logs out)
     const successCount = results.filter(r => r.success).length;
-    console.log(`[Migration] 🏁 Completed. ${successCount}/${TABLES_TO_MIGRATE.length} tables processed.`);
+
+    if (successCount > 0) {
+        console.log(`[Migration] 🏁 Completed. ${successCount}/${TABLES_TO_MIGRATE.length} tables processed. Retiring guest ID.`);
+        localStorage.removeItem('bible_user_id');
+    } else {
+        console.log(`[Migration] 🏁 Completed. No records found to move.`);
+        localStorage.removeItem('bible_user_id'); // Also remove if nothing found to prevent re-checks
+    }
 
     return {
         success: successCount > 0,
