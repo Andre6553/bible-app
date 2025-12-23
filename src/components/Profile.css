@@ -3,8 +3,8 @@
 .profile-page {
     min-height: 100vh;
     background: var(--bg-primary, #0f0f1a);
-    padding-bottom: 80px;
-    /* Space for bottom nav */
+    padding-bottom: calc(120px + var(--safe-bottom, 0px));
+    /* Space for bottom nav + extra buffer for mobile scrolling */
 }
 
 /* Header */
