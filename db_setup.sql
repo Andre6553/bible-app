@@ -37,7 +37,8 @@ INSERT INTO books (name_full, name_abbrev, testament, "order") VALUES
 ('Deuteronomy', 'Deu', 'OT', 5),
 ('John', 'Jhn', 'NT', 43),
 ('Acts', 'Act', 'NT', 44),
-('Romans', 'Rom', 'NT', 45);
+('Romans', 'Rom', 'NT', 45)
+ON CONFLICT (name_full) DO NOTHING;
 
 -- Seed Gen 1 (KJV)
 INSERT INTO verses (book_id, chapter, verse, text, version) 
