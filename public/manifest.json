@@ -1,6 +1,6 @@
 {
-    "name": "Bible Study App",
-    "short_name": "Bible",
+    "name": "Omni Bible",
+    "short_name": "Omni Bible",
     "description": "Read and study multiple Bible versions including AFR83, NLT, AFR53, KJV, and AMP",
     "start_url": "/",
     "display": "standalone",
