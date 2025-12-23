@@ -510,6 +510,7 @@
 }
 
 /* Responsive Design */
+/* Responsive Design - Updated for current JSX structure */
 @media (max-width: 768px) {
     .search-header {
         padding: var(--spacing-md);
@@ -519,43 +520,29 @@
         font-size: 1.25rem;
     }
 
-    .search-input-wrapper {
-        flex-direction: column;
+    /* Stack the form rows if needed, but they are already stacked in .search-form */
+
+    .search-bar-row {
+        /* Input row stays horizontal but might need less padding */
+        padding-right: 4px;
     }
 
-    .search-input-wrapper .search-btn {
-        width: 100%;
-    }
-
-    /* Keep buttons side-by-side on mobile inside their wrapper if we change structure, 
-       but here search-input-wrapper is the parent. 
-       Let's change search-input-wrapper to allow buttons row on mobile */
-    .search-input-wrapper {
-        flex-direction: column;
-        gap: var(--spacing-sm);
-    }
-
-    /* Create a row for buttons on mobile if they are direct children? 
-       Actually, the input is also a child. 
-       We need to group buttons or use flex-wrap */
-
-    /* Better mobile layout: Input on top, Buttons below side-by-side */
-    .search-input-wrapper {
+    .search-actions-row {
+        /* Allow wrapping or stacking if buttons are too wide */
         flex-wrap: wrap;
     }
 
-    .search-input {
-        width: 100%;
-        min-width: 100%;
-        /* Force input to own line */
+    .search-btn {
+        min-width: 140px;
+        /* Ensure buttons don't shrink too much */
+        font-size: 0.9rem;
+        padding: 10px;
     }
 
-    .search-btn {
-        flex: 1;
-        /* Share space equally */
-        font-size: 0.9rem;
-        /* Smaller font on mobile */
-        padding: 10px;
+    /* Ensure AI modal is visible and full screen on mobile */
+    .ai-research-modal {
+        z-index: 9999 !important;
+        /* Force on top of everything including bottom nav */
     }
 }
 
@@ -564,12 +551,13 @@
     align-items: flex-start;
 }
 
-
 /* AI Research Styles */
 .results-header-actions {
     display: flex;
     gap: var(--spacing-sm);
     align-items: center;
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens */
 }
 
 .copy-all-btn {
@@ -583,6 +571,9 @@
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
+    flex: 1;
+    /* Expand on mobile */
+    text-align: center;
 }
 
 .copy-all-btn:hover {
