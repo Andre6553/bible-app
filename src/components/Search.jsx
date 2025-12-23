@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference, getBooks, getVerseByReference, getUserId } from '../services/bibleService';
+import { useSettings } from '../context/SettingsContext';
+import SearchHelpModal from './SearchHelpModal';
 
 
 function Search({ currentVersion, versions }) {

@@ -12,6 +12,7 @@ import {
     hideSearchKeyword
 } from '../services/blogService';
 import { useSettings } from '../context/SettingsContext';
+import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
 import './Blog.css';
 
 function Blog() {
@@ -274,7 +275,17 @@ function Blog() {
                 return dbName === targetName;
             });
 
-            // Fallback: partial match if strict match failed
+            // Fallback 1: Check Afrikaans mapping
+            if (!book) {
+                const englishName = Object.keys(AFRIKAANS_BOOK_NAMES).find(key =>
+                    normalizeBookName(AFRIKAANS_BOOK_NAMES[key]) === targetName
+                );
+                if (englishName) {
+                    book = allBooks.find(b => normalizeBookName(b.name_full) === normalizeBookName(englishName));
+                }
+            }
+
+            // Fallback 2: partial match if strict match failed
             if (!book) {
                 book = allBooks.find(b => {
                     const dbName = normalizeBookName(b.name_full);
