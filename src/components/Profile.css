@@ -26,7 +26,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 12px;
+}
+
+.auth-actions {
+    display: flex;
     gap: 10px;
+    align-items: center;
 }
 
 .user-email {
@@ -37,8 +43,9 @@
     border-radius: 12px;
 }
 
-.logout-btn {
-    padding: 6px 18px;
+.logout-btn,
+.sync-btn {
+    padding: 8px 18px;
     background: transparent;
     border: 1px solid var(--accent-primary, #6366f1);
     color: var(--accent-primary, #6366f1);
@@ -48,9 +55,31 @@
     transition: all 0.3s ease;
 }
 
-.logout-btn:hover {
+.sync-btn {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--accent-primary);
+    font-weight: 500;
+}
+
+.logout-btn:hover,
+.sync-btn:hover:not(:disabled) {
     background: var(--accent-primary, #6366f1);
     color: white;
+}
+
+.sync-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sync-tip {
+    font-size: 0.8rem;
+    color: var(--accent-secondary, #4f46e5);
+    margin: 0;
+    text-align: center;
+    max-width: 250px;
+    line-height: 1.4;
+    opacity: 0.9;
 }
 
 .login-btn-link {

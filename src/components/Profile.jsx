@@ -12,6 +12,7 @@ import { getSavedWordStudies, deleteWordStudy as removeSavedWordStudy } from '..
 import WordStudyModal from './WordStudyModal';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
+import { migrateAnonymousData } from '../services/migrationService';
 import './Profile.css';
 
 function Profile() {
@@ -28,6 +29,8 @@ function Profile() {
     const [loading, setLoading] = useState(true);
     const [selectedWordStudy, setSelectedWordStudy] = useState(null);
     const [user, setUser] = useState(null);
+    const [showSyncBtn, setShowSyncBtn] = useState(false);
+    const [syncing, setSyncing] = useState(false);
 
     // Profile settings (stored locally)
     const [profilePic, setProfilePic] = useState(localStorage.getItem('profile_picture') || null);
@@ -60,7 +63,36 @@ function Profile() {
 
     const checkUser = async () => {
         const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        // Check for un-migrated local data
+        const localId = localStorage.getItem('bible_user_id');
+        if (currentUser && localId && localId !== currentUser.id) {
+            setShowSyncBtn(true);
+        }
+    };
+
+    const handleManualSync = async () => {
+        if (!user) return;
+        setSyncing(true);
+        try {
+            const result = await migrateAnonymousData(user.id);
+            if (result.success) {
+                const totalMigrated = result.results.reduce((sum, r) => sum + (r.count || 0), 0);
+                alert(`Sync Complete! ${totalMigrated} items moved to your account.`);
+                setShowSyncBtn(false);
+                loadData();
+            } else {
+                alert('No local data found to sync, or it has already been moved.');
+                setShowSyncBtn(false);
+            }
+        } catch (err) {
+            console.error('Manual sync failed:', err);
+            alert('Error during sync. Please try again.');
+        } finally {
+            setSyncing(false);
+        }
     };
 
     const handleLogout = async () => {
@@ -323,7 +355,23 @@ function Profile() {
                     {user ? (
                         <div className="logged-in-info">
                             <span className="user-email">✉️ {user.email}</span>
-                            <button className="logout-btn" onClick={handleLogout}>Logout</button>
+                            <div className="auth-actions">
+                                <button className="logout-btn" onClick={handleLogout}>Logout</button>
+                                {showSyncBtn && (
+                                    <button
+                                        className="sync-btn"
+                                        onClick={handleManualSync}
+                                        disabled={syncing}
+                                    >
+                                        {syncing ? '⌛ Syncing...' : '🔄 Sync Local Data'}
+                                    </button>
+                                )}
+                            </div>
+                            {showSyncBtn && (
+                                <p className="sync-tip">
+                                    Found un-synced notes on this browser. Click "Sync" to move them to your account.
+                                </p>
+                            )}
                         </div>
                     ) : (
                         <button className="login-btn-link" onClick={() => navigate('/auth')}>

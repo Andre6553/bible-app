@@ -42,8 +42,8 @@ export const migrateAnonymousData = async (newUserId) => {
                 .eq('user_id', oldUserId);
 
             if (error) {
-                console.warn(`[Migration] ⚠️ Failed for table ${table}:`, error.message);
-                results.push({ table, success: false, error: error.message });
+                console.warn(`[Migration] ⚠️ Failed for table ${table}:`, error.message, error.details);
+                results.push({ table, success: false, error: error.message, details: error.details });
             } else {
                 console.log(`[Migration] ✅ Table ${table}: Migrated ${count || 0} records`);
                 results.push({ table, success: true, count: count || 0 });
