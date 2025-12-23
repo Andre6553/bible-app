@@ -233,17 +233,36 @@ function Blog() {
         setSelectedPost(null); // Close the modal
 
         try {
-            // Parse reference: "Matthew 6:9-13" or "1 Samuel 17:4"
+            // Clean up the string to get just the reference - handle full verse text being passed
+            let cleanRef = ref.trim();
+
+            // 1. Remove everything after (VERSION) if present
+            if (cleanRef.includes(' (')) {
+                cleanRef = cleanRef.split(' (')[0].trim();
+            }
+
+            // 2. Remove " sê:" or " says:" if present
+            if (cleanRef.includes(' sê:')) cleanRef = cleanRef.split(' sê:')[0].trim();
+            if (cleanRef.toLowerCase().includes(' says:')) {
+                const parts = cleanRef.split(/ says:/i);
+                cleanRef = parts[0].trim();
+            }
+
+            // 3. Handle cases where there might be a quote or extra colon text
+            // Look for a colon that ISN'T part of the chapter:verse (usually followed by " or space)
+            const colonQuoteIndex = cleanRef.indexOf(': "');
+            if (colonQuoteIndex !== -1) cleanRef = cleanRef.substring(0, colonQuoteIndex).trim();
+
             // Find the last space to separate book from chapter:verse
-            const lastSpaceIndex = ref.lastIndexOf(' ');
+            const lastSpaceIndex = cleanRef.lastIndexOf(' ');
             if (lastSpaceIndex === -1) {
                 // Fallback to search if can't parse
                 navigate(`/search?q=${encodeURIComponent(ref)}`);
                 return;
             }
 
-            const bookName = ref.substring(0, lastSpaceIndex).trim();
-            const refPart = ref.substring(lastSpaceIndex + 1).trim(); // "6:9-13" or "3:16"
+            const bookName = cleanRef.substring(0, lastSpaceIndex).trim();
+            const refPart = cleanRef.substring(lastSpaceIndex + 1).trim(); // "6:9-13" or "3:16"
 
             // Extract chapter and verse (handle ranges like 9-13)
             const [chapterVerse] = refPart.split('-'); // Take first part if range
