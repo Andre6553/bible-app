@@ -489,7 +489,8 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         - Do NOT mix English into Afrikaans output (except for necessary theological terms like 'Lemma').
 
         CRITICAL INSTRUCTION - SCRIPTURE CITATIONS:
-        - "relatedVerses" -> "ref" MUST be a valid Bible Reference (e.g., "Genesis 6:8", "Exodus 33:17").
+        - "relatedVerses" -> "ref" MUST use STANDARD ENGLISH BOOK NAMES (e.g., "Genesis 6:8", "John 3:16") even if the output language is Afrikaans. This is required for the app's navigation system.
+        - "relatedVerses" -> "label" CAN and SHOULD be in the target language (e.g., "Johannes 3:16").
         - Do NOT use titles like "Lineage of Levi" in the "ref" field. Use the "label" field for titles.
         - If the AI puts a title in "ref", the system is broken.
 

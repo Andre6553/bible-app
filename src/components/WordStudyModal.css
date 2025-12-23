@@ -380,6 +380,10 @@
 
 .ws-detail {
     margin-bottom: 20px;
+    position: relative;
+    height: auto;
+    overflow: visible;
+    display: block;
 }
 
 .ws-detail h4 {
@@ -394,11 +398,16 @@
     margin: 0;
     line-height: 1.6;
     color: var(--text-primary);
+    word-break: break-word;
+    /* Prevent long words causing overflow issues */
 }
 
 .ws-detail.divider {
     padding-top: 16px;
     border-top: 1px solid var(--border-color);
+    margin-top: 16px;
+    display: block;
+    /* Ensure it starts on a new line */
 }
 
 .ws-related-list {
@@ -406,6 +415,8 @@
     flex-direction: column;
     gap: 10px;
     margin-top: 8px;
+    height: auto;
+    overflow: visible;
 }
 
 .ws-related-item {
