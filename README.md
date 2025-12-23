@@ -4,8 +4,10 @@ A comprehensive Bible study web application built with React and Supabase, featu
 
 ## Features
 
-- 📖 **Multiple Bible Versions**: AFR83, NLT, AFR53, KJV, and AMP
-- 🔍 **Advanced Search**: Search verses across all versions with keyword highlighting
+- 📖 **Multiple Bible Versions**: AFR83, NLT, AFR53 (Upgraded), KJV, and AMP
+- 🔍 **AI Concept Search**: Find verses by meaning, theme, or feeling, not just keywords
+- 🤖 **AI Chapter Summaries**: Get scholarly summaries and outlines for any chapter
+- ⚖️ **Parallel Reading**: side-by-side split view for comparing translations
 - 📱 **Responsive Design**: Works seamlessly on mobile and desktop devices
 - ⚡ **Progressive Web App**: Install on your device for native-like experience
 - 🎨 **Modern UI**: YouVersion-inspired interface with smooth animations
@@ -135,14 +137,22 @@ bible-study-app/
 ## 📱 User Manual & Features
 
 ### 📖 Bible Reader
-- **Version Selection**: Tap the version badge (e.g., "KJV") in the top right to switch between **AFR83, NLT, AFR53, KJV, AMP**.
-- **Navigation**: usage the bottom bar to open the "Bible" tab. Tap the **Book Name** (e.g., "John 3") to open the quick book selector.
-- **Chapter Nav**: Use the Left/Right arrows at the bottom to flip chapters instantly.
+- **Version Selection**: Tap the version badge in the top right to switch between **AFR83, NLT, AFR53, KJV, AMP**.
+- **Parallel Reading (Split-View) ⚖️**: Tap the 📖 icon to compare two versions side-by-side. 
+    - **PC**: Displays two synchronized columns.
+    - **Mobile**: Uses an integrated interleaved view for easy comparison.
+- **AI Chapter Summaries 📝**: Click the document icon next to the chapter title for a scholarly summary and outline of the text (in English or Afrikaans).
+- **Navigation**: Tap the **Book Name** (e.g., "John 3") for the quick selector, or use the arrow keys to flip chapters.
 
-### 🔍 Search
-- **Keyword Search**: Go to the **Search** tab and type any phrase (e.g., "love neighbor").
-- **Filtering**: Choose to search "All Versions" or a specific one.
-- **Results**: Click any verse result to jump directly to that location in the Bible Reader.
+### 🔍 Search & AI
+- **Concept Search (AI) 🤖**: Ask questions like "how to deal with anxiety" or "God's promises". The AI understands meaning, not just keywords.
+- **Exact Match 🔍**: Standard search for specific phrases like "love your neighbor".
+- **AI Research Lab**: Use shortcuts directly in the search bar:
+    - `/story [topic]` - Get the full biblical narrative.
+    - `/mean [word]` - Biblical definition.
+    - `/explain [topic]` - Theological explanation.
+    - `/who [person]` - Biography.
+- **History Management 🕒**: Access your last 30 searches. Toggle "Manage" mode to delete specific history items.
 
 ### ✍️ Daily Inspiration (Blog)
 - **Daily Devotional**: A fresh, AI-generated devotional greets you every day based on diverse themes.
@@ -151,6 +161,7 @@ bible-study-app/
     - Go to **Profile** page.
     - Switch between **English** and **Afrikaans**.
     - This localizes all blog content, headers, and even scripture references (using correct AFR53/83 texts).
+    - **Note**: The **AFR53** text has been fully upgraded to a high-quality, clean digital version.
 - **"New" (Nuut) Button**:
     - Don't like today's content? Tap **"New"** (or **"Nuut"**) to generate fresh content immediately.
     - **Note**: Regular users can refresh once per hour (or day, depending on settings). **Super Users** have unlimited refreshes.
