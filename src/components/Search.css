@@ -1201,13 +1201,26 @@
 
 /* Info Modal Styling - Reusing structures from other modals but specific overrides */
 /* Info Modal Styling - Reusing structures but specific overrides */
+/* AI Modal Backdrop - Explicit definition to avoid Reliance on BibleReader.css */
+.ai-research-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000;
+}
+
+/* Info Modal Styling - Reusing structures but specific overrides */
 .info-modal-content {
     max-width: 800px;
     /* Wider for PC to show more shortcuts */
     width: 90%;
-    background: #1e1e2d;
-    color: #e0e0e0;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     display: flex;

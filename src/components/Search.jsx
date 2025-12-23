@@ -97,7 +97,8 @@ function Search({ currentVersion, versions }) {
                 if (Date.now() - timestamp < 3600000) {
                     setAiQuestion(question);
                     setAiResponse(response);
-                    setShowAIModal(showModal);
+                    // Do not auto-open modal on reload, user must explicitly click button
+                    // setShowAIModal(showModal); 
                     if (expanded) setIsAnswerExpanded(expanded); // Restore expanded state
                 }
             }
@@ -496,6 +497,7 @@ Here are the available shortcuts to quickly ask questions:
 
         if (result.success) {
             setAiResponse(result.answer);
+            setIsAnswerExpanded(true); // Auto-expand for better readability
 
             // Save to AI history
             const newEntry = {
@@ -1048,11 +1050,11 @@ Here are the available shortcuts to quickly ask questions:
             {/* AI Research Modal */}
             {
                 showAIModal && (
-                    <div className="book-selector-modal ai-research-modal" onClick={() => setShowAIModal(false)}>
-                        <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="book-selector-modal ai-research-modal" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
+                        <div className="book-selector-content info-modal-content" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h2>🤖 AI Bible Research</h2>
-                                <button className="close-btn back-to-results" onClick={() => setShowAIModal(false)}>
+                                <button className="close-btn back-to-results" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
                                     ⬅ Back to Results
                                 </button>
                             </div>
@@ -1193,7 +1195,13 @@ Here are the available shortcuts to quickly ask questions:
                                                                 className="reask-btn"
                                                                 onClick={() => {
                                                                     setAiQuestion(item.question);
-                                                                    setAiResponse(item.answer); // Show the saved answer
+                                                                    if (item.answer) {
+                                                                        setAiResponse(item.answer);
+                                                                        setIsAnswerExpanded(true); // Auto-expand for visibility
+                                                                    } else {
+                                                                        // Fallback if no answer saved
+                                                                        setAiResponse(null);
+                                                                    }
                                                                 }}
                                                                 title="View this answer"
                                                             >
