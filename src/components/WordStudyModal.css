@@ -244,7 +244,11 @@
 }
 
 .ws-data {
-    animation: ws-fade-in 0.3s ease;
+    /* Animation and Flex logic removed to fix Mobile Text Overlap Bug */
+    display: block;
+    width: 100%;
+    height: auto;
+    position: relative;
 }
 
 @keyframes ws-fade-in {
