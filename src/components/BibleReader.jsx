@@ -678,10 +678,22 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     {location.state?.fromSearch && (
                         <button
                             className="book-selector-btn btn-secondary"
-                            onClick={() => navigate('/search' + location.search)} // Maintain params if needed, or just /search
+                            onClick={() => {
+                                const sp = location.state?.searchParams;
+                                if (sp) {
+                                    const params = new URLSearchParams();
+                                    if (sp.q) params.set('q', sp.q);
+                                    if (sp.version) params.set('version', sp.version);
+                                    if (sp.testament) params.set('testament', sp.testament);
+                                    if (sp.mode) params.set('mode', sp.mode);
+                                    navigate(`/search?${params.toString()}`);
+                                } else {
+                                    navigate('/search');
+                                }
+                            }}
                             style={{ marginRight: '8px', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)' }}
                         >
-                            ⬅ Back
+                            ⬅ {settings.language === 'af' ? 'Terug' : 'Back'}
                         </button>
                     )}
                     <button

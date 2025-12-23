@@ -159,20 +159,24 @@ export async function getCachedAnswer(question) {
             .from('ai_cache')
             .select('*')
             .eq('question_hash', hash)
-            .single();
+            .limit(1);
 
-        if (error || !data) return null;
+        if (error || !data || data.length === 0) return null;
+        const entry = data[0];
 
-        // Update hit count
-        await supabase
+        // Update hit count (background)
+        supabase
             .from('ai_cache')
             .update({
-                hit_count: data.hit_count + 1,
+                hit_count: entry.hit_count + 1,
                 updated_at: new Date().toISOString()
             })
-            .eq('id', data.id);
+            .eq('id', entry.id)
+            .then(({ error }) => {
+                if (error) console.warn('Cache hit update failed', error);
+            });
 
-        return data.answer;
+        return entry.answer;
 
     } catch (error) {
         console.error('Cache lookup error:', error);
@@ -618,3 +622,94 @@ export async function getChapterSummary(userId, bookName, chapter, verses = [], 
     }
 }
 
+
+/**
+ * Perform Semantic (Concept-based) Bible Search
+ * Returns a list of Bible references and explanations for a given concept/query
+ */
+export async function performSemanticSearch(userId, query, versionId = 'KJV', testament = 'all', language = 'en') {
+    try {
+        const { remaining } = await getUserRemainingQuota(userId);
+        if (remaining <= 0) return { success: false, error: 'Daily quota exceeded. Try again tomorrow!' };
+
+        // 1. Check Cache
+        const cacheKey = `semantic_${query.toLowerCase().trim()}_${language}`;
+        const cached = await getCachedAnswer(cacheKey);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                return { success: true, data: parsed, cached: true };
+            } catch (e) {
+                console.warn("Malformed semantic cache entry", e);
+            }
+        }
+
+        const outputLanguage = language === 'af' ? 'Afrikaans' : 'English';
+        const testamentLimit = testament === 'OT' ? 'limit search to the Old Testament' :
+            testament === 'NT' ? 'limit search to the New Testament' :
+                'consider both Old and New Testaments';
+
+        const prompt = `You are a Bible search assistant. A user is looking for Bible verses based on a concept, feeling, or situation: "${query}".
+        
+        **CRITICAL INSTRUCTION**: All output (summary and reasons) MUST be in **${outputLanguage}**. Do not use any English if the requested language is Afrikaans.
+        
+        **Instructions:**
+        1. **Biblical Summary**: Provide a 2-3 sentence biblical reflection or summary addressing the user's situation directly. This MUST be based strictly on biblical principles and facts that can be proven with verses.
+        2. **Relevant Verses**: Find 5-8 Bible verses that are most relevant to this conceptual query and support your summary.
+        3. ${testamentLimit}.
+        4. For each verse, provide:
+           - The exact Bible reference (e.g., "John 3:16").
+           - A very brief (1-2 sentences) "Semantic Reason" in **${outputLanguage}** explaining why this verse is relevant.
+        
+        **Format:**
+        Return ONLY a JSON object with this structure:
+        {
+          "summary": "Your biblical reflection in ${outputLanguage} here...",
+          "results": [
+            { "ref": "Book Chapter:Verse", "reason": "..." },
+            ...
+          ]
+        }
+        
+        Do not include markdown formatting like \`\`\`json. Just the raw JSON object.`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().trim();
+
+        // Robust JSON extraction: Find the first { and last }
+        const startIdx = text.indexOf('{');
+        const endIdx = text.lastIndexOf('}');
+
+        if (startIdx === -1 || endIdx === -1) {
+            throw new Error(`AI did not return a valid JSON object. Raw response: ${text.substring(0, 100)}...`);
+        }
+
+        const jsonStr = text.substring(startIdx, endIdx + 1);
+        const data = JSON.parse(jsonStr);
+
+        // 2. Save to Cache
+        saveCachedAnswer(cacheKey, JSON.stringify(data)).catch(console.error);
+
+        // 3. Log to questions (async)
+        try {
+            supabase.from('ai_questions').insert({
+                user_id: userId,
+                question: `Semantic Search: ${query}`,
+                answer: `Summary: ${data.summary || 'N/A'}. Found ${data.results?.length || 0} verses.`,
+                cached: false
+            }).then(({ error }) => {
+                if (error) console.warn('Background logging failed', error);
+            });
+        } catch (e) {
+            console.warn('Logging triggered error', e);
+        }
+
+        return { success: true, data, cached: false };
+
+    } catch (error) {
+        console.error('Semantic search error:', error);
+        logApiCall('performSemanticSearch', 'error', 'gemini-2.0-flash', { userId, query, error: error.message });
+        return { success: false, error: error.message };
+    }
+}

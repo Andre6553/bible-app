@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { searchVerses, getVerseReference, getBooks } from '../services/bibleService';
+import { searchVerses, getVerseReference, getBooks, getVerseByReference } from '../services/bibleService';
 import { askBibleQuestion, getUserRemainingQuota } from '../services/aiService';
 import { useSettings } from '../context/SettingsContext';
 import { getLocalizedBookName } from '../constants/bookNames';
@@ -18,6 +18,7 @@ function getUserId() {
 }
 
 function Search({ currentVersion, versions }) {
+    const isSearchingRef = useRef(false);
     const [searchParams, setSearchParams] = useSearchParams();
     const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
     const [searchVersion, setSearchVersion] = useState(searchParams.get('version') || 'all');
@@ -30,6 +31,7 @@ function Search({ currentVersion, versions }) {
     const navigate = useNavigate();
     const [history, setHistory] = useState([]);
     const [showHistory, setShowHistory] = useState(false);
+    const [isHistoryEditMode, setIsHistoryEditMode] = useState(false);
 
     // AI Research State
     const [showAIModal, setShowAIModal] = useState(false);
@@ -45,6 +47,9 @@ function Search({ currentVersion, versions }) {
     const [isAnswerExpanded, setIsAnswerExpanded] = useState(false); // Fullscreen answer mode
     const [copyStatus, setCopyStatus] = useState('Copy'); // 'Copy' or 'Copied!'
     const [showHelpModal, setShowHelpModal] = useState(false);
+    const [searchMode, setSearchMode] = useState('exact'); // 'exact' or 'semantic'
+    const [semanticResults, setSemanticResults] = useState([]); // Verses with AI reasons
+    const [semanticSummary, setSemanticSummary] = useState(''); // AI biblical reflection
     const userId = getUserId();
 
     const AI_SHORTCUTS = [
@@ -61,16 +66,33 @@ function Search({ currentVersion, versions }) {
 
     // Load history and AI state on mount
     useEffect(() => {
-        const savedHistory = localStorage.getItem('search_history');
-        if (savedHistory) setHistory(JSON.parse(savedHistory));
+        try {
+            const savedHistory = localStorage.getItem('search_history');
+            if (savedHistory) {
+                const parsed = JSON.parse(savedHistory);
+                if (Array.isArray(parsed)) {
+                    setHistory(parsed);
+                }
+            }
+        } catch (e) {
+            console.warn("History load failed", e);
+        }
 
-        // Load AI history
-        const savedAIHistory = localStorage.getItem('ai_search_history');
-        if (savedAIHistory) setAiHistory(JSON.parse(savedAIHistory));
+        try {
+            const savedAIHistory = localStorage.getItem('ai_search_history');
+            if (savedAIHistory) {
+                const parsed = JSON.parse(savedAIHistory);
+                if (Array.isArray(parsed)) {
+                    setAiHistory(parsed);
+                }
+            }
+        } catch (e) {
+            console.warn("AI history load failed", e);
+        }
         try {
             const savedAI = sessionStorage.getItem('bible_ai_session');
             if (savedAI) {
-                const { question, response, showModal, timestamp } = JSON.parse(savedAI);
+                const { question, response, showModal, expanded, timestamp } = JSON.parse(savedAI);
                 // Valid for 1 hour
                 if (Date.now() - timestamp < 3600000) {
                     setAiQuestion(question);
@@ -110,8 +132,25 @@ function Search({ currentVersion, versions }) {
         }
     };
 
-    const addToHistory = (query) => {
-        const newHistory = [query, ...history.filter(h => h !== query)].slice(0, 10);
+    const addToHistory = (query, mode = 'exact') => {
+        if (!query || query.trim() === '') return;
+        const item = { query: query.trim(), mode };
+        const newHistory = [item, ...history.filter(h => {
+            const hQuery = typeof h === 'string' ? h : h.query;
+            return hQuery !== query.trim();
+        })].slice(0, 30);
+        setHistory(newHistory);
+        localStorage.setItem('search_history', JSON.stringify(newHistory));
+    };
+
+    const handleHistoryItemDelete = (termToDelete) => {
+        const queryToDelete = typeof termToDelete === 'string' ? termToDelete : termToDelete.query;
+        if (!window.confirm(`Delete "${queryToDelete}" from history?`)) return;
+
+        const newHistory = history.filter(h => {
+            const hQuery = typeof h === 'string' ? h : h.query;
+            return hQuery !== queryToDelete;
+        });
         setHistory(newHistory);
         localStorage.setItem('search_history', JSON.stringify(newHistory));
     };
@@ -122,26 +161,44 @@ function Search({ currentVersion, versions }) {
         const test = searchParams.get('testament');
 
         if (query) {
-            setSearchQuery(query);
+            // Only sync URL to input if we AREN'T currently triggering a search manually
+            if (!isSearchingRef.current) {
+                setSearchQuery(query);
+            }
+            isSearchingRef.current = false; // Reset for next sync (e.g. back button)
+
             if (ver) setSearchVersion(ver);
             if (test) setSearchTestament(test);
+
+            const mode = searchParams.get('mode') || 'exact';
+            setSearchMode(mode);
 
             // Check session cache first for instant "back" navigation
             try {
                 const cached = sessionStorage.getItem('bible_search_cache');
                 if (cached) {
-                    const { query: cachedQuery, version: cachedVer, testament: cachedTest, data, timestamp } = JSON.parse(cached);
-                    // Use cache only if query, version AND testament match
+                    const { query: cachedQuery, version: cachedVer, testament: cachedTest, mode: cachedMode, data, timestamp } = JSON.parse(cached);
+                    // Use cache only if query, version, testament AND mode match
                     const currentVer = ver || 'all';
                     const currentTest = test || 'all';
+                    const currentMode = mode || 'exact';
 
                     if (cachedQuery === query &&
                         cachedVer === currentVer &&
                         cachedTest === currentTest &&
+                        cachedMode === currentMode &&
                         data &&
                         (Date.now() - timestamp < 3600000)) {
 
-                        setResults(data);
+                        if (currentMode === 'semantic') {
+                            setSemanticResults(data.results || data); // Support old cache format just in case
+                            setSemanticSummary(data.summary || '');
+                            setResults([]);
+                        } else {
+                            setResults(data);
+                            setSemanticResults([]);
+                            setSemanticSummary('');
+                        }
                         setHasSearched(true);
                         setLoading(false);
                         return;
@@ -151,46 +208,130 @@ function Search({ currentVersion, versions }) {
                 console.warn("Cache read error", e);
             }
 
-            performSearch(query, ver || 'all', test || 'all');
+            performSearch(query, ver || 'all', test || 'all', mode);
         }
     }, [searchParams]);
 
-    const performSearch = async (query, versionId, testament) => {
+    const performSearch = async (query, versionId, testament, mode = 'exact') => {
         if (!query.trim()) return;
 
-        addToHistory(query.trim());
+        addToHistory(query.trim(), mode);
         setLoading(true);
         setHasSearched(true);
+        setResults([]);
+        setSemanticResults([]);
+        setSemanticSummary('');
 
-        const result = await searchVerses(query.trim(), versionId, testament);
+        if (mode === 'semantic') {
+            console.log("🚀 Starting Semantic Search for:", query);
+            const { performSemanticSearch } = await import('../services/aiService');
+            const aiResult = await performSemanticSearch(userId, query.trim(), versionId, testament, settings.language);
 
-        if (result.success) {
-            setResults(result.data);
-            // Cache successful results
-            try {
-                sessionStorage.setItem('bible_search_cache', JSON.stringify({
-                    query: query.trim(),
-                    version: versionId,
-                    testament: testament,
-                    data: result.data,
-                    timestamp: Date.now()
-                }));
-            } catch (e) {
-                console.warn("Cache write error", e);
+            console.log("🤖 AI raw result:", aiResult);
+
+            if (aiResult.success) {
+                const resultsToResolve = aiResult.data.results || [];
+                const summary = aiResult.data.summary || '';
+
+                // Now resolve references to actual verses
+                const resolvedVerses = [];
+                for (const item of resultsToResolve) {
+                    console.log(`🔎 Resolving: ${item.ref}`);
+                    const verseResult = await getVerseByReference(item.ref, versionId === 'all' ? 'KJV' : versionId);
+                    if (verseResult.success) {
+                        resolvedVerses.push({
+                            ...verseResult.data,
+                            semanticReason: item.reason
+                        });
+                    } else {
+                        console.warn(`❌ Failed to resolve verse: ${item.ref}`, verseResult.error);
+                    }
+                }
+
+                console.log(`✅ Final resolved verses count: ${resolvedVerses.length}`);
+                setSemanticResults(resolvedVerses);
+                setSemanticSummary(summary);
+                setResults([]);
+
+                // Cache successful results
+                try {
+                    sessionStorage.setItem('bible_search_cache', JSON.stringify({
+                        query: query.trim(),
+                        version: versionId,
+                        testament: testament,
+                        mode: mode,
+                        data: {
+                            results: resolvedVerses,
+                            summary: summary
+                        },
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    console.warn("Cache write error", e);
+                }
+            } else {
+                setSemanticResults([]);
+                setSemanticSummary('');
+                console.error("❌ Semantic search failed:", aiResult.error);
             }
         } else {
-            setResults([]);
+            const result = await searchVerses(query.trim(), versionId, testament);
+
+            if (result.success) {
+                setResults(result.data);
+                setSemanticResults([]);
+                setSemanticSummary('');
+                // Cache successful results
+                try {
+                    sessionStorage.setItem('bible_search_cache', JSON.stringify({
+                        query: query.trim(),
+                        version: versionId,
+                        testament: testament,
+                        mode: mode,
+                        data: result.data,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    console.warn("Cache write error", e);
+                }
+            } else {
+                setResults([]);
+            }
         }
 
         setLoading(false);
     };
 
+    const handleCopyAllSemantic = () => {
+        if (!semanticSummary && semanticResults.length === 0) return;
+
+        let text = "";
+        if (settings.language === 'af') {
+            text += `BYBELSE NADINKE 🕊️\n"${searchQuery}"\n\n${semanticSummary}\n\nRELEVANTE VERSE:\n`;
+        } else {
+            text += `BIBLICAL REFLECTION 🕊️\n"${searchQuery}"\n\n${semanticSummary}\n\nRELEVANT VERSES:\n`;
+        }
+
+        semanticResults.forEach(v => {
+            text += `\n[${v.version}] ${v.books.name_full} ${v.chapter}:${v.verse}\n${v.text}\n💡 ${v.semanticReason}\n`;
+        });
+
+        navigator.clipboard.writeText(text).then(() => {
+            setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
+            setTimeout(() => setCopyStatus('Copy'), 2000);
+        });
+    };
+
     const handleSearch = (e) => {
         e.preventDefault();
+        if (!searchQuery.trim()) return;
+
+        isSearchingRef.current = true;
         // Update URL
-        setSearchParams({ q: searchQuery, version: searchVersion, testament: searchTestament });
-        // Search triggered by useEffect on param change OR we can call directly if we want instant
-        // But updating params -> useEffect is cleaner for keeping sync
+        setSearchParams({ q: searchQuery.trim(), version: searchVersion, testament: searchTestament, mode: searchMode });
+        // Clear input as requested by user
+        setSearchQuery('');
+        setShowHistory(false); // Close history when searching
     };
 
     const highlightText = (text, query) => {
@@ -215,10 +356,18 @@ function Search({ currentVersion, versions }) {
         if (key === 'version') setSearchVersion(value);
         if (key === 'testament') setSearchTestament(value);
 
+        if (key === 'mode') setSearchMode(value);
+
         // Update URL to trigger search
-        const newParams = { q: searchQuery, version: searchVersion, testament: searchTestament };
+        const newParams = { q: searchQuery, version: searchVersion, testament: searchTestament, mode: searchMode };
         newParams[key] = value; // Override with new value
+
+        isSearchingRef.current = true;
         setSearchParams(newParams);
+
+        // Clear input when filter change triggers search
+        setSearchQuery('');
+        setShowHistory(false); // Close history
     };
 
     const loadQuotaInfo = async () => {
@@ -535,7 +684,11 @@ Here are the available shortcuts to quickly ask questions:
                             <input
                                 type="text"
                                 className="search-input input"
-                                placeholder="Search for verses..."
+                                placeholder={
+                                    searchMode === 'semantic'
+                                        ? (settings.language === 'af' ? "bv. 'ek voel alleen' of 'krag in moeilike tye'..." : "e.g., 'feeling lonely' or 'strength in hard times'...")
+                                        : (settings.language === 'af' ? "Soek vir trefwoorde of verse..." : "Search for keywords or verses...")
+                                }
                                 value={searchQuery}
                                 onChange={(e) => {
                                     const val = e.target.value;
@@ -548,13 +701,7 @@ Here are the available shortcuts to quickly ask questions:
                                         setShowMainShortcutMenu(false);
                                     }
                                 }}
-                                onClick={() => {
-                                    if (searchQuery.startsWith('/') && !searchQuery.includes(' ')) {
-                                        setShowMainShortcutMenu(true);
-                                    } else {
-                                        setShowHistory(true);
-                                    }
-                                }}
+                            // Removed onClick that automatically showed history
                             />
 
                             {/* Main Search Shortcut Menu */}
@@ -613,7 +760,7 @@ Here are the available shortcuts to quickly ask questions:
                                 }}
                                 disabled={loading || !searchQuery.trim()}
                             >
-                                {loading ? '...' : (searchQuery.startsWith('/') ? '🤖 Ask AI' : '🔍 Search')}
+                                {loading ? '...' : (searchQuery.startsWith('/') ? '🤖 Ask AI' : (searchMode === 'semantic' ? '🪄 Concept Search' : '🔍 Exact Search'))}
                             </button>
                             <button
                                 type="button"
@@ -634,17 +781,19 @@ Here are the available shortcuts to quickly ask questions:
                                 <button className="clear-history-btn" onClick={clearHistory}>Clear</button>
                             </div>
                             <div className="history-list">
-                                {history.map((term, i) => (
+                                {history.map((item, i) => (
                                     <button
                                         key={i}
                                         className="history-item"
                                         onClick={() => {
-                                            setSearchQuery(term);
-                                            setSearchParams({ q: term, version: searchVersion, testament: searchTestament });
+                                            const query = typeof item === 'string' ? item : item.query;
+                                            const mode = typeof item === 'string' ? 'exact' : item.mode;
+                                            setSearchQuery(query);
+                                            setSearchParams({ q: query, version: searchVersion, testament: searchTestament, mode: mode });
                                             setShowHistory(false);
                                         }}
                                     >
-                                        🕒 {term}
+                                        🕒 {(typeof item === 'string' ? item : item.query)} {(typeof item !== 'string' && item.mode === 'semantic') ? '🤖' : ''}
                                     </button>
                                 ))}
                             </div>
@@ -653,7 +802,23 @@ Here are the available shortcuts to quickly ask questions:
                 </div>
 
                 <div className="search-filters">
-                    {/* ... filters ... */}
+                    <div className="mode-toggle">
+                        <button
+                            className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
+                            onClick={() => handleFilterChange('mode', 'exact')}
+                            type="button"
+                        >
+                            {settings.language === 'af' ? 'Presiese Soektog' : 'Exact Match'}
+                        </button>
+                        <button
+                            className={`mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
+                            onClick={() => handleFilterChange('mode', 'semantic')}
+                            type="button"
+                        >
+                            {settings.language === 'af' ? 'Konsep-soektog 🤖' : 'Concept Search 🤖'}
+                        </button>
+                    </div>
+
                     <label className="filter-label">
                         <span>Version:</span>
                         <select
@@ -685,26 +850,86 @@ Here are the available shortcuts to quickly ask questions:
                 </div>
             </div>
 
+            {/* Elevated Recent History Bar */}
+            {
+                history.length > 0 && (
+                    <div className="recent-history-bar-container">
+                        <div className="history-bar-header">
+                            <span className="history-label">{settings.language === 'af' ? 'Onlangse' : 'Recent'}</span>
+                            <button
+                                className={`history-manage-btn ${isHistoryEditMode ? 'active' : ''}`}
+                                onClick={() => setIsHistoryEditMode(!isHistoryEditMode)}
+                            >
+                                {isHistoryEditMode
+                                    ? (settings.language === 'af' ? 'Klaar' : 'Done')
+                                    : (settings.language === 'af' ? 'Bestuur' : 'Manage')}
+                            </button>
+                        </div>
+                        <div className={`recent-history-bar ${isHistoryEditMode ? 'edit-mode' : ''}`}>
+                            {history.map((term, i) => {
+                                const query = term && typeof term === 'object' ? term.query : (typeof term === 'string' ? term : '');
+                                const mode = term && typeof term === 'object' ? term.mode : 'exact';
+                                if (!query) return null;
+                                return (
+                                    <button
+                                        key={`${i}-${query}`}
+                                        className={`history-chip ${mode === 'semantic' ? 'semantic' : ''} ${isHistoryEditMode ? 'deletable' : ''}`}
+                                        style={{ '--i': i }}
+                                        onClick={() => {
+                                            if (isHistoryEditMode) {
+                                                handleHistoryItemDelete(term);
+                                            } else {
+                                                // Clear input as requested by user
+                                                setSearchQuery('');
+                                                setSearchMode(mode);
+                                                setSearchParams({ q: query, version: searchVersion, testament: searchTestament, mode: mode });
+                                            }
+                                        }}
+                                    >
+                                        <span className="chip-icon">{mode === 'semantic' ? '🤖' : '🔍'}</span>
+                                        {query}
+                                        {isHistoryEditMode && <span className="delete-chip-icon">✕</span>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )
+            }
+
             <div className="search-results">
                 {loading ? (
                     <div className="loading-state">
                         <div className="loading-spinner"></div>
-                        <p>Searching...</p>
+                        <p>{settings.language === 'af' ? 'Besig om te soek...' : 'Searching...'}</p>
                     </div>
                 ) : hasSearched ? (
-                    results.length > 0 ? (
+                    (results.length > 0 || semanticResults.length > 0) ? (
                         <>
                             <div className="results-header">
                                 <p className="results-count">
-                                    Found {results.length} verse{results.length !== 1 ? 's' : ''}
+                                    {settings.language === 'af'
+                                        ? `${results.length || semanticResults.length} vers${(results.length || semanticResults.length) !== 1 ? 'e' : ''} gevind`
+                                        : `Found ${results.length || semanticResults.length} verse${(results.length || semanticResults.length) !== 1 ? 's' : ''}`
+                                    }
                                 </p>
-                                <button
-                                    className="ai-research-btn btn-primary"
-                                    onClick={handleAskAI}
-                                    disabled={quotaInfo.remaining <= 0}
-                                >
-                                    🤖 Ask AI ({quotaInfo.remaining} left)
-                                </button>
+                                <div className="results-header-actions">
+                                    {searchMode === 'semantic' && (semanticSummary || semanticResults.length > 0) && (
+                                        <button
+                                            className="copy-all-btn btn-secondary"
+                                            onClick={handleCopyAllSemantic}
+                                        >
+                                            {copyStatus === 'Copy' ? (settings.language === 'af' ? '📋 Kopieer Alles' : '📋 Copy All') : `✅ ${copyStatus}`}
+                                        </button>
+                                    )}
+                                    <button
+                                        className="ai-research-btn btn-primary"
+                                        onClick={handleAskAI}
+                                        disabled={quotaInfo.remaining <= 0}
+                                    >
+                                        🤖 Ask AI ({quotaInfo.remaining} left)
+                                    </button>
+                                </div>
                             </div>
 
                             <div
@@ -714,30 +939,80 @@ Here are the available shortcuts to quickly ask questions:
                                     fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
                                 }}
                             >
-                                {results.map((verse, index) => (
-                                    <div key={index} className="verse-card" onClick={() => {
-                                        navigate('/bible', {
-                                            state: {
-                                                bookId: verse.books.id,
-                                                chapter: verse.chapter,
-                                                targetVerse: verse.verse,
-                                                fromSearch: true
-                                            }
-                                        });
-                                    }}>
-                                        <div className="result-header">
-                                            <span className="result-ref">
-                                                {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
-                                            </span>
-                                            <span className="result-version">
-                                                {verse.version}
-                                            </span>
-                                        </div>
-                                        <p className="result-text">
-                                            {highlightText(verse.text, searchQuery)}
-                                        </p>
+                                {searchMode === 'semantic' && semanticSummary && (
+                                    <div className="semantic-summary-box">
+                                        <h3>{settings.language === 'af' ? 'Bybelse Nadinke 🕊️' : 'Biblical Reflection 🕊️'}</h3>
+                                        <p>{semanticSummary}</p>
                                     </div>
-                                ))}
+                                )}
+
+                                {searchMode === 'semantic' ? (
+                                    semanticResults.map((verse, index) => (
+                                        <div key={index} className="verse-card semantic-card" onClick={() => {
+                                            navigate('/bible', {
+                                                state: {
+                                                    bookId: verse.books.id,
+                                                    chapter: verse.chapter,
+                                                    targetVerse: verse.verse,
+                                                    fromSearch: true,
+                                                    searchParams: {
+                                                        q: searchQuery,
+                                                        version: searchVersion,
+                                                        testament: searchTestament,
+                                                        mode: searchMode
+                                                    }
+                                                }
+                                            });
+                                        }}>
+                                            <div className="result-header">
+                                                <span className="result-ref">
+                                                    {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
+                                                </span>
+                                                <span className="semantic-badge">AI Reason</span>
+                                                <span className="result-version">
+                                                    {verse.version}
+                                                </span>
+                                            </div>
+                                            <p className="semantic-reason">
+                                                {verse.semanticReason}
+                                            </p>
+                                            <p className="result-text">
+                                                {verse.text}
+                                            </p>
+                                        </div>
+                                    ))
+                                ) : (
+                                    results.map((verse, index) => (
+                                        <div key={index} className="verse-card" onClick={() => {
+                                            navigate('/bible', {
+                                                state: {
+                                                    bookId: verse.books.id,
+                                                    chapter: verse.chapter,
+                                                    targetVerse: verse.verse,
+                                                    fromSearch: true,
+                                                    searchParams: {
+                                                        q: searchQuery,
+                                                        version: searchVersion,
+                                                        testament: searchTestament,
+                                                        mode: searchMode
+                                                    }
+                                                }
+                                            });
+                                        }}>
+                                            <div className="result-header">
+                                                <span className="result-ref">
+                                                    {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
+                                                </span>
+                                                <span className="result-version">
+                                                    {verse.version}
+                                                </span>
+                                            </div>
+                                            <p className="result-text">
+                                                {highlightText(verse.text, searchQuery)}
+                                            </p>
+                                        </div>
+                                    ))
+                                )}
                             </div>
 
                             {results.length >= 1000 && (
@@ -759,25 +1034,6 @@ Here are the available shortcuts to quickly ask questions:
                         <h3>Search the Scriptures</h3>
                         <p>Enter keywords, phrases, or topics to find verses</p>
                         <div className="search-tips">
-                            {history.length > 0 && (
-                                <div className="search-history">
-                                    <h4>Recent Searches</h4>
-                                    <div className="history-chips">
-                                        {history.map((term, i) => (
-                                            <button
-                                                key={i}
-                                                className="history-chip"
-                                                onClick={() => {
-                                                    setSearchQuery(term);
-                                                    setSearchParams({ q: term, version: searchVersion, testament: searchTestament });
-                                                }}
-                                            >
-                                                🕒 {term}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                             <h4>Search Tips:</h4>
                             <ul>
                                 <li>Try single words like "love" or "faith"</li>
@@ -790,190 +1046,194 @@ Here are the available shortcuts to quickly ask questions:
             </div>
 
             {/* AI Research Modal */}
-            {showAIModal && (
-                <div className="book-selector-modal ai-research-modal" onClick={() => setShowAIModal(false)}>
-                    <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>🤖 AI Bible Research</h2>
-                            <button className="close-btn back-to-results" onClick={() => setShowAIModal(false)}>
-                                ⬅ Back to Results
-                            </button>
-                        </div>
-                        <div className="modal-body info-body">
-                            {!isAnswerExpanded && (
-                                <div className="info-section">
-                                    <h3>Ask your question:</h3>
-                                    <textarea
-                                        className="ai-question-input"
-                                        placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
-                                        value={aiQuestion}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            setAiQuestion(val);
-                                            // Show shortcut menu only if typing command (starts with / and no space yet)
-                                            if (val.startsWith('/') && !val.includes(' ')) {
-                                                setShowShortcutMenu(true);
-                                            } else {
+            {
+                showAIModal && (
+                    <div className="book-selector-modal ai-research-modal" onClick={() => setShowAIModal(false)}>
+                        <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>🤖 AI Bible Research</h2>
+                                <button className="close-btn back-to-results" onClick={() => setShowAIModal(false)}>
+                                    ⬅ Back to Results
+                                </button>
+                            </div>
+                            <div className="modal-body info-body">
+                                {!isAnswerExpanded && (
+                                    <div className="info-section">
+                                        <h3>Ask your question:</h3>
+                                        <textarea
+                                            className="ai-question-input"
+                                            placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
+                                            value={aiQuestion}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setAiQuestion(val);
+                                                // Show shortcut menu only if typing command (starts with / and no space yet)
+                                                if (val.startsWith('/') && !val.includes(' ')) {
+                                                    setShowShortcutMenu(true);
+                                                } else {
+                                                    setShowShortcutMenu(false);
+                                                }
+                                            }}
+                                            rows={3}
+                                        />
+
+                                        {/* Shortcut popup menu */}
+                                        {showShortcutMenu && (
+                                            <div className="shortcut-popup">
+                                                <div className="shortcut-header">⚡ Quick Commands</div>
+                                                {AI_SHORTCUTS.map((item) => (
+                                                    <button
+                                                        key={item.cmd}
+                                                        className="shortcut-item"
+                                                        onClick={() => {
+                                                            setAiQuestion(item.cmd + ' ');
+                                                            setShowShortcutMenu(false);
+                                                        }}
+                                                    >
+                                                        <span className="shortcut-icon">{item.icon}</span>
+                                                        <span className="shortcut-cmd">{item.cmd}</span>
+                                                        <span className="shortcut-desc">{item.desc}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <button
+                                            className="ai-submit-btn"
+                                            onClick={() => {
                                                 setShowShortcutMenu(false);
-                                            }
-                                        }}
-                                        rows={3}
-                                    />
+                                                submitAIQuestion();
+                                            }}
+                                            disabled={aiLoading || !aiQuestion.trim()}
+                                        >
+                                            {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
+                                        </button>
+                                    </div>
+                                )}
 
-                                    {/* Shortcut popup menu */}
-                                    {showShortcutMenu && (
-                                        <div className="shortcut-popup">
-                                            <div className="shortcut-header">⚡ Quick Commands</div>
-                                            {AI_SHORTCUTS.map((item) => (
+                                {aiResponse && (
+                                    <div
+                                        className={`info-section ai-response ${isAnswerExpanded ? 'expanded' : ''}`}
+                                        onDoubleClick={() => setIsAnswerExpanded(!isAnswerExpanded)}
+                                    >
+                                        <div className="ai-response-header">
+                                            <h3>📚 Biblical Answer:</h3>
+                                            <div className="ai-response-actions">
                                                 <button
-                                                    key={item.cmd}
-                                                    className="shortcut-item"
+                                                    className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        copyToClipboard();
+                                                    }}
+                                                    title="Copy to clipboard"
+                                                >
+                                                    {copyStatus === 'Copied!' ? '✅ ' : '📋 '}{copyStatus}
+                                                </button>
+                                                {!isAnswerExpanded && (
+                                                    <button
+                                                        className="expand-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setIsAnswerExpanded(true);
+                                                        }}
+                                                    >
+                                                        ⤢ Expand
+                                                    </button>
+                                                )}
+                                                {isAnswerExpanded && (
+                                                    <button
+                                                        className="collapse-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setIsAnswerExpanded(false);
+                                                        }}
+                                                    >
+                                                        ✕ Close
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="ai-answer">
+                                            {formatAIResponse(aiResponse)}
+                                        </div>
+                                        {isAnswerExpanded && (
+                                            <div className="expanded-nav-buttons">
+                                                <button onClick={() => navigate('/bible')}>📖 Bible</button>
+                                                <button onClick={() => { setIsAnswerExpanded(false); setShowAIModal(false); }}>🔍 Search</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {!isAnswerExpanded && (
+                                    <div className="info-footer">
+                                        <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
+                                        <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
+                                    </div>
+                                )}
+
+                                {/* AI History Section */}
+                                {aiHistory.length > 0 && (
+                                    <div className="ai-history-section">
+                                        <button
+                                            className="ai-history-toggle"
+                                            onClick={() => setShowAIHistory(!showAIHistory)}
+                                        >
+                                            📜 Previous Questions ({aiHistory.length})
+                                            <span className={`toggle-arrow ${showAIHistory ? 'open' : ''}`}>▼</span>
+                                        </button>
+
+                                        {showAIHistory && (
+                                            <div className="ai-history-list">
+                                                {aiHistory.map((item, idx) => (
+                                                    <div key={idx} className="ai-history-item">
+                                                        <div className="ai-history-question">
+                                                            <span className="question-text">❓ {item.question}</span>
+                                                            <button
+                                                                className="reask-btn"
+                                                                onClick={() => {
+                                                                    setAiQuestion(item.question);
+                                                                    setAiResponse(item.answer); // Show the saved answer
+                                                                }}
+                                                                title="View this answer"
+                                                            >
+                                                                View
+                                                            </button>
+                                                        </div>
+                                                        <div className="ai-history-date">
+                                                            {new Date(item.timestamp).toLocaleDateString()}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    className="clear-ai-history-btn"
                                                     onClick={() => {
-                                                        setAiQuestion(item.cmd + ' ');
-                                                        setShowShortcutMenu(false);
+                                                        setAiHistory([]);
+                                                        localStorage.removeItem('ai_search_history');
                                                     }}
                                                 >
-                                                    <span className="shortcut-icon">{item.icon}</span>
-                                                    <span className="shortcut-cmd">{item.cmd}</span>
-                                                    <span className="shortcut-desc">{item.desc}</span>
+                                                    🗑️ Clear History
                                                 </button>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <button
-                                        className="ai-submit-btn"
-                                        onClick={() => {
-                                            setShowShortcutMenu(false);
-                                            submitAIQuestion();
-                                        }}
-                                        disabled={aiLoading || !aiQuestion.trim()}
-                                    >
-                                        {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
-                                    </button>
-                                </div>
-                            )}
-
-                            {aiResponse && (
-                                <div
-                                    className={`info-section ai-response ${isAnswerExpanded ? 'expanded' : ''}`}
-                                    onDoubleClick={() => setIsAnswerExpanded(!isAnswerExpanded)}
-                                >
-                                    <div className="ai-response-header">
-                                        <h3>📚 Biblical Answer:</h3>
-                                        <div className="ai-response-actions">
-                                            <button
-                                                className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    copyToClipboard();
-                                                }}
-                                                title="Copy to clipboard"
-                                            >
-                                                {copyStatus === 'Copied!' ? '✅ ' : '📋 '}{copyStatus}
-                                            </button>
-                                            {!isAnswerExpanded && (
-                                                <button
-                                                    className="expand-btn"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setIsAnswerExpanded(true);
-                                                    }}
-                                                >
-                                                    ⤢ Expand
-                                                </button>
-                                            )}
-                                            {isAnswerExpanded && (
-                                                <button
-                                                    className="collapse-btn"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setIsAnswerExpanded(false);
-                                                    }}
-                                                >
-                                                    ✕ Close
-                                                </button>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="ai-answer">
-                                        {formatAIResponse(aiResponse)}
-                                    </div>
-                                    {isAnswerExpanded && (
-                                        <div className="expanded-nav-buttons">
-                                            <button onClick={() => navigate('/bible')}>📖 Bible</button>
-                                            <button onClick={() => { setIsAnswerExpanded(false); setShowAIModal(false); }}>🔍 Search</button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {!isAnswerExpanded && (
-                                <div className="info-footer">
-                                    <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
-                                    <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
-                                </div>
-                            )}
-
-                            {/* AI History Section */}
-                            {aiHistory.length > 0 && (
-                                <div className="ai-history-section">
-                                    <button
-                                        className="ai-history-toggle"
-                                        onClick={() => setShowAIHistory(!showAIHistory)}
-                                    >
-                                        📜 Previous Questions ({aiHistory.length})
-                                        <span className={`toggle-arrow ${showAIHistory ? 'open' : ''}`}>▼</span>
-                                    </button>
-
-                                    {showAIHistory && (
-                                        <div className="ai-history-list">
-                                            {aiHistory.map((item, idx) => (
-                                                <div key={idx} className="ai-history-item">
-                                                    <div className="ai-history-question">
-                                                        <span className="question-text">❓ {item.question}</span>
-                                                        <button
-                                                            className="reask-btn"
-                                                            onClick={() => {
-                                                                setAiQuestion(item.question);
-                                                                setAiResponse(item.answer); // Show the saved answer
-                                                            }}
-                                                            title="View this answer"
-                                                        >
-                                                            View
-                                                        </button>
-                                                    </div>
-                                                    <div className="ai-history-date">
-                                                        {new Date(item.timestamp).toLocaleDateString()}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            <button
-                                                className="clear-ai-history-btn"
-                                                onClick={() => {
-                                                    setAiHistory([]);
-                                                    localStorage.removeItem('ai_search_history');
-                                                }}
-                                            >
-                                                🗑️ Clear History
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Help Info Modal */}
-            {showHelpModal && (
-                <SearchHelpModal
-                    onClose={() => setShowHelpModal(false)}
-                    language={settings.language}
-                />
-            )}
-        </div>
+            {
+                showHelpModal && (
+                    <SearchHelpModal
+                        onClose={() => setShowHelpModal(false)}
+                        language={settings.language}
+                    />
+                )
+            }
+        </div >
     );
 }
 
