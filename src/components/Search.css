@@ -1,11 +1,17 @@
 .search-page {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    height: 100svh;
+    /* height: 100vh; REMOVED to prevent empty space below input */
     min-height: 0;
     overflow: hidden;
-    /* Header stays top, Results scroll */
+    background: var(--bg-secondary);
+    /* Seamless match with header */
+    flex: 1;
+}
+
+.search-page.mobile-results-open {
+    height: 100vh;
+    height: 100svh;
 }
 
 /* Search Header */
@@ -238,13 +244,20 @@
     flex: 1;
     overflow-y: auto;
     padding: var(--spacing-lg);
-    padding-bottom: 160px;
-    padding-bottom: calc(160px + var(--safe-bottom));
-    /* Extra space for bottom nav + safe area */
+    /* Reduced padding as requested to maximize real estate */
+    padding-bottom: 80px;
+    padding-bottom: calc(80px + var(--safe-bottom));
     min-height: 0;
     /* Critical for nested flex scrolling */
     -webkit-overflow-scrolling: touch;
     /* Smooth scroll on iOS */
+    display: none;
+    /* Hidden by default until search is performed */
+}
+
+.mobile-results-open .search-results {
+    display: block;
+    /* Show when in results mode */
 }
 
 .results-header {
@@ -496,6 +509,43 @@
 .home-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(var(--accent-primary-rgb), 0.4);
+}
+
+/* Mobile Full-Screen Results Toggle */
+/* Unified Full-Screen Results Toggle */
+.mobile-results-open .search-form,
+.mobile-results-open .search-filters,
+.mobile-results-open .recent-history-bar-container {
+    display: none;
+}
+
+.back-to-search-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+}
+
+
+
+.view-results-btn {
+    background: rgba(var(--accent-primary-rgb), 0.1);
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+    display: block;
+    /* Visible everywhere now */
 }
 
 /* Loading State */

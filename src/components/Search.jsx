@@ -51,6 +51,7 @@ function Search({ currentVersion, versions }) {
     const [semanticResults, setSemanticResults] = useState([]); // Verses with AI reasons
     const [semanticSummary, setSemanticSummary] = useState(''); // AI biblical reflection
     const userId = getUserId();
+    const [showMobileResults, setShowMobileResults] = useState(false);
 
     const AI_SHORTCUTS = [
         { cmd: '/story', desc: 'Tell me the story of...', icon: '📖' },
@@ -202,6 +203,7 @@ function Search({ currentVersion, versions }) {
                         }
                         setHasSearched(true);
                         setLoading(false);
+                        setShowMobileResults(true); // Switch to results view
                         return;
                     }
                 }
@@ -253,6 +255,7 @@ function Search({ currentVersion, versions }) {
                 setSemanticResults(resolvedVerses);
                 setSemanticSummary(summary);
                 setResults([]);
+                setShowMobileResults(true); // Switch to results view
 
                 // Cache successful results
                 try {
@@ -274,6 +277,7 @@ function Search({ currentVersion, versions }) {
                 setSemanticResults([]);
                 setSemanticSummary('');
                 console.error("❌ Semantic search failed:", aiResult.error);
+                setShowMobileResults(true); // Show empty state
             }
         } else {
             const result = await searchVerses(query.trim(), versionId, testament);
@@ -282,6 +286,7 @@ function Search({ currentVersion, versions }) {
                 setResults(result.data);
                 setSemanticResults([]);
                 setSemanticSummary('');
+                setShowMobileResults(true); // Switch to results view
                 // Cache successful results
                 try {
                     sessionStorage.setItem('bible_search_cache', JSON.stringify({
@@ -297,6 +302,7 @@ function Search({ currentVersion, versions }) {
                 }
             } else {
                 setResults([]);
+                setShowMobileResults(true); // Show empty state
             }
         }
 
@@ -666,10 +672,31 @@ Here are the available shortcuts to quickly ask questions:
     };
 
     return (
-        <div className="search-page">
+        <div className={`search-page ${showMobileResults ? 'mobile-results-open' : ''}`}>
             <div className="search-header">
                 <div className="header-top-row">
-                    <h1 className="search-title">Search the Bible</h1>
+                    {showMobileResults ? (
+                        <button
+                            className="back-to-search-btn"
+                            onClick={() => setShowMobileResults(false)}
+                        >
+                            ⬅ Back to Search
+                        </button>
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                            <h1 className="search-title">Search the Bible</h1>
+                            {/* Show "View Results" if we have results but are in search mode (mobile) */}
+                            {((results.length > 0 || semanticResults.length > 0) || hasSearched) && (
+                                <button
+                                    className="view-results-btn"
+                                    onClick={() => setShowMobileResults(true)}
+                                    title="Back to Results"
+                                >
+                                    👀 View Results
+                                </button>
+                            )}
+                        </div>
+                    )}
                     <button
                         className="info-btn"
                         onClick={() => setShowHelpModal(true)}
@@ -1031,19 +1058,7 @@ Here are the available shortcuts to quickly ask questions:
                         </div>
                     )
                 ) : (
-                    <div className="empty-state">
-                        <div className="empty-icon">🔍</div>
-                        <h3>Search the Scriptures</h3>
-                        <p>Enter keywords, phrases, or topics to find verses</p>
-                        <div className="search-tips">
-                            <h4>Search Tips:</h4>
-                            <ul>
-                                <li>Try single words like "love" or "faith"</li>
-                                <li>Use phrases like "the Lord is my shepherd"</li>
-                                <li>Search for specific topics like "forgiveness"</li>
-                            </ul>
-                        </div>
-                    </div>
+                    null // Clean home screen as requested
                 )}
             </div>
 
