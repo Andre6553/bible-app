@@ -12,7 +12,7 @@ import { getSavedWordStudies, deleteWordStudy as removeSavedWordStudy } from '..
 import WordStudyModal from './WordStudyModal';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
-import { migrateAnonymousData } from '../services/migrationService';
+import { migrateAnonymousData, checkIfMigrationNeeded } from '../services/migrationService';
 import './Profile.css';
 
 function Profile() {
@@ -69,7 +69,14 @@ function Profile() {
         // Check for un-migrated local data
         const localId = localStorage.getItem('bible_user_id');
         if (currentUser && localId && localId !== currentUser.id) {
-            setShowSyncBtn(true);
+            // Verify if there's actually something to sync
+            const needsSync = await checkIfMigrationNeeded(localId);
+            if (needsSync) {
+                setShowSyncBtn(true);
+            } else {
+                // If no data, just retire the ID to stop checking
+                localStorage.removeItem('bible_user_id');
+            }
         }
     };
 

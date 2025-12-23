@@ -273,10 +273,6 @@ export const getUserId = async () => {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-            // Proactively clear guest ID if we are logged in to prevent redundant sync prompts
-            if (localStorage.getItem('bible_user_id')) {
-                localStorage.removeItem('bible_user_id');
-            }
             return session.user.id;
         }
     } catch (e) {

@@ -71,3 +71,33 @@ export const migrateAnonymousData = async (newUserId) => {
         results
     };
 };
+
+/**
+ * Checks if there is any actual data associated with an anonymous ID.
+ * Used to avoid showing the sync prompt for empty "phantom" guest IDs.
+ */
+export const checkIfMigrationNeeded = async (oldUserId) => {
+    if (!oldUserId) return false;
+
+    // Check the most common tables first
+    const tablesToCheck = ['verse_highlights', 'verse_notes', 'word_studies', 'study_collections'];
+
+    try {
+        for (const table of tablesToCheck) {
+            const { count, error } = await supabase
+                .from(table)
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', oldUserId)
+                .limit(1);
+
+            if (!error && count > 0) {
+                console.log(`[Migration] 🔍 Found data in ${table}, migration needed.`);
+                return true;
+            }
+        }
+    } catch (err) {
+        console.warn('[Migration] Error checking if migration needed:', err);
+    }
+
+    return false;
+};
