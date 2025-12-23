@@ -17,6 +17,7 @@ const Study = lazy(() => import('./components/Study'));
 const InductiveEditor = lazy(() => import('./components/InductiveEditor'));
 const Profile = lazy(() => import('./components/Profile'));
 const Admin = lazy(() => import('./components/Admin'));
+const Auth = lazy(() => import('./components/Auth'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 
 function App() {
@@ -118,6 +119,10 @@ function App() {
                                     <Route
                                         path="/admin"
                                         element={<Admin />}
+                                    />
+                                    <Route
+                                        path="/auth"
+                                        element={<Auth />}
                                     />
                                     <Route path="/" element={<Navigate to="/bible" replace />} />
                                 </Routes>

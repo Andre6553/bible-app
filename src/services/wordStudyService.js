@@ -6,7 +6,7 @@ import { getUserId } from './bibleService';
  */
 export const saveWordStudy = async (study) => {
     try {
-        const userId = getUserId();
+        const userId = await getUserId();
 
         // 1. Check if it already exists (since we might not have a UNIQUE constraint in DB yet)
         const { data: existing } = await supabase
@@ -55,7 +55,7 @@ export const saveWordStudy = async (study) => {
  */
 export const getSavedWordStudies = async () => {
     try {
-        const userId = getUserId();
+        const userId = await getUserId();
         const { data, error } = await supabase
             .from('word_studies')
             .select('*')
@@ -93,7 +93,7 @@ export const deleteWordStudy = async (id) => {
  */
 export const checkIsWordStudySaved = async (bookId, chapter, verse, word) => {
     try {
-        const userId = getUserId();
+        const userId = await getUserId();
         const { data, error } = await supabase
             .from('word_studies')
             .select('id')

@@ -43,7 +43,7 @@ export const logError = async (error, context = {}) => {
         if (window._isLoggingError) return;
         window._isLoggingError = true;
 
-        const userId = getUserId();
+        const userId = await getUserId();
         const deviceInfo = getDeviceInfo();
 
         const errorMsg = error instanceof Error ? error.message : String(error);

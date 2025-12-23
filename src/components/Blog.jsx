@@ -101,7 +101,7 @@ function Blog() {
         setError(null);
 
         try {
-            const userId = getUserId();
+            const userId = await getUserId();
 
             // Load all content
             const [postsResult, devotionalResult, trendingResult, interestsResult, keywordsResult] = await Promise.all([
@@ -138,7 +138,7 @@ function Blog() {
     };
 
     const refreshDevotional = async () => {
-        const userId = getUserId();
+        const userId = await getUserId();
 
         // Check cooldown first
         const cooldown = await checkRefreshCooldown(userId);
@@ -160,7 +160,7 @@ function Blog() {
     };
 
     const refreshPosts = async () => {
-        const userId = getUserId();
+        const userId = await getUserId();
 
         // Check cooldown first
         const cooldown = await checkRefreshCooldown(userId);
@@ -190,7 +190,7 @@ function Blog() {
             return;
         }
 
-        const userId = getUserId();
+        const userId = await getUserId();
         const keyword = searchKeywords.find(k => k.word === word);
         if (!keyword) return;
 
@@ -208,7 +208,7 @@ function Blog() {
     const handleKeywordDelete = async (word) => {
         if (!window.confirm(`Delete "${word}"?`)) return;
 
-        const userId = getUserId();
+        const userId = await getUserId();
 
         // Optimistic delete
         setSearchKeywords(prev => prev.filter(k => k.word !== word));

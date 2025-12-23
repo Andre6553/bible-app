@@ -244,6 +244,8 @@ export const toggleRateLimit = async (enabled) => {
  * Extract topics from user's search history
  */
 export const analyzeUserInterests = async (userId) => {
+    // If no userId provided, get current one
+    if (!userId) userId = await getUserId();
     try {
         // Get user's recent searches
         const { data: searches, error: searchError } = await supabase
@@ -379,6 +381,7 @@ export const saveKeywordPreferences = async (userId, prefs) => {
  */
 export const getSearchKeywords = async (userId) => {
     try {
+        if (!userId) userId = await getUserId();
         // 1. Get recent searches
         const { data: searches } = await supabase
             .from('search_logs')
@@ -580,6 +583,7 @@ export const addSuperUser = async (userId) => {
  */
 export const removeSuperUser = async (userId) => {
     try {
+        if (!userId) userId = await getUserId();
         const currentUsers = await getSuperUsers();
         const newList = currentUsers.filter(id => id !== userId);
 
@@ -646,6 +650,7 @@ export const toggleSuperUserAuto = async (enabled) => {
  * Check if a user is a super user (bypasses rate limits)
  */
 export const isSuperUser = async (userId) => {
+    if (!userId) userId = await getUserId();
     const superUsers = await getSuperUsers();
     return superUsers.includes(userId);
 };
@@ -678,6 +683,7 @@ const isCacheValid = (lastRefresh, expiryMs) => {
  */
 export const checkRefreshCooldown = async (userId) => {
     try {
+        if (!userId) userId = await getUserId();
         // Super users always bypass rate limits
         const isSuper = await isSuperUser(userId);
         console.log(`Checking cooldown for ${userId}. Super User: ${isSuper}`);
@@ -736,6 +742,7 @@ export const checkRefreshCooldown = async (userId) => {
  */
 export const getRecommendedPosts = async (userId, forceGenerate = false, language = 'en') => {
     try {
+        if (!userId) userId = await getUserId();
         const today = new Date().toISOString().split('T')[0];
         const expiryMs = await getCacheExpiryMs();
 

@@ -11,6 +11,7 @@ import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOffl
 import { getSavedWordStudies, deleteWordStudy as removeSavedWordStudy } from '../services/wordStudyService';
 import WordStudyModal from './WordStudyModal';
 import { useSettings } from '../context/SettingsContext';
+import { supabase } from '../config/supabaseClient';
 import './Profile.css';
 
 function Profile() {
@@ -26,6 +27,7 @@ function Profile() {
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedWordStudy, setSelectedWordStudy] = useState(null);
+    const [user, setUser] = useState(null);
 
     // Profile settings (stored locally)
     const [profilePic, setProfilePic] = useState(localStorage.getItem('profile_picture') || null);
@@ -44,7 +46,28 @@ function Profile() {
 
     useEffect(() => {
         loadData();
+        checkUser();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null);
+            if (_event === 'SIGNED_IN') {
+                loadData();
+            }
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
+
+    const checkUser = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+    };
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        setUser(null);
+        loadData(); // Reload to show anonymous data or empty state
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -294,6 +317,19 @@ function Profile() {
                             Afrikaans
                         </button>
                     </div>
+                </div>
+
+                <div className="auth-status-container">
+                    {user ? (
+                        <div className="logged-in-info">
+                            <span className="user-email">✉️ {user.email}</span>
+                            <button className="logout-btn" onClick={handleLogout}>Logout</button>
+                        </div>
+                    ) : (
+                        <button className="login-btn-link" onClick={() => navigate('/auth')}>
+                            🔐 Login / Sign Up to sync across devices
+                        </button>
+                    )}
                 </div>
             </div>
 

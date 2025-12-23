@@ -1,21 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { searchVerses, getVerseReference, getBooks, getVerseByReference } from '../services/bibleService';
-import { askBibleQuestion, getUserRemainingQuota } from '../services/aiService';
-import { useSettings } from '../context/SettingsContext';
-import { getLocalizedBookName } from '../constants/bookNames';
-import SearchHelpModal from './SearchHelpModal';
-import './Search.css';
+import { searchVerses, getVerseReference, getBooks, getVerseByReference, getUserId } from '../services/bibleService';
 
-// Generate or retrieve user ID from localStorage
-function getUserId() {
-    let userId = localStorage.getItem('bible_user_id');
-    if (!userId) {
-        userId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-        localStorage.setItem('bible_user_id', userId);
-    }
-    return userId;
-}
 
 function Search({ currentVersion, versions }) {
     const isSearchingRef = useRef(false);
@@ -50,7 +36,7 @@ function Search({ currentVersion, versions }) {
     const [searchMode, setSearchMode] = useState('exact'); // 'exact' or 'semantic'
     const [semanticResults, setSemanticResults] = useState([]); // Verses with AI reasons
     const [semanticSummary, setSemanticSummary] = useState(''); // AI biblical reflection
-    const userId = getUserId();
+    const [currentUserId, setCurrentUserId] = useState(null);
     const [showMobileResults, setShowMobileResults] = useState(false);
 
     const AI_SHORTCUTS = [
@@ -106,6 +92,12 @@ function Search({ currentVersion, versions }) {
         } catch (e) {
             console.warn("AI session restore failed", e);
         }
+
+        const fetchUserId = async () => {
+            const id = await getUserId();
+            setCurrentUserId(id);
+        };
+        fetchUserId();
 
         loadQuotaInfo();
         loadBooks();
@@ -228,7 +220,8 @@ function Search({ currentVersion, versions }) {
         if (mode === 'semantic') {
             console.log("🚀 Starting Semantic Search for:", query);
             const { performSemanticSearch } = await import('../services/aiService');
-            const aiResult = await performSemanticSearch(userId, query.trim(), versionId, testament, settings.language);
+            const uid = currentUserId || await getUserId();
+            const aiResult = await performSemanticSearch(uid, query.trim(), versionId, testament, settings.language);
 
             console.log("🤖 AI raw result:", aiResult);
 
@@ -378,7 +371,8 @@ function Search({ currentVersion, versions }) {
     };
 
     const loadQuotaInfo = async () => {
-        const info = await getUserRemainingQuota(userId);
+        const uid = currentUserId || await getUserId();
+        const info = await getUserRemainingQuota(uid);
         setQuotaInfo(info);
     };
 
@@ -497,7 +491,8 @@ Here are the available shortcuts to quickly ask questions:
             text: v.text
         }));
 
-        const result = await askBibleQuestion(userId, processedQuestion, verseContext);
+        const uid = currentUserId || await getUserId();
+        const result = await askBibleQuestion(uid, processedQuestion, verseContext);
 
         setAiLoading(false);
 

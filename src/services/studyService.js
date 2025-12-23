@@ -6,7 +6,7 @@ import { getUserId } from './bibleService';
  */
 
 export const getInductiveStudies = async () => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('inductive_studies')
@@ -39,7 +39,7 @@ export const getStudyById = async (id) => {
 };
 
 export const saveInductiveStudy = async (study) => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const studyData = {
             ...study,

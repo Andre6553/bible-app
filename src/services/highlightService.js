@@ -15,7 +15,7 @@ import { getUserId } from './bibleService';
  * Cross-version: highlights show in ALL Bible versions
  */
 export const getChapterHighlights = async (bookId, chapter, version) => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         // Note: version param kept for API compatibility but not used in query
         const { data, error } = await supabase
@@ -45,7 +45,7 @@ export const getChapterHighlights = async (bookId, chapter, version) => {
  * Cross-version: same highlight applies to all Bible versions
  */
 export const saveHighlight = async (bookId, chapter, verse, version, color) => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         // First, delete any existing highlight for this verse (any version)
         await supabase
@@ -82,7 +82,7 @@ export const saveHighlight = async (bookId, chapter, verse, version, color) => {
  * Cross-version: removes highlight from all versions
  */
 export const removeHighlight = async (bookId, chapter, verse, version) => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         // Remove highlight regardless of version
         const { error } = await supabase
@@ -106,7 +106,7 @@ export const removeHighlight = async (bookId, chapter, verse, version) => {
  * Get all highlights for a user (for Profile page)
  */
 export const getAllHighlights = async () => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('verse_highlights')
@@ -126,7 +126,7 @@ export const getAllHighlights = async () => {
  * Get all highlight color categories/labels for a user
  */
 export const getHighlightCategories = async () => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('highlight_categories')
@@ -151,7 +151,7 @@ export const getHighlightCategories = async () => {
  * Save or update a highlight color category/label
  */
 export const saveHighlightCategory = async (color, label) => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { error } = await supabase
             .from('highlight_categories')
@@ -180,7 +180,7 @@ export const saveHighlightCategory = async (color, label) => {
  * Get all study collections for a user
  */
 export const getStudyCollections = async () => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('study_collections')
@@ -200,7 +200,7 @@ export const getStudyCollections = async () => {
  * Create a new study collection
  */
 export const createStudyCollection = async (name, description = '', color = '#6366f1') => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('study_collections')
@@ -247,7 +247,7 @@ export const deleteStudyCollection = async (studyId) => {
  * Get note for a specific verse
  */
 export const getVerseNote = async (bookId, chapter, verse, version) => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('verse_notes')
@@ -277,7 +277,7 @@ export const getVerseNote = async (bookId, chapter, verse, version) => {
  * Save a verse note
  */
 export const saveNote = async (bookId, chapter, verse, version, noteText, studyId = null, labelIds = []) => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         // Upsert the note
         const { data: note, error: noteError } = await supabase
@@ -342,7 +342,7 @@ export const deleteNote = async (noteId) => {
  * Get all notes for a user
  */
 export const getAllNotes = async () => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('verse_notes')
@@ -372,7 +372,7 @@ export const getAllNotes = async () => {
  * Get all labels for a user
  */
 export const getLabels = async () => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('user_labels')
@@ -392,7 +392,7 @@ export const getLabels = async () => {
  * Create a new label
  */
 export const createLabel = async (name, color = '#64748b') => {
-    const userId = getUserId();
+    const userId = await getUserId();
     try {
         const { data, error } = await supabase
             .from('user_labels')

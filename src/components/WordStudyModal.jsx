@@ -120,7 +120,7 @@ function WordStudyModal({
         setStudyData(null);
 
         try {
-            const userId = getUserId();
+            const userId = await getUserId();
             const result = await getWordStudy(userId, currentVerse.ref, currentVerse.text, currentVerse.originalText, cleanedWord, settings.language);
             if (result.success) {
                 setStudyData(result.data);

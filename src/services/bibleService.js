@@ -267,12 +267,21 @@ export const getVerseReference = (verse) => {
 };
 
 /**
- * Get or create User ID for analytics
+ * Get current User ID (Auth user if logged in, otherwise anonymous local ID)
  */
-export const getUserId = () => {
-    let userId = localStorage.getItem('bible_user_id'); // Use same key as AI search
+export const getUserId = async () => {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            return session.user.id;
+        }
+    } catch (e) {
+        console.warn('Error checking auth session', e);
+    }
+
+    let userId = localStorage.getItem('bible_user_id');
     if (!userId) {
-        // Generate random ID (simple implementation)
+        // Generate random ID
         userId = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
         localStorage.setItem('bible_user_id', userId);
 
@@ -348,7 +357,7 @@ const initializeNewUser = async (userId) => {
  */
 export const logSearch = async (query, version, testament) => {
     try {
-        const userId = getUserId();
+        const userId = await getUserId();
         await supabase.from('search_logs').insert([
             {
                 query,
