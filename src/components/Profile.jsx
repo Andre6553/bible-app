@@ -680,6 +680,8 @@ function Profile() {
                     onClose={() => setSelectedWordStudy(null)}
                 />
             )}
+            {/* Final spacer for mobile scroll clearance */}
+            <div className="bottom-spacer" />
         </div>
     );
 }
