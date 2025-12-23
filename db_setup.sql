@@ -57,3 +57,20 @@ INSERT INTO verses (book_id, chapter, verse, text, version)
 SELECT id, 1, 1, 'In the beginning God created the heavens and the earth.', 'NLT' FROM books WHERE name_full = 'Genesis'
 UNION ALL
 SELECT id, 1, 2, 'The earth was formless and empty, and darkness covered the deep waters. And the Spirit of God was hovering over the surface of the waters.', 'NLT' FROM books WHERE name_full = 'Genesis';
+
+-- Create User Settings table for cloud sync (Themes, Font Size, etc.)
+CREATE TABLE IF NOT EXISTS user_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL,
+    settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(user_id)
+);
+
+-- Enable RLS on User Settings
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can only manage their own settings
+DROP POLICY IF EXISTS "Users can manage their own settings" ON user_settings;
+CREATE POLICY "Users can manage their own settings" ON user_settings 
+    FOR ALL USING (auth.uid()::text = user_id);

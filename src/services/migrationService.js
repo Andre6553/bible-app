@@ -16,7 +16,8 @@ const TABLES_TO_MIGRATE = [
     'inductive_studies',
     'search_logs',
     'ai_questions',
-    'devotional_history'
+    'devotional_history',
+    'user_settings'
 ];
 
 /**
