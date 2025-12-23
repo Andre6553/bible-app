@@ -245,8 +245,7 @@
     overflow-y: auto;
     padding: var(--spacing-lg);
     /* Reduced padding as requested to maximize real estate */
-    padding-bottom: 80px;
-    padding-bottom: calc(80px + var(--safe-bottom));
+    padding-bottom: calc(150px + var(--safe-bottom));
     min-height: 0;
     /* Critical for nested flex scrolling */
     -webkit-overflow-scrolling: touch;
