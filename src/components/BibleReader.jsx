@@ -1087,7 +1087,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     <div className="book-selector-modal" onClick={() => setShowSettings(false)}>
                         <div className="book-selector-content info-content" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h2>Reader Settings ⚙️</h2>
+                                <div className="header-title-row">
+                                    <h2>Reader Settings ⚙️</h2>
+                                    <button
+                                        className="refresh-btn-icon"
+                                        onClick={() => window.location.reload()}
+                                        title="Refresh App"
+                                    >🔄</button>
+                                </div>
                                 <button className="close-btn" onClick={() => setShowSettings(false)}>✕</button>
                             </div>
                             <div className="modal-body info-body">
@@ -1157,17 +1164,6 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             />
                                         ))}
                                     </div>
-                                </div>
-
-                                <div className="info-section refresh-section">
-                                    <button
-                                        className="btn-primary refresh-btn"
-                                        onClick={() => window.location.reload()}
-                                        style={{ width: '100%', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
-                                    >
-                                        🔄 Refresh App
-                                    </button>
-                                    <p className="settings-hint">Useful for getting latest updates on iOS Home Screen.</p>
                                 </div>
                             </div>
                         </div>
