@@ -1093,7 +1093,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                         className="refresh-btn-icon"
                                         onClick={() => window.location.reload()}
                                         title="Refresh App"
-                                    >🔄</button>
+                                    >🔄 <span>Refresh App</span></button>
                                 </div>
                                 <button className="close-btn" onClick={() => setShowSettings(false)}>✕</button>
                             </div>
