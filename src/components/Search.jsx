@@ -4,6 +4,7 @@ import { searchVerses, getVerseReference, getBooks, getVerseByReference, getUser
 import { useSettings } from '../context/SettingsContext';
 import SearchHelpModal from './SearchHelpModal';
 import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch } from '../services/aiService';
+import { getLocalizedBookName } from '../constants/bookNames';
 
 
 function Search({ currentVersion, versions }) {
