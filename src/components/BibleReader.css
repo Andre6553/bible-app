@@ -1182,6 +1182,33 @@ body.reader-mode-active .verses-container {
     left: 0;
     right: 0;
     height: 12%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.top-handle {
+    width: 60px;
+    height: 4px;
+    background: var(--text-muted);
+    border-radius: 10px;
+    margin-top: 8px;
+    opacity: 0.15;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.show-controls .top-handle {
+    opacity: 0.6;
+    width: 80px;
+    background: var(--accent-primary);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.nav-zone.edge-top:hover .top-handle {
+    opacity: 0.8;
+    transform: translateY(2px);
+    background: var(--accent-primary);
 }
 
 .nav-handle {

@@ -1038,7 +1038,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     <div className="nav-zone edge-right" onClick={handleNextChapter} title="Next Chapter">
                         <span className="nav-handle">›</span>
                     </div>
-                    <div className="nav-zone edge-top" onClick={() => setShowReaderControls(!showReaderControls)} title="Toggle Menu" />
+                    <div className="nav-zone edge-top" onClick={() => setShowReaderControls(!showReaderControls)} title="Toggle Menu">
+                        <span className="top-handle" aria-hidden="true"></span>
+                    </div>
 
                     {showReaderControls && (
                         <>
