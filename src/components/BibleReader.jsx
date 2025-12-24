@@ -688,13 +688,6 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     <div className="header-left">
                         <button className="info-btn icon-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
                         <button className="info-btn icon-btn" onClick={() => setShowInfo(true)} title="App Info">ℹ️</button>
-                        <button
-                            className={`info-btn icon-btn expand-toggle ${isReaderMode ? 'active' : ''}`}
-                            onClick={() => setIsReaderMode(!isReaderMode)}
-                            title={isReaderMode ? "Exit Reader Mode" : "Expand to Reader Mode"}
-                        >
-                            {isReaderMode ? '🤏' : '↔️'}
-                        </button>
                         <h1
                             className="app-title"
                             onClick={() => setShowDefinition(true)}
@@ -704,17 +697,26 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             Omni Bible
                         </h1>
                     </div>
-                    <select
-                        className="version-selector select"
-                        value={currentVersion?.id || ''}
-                        onChange={handleVersionChange}
-                    >
-                        {versions.map(version => (
-                            <option key={version.id} value={version.id}>
-                                {version.abbreviation}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="header-right">
+                        <button
+                            className={`info-btn icon-btn expand-toggle ${isReaderMode ? 'active' : ''}`}
+                            onClick={() => setIsReaderMode(!isReaderMode)}
+                            title={isReaderMode ? "Exit Reader Mode" : "Expand to Reader Mode"}
+                        >
+                            {isReaderMode ? '🤏' : '↔️'}
+                        </button>
+                        <select
+                            className="version-selector select"
+                            value={currentVersion?.id || ''}
+                            onChange={handleVersionChange}
+                        >
+                            {versions.map(version => (
+                                <option key={version.id} value={version.id}>
+                                    {version.abbreviation}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 <div className="reading-controls">

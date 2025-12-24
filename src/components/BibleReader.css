@@ -33,6 +33,12 @@
     gap: 12px;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .info-btn {
     width: 36px;
     height: 36px;
