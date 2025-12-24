@@ -68,9 +68,30 @@ function VerseActionSheet({
         }
     };
 
+    const [longPressTimer, setLongPressTimer] = useState(null);
+
+    const handleTouchStart = (color) => {
+        // Start a timer for 600ms to detect long press
+        const timer = setTimeout(() => {
+            setEditingColor(color);
+            setTempLabel(categories[color] || '');
+            setLongPressTimer(null);
+        }, 600);
+        setLongPressTimer(timer);
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            setLongPressTimer(null);
+        }
+    };
+
     const handleColorSelect = (color) => {
+        // If we were about to trigger a long press, cancel it
+        handleTouchEnd();
+
         if (currentColor === color) {
-            // Remove highlight if same color tapped
             onHighlight(null);
         } else {
             onHighlight(color);
@@ -78,8 +99,10 @@ function VerseActionSheet({
     };
 
     const startEditing = (color, e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         setEditingColor(color);
         setTempLabel(categories[color] || '');
     };
@@ -107,6 +130,9 @@ function VerseActionSheet({
                                 style={{ backgroundColor: color }}
                                 onClick={() => handleColorSelect(color)}
                                 onContextMenu={(e) => startEditing(color, e)}
+                                onTouchStart={() => handleTouchStart(color)}
+                                onTouchEnd={handleTouchEnd}
+                                onTouchMove={handleTouchEnd}
                                 aria-label={`Highlight ${name}`}
                             >
                                 {currentColor === color && <span className="color-check">✓</span>}

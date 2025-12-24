@@ -485,7 +485,8 @@ export const getUserStatistics = async () => {
                 count: stats.count,
                 device: getDeviceName(stats.devices),
                 fullUserAgents: [...new Set(stats.devices)].slice(0, 5),
-                isGroupedByEmail: !!stats.email
+                isGroupedByEmail: !!stats.email,
+                originalIds: Array.from(stats.originalIds)
             }))
             .sort((a, b) => b.count - a.count);
 

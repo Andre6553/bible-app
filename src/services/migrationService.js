@@ -33,6 +33,24 @@ export const migrateAnonymousData = async (newUserId) => {
 
     console.log(`[Migration] 🔄 Starting migration from ${oldUserId} to ${newUserId}`);
 
+    // Link the old guest ID to the new user email in the background
+    // This allows the stats page to group historical data even if migration fails for some tables
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const email = session?.user?.email;
+        if (email) {
+            console.log(`[Migration] 🔗 Linking guest ${oldUserId} to ${email}`);
+            supabase.from('user_profiles').upsert([
+                { user_id: oldUserId, email: email },
+                { user_id: newUserId, email: email }
+            ]).then(({ error }) => {
+                if (error) console.warn('[Migration] Profile link error:', error.message);
+            });
+        }
+    } catch (e) {
+        console.warn('[Migration] Failed to link profile', e);
+    }
+
     const results = [];
 
     for (const table of TABLES_TO_MIGRATE) {

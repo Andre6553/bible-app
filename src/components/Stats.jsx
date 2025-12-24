@@ -419,9 +419,19 @@ function Stats() {
             // Immediately update local state for instant UI feedback
             if (itemType === 'search') {
                 setLogs(prevLogs => prevLogs.filter(log => log.id !== selectedItem.id));
+                // Also update the modal view if it's open
+                setSelectedUserHistory(prev => ({
+                    ...prev,
+                    searches: prev.searches.filter(l => l.id !== selectedItem.id)
+                }));
                 processStats(logs.filter(log => log.id !== selectedItem.id));
             } else if (itemType === 'ai') {
                 setAiQuestions(prevQ => prevQ.filter(q => q.id !== selectedItem.id));
+                // Also update the modal view if it's open
+                setSelectedUserHistory(prev => ({
+                    ...prev,
+                    aiQuestions: prev.aiQuestions.filter(q => q.id !== selectedItem.id)
+                }));
                 processAIStats(aiQuestions.filter(q => q.id !== selectedItem.id));
             } else if (itemType === 'error') {
                 setErrorLogs(prev => prev.filter(e => e.id !== selectedItem.id));
@@ -451,7 +461,10 @@ function Stats() {
 
     // Delete all data for a specific user (called after UI confirmation)
     const deleteUserData = async (userId) => {
-        console.log('🗑️ Deleting user data for:', userId);
+        // If the user has originalIds (from grouping), we need to delete all of them
+        const idsToDelete = selectedUser?.originalIds || [userId];
+
+        console.log('🗑️ Deleting user data for IDs:', idsToDelete);
         setShowDeleteConfirm(false);
 
         try {
@@ -460,7 +473,7 @@ function Stats() {
             const { error: searchError } = await supabase
                 .from('search_logs')
                 .delete()
-                .eq('user_id', userId);
+                .in('user_id', idsToDelete);
 
             if (searchError) {
                 console.error('Error deleting search logs:', searchError);
@@ -473,7 +486,7 @@ function Stats() {
             const { error: aiError } = await supabase
                 .from('ai_questions')
                 .delete()
-                .eq('user_id', userId);
+                .in('user_id', idsToDelete);
 
             if (aiError) {
                 console.error('Error deleting AI questions:', aiError);
@@ -481,9 +494,9 @@ function Stats() {
                 console.log('✅ AI questions deleted');
             }
 
-            // Update local state
-            setLogs(prevLogs => prevLogs.filter(log => log.user_id !== userId));
-            setAiQuestions(prevQ => prevQ.filter(q => q.user_id !== userId));
+            // Update local state lists by removing any item belonging to these IDs
+            setLogs(prevLogs => prevLogs.filter(log => !idsToDelete.includes(log.user_id)));
+            setAiQuestions(prevQ => prevQ.filter(q => !idsToDelete.includes(q.user_id)));
 
             // Refresh stats
             fetchLogs();
@@ -493,29 +506,41 @@ function Stats() {
             // Close the modal
             setSelectedUser(null);
 
-            alert(`✅ All data for user ${userId.substring(0, 15)}... has been deleted.`);
+            const displayLabel = selectedUser?.email || userId.substring(0, 15) + '...';
+            alert(`✅ All history for ${displayLabel} has been cleared.`);
         } catch (err) {
             alert('Error deleting user data: ' + err.message);
         }
     };
 
-    // Fully delete user (Data + Super User status)
+    // Fully delete user (Data + Super User status + Profile mapping)
     const handleDeleteUserFully = async (userId) => {
-        console.log('💀 Fully deleting user:', userId);
+        const idsToDelete = selectedUser?.originalIds || [userId];
+        console.log('💀 Fully deleting user and all associated IDs:', idsToDelete);
 
-        // 1. Remove from super users list first
-        const superResult = await removeSuperUser(userId);
-        if (superResult.success) {
-            console.log('✅ Removed from Super Users list');
-            setAllSuperUsers(prev => prev.filter(id => id !== userId));
-        } else {
-            console.warn('⚠️ Could not remove from Super Users (maybe not in list or error):', superResult.error);
+        // 1. Remove from super users list for all associated IDs
+        for (const id of idsToDelete) {
+            const superResult = await removeSuperUser(id);
+            if (superResult.success) {
+                console.log(`✅ Removed ID ${id} from Super Users list`);
+            }
+        }
+        setAllSuperUsers(prev => prev.filter(id => !idsToDelete.includes(id)));
+
+        // 2. Delete profile mappings if they exist
+        if (selectedUser?.email) {
+            console.log(`🗑️ Removing profile mappings for ${selectedUser.email}`);
+            const { error: profileError } = await supabase
+                .from('user_profiles')
+                .delete()
+                .eq('email', selectedUser.email);
+
+            if (profileError) console.warn('Error clearing profiles:', profileError.message);
         }
 
-        // 2. Delete all data (reuses existing logic)
+        // 3. Delete all data (reuses existing logic which now supports multiple IDs)
         await deleteUserData(userId);
 
-        // UI feedback already handled by deleteUserData's alert, but we can add a specific log
         console.log('🏁 User full deletion sequence complete');
     };
 
