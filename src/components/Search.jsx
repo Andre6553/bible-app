@@ -369,8 +369,11 @@ function Search({ currentVersion, versions }) {
         isSearchingRef.current = true;
         setSearchParams(newParams);
 
-        // Clear input when filter change triggers search
-        setSearchQuery('');
+        // If we have a query, jump to results screen immediately on mobile
+        if (searchQuery.trim()) {
+            setShowMobileResults(true);
+        }
+
         setShowHistory(false); // Close history
     };
 
