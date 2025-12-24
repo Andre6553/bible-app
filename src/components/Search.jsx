@@ -361,15 +361,17 @@ function Search({ currentVersion, versions }) {
     };
 
     const handleFilterChange = (key, value) => {
-        // Update local state is not strictly necessary if we depend on URL but keeps UI snappy
+        // Update local state
         if (key === 'version') setSearchVersion(value);
         if (key === 'testament') setSearchTestament(value);
+        if (key === 'mode') {
+            setSearchMode(value);
+            return; // DO NOT trigger search immediately for mode changes
+        }
 
-        if (key === 'mode') setSearchMode(value);
-
-        // Update URL to trigger search
+        // Update URL to trigger search (for version and testament)
         const newParams = { q: searchQuery, version: searchVersion, testament: searchTestament, mode: searchMode };
-        newParams[key] = value; // Override with new value
+        newParams[key] = value;
 
         isSearchingRef.current = true;
         setSearchParams(newParams);
@@ -379,7 +381,7 @@ function Search({ currentVersion, versions }) {
             setShowMobileResults(true);
         }
 
-        setShowHistory(false); // Close history
+        setShowHistory(false);
     };
 
     const loadQuotaInfo = async () => {
@@ -839,6 +841,7 @@ Here are the available shortcuts to quickly ask questions:
 
                 <div className="search-filters">
                     <div className="mode-toggle">
+                        <div className={`mode-slider ${searchMode}`}></div>
                         <button
                             className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
                             onClick={() => handleFilterChange('mode', 'exact')}
