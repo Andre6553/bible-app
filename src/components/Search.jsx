@@ -214,12 +214,15 @@ function Search({ currentVersion, versions }) {
     const performSearch = async (query, versionId, testament, mode = 'exact') => {
         if (!query.trim()) return;
 
-        addToHistory(query.trim(), mode);
+        // Jump to results immediately (especially for slow AI searches)
+        setShowMobileResults(true);
         setLoading(true);
         setHasSearched(true);
         setResults([]);
         setSemanticResults([]);
         setSemanticSummary('');
+
+        addToHistory(query.trim(), mode);
 
         if (mode === 'semantic') {
             console.log("🚀 Starting Semantic Search for:", query);
