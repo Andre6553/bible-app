@@ -244,11 +244,10 @@
 }
 
 .ws-data {
-    /* Animation and Flex logic removed to fix Mobile Text Overlap Bug */
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     width: 100%;
-    height: auto;
-    position: relative;
 }
 
 @keyframes ws-fade-in {
@@ -379,11 +378,9 @@
 }
 
 .ws-detail {
-    margin-bottom: 20px;
-    position: relative;
-    height: auto;
-    overflow: visible;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
 }
 
 .ws-detail h4 {
@@ -405,9 +402,6 @@
 .ws-detail.divider {
     padding-top: 16px;
     border-top: 1px solid var(--border-color);
-    margin-top: 16px;
-    display: block;
-    /* Ensure it starts on a new line */
 }
 
 .ws-related-list {
