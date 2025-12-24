@@ -284,11 +284,26 @@ export const getUserId = async () => {
         }
 
         if (session?.user) {
+            const uid = session.user.id;
+            const email = session.user.email;
+
+            // Sync email to user_profiles for stats grouping
+            if (email) {
+                // Background update, don't await/block
+                supabase.from('user_profiles').upsert({
+                    user_id: uid,
+                    email: email,
+                    last_seen: new Date().toISOString()
+                }).then(({ error }) => {
+                    if (error) console.warn('[ProfileSync] Error syncing profile:', error.message);
+                });
+            }
+
             // If logged in, we definitely don't want a guest ID sticking around
             if (localStorage.getItem('bible_user_id')) {
                 localStorage.removeItem('bible_user_id');
             }
-            return session.user.id;
+            return uid;
         }
     } catch (e) {
         console.warn('Error checking auth session', e);
@@ -393,14 +408,23 @@ export const logSearch = async (query, version, testament) => {
  */
 export const getUserStatistics = async () => {
     try {
-        // Fetch raw user_ids and device_info from both tables
+        // 1. Fetch search and AI logs
         const searchReq = supabase.from('search_logs').select('user_id, device_info').limit(5000);
         const aiReq = supabase.from('ai_questions').select('user_id, device_info').limit(5000);
+        const profileReq = supabase.from('user_profiles').select('user_id, email');
 
-        const [searchRes, aiRes] = await Promise.all([searchReq, aiReq]);
+        const [searchRes, aiRes, profileRes] = await Promise.all([searchReq, aiReq, profileReq]);
 
         if (searchRes.error) throw searchRes.error;
         if (aiRes.error) throw aiRes.error;
+
+        // Map userId to email for quick lookup
+        const profileMap = {};
+        if (profileRes.data) {
+            profileRes.data.forEach(p => {
+                profileMap[p.user_id] = p.email;
+            });
+        }
 
         // Combined list of all actions
         const allActions = [
@@ -408,51 +432,67 @@ export const getUserStatistics = async () => {
             ...aiRes.data.map(d => ({ user: d.user_id, type: 'ai', device: d.device_info }))
         ];
 
-        // 1. Unique Users Count
-        const uniqueUsers = new Set(allActions.map(a => a.user)).size;
-
         // 2. User Activity Count & Device Parsing
         const userStats = {};
 
         allActions.forEach(action => {
             const uid = action.user || 'Anonymous';
-            if (!userStats[uid]) {
-                userStats[uid] = { count: 0, devices: [] };
+            // Determine the "identity" of this user - if they have an email, use it to group
+            const identity = profileMap[uid] || uid;
+
+            if (!userStats[identity]) {
+                userStats[identity] = {
+                    count: 0,
+                    devices: [],
+                    email: profileMap[uid] || null,
+                    originalIds: new Set()
+                };
             }
-            userStats[uid].count++;
+            userStats[identity].count++;
+            userStats[identity].originalIds.add(uid);
             if (action.device) {
-                userStats[uid].devices.push(action.device);
+                userStats[identity].devices.push(action.device);
             }
         });
+
+        // Unique users count based on identity (email if available)
+        const totalUniqueUsers = Object.keys(userStats).length;
 
         // Helper to get formatted device name
         const getDeviceName = (userAgents) => {
             if (!userAgents || userAgents.length === 0) return 'Unknown';
-            // Simple frequency count of user agents
-            const ua = userAgents[userAgents.length - 1]; // Use most recent for now
+            // Use the most common device type
+            const counts = userAgents.reduce((acc, ua) => {
+                let type = '❓ Unknown';
+                if (/iPhone|iPad|iPod/.test(ua)) type = '📱 iOS';
+                else if (/Android/.test(ua)) type = '📱 Android';
+                else if (/Windows/.test(ua)) type = '💻 Windows';
+                else if (/Macintosh|Mac OS X/.test(ua)) type = '💻 Mac';
+                else if (/Linux/.test(ua)) type = '🐧 Linux';
+                acc[type] = (acc[type] || 0) + 1;
+                return acc;
+            }, {});
 
-            if (/iPhone|iPad|iPod/.test(ua)) return '📱 iOS';
-            if (/Android/.test(ua)) return '📱 Android';
-            if (/Windows/.test(ua)) return '💻 Windows';
-            if (/Macintosh|Mac OS X/.test(ua)) return '💻 Mac';
-            if (/Linux/.test(ua)) return '🐧 Linux';
-            return '❓ Unknown';
+            return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
         };
 
         // 3. Sort by activity
         const topUsers = Object.entries(userStats)
-            .map(([userId, stats]) => ({
-                userId,
+            .map(([identity, stats]) => ({
+                userId: identity, // This will be the email if available, otherwise userId
+                displayId: stats.email || identity,
+                email: stats.email,
                 count: stats.count,
                 device: getDeviceName(stats.devices),
-                fullUserAgents: [...new Set(stats.devices)].slice(0, 5) // Store unique UAs
+                fullUserAgents: [...new Set(stats.devices)].slice(0, 5),
+                isGroupedByEmail: !!stats.email
             }))
-            .sort((a, b) => b.count - a.count); // Return all users, sorted by activity
+            .sort((a, b) => b.count - a.count);
 
         return {
             success: true,
             data: {
-                totalUsers: uniqueUsers,
+                totalUsers: totalUniqueUsers,
                 topUsers: topUsers
             }
         };
@@ -470,20 +510,34 @@ export const getUserHistory = async (userId) => {
         const cleanUserId = userId?.trim();
         if (!cleanUserId) return { success: false, searches: [], aiQuestions: [] };
 
-        // 1. Try Direct Query
+        let userIdsToFetch = [cleanUserId];
+
+        // If this ID looks like an email, find all linked IDs
+        if (cleanUserId.includes('@')) {
+            const { data: profiles } = await supabase
+                .from('user_profiles')
+                .select('user_id')
+                .eq('email', cleanUserId);
+
+            if (profiles && profiles.length > 0) {
+                userIdsToFetch = profiles.map(p => p.user_id);
+            }
+        }
+
+        // 1. Query by all associated IDs
         const searchReq = supabase
             .from('search_logs')
             .select('*')
-            .eq('user_id', cleanUserId)
+            .in('user_id', userIdsToFetch)
             .order('created_at', { ascending: false })
-            .limit(20);
+            .limit(50);
 
         const aiReq = supabase
             .from('ai_questions')
             .select('*')
-            .eq('user_id', cleanUserId)
+            .in('user_id', userIdsToFetch)
             .order('created_at', { ascending: false })
-            .limit(20);
+            .limit(50);
 
         const [searchRes, aiRes] = await Promise.all([searchReq, aiReq]);
 

@@ -713,8 +713,12 @@ function Stats() {
                                     <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>
                                         <span className="rank">#{idx + 1}</span>
                                         <div className="user-info-col">
-                                            <span className="term user-id-term">
-                                                {u.userId.substring(0, 15)}{u.userId.length > 15 ? '...' : ''}
+                                            <span className="term user-id-term" title={u.displayId}>
+                                                {u.displayId.includes('@') ? (
+                                                    <span className="email-display">📧 {u.displayId}</span>
+                                                ) : (
+                                                    u.displayId.substring(0, 15) + (u.displayId.length > 15 ? '...' : '')
+                                                )}
                                                 {allSuperUsers.includes(u.userId) && <span className="list-super-badge" title="Super User"> ⭐</span>}
                                             </span>
                                             <span className="device-badge">{u.device}</span>
