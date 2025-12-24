@@ -1093,3 +1093,167 @@
 .toggle-switch input:checked+.slider::before {
     transform: translateX(28px);
 }
+
+/* Reader Mode Styles */
+body.reader-mode-active .bible-header {
+    display: none;
+}
+
+body.reader-mode-active .verses-container {
+    padding-top: var(--safe-top, 20px) !important;
+    padding-bottom: 40px !important;
+    height: 100vh !important;
+}
+
+.reader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.nav-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.nav-zone.edge-left {
+    left: 0;
+    width: 15%;
+    top: 12%;
+    bottom: 0;
+}
+
+.nav-zone.edge-right {
+    right: 0;
+    width: 15%;
+    top: 12%;
+    bottom: 0;
+}
+
+.nav-zone.edge-top {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 12%;
+}
+
+.nav-handle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 2.5rem;
+    font-weight: 200;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    width: 40px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 40px;
+    opacity: 0;
+    transition: all 0.4s ease;
+    pointer-events: none;
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.edge-left .nav-handle {
+    left: 10px;
+}
+
+.edge-right .nav-handle {
+    right: 10px;
+}
+
+.show-controls .nav-handle {
+    opacity: 0.6;
+}
+
+.nav-zone:hover .nav-handle {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.reader-exit-btn {
+    position: fixed;
+    top: calc(var(--safe-top, 10px) + 20px);
+    left: 15px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 10px 18px;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 0.9rem;
+    pointer-events: auto;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10000;
+}
+
+.show-controls .reader-exit-btn {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.reader-nav-hint {
+    position: fixed;
+    bottom: calc(var(--safe-bottom, 10px) + 30px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(15, 15, 25, 0.85);
+    backdrop-filter: blur(8px);
+    padding: 12px 24px;
+    border-radius: 30px;
+    display: flex;
+    gap: 20px;
+    color: white;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    z-index: 10000;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.show-controls .reader-nav-hint {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.expand-toggle.active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+/* Maximize space in reader mode */
+body.reader-mode-active .verses-content {
+    max-width: 900px;
+}
+
+@media (max-width: 768px) {
+    body.reader-mode-active .verses-container {
+        padding: 20px 15px !important;
+    }
+
+    .reader-nav-hint {
+        flex-direction: column;
+        gap: 6px;
+        align-items: center;
+        padding: 15px 25px;
+    }
+}

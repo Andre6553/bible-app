@@ -70,15 +70,40 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [selectedVerses, setSelectedVerses] = useState([]); // Array of verse objects
     const [showActionSheet, setShowActionSheet] = useState(false);
 
-    // Manage body class for VerseActionSheet to hide BottomNav on mobile
+    // Reader Mode State
+    const [isReaderMode, setIsReaderMode] = useState(false);
+    const [showReaderControls, setShowReaderControls] = useState(true);
+
+    // Manage body classes for UI visibility
     useEffect(() => {
         if (showActionSheet && selectedVerses.length > 0) {
             document.body.classList.add('action-sheet-open');
         } else {
             document.body.classList.remove('action-sheet-open');
         }
-        return () => document.body.classList.remove('action-sheet-open');
-    }, [showActionSheet, selectedVerses]);
+
+        if (isReaderMode) {
+            document.body.classList.add('reader-mode-active');
+        } else {
+            document.body.classList.remove('reader-mode-active');
+        }
+
+        return () => {
+            document.body.classList.remove('action-sheet-open');
+            document.body.classList.remove('reader-mode-active');
+        };
+    }, [showActionSheet, selectedVerses, isReaderMode]);
+
+    // Auto-hide Reader Mode controls after 4 seconds
+    useEffect(() => {
+        let timer;
+        if (isReaderMode && showReaderControls) {
+            timer = setTimeout(() => {
+                setShowReaderControls(false);
+            }, 4000);
+        }
+        return () => clearTimeout(timer);
+    }, [isReaderMode, showReaderControls]);
 
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [existingNote, setExistingNote] = useState(null);
@@ -663,6 +688,13 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     <div className="header-left">
                         <button className="info-btn icon-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
                         <button className="info-btn icon-btn" onClick={() => setShowInfo(true)} title="App Info">ℹ️</button>
+                        <button
+                            className={`info-btn icon-btn expand-toggle ${isReaderMode ? 'active' : ''}`}
+                            onClick={() => setIsReaderMode(!isReaderMode)}
+                            title={isReaderMode ? "Exit Reader Mode" : "Expand to Reader Mode"}
+                        >
+                            {isReaderMode ? '🤏' : '↔️'}
+                        </button>
                         <h1
                             className="app-title"
                             onClick={() => setShowDefinition(true)}
@@ -996,6 +1028,33 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     </div>
                 )}
             </div>
+
+            {/* Reader Mode Navigation Overlay */}
+            {isReaderMode && (
+                <div className={`reader-overlay ${showReaderControls ? 'show-controls' : ''}`}>
+                    <div className="nav-zone edge-left" onClick={handlePrevChapter} title="Previous Chapter">
+                        <span className="nav-handle">‹</span>
+                    </div>
+                    <div className="nav-zone edge-right" onClick={handleNextChapter} title="Next Chapter">
+                        <span className="nav-handle">›</span>
+                    </div>
+                    <div className="nav-zone edge-top" onClick={() => setShowReaderControls(!showReaderControls)} title="Toggle Menu" />
+
+                    {showReaderControls && (
+                        <>
+                            <button className="reader-exit-btn" onClick={() => setIsReaderMode(false)}>
+                                <span>🔙 Exit Reader Mode</span>
+                            </button>
+                            <div className="reader-nav-hint">
+                                <span>← Edge to page</span>
+                                <span>Center to select</span>
+                                <span>Top to toggle menu</span>
+                                <span>Edge to page →</span>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* Omni Definition Modal */}
             {showDefinition && (

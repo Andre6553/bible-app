@@ -14,8 +14,9 @@
     z-index: 100;
 }
 
-/* Hide navigation when verse action sheet is open on mobile */
-body.action-sheet-open .bottom-nav {
+/* Hide navigation when verse action sheet or reader mode is open on mobile */
+body.action-sheet-open .bottom-nav,
+body.reader-mode-active .bottom-nav {
     display: none;
 }
 
