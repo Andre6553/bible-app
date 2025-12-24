@@ -54,7 +54,8 @@ function Blog() {
             interestKeywordsDescEdit: 'Tap a keyword to delete it permanently.',
             searchesLabel: 'searches',
             manageBtn: 'Manage',
-            doneBtn: 'Done'
+            doneBtn: 'Done',
+            searching: 'Searching for your personalized content...'
         },
         af: {
             title: '✨ Vir Jou',
@@ -76,7 +77,8 @@ function Blog() {
             interestKeywordsDescEdit: 'Raak \'n sleutelwoord om dit permanent te verwyder.',
             searchesLabel: 'soektogte',
             manageBtn: 'Bestuur',
-            doneBtn: 'Klaar'
+            doneBtn: 'Klaar',
+            searching: 'Besig om jou gepersonaliseerde inhoud te soek...'
         }
     };
 
@@ -393,12 +395,16 @@ function Blog() {
         return (
             <div className="blog-page">
                 <div className="blog-header">
-                    <h1>For You</h1>
+                    <h1>{t.title}</h1>
+                    <p className="blog-subtitle">{t.subtitle}</p>
                 </div>
-                <div className="blog-loading">
-                    <div className="skeleton-card"></div>
-                    <div className="skeleton-card"></div>
-                    <div className="skeleton-card"></div>
+                <div className="blog-loading-container">
+                    <div className="blog-spinner"></div>
+                    <p className="loading-text">{t.searching}</p>
+                    <div className="blog-loading-skeletons">
+                        <div className="skeleton-card"></div>
+                        <div className="skeleton-card"></div>
+                    </div>
                 </div>
             </div>
         );
