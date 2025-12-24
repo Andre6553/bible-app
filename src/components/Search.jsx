@@ -237,7 +237,9 @@ function Search({ currentVersion, versions }) {
                 const resolvedVerses = [];
                 for (const item of resultsToResolve) {
                     console.log(`🔎 Resolving: ${item.ref}`);
-                    const verseResult = await getVerseByReference(item.ref, versionId === 'all' ? 'KJV' : versionId);
+                    // Use active version as default if "all" is selected
+                    const defaultVer = currentVersion?.id || 'KJV';
+                    const verseResult = await getVerseByReference(item.ref, versionId === 'all' ? defaultVer : versionId);
                     if (verseResult.success) {
                         resolvedVerses.push({
                             ...verseResult.data,
