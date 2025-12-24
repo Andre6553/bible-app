@@ -69,6 +69,17 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [categories, setCategories] = useState({}); // { colorHex: label }
     const [selectedVerses, setSelectedVerses] = useState([]); // Array of verse objects
     const [showActionSheet, setShowActionSheet] = useState(false);
+
+    // Manage body class for VerseActionSheet to hide BottomNav on mobile
+    useEffect(() => {
+        if (showActionSheet && selectedVerses.length > 0) {
+            document.body.classList.add('action-sheet-open');
+        } else {
+            document.body.classList.remove('action-sheet-open');
+        }
+        return () => document.body.classList.remove('action-sheet-open');
+    }, [showActionSheet, selectedVerses]);
+
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [existingNote, setExistingNote] = useState(null);
     const [showWordStudyModal, setShowWordStudyModal] = useState(false);
