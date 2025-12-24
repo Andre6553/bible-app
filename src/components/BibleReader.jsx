@@ -1158,6 +1158,17 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                         ))}
                                     </div>
                                 </div>
+
+                                <div className="info-section refresh-section">
+                                    <button
+                                        className="btn-primary refresh-btn"
+                                        onClick={() => window.location.reload()}
+                                        style={{ width: '100%', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+                                    >
+                                        🔄 Refresh App
+                                    </button>
+                                    <p className="settings-hint">Useful for getting latest updates on iOS Home Screen.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
