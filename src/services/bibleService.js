@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabaseClient';
+import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
 
 /**
  * Bible Service - Handles all Bible data operations with Supabase
@@ -614,10 +615,20 @@ export const getVerseByReference = async (refString, versionId = 'KJV') => {
             bookId = parseInt(bookName.trim());
         } else {
             // Find book ID by name
+            let targetBookName = bookName.trim();
+
+            // Check if name is Afrikaans and map to English for DB lookup
+            const englishName = Object.keys(AFRIKAANS_BOOK_NAMES).find(key =>
+                AFRIKAANS_BOOK_NAMES[key].toLowerCase() === targetBookName.toLowerCase()
+            );
+            if (englishName) {
+                targetBookName = englishName;
+            }
+
             const { data: books, error: bookError } = await supabase
                 .from('books')
                 .select('id')
-                .ilike('name_full', `%${bookName.trim()}%`)
+                .ilike('name_full', `%${targetBookName}%`)
                 .limit(1);
 
             if (bookError || !books || books.length === 0) throw new Error('Book not found');
