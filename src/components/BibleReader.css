@@ -1124,11 +1124,14 @@
 
 .refresh-btn-icon:hover {
     background: var(--bg-tertiary);
-    transform: rotate(30deg);
+    border-color: #10b981;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
 }
 
 .refresh-btn-icon:active {
-    transform: rotate(180deg);
+    background: var(--bg-secondary);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: translateY(1px);
 }
 
 /* Reader Mode Styles */
