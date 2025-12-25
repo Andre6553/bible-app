@@ -99,15 +99,11 @@ const getUnusedTopics = async (userId, allTopics) => {
  * Get diverse prompt angle based on day, season, and randomness
  */
 const getDiversePromptAngle = (language = 'en') => {
+    const isAf = language === 'af';
     const now = new Date();
-    const month = now.getMonth(); // 0-11
-    const day = now.getDate();
     const dayOfWeek = now.getDay();
 
-    // Check for special seasons/holidays
-    const seasonalContext = getSeasonalContext(month, day, language);
-
-    const baseAngles = [
+    const anglesEn = [
         'practical daily application with a specific action step',
         'deep encouragement for someone facing challenges',
         'gratitude and thanksgiving with reflection questions',
@@ -118,16 +114,32 @@ const getDiversePromptAngle = (language = 'en') => {
         'perseverance and strength in difficult times'
     ];
 
+    const anglesAf = [
+        'praktiese daaglikse toepassing met \'n spesifieke aksiestap',
+        'diep bemoediging vir iemand wat uitdagings in die gesig staar',
+        'dankbaarheid met vrae vir nadenke',
+        '\'n sagte uitdaging om te groei in geloof',
+        'vertroosting en vrede vir angstige harte',
+        'wysheid vir die neem van besluite',
+        'vreugde en viering van God se goedheid',
+        'volharding en krag in moeilike tye'
+    ];
+
+    const baseAngles = isAf ? anglesAf : anglesEn;
+    const seasonalContext = getSeasonalContext(now.getMonth(), now.getDate(), language);
+
     const randomIndex = Math.floor(Math.random() * baseAngles.length);
     const baseAngle = baseAngles[(dayOfWeek + randomIndex) % baseAngles.length];
 
-    // Combine base angle with seasonal context
     if (seasonalContext) {
-        return `${baseAngle}, with themes appropriate for ${seasonalContext}`;
+        return isAf
+            ? `${baseAngle}, met temas wat pas by ${seasonalContext}`
+            : `${baseAngle}, with themes appropriate for ${seasonalContext}`;
     }
 
     return baseAngle;
 };
+
 
 /**
  * Get seasonal context based on current date
@@ -154,29 +166,33 @@ const getSeasonalContext = (month, day, language = 'en') => {
 
     // New Year (Dec 31 - Jan 7)
     if ((month === 11 && day === 31) || (month === 0 && day <= 7)) {
-        return 'New Year - fresh starts, reflection, and purpose';
+        return language === 'af'
+            ? 'Nuwejaar - vars begin, refleksie en doelgerigtheid'
+            : 'New Year - fresh starts, reflection, and purpose';
     }
+
 
     // Easter season (approximate - March/April)
     if (month === 2 || month === 3) {
-        if (month === 2) return 'the Lenten season of reflection and preparation';
-        if (month === 3 && day <= 21) return 'the Easter season of resurrection and new life';
+        if (month === 2) return language === 'af' ? 'die Lydenstyd van refleksie en voorbereiding' : 'the Lenten season of reflection and preparation';
+        if (month === 3 && day <= 21) return language === 'af' ? 'die Paastyd van opstanding en nuwe lewe' : 'the Easter season of resurrection and new life';
     }
 
     // Thanksgiving (November)
     if (month === 10 && day >= 20 && day <= 30) {
-        return 'the season of Thanksgiving and gratitude';
+        return language === 'af' ? 'die seisoen van dankbaarheid' : 'the season of Thanksgiving and gratitude';
     }
 
     // Mother's Day / Father's Day (May/June)
-    if (month === 4 && day >= 8 && day <= 14) return 'honoring mothers and family';
-    if (month === 5 && day >= 15 && day <= 21) return 'honoring fathers and family';
+    if (month === 4 && day >= 8 && day <= 14) return language === 'af' ? 'gebeurtenisse rondom moeders en familie' : 'honoring mothers and family';
+    if (month === 5 && day >= 15 && day <= 21) return language === 'af' ? 'gebeurtenisse rondom vaders en familie' : 'honoring fathers and family';
 
     // Fall/Back to school (September)
-    if (month === 8) return 'new beginnings and transitions';
+    if (month === 8) return language === 'af' ? 'nuwe begin en oorgange' : 'new beginnings and transitions';
 
     return null; // No special season
-};
+}
+
 
 /**
  * Get instruction to avoid recent scriptures
@@ -756,16 +772,20 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
         if (!forceGenerate) {
             const { data: cached, error: cacheError } = await supabase
                 .from('user_devotionals')
-                .select('recommended_articles, last_refresh')
+                .select('recommended_articles, last_refresh, topics')
                 .eq('user_id', userId)
                 .order('last_refresh', { ascending: false })
                 .limit(1)
                 .single();
 
-            // Return cached articles if valid
+            // Return cached articles ONLY if valid and language matches
             if (!cacheError && cached?.recommended_articles && cached?.last_refresh) {
-                if (isCacheValid(cached.last_refresh, expiryMs)) {
-                    console.log('Returning cached recommended articles');
+                // Check if language matches (we store 'af' or 'en' as the first topic in the cache)
+                const cacheLang = cached.topics?.[0];
+                const isLangMatch = cacheLang === language;
+
+                if (isLangMatch && isCacheValid(cached.last_refresh, expiryMs)) {
+                    console.log(`Returning cached recommended articles (${language})`);
                     return {
                         success: true,
                         posts: cached.recommended_articles,
@@ -775,6 +795,7 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
                 }
             }
         }
+
 
         // Generate 2 fresh AI articles with history awareness and keyword rotation
         const history = await getRecentDevotionalHistory(userId);
@@ -816,10 +837,11 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
                     generated_date: today,
                     title: 'Pending',
                     content: 'Devotional pending generation',
-                    topics: finalTopics,
+                    topics: [language, ...finalTopics], // Store language tag first
                     recommended_articles: successfulArticles,
                     last_refresh: now
                 });
+
 
             if (insertError) {
                 console.warn('Could not save article cache:', insertError);
@@ -861,16 +883,17 @@ const generateFreshArticle = async (topic, index = 0, recentScriptures = [], lan
         const langPrefix = isAf ? 'SKRYF IN AFRIKAANS. ' : '';
 
         const prompt = `${langPrefix}Write a short, inspiring Bible article (150-200 words) about "${topic}" with focus on: ${angle}.
+ 
+ Requirements:
+ - ${isAf ? 'Strictly write in Afrikaans' : 'Write in English'}
+ - Start with an engaging opening line
+ - Include 1-2 relevant scripture references in **bold** format like **John 3:16**
+ - Keep it practical and encouraging
+ - End with a thought-provoking question or call to action
+ - Do NOT include a title - just the content
+ - Use a warm, friendly, accessible tone - like a conversation with a wise friend.
+ ${scriptureAvoidance}${langInstruction}`;
 
-Requirements:
-- ${isAf ? 'Write in Afrikaans' : 'Write in English'}
-- Start with an engaging opening line
-- Include 1-2 relevant scripture references in **bold** format like **John 3:16**
-- Keep it practical and encouraging
-- End with a thought-provoking question or call to action
-- Do NOT include a title - just the content
-
-Tone: Warm, friendly, accessible - like a conversation with a wise friend.${scriptureAvoidance}${langInstruction}`;
 
         const result = await model.generateContent(prompt);
         const content = result.response.text();
@@ -960,21 +983,26 @@ export const getDailyDevotional = async (userId, forceGenerate = false, language
                 .limit(1)
                 .single();
 
-            // Return cached if valid
+            // Return cached ONLY if valid and language matches
             if (!existingError && existing && existing.content && existing.last_refresh) {
-                if (isCacheValid(existing.last_refresh, expiryMs)) {
-                    console.log('Returning cached devotional');
+                // Check language tag stored in topics[0]
+                const cacheLang = existing.topics?.[0];
+                const isLangMatch = cacheLang === language;
+
+                if (isLangMatch && isCacheValid(existing.last_refresh, expiryMs)) {
+                    console.log(`Returning cached devotional (${language})`);
                     return {
                         success: true,
                         devotional: existing,
                         cached: true,
                         message: expiryMs > 60 * 60 * 1000
-                            ? 'Showing your daily devotional (limit: 1/day)'
-                            : 'Showing cached devotional (refreshes hourly)'
+                            ? (language === 'af' ? 'Jou daaglikse oordenking (limiet: 1/dag)' : 'Showing your daily devotional (limit: 1/day)')
+                            : (language === 'af' ? 'Gekasde oordenking (verfris uurliks)' : 'Showing cached devotional (refreshes hourly)')
                     };
                 }
             }
         }
+
 
         // Analyze user's interests for personalization
         const { topics } = await analyzeUserInterests(userId);
@@ -1011,19 +1039,20 @@ export const getDailyDevotional = async (userId, forceGenerate = false, language
             devotionalContent.title
         );
 
-        // Save to database with timestamp
+        // Save to database with timestamp and language tag
         const { data: saved, error: saveError } = await supabase
             .from('user_devotionals')
             .upsert({
                 user_id: userId,
                 title: devotionalContent.title,
                 content: devotionalContent.content,
-                topics: finalTopics,
+                topics: [language, ...finalTopics], // Store language first
                 generated_date: today,
                 last_refresh: new Date().toISOString()
             }, {
                 onConflict: 'user_id,generated_date'
             })
+
             .select()
             .single();
 
