@@ -1291,6 +1291,16 @@
     z-index: 5000;
 }
 
+/* Fix for desktop sidebar overlap */
+@media (min-width: 768px) {
+    .search-page .ai-research-modal {
+        left: 200px !important;
+        /* Sidebar width - Force override of .book-selector-modal */
+        width: calc(100% - 200px) !important;
+        /* Ensure width is explicit */
+    }
+}
+
 /* Info Modal Styling - Reusing structures but specific overrides */
 .info-modal-content {
     max-width: 800px;
