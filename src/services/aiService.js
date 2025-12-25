@@ -211,7 +211,7 @@ export async function saveCachedAnswer(question, answer) {
 /**
  * Main function: Ask AI a Bible question
  */
-export async function askBibleQuestion(userId, question, verses = []) {
+export async function askBibleQuestion(userId, question, verses = [], language = 'en') {
     try {
         // 1. Check quota
         const { remaining } = await getUserRemainingQuota(userId);
@@ -223,8 +223,9 @@ export async function askBibleQuestion(userId, question, verses = []) {
             };
         }
 
-        // 2. Check cache first
-        const cachedAnswer = await getCachedAnswer(question);
+        // 2. Check cache first - Cache key should include language to avoid cross-language leakage
+        const cacheKey = `${language}:${question}`;
+        const cachedAnswer = await getCachedAnswer(cacheKey);
         if (cachedAnswer) {
             // Log as cached
             await supabase
@@ -244,11 +245,19 @@ export async function askBibleQuestion(userId, question, verses = []) {
             `${v.book} ${v.chapter}:${v.verse} - "${v.text}"`
         ).join('\n\n') : 'No specific verses found';
 
+        const isAf = language === 'af';
+        const langOutput = isAf ? 'Afrikaans' : 'English';
+
         let userPrompt = SYSTEM_PROMPT + "\n\n";
+        userPrompt += `CRITICAL: You MUST provide your entire response in ${langOutput}.\n`;
+        if (isAf) {
+            userPrompt += "SKRYF IN AFRIKAANS. Gebruik die 1983-vertaling (AFR83) of 1953-vertaling (AFR53) vir aanhalings indien moontlik.\n";
+        }
+        userPrompt += "\n";
         userPrompt += "**Context Verses (Reference Only):**\n";
         userPrompt += contextText + "\n\n";
         userPrompt += "**User Question:** " + question + "\n\n";
-        userPrompt += "Provide a biblical answer.\n";
+        userPrompt += `Provide a biblical answer in ${langOutput}.\n`;
         userPrompt += "1. PRIORITIZE using the Context Verses above if they are relevant.\n";
         userPrompt += "2. If the Context Verses are not relevant, use your general biblical knowledge to answer.\n";
         userPrompt += "3. CRITICAL: You MUST cite verses in this EXACT format: [[Book Chapter:Verse]] (e.g., [[John 3:16]]). Do not use parentheses `()` for citations, use double brackets `[[]]`.\n";
@@ -263,7 +272,7 @@ export async function askBibleQuestion(userId, question, verses = []) {
         logApiCall('askBibleQuestion', 'success', 'gemini-2.0-flash', { userId });
 
         // 5. Save to cache (for reuse) - Non-blocking
-        saveCachedAnswer(question, answer).catch(console.error);
+        saveCachedAnswer(cacheKey, answer).catch(console.error);
 
         // 6. Log and Increment - Non-blocking / Separate try-catch
         try {

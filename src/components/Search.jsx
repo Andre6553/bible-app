@@ -44,16 +44,43 @@ function Search({ currentVersion, versions }) {
     const [showMobileResults, setShowMobileResults] = useState(false);
 
     const AI_SHORTCUTS = [
-        { cmd: '/story', desc: 'Tell me the story of...', icon: '📖' },
-        { cmd: '/explain', desc: 'Explain from the Bible...', icon: '💡' },
-        { cmd: '/meaning', desc: 'Biblical meaning of...', icon: '📚' },
-        { cmd: '/who', desc: 'Who was...', icon: '👤' },
-        { cmd: '/what', desc: 'What was...', icon: '❓' },
-        { cmd: '/why', desc: 'Why did...', icon: '🤔' },
-        { cmd: '/teach', desc: 'What does the Bible teach...', icon: '🎓' },
-        { cmd: '/compare', desc: 'Compare in the Bible...', icon: '⚖️' },
-        { cmd: '/help', desc: 'Show all shortcuts', icon: 'ℹ️' },
+        { cmd: '/story', desc: settings.language === 'af' ? 'Vertel my die storie van...' : 'Tell me the story of...', icon: '📖' },
+        { cmd: '/explain', desc: settings.language === 'af' ? 'Verduidelik vanuit die Bybel...' : 'Explain from the Bible...', icon: '💡' },
+        { cmd: '/meaning', desc: settings.language === 'af' ? 'Bybelse betekenis van...' : 'Biblical meaning of...', icon: '📚' },
+        { cmd: '/who', desc: settings.language === 'af' ? 'Wie was...' : 'Who was...', icon: '👤' },
+        { cmd: '/what', desc: settings.language === 'af' ? 'Wat was...' : 'What was...', icon: '❓' },
+        { cmd: '/why', desc: settings.language === 'af' ? 'Waarom het...' : 'Why did...', icon: '🤔' },
+        { cmd: '/teach', desc: settings.language === 'af' ? 'Wat leer die Bybel oor...' : 'What does the Bible teach...', icon: '🎓' },
+        { cmd: '/compare', desc: settings.language === 'af' ? 'Vergelyk in die Bybel...' : 'Compare in the Bible...', icon: '⚖️' },
+        { cmd: '/help', desc: settings.language === 'af' ? 'Wys alle kortpaaie' : 'Show all shortcuts', icon: 'ℹ️' },
     ];
+
+    const t = {
+        aiTitle: settings.language === 'af' ? '🤖 AI Bybel Navorsing' : '🤖 AI Bible Research',
+        backToResults: settings.language === 'af' ? '⬅ Terug na Resultate' : '⬅ Back to Results',
+        askQuestion: settings.language === 'af' ? 'Stel jou vraag:' : 'Ask your question:',
+        aiPlaceholder: settings.language === 'af' ? 'b.v., Wat sê die Bybel oor geloof? Hoe moet Christene op lyding reageer?' : 'e.g., What does the Bible say about faith? How should Christians respond to suffering?',
+        quickCommands: settings.language === 'af' ? '⚡ Vinnige Opdragte' : '⚡ Quick Commands',
+        submitQuestion: settings.language === 'af' ? '💬 Stuur Vraag' : '💬 Submit Question',
+        thinking: settings.language === 'af' ? '⏳ AI dink tans...' : '⏳ AI is thinking...',
+        biblicalAnswer: settings.language === 'af' ? '📚 Bybelse Antwoord:' : '📚 Biblical Answer:',
+        copy: settings.language === 'af' ? 'Kopieer' : 'Copy',
+        copied: settings.language === 'af' ? 'Gekopieer!' : 'Copied!',
+        expand: settings.language === 'af' ? '⤢ Brei uit' : '⤢ Expand',
+        collapse: settings.language === 'af' ? '✕ Maak toe' : '✕ Close',
+        questionsRemaining: (rem, total) => settings.language === 'af'
+            ? `📈 ${rem} vrae oor vandag (gebaseer op ${total} daaglikse limiet)`
+            : `📈 ${rem} questions remaining today (based on ${total} daily limit)`,
+        aiDisclaimer: settings.language === 'af'
+            ? 'AI-antwoorde is gebaseer op soekresultate en bybelse teks.'
+            : 'AI responses are based on search results and biblical text.',
+        prevQuestions: (count) => settings.language === 'af'
+            ? `📜 Vorige Vrae (${count})`
+            : `📜 Previous Questions (${count})`,
+        view: settings.language === 'af' ? 'Bekyk' : 'View',
+        clearHistory: settings.language === 'af' ? '🗑️ Vee Geskiedenis uit' : '🗑️ Clear History'
+    };
+
 
     // Load history and AI state on mount
     useEffect(() => {
@@ -90,7 +117,14 @@ function Search({ currentVersion, versions }) {
                     setAiResponse(response);
                     // Do not auto-open modal on reload, user must explicitly click button
                     // setShowAIModal(showModal); 
-                    if (expanded) setIsAnswerExpanded(expanded); // Restore expanded state
+
+                    // If we have a response, we can restore the expanded state
+                    // If there's no response, expanded should be false to show the input box
+                    if (response && expanded) {
+                        setIsAnswerExpanded(true);
+                    } else {
+                        setIsAnswerExpanded(false);
+                    }
                 }
             }
         } catch (e) {
@@ -404,6 +438,7 @@ function Search({ currentVersion, versions }) {
         setAiQuestion(searchQuery);
         setShowAIModal(true);
         setAiResponse(null);
+        setIsAnswerExpanded(false); // Reset expanded mode for new questions
     };
 
     const submitAIQuestion = async () => {
@@ -506,7 +541,7 @@ Here are the available shortcuts to quickly ask questions:
         }));
 
         const uid = currentUserId || await getUserId();
-        const result = await askBibleQuestion(uid, processedQuestion, verseContext);
+        const result = await askBibleQuestion(uid, processedQuestion, verseContext, settings.language);
 
         setAiLoading(false);
 
@@ -1078,18 +1113,18 @@ Here are the available shortcuts to quickly ask questions:
                     <div className="book-selector-modal ai-research-modal" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
                         <div className="book-selector-content info-modal-content" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h2>🤖 AI Bible Research</h2>
+                                <h2>{t.aiTitle}</h2>
                                 <button className="close-btn back-to-results" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
-                                    ⬅ Back to Results
+                                    {t.backToResults}
                                 </button>
                             </div>
                             <div className="modal-body info-body">
                                 {!isAnswerExpanded && (
                                     <div className="info-section">
-                                        <h3>Ask your question:</h3>
+                                        <h3>{t.askQuestion}</h3>
                                         <textarea
                                             className="ai-question-input"
-                                            placeholder="e.g., What does the Bible say about faith? How should Christians respond to suffering?"
+                                            placeholder={t.aiPlaceholder}
                                             value={aiQuestion}
                                             onChange={(e) => {
                                                 const val = e.target.value;
@@ -1107,7 +1142,7 @@ Here are the available shortcuts to quickly ask questions:
                                         {/* Shortcut popup menu */}
                                         {showShortcutMenu && (
                                             <div className="shortcut-popup">
-                                                <div className="shortcut-header">⚡ Quick Commands</div>
+                                                <div className="shortcut-header">{t.quickCommands}</div>
                                                 {AI_SHORTCUTS.map((item) => (
                                                     <button
                                                         key={item.cmd}
@@ -1133,7 +1168,7 @@ Here are the available shortcuts to quickly ask questions:
                                             }}
                                             disabled={aiLoading || !aiQuestion.trim()}
                                         >
-                                            {aiLoading ? '⏳ AI is thinking...' : '💬 Submit Question'}
+                                            {aiLoading ? t.thinking : t.submitQuestion}
                                         </button>
                                     </div>
                                 )}
@@ -1144,7 +1179,7 @@ Here are the available shortcuts to quickly ask questions:
                                         onDoubleClick={() => setIsAnswerExpanded(!isAnswerExpanded)}
                                     >
                                         <div className="ai-response-header">
-                                            <h3>📚 Biblical Answer:</h3>
+                                            <h3>{t.biblicalAnswer}</h3>
                                             <div className="ai-response-actions">
                                                 <button
                                                     className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
@@ -1154,7 +1189,7 @@ Here are the available shortcuts to quickly ask questions:
                                                     }}
                                                     title="Copy to clipboard"
                                                 >
-                                                    {copyStatus === 'Copied!' ? '✅ ' : '📋 '}{copyStatus}
+                                                    {copyStatus === 'Copied!' ? '✅ ' : '📋 '}{copyStatus === 'Copied!' ? t.copied : t.copy}
                                                 </button>
                                                 {!isAnswerExpanded && (
                                                     <button
@@ -1164,7 +1199,7 @@ Here are the available shortcuts to quickly ask questions:
                                                             setIsAnswerExpanded(true);
                                                         }}
                                                     >
-                                                        ⤢ Expand
+                                                        {t.expand}
                                                     </button>
                                                 )}
                                                 {isAnswerExpanded && (
@@ -1175,7 +1210,7 @@ Here are the available shortcuts to quickly ask questions:
                                                             setIsAnswerExpanded(false);
                                                         }}
                                                     >
-                                                        ✕ Close
+                                                        {t.collapse}
                                                     </button>
                                                 )}
                                             </div>
@@ -1194,8 +1229,8 @@ Here are the available shortcuts to quickly ask questions:
 
                                 {!isAnswerExpanded && (
                                     <div className="info-footer">
-                                        <p>📈 {quotaInfo.remaining} questions remaining today (based on {quotaInfo.quota} daily limit)</p>
-                                        <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>AI responses are based on search results and biblical text.</p>
+                                        <p>{t.questionsRemaining(quotaInfo.remaining, quotaInfo.quota)}</p>
+                                        <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>{t.aiDisclaimer}</p>
                                     </div>
                                 )}
 
@@ -1206,7 +1241,7 @@ Here are the available shortcuts to quickly ask questions:
                                             className="ai-history-toggle"
                                             onClick={() => setShowAIHistory(!showAIHistory)}
                                         >
-                                            📜 Previous Questions ({aiHistory.length})
+                                            {t.prevQuestions(aiHistory.length)}
                                             <span className={`toggle-arrow ${showAIHistory ? 'open' : ''}`}>▼</span>
                                         </button>
 
@@ -1230,22 +1265,24 @@ Here are the available shortcuts to quickly ask questions:
                                                                 }}
                                                                 title="View this answer"
                                                             >
-                                                                View
+                                                                {t.view}
                                                             </button>
                                                         </div>
                                                         <div className="ai-history-date">
-                                                            {new Date(item.timestamp).toLocaleDateString()}
+                                                            {new Date(item.timestamp).toLocaleDateString(settings.language === 'af' ? 'af-ZA' : 'en-US')}
                                                         </div>
                                                     </div>
                                                 ))}
                                                 <button
                                                     className="clear-ai-history-btn"
                                                     onClick={() => {
-                                                        setAiHistory([]);
-                                                        localStorage.removeItem('ai_search_history');
+                                                        if (window.confirm(settings.language === 'af' ? 'Is jy seker jy wil jou geskiedenis uitvee?' : 'Are you sure you want to clear your history?')) {
+                                                            setAiHistory([]);
+                                                            localStorage.removeItem('ai_search_history');
+                                                        }
                                                     }}
                                                 >
-                                                    🗑️ Clear History
+                                                    {t.clearHistory}
                                                 </button>
                                             </div>
                                         )}

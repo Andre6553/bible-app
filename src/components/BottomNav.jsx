@@ -55,6 +55,10 @@ function BottomNav() {
             <NavLink
                 to="/bible"
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                    // Dispatch custom event to exit reader mode if active
+                    window.dispatchEvent(new CustomEvent('exit-reader-mode'));
+                }}
             >
                 <span className="nav-icon">📖</span>
                 <span className="nav-label">{t.bible}</span>

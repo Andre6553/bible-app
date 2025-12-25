@@ -1147,7 +1147,7 @@ body.reader-mode-active .bible-header {
 
 body.reader-mode-active .verses-container {
     padding-top: var(--safe-top, 20px) !important;
-    padding-bottom: 40px !important;
+    padding-bottom: 110px !important;
     height: 100vh !important;
 }
 
@@ -1164,7 +1164,8 @@ body.reader-mode-active .verses-container {
 .nav-zone {
     position: absolute;
     top: 0;
-    bottom: 0;
+    bottom: 100px;
+    /* Offset to clear BottomNav */
     pointer-events: auto;
     cursor: pointer;
 }
@@ -1174,6 +1175,7 @@ body.reader-mode-active .verses-container {
     width: 15%;
     top: 12%;
     bottom: 0;
+    /* Already inherits from .nav-zone if not specified, but good to be explicit */
 }
 
 .nav-zone.edge-right {
@@ -1181,6 +1183,7 @@ body.reader-mode-active .verses-container {
     width: 15%;
     top: 12%;
     bottom: 0;
+    /* Explicitly 0 relative to parent .nav-zone which is now shorter */
 }
 
 .nav-zone.edge-top {
@@ -1284,7 +1287,7 @@ body.reader-mode-active .verses-container {
 
 .reader-nav-hint {
     position: fixed;
-    bottom: calc(var(--safe-bottom, 10px) + 30px);
+    bottom: calc(var(--safe-bottom, 10px) + 90px);
     left: 50%;
     transform: translateX(-50%) translateY(20px);
     background: rgba(15, 15, 25, 0.85);

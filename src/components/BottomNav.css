@@ -11,12 +11,12 @@
     padding: var(--spacing-sm) 0;
     padding-bottom: calc(var(--spacing-sm) + var(--safe-bottom));
     box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1);
-    z-index: 100;
+    z-index: 10001;
+    /* Higher than Reader Mode overlays (9999) */
 }
 
-/* Hide navigation when verse action sheet or reader mode is open on mobile */
-body.action-sheet-open .bottom-nav,
-body.reader-mode-active .bottom-nav {
+/* Hide navigation when verse action sheet is open on mobile */
+body.action-sheet-open .bottom-nav {
     display: none;
 }
 

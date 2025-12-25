@@ -142,6 +142,19 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         }, 50);
     };
 
+    // Listen for global event to exit reader mode (e.g. from BottomNav click)
+    useEffect(() => {
+        const handleExitReader = () => {
+            setIsReaderMode(prev => {
+                if (prev) return false;
+                return prev;
+            });
+        };
+
+        window.addEventListener('exit-reader-mode', handleExitReader);
+        return () => window.removeEventListener('exit-reader-mode', handleExitReader);
+    }, []); // No dependencies needed when using functional state updates
+
     useEffect(() => {
         loadBooks();
     }, []);
