@@ -342,23 +342,44 @@ function Profile() {
                     </h1>
                 )}
 
-                <div className="language-selector">
-                    <span className="lang-label">For You Content in Afr / Eng</span>
-                    <div className="lang-toggle-container">
-                        <button
-                            className={`lang-btn ${settings.language === 'en' ? 'active' : ''}`}
-                            onClick={() => updateSettings({ language: 'en' })}
-                        >
-                            English
-                        </button>
-                        <button
-                            className={`lang-btn ${settings.language === 'af' ? 'active' : ''}`}
-                            onClick={() => updateSettings({ language: 'af' })}
-                        >
-                            Afrikaans
-                        </button>
+                <div className="settings-row">
+                    <div className="language-selector">
+                        <span className="lang-label">{settings.language === 'af' ? 'Vir Jou Inhoud in Afr / Eng' : 'For You Content in Afr / Eng'}</span>
+                        <div className="lang-toggle-container">
+                            <button
+                                className={`lang-btn ${settings.language === 'en' ? 'active' : ''}`}
+                                onClick={() => updateSettings({ language: 'en' })}
+                            >
+                                English
+                            </button>
+                            <button
+                                className={`lang-btn ${settings.language === 'af' ? 'active' : ''}`}
+                                onClick={() => updateSettings({ language: 'af' })}
+                            >
+                                Afrikaans
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="theme-selector">
+                        <span className="lang-label">{settings.language === 'af' ? 'Tema Modus' : 'Theme Mode'}</span>
+                        <div className="lang-toggle-container">
+                            <button
+                                className={`lang-btn ${settings.themeMode === 'dark' ? 'active' : ''}`}
+                                onClick={() => updateSettings({ themeMode: 'dark' })}
+                            >
+                                {settings.language === 'af' ? 'Donker' : 'Dark'}
+                            </button>
+                            <button
+                                className={`lang-btn ${settings.themeMode === 'light' ? 'active' : ''}`}
+                                onClick={() => updateSettings({ themeMode: 'light' })}
+                            >
+                                {settings.language === 'af' ? 'Lig' : 'Light'}
+                            </button>
+                        </div>
                     </div>
                 </div>
+
 
                 <div className="auth-status-container">
                     {user ? (

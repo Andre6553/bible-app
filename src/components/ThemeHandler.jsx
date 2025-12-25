@@ -21,7 +21,15 @@ function ThemeHandler() {
             root.style.setProperty('--accent-secondary', `color-mix(in srgb, ${settings.themeColor}, white 20%)`);
             root.style.setProperty('--accent-dark', `color-mix(in srgb, ${settings.themeColor}, black 20%)`);
         }
-    }, [settings.themeColor]);
+
+        // Handle Dark/Light mode
+        const root = document.documentElement;
+        if (settings.themeMode === 'light') {
+            root.classList.add('theme-light');
+        } else {
+            root.classList.remove('theme-light');
+        }
+    }, [settings.themeColor, settings.themeMode]);
 
     return null; // Logic only
 }

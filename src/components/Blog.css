@@ -3,14 +3,14 @@
 .blog-page {
     min-height: 100vh;
     min-height: 100dvh;
-    /* Dynamic viewport height for mobile */
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    background: var(--bg-primary);
     padding: 20px;
-    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
-    color: #e8e8e8;
+    padding-bottom: calc(120px + var(--safe-bottom, 0px));
+    color: var(--text-primary);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
+
 
 /* Header */
 .blog-header {
@@ -22,17 +22,16 @@
 .blog-header h1 {
     font-size: 2rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--accent-primary);
     margin-bottom: 8px;
 }
 
+
 .blog-subtitle {
-    color: #a0a0a0;
+    color: var(--text-muted);
     font-size: 0.95rem;
 }
+
 
 /* Loading States */
 .blog-loading-container {
@@ -48,8 +47,9 @@
 .blog-spinner {
     width: 50px;
     height: 50px;
-    border: 4px solid rgba(255, 255, 255, 0.1);
-    border-top: 4px solid #667eea;
+    border: 4px solid var(--bg-tertiary);
+    border-top: 4px solid var(--accent-primary);
+
     border-radius: 50%;
     animation: spin 1s linear infinite;
     box-shadow: 0 0 15px rgba(102, 126, 234, 0.3);
@@ -57,9 +57,10 @@
 
 .loading-text {
     font-size: 1.1rem;
-    color: #e0e0e0;
+    color: var(--text-secondary);
     font-weight: 500;
 }
+
 
 .blog-loading-skeletons {
     width: 100%;
@@ -162,8 +163,9 @@
 .blog-section h2 {
     font-size: 1.3rem;
     margin-bottom: 15px;
-    color: #f0f0f0;
+    color: var(--text-primary);
 }
+
 
 .section-header {
     display: flex;
@@ -173,18 +175,20 @@
 }
 
 .section-desc {
-    color: #888;
+    color: var(--text-muted);
     font-size: 0.85rem;
     margin-bottom: 12px;
 }
 
+
 .refresh-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #e0e0e0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
     padding: 8px 16px;
     border-radius: 20px;
     font-size: 0.85rem;
+
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -201,43 +205,49 @@
 
 /* Devotional Card */
 .devotional-section {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    background: var(--bg-secondary);
     border-radius: 20px;
     padding: 20px;
-    border: 1px solid rgba(102, 126, 234, 0.2);
+    border: 1px solid var(--border-subtle);
 }
 
+
 .devotional-card {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-tertiary);
     border-radius: 16px;
     padding: 20px;
 }
 
+
 .devotional-card h3 {
     font-size: 1.2rem;
-    color: #ffecd2;
+    color: var(--accent-primary);
     margin-bottom: 15px;
 }
 
+
 .devotional-content {
-    color: #d0d0d0;
+    color: var(--text-secondary);
     line-height: 1.8;
     font-size: 0.95rem;
 }
+
 
 .devotional-content p {
     margin-bottom: 12px;
 }
 
 .devotional-content strong {
-    color: #fcb69f;
+    color: var(--accent-primary);
 }
+
 
 .empty-devotional {
     text-align: center;
     padding: 30px;
-    color: #888;
+    color: var(--text-muted);
 }
+
 
 /* Topic Chips */
 .topic-chips {
@@ -246,12 +256,14 @@
     gap: 8px;
     margin-top: 15px;
     padding-top: 15px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--border-subtle);
 }
 
+
 .topic-chip {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--accent-primary);
     color: white;
+
     padding: 6px 14px;
     border-radius: 20px;
     font-size: 0.8rem;
@@ -266,28 +278,31 @@
 }
 
 .topic-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
     border-radius: 12px;
     padding: 15px;
+
     text-align: center;
     transition: all 0.3s ease;
 }
 
 .topic-card:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-tertiary);
     transform: translateY(-2px);
 }
+
 
 .empty-topics-hint {
     text-align: center;
     padding: 20px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-tertiary);
     border-radius: 12px;
-    color: #888;
+    color: var(--text-muted);
     font-size: 0.9rem;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border: 1px dashed var(--border-subtle);
 }
+
 
 .topic-name {
     display: block;
@@ -300,16 +315,18 @@
 
 .topic-weight {
     font-size: 0.75rem;
-    color: #888;
+    color: var(--text-muted);
 }
+
 
 /* Keyword Management */
 .keyword-management {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-secondary);
     border-radius: 20px;
     padding: 25px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-subtle);
 }
+
 
 .keyword-buttons {
     display: flex;
@@ -319,14 +336,15 @@
 }
 
 .keyword-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #a0a0a0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
     padding: 8px 16px;
     border-radius: 25px;
     font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
     display: flex;
     align-items: center;
     gap: 6px;
@@ -340,11 +358,12 @@
 }
 
 .keyword-btn.highlighted {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--accent-primary);
     border-color: transparent;
     color: white;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: var(--shadow-md);
 }
+
 
 .keyword-btn.highlighted:hover {
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
@@ -413,13 +432,14 @@
 }
 
 .trending-chip {
-    background: rgba(252, 182, 159, 0.15);
-    color: #fcb69f;
+    background: var(--bg-tertiary);
+    color: var(--accent-primary);
     padding: 8px 16px;
     border-radius: 20px;
     font-size: 0.9rem;
-    border: 1px solid rgba(252, 182, 159, 0.3);
+    border: 1px solid var(--border-subtle);
 }
+
 
 /* Posts Grid */
 .posts-grid {
@@ -435,32 +455,36 @@
 }
 
 .post-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
     border-radius: 16px;
     padding: 20px;
+
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .post-card:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-tertiary);
     transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-lg);
 }
+
 
 .post-card h3 {
     font-size: 1.1rem;
-    color: #f0f0f0;
+    color: var(--text-primary);
     margin-bottom: 10px;
     line-height: 1.4;
 }
 
+
 .post-summary {
-    color: #a0a0a0;
+    color: var(--text-secondary);
     font-size: 0.9rem;
     line-height: 1.5;
     margin-bottom: 12px;
+
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
@@ -490,17 +514,19 @@
 }
 
 .post-views {
-    color: #888;
+    color: var(--text-muted);
     font-size: 0.8rem;
 }
+
 
 .empty-posts {
     text-align: center;
     padding: 40px;
-    color: #888;
-    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
     border-radius: 16px;
 }
+
 
 /* Article Modal */
 .article-modal-overlay {
@@ -529,14 +555,16 @@
 }
 
 .article-modal {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background: var(--bg-secondary);
     border-radius: 20px;
     max-width: 700px;
     width: 100%;
     max-height: 85vh;
     overflow-y: auto;
     animation: slideUp 0.3s ease;
+    border: 1px solid var(--border-subtle);
 }
+
 
 @keyframes slideUp {
     from {
@@ -555,27 +583,30 @@
     justify-content: space-between;
     align-items: flex-start;
     padding: 25px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background: var(--bg-secondary);
     z-index: 10;
 }
 
+
 .article-modal-header h2 {
     font-size: 1.4rem;
-    color: #ffecd2;
+    color: var(--text-primary);
     line-height: 1.4;
     flex: 1;
     margin-right: 15px;
 }
 
+
 .close-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: #e0e0e0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
     width: 36px;
     height: 36px;
+
     border-radius: 50%;
     font-size: 1.2rem;
     cursor: pointer;
@@ -589,33 +620,40 @@
 
 .article-modal-body {
     padding: 25px;
+    padding-bottom: 80px;
+    /* Extra space for visibility */
 }
 
+
 .article-content {
-    color: #d0d0d0;
+    color: var(--text-secondary);
     line-height: 1.9;
     font-size: 1rem;
 }
+
 
 .article-content p {
     margin-bottom: 16px;
 }
 
 .article-content strong {
-    color: #fcb69f;
+    color: var(--accent-primary);
 }
+
 
 .scripture-refs {
     margin-top: 25px;
     padding-top: 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--border-subtle);
 }
 
+
 .scripture-refs h4 {
-    color: #f0f0f0;
+    color: var(--text-primary);
     margin-bottom: 12px;
     font-size: 1rem;
 }
+
 
 .refs-list {
     display: flex;
@@ -624,13 +662,14 @@
 }
 
 .scripture-ref {
-    background: rgba(255, 236, 210, 0.1);
-    color: #ffecd2;
+    background: var(--bg-tertiary);
+    color: var(--accent-primary);
     padding: 8px 14px;
     border-radius: 8px;
     font-size: 0.9rem;
-    border: 1px solid rgba(255, 236, 210, 0.2);
+    border: 1px solid var(--border-subtle);
 }
+
 
 .scripture-ref.clickable {
     cursor: pointer;
@@ -680,8 +719,14 @@
         margin-top: auto;
     }
 
-    .article-modal-header,
-    .article-modal-body {
+    .article-modal-header {
         padding: 20px;
     }
+
+    .article-modal-body {
+        padding: 20px;
+        padding-bottom: 120px;
+        /* More space on mobile for safe areas */
+    }
+
 }

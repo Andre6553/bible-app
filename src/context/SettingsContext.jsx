@@ -14,6 +14,7 @@ export const SettingsProvider = ({ children }) => {
         fontSize: 18,
         fontFamily: 'sans-serif',
         themeColor: '#6366f1',
+        themeMode: 'dark',
         language: 'en'
     });
     const [user, setUser] = useState(null);
