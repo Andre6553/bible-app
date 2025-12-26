@@ -174,3 +174,135 @@
 .remove-highlight-btn:active {
     transform: translateY(0);
 }
+
+/* Category Naming Styles */
+.category-edit-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: var(--bg-tertiary, #16213e);
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle, #334155);
+}
+
+.edit-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.category-label-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    padding: 4px;
+    outline: none;
+    min-width: 0;
+}
+
+.category-label-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.category-save-btn {
+    padding: 6px 12px;
+    background: var(--accent-primary, #3b82f6);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.category-save-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+.category-cancel-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.category-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.color-naming-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 5px;
+    width: 100%;
+}
+
+.color-naming-hint span {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.help-info-btn {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: all 0.2s;
+}
+
+.help-info-btn:hover,
+.help-info-btn.active {
+    opacity: 1;
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.contextual-help-box {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+    width: 100%;
+    text-align: left;
+    animation: fadeIn 0.3s ease;
+}
+
+.contextual-help-box h4 {
+    margin: 0 0 4px 0;
+    font-size: 0.85rem;
+    color: var(--accent-primary);
+}
+
+.contextual-help-box p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}

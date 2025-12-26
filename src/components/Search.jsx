@@ -104,7 +104,9 @@ function Search({ currentVersion, versions }) {
         if (color === 'REMOVE') {
             result = await removeBulkHighlights(versesToHighlight);
         } else {
-            result = await saveBulkHighlights(versesToHighlight, color);
+            // [MODIFIED] Pass the current search query as the specific 'label' for these highlights
+            // This allows us to distinguish between "Glo" and "Bely" even if they share a color
+            result = await saveBulkHighlights(versesToHighlight, color, searchQuery);
         }
 
         if (result.success) {

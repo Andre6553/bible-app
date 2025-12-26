@@ -81,8 +81,9 @@ export const saveHighlight = async (bookId, chapter, verse, version, color) => {
  * Save highlights for multiple verses at once (Bulk)
  * @param {Array} verseList - Array of { bookId, chapter, verse, version }
  * @param {string} color - Hex color code
+ * @param {string} [label] - Optional specific tag/label for these highlights
  */
-export const saveBulkHighlights = async (verseList, color) => {
+export const saveBulkHighlights = async (verseList, color, label) => {
     const userId = await getUserId();
     if (!verseList || verseList.length === 0) return { success: true };
 
@@ -119,6 +120,7 @@ export const saveBulkHighlights = async (verseList, color) => {
             verse: v.verse,
             version: v.version || 'AFR53', // Default if missing
             color,
+            label: label || null, // [NEW] Store specific label if provided
             created_at: new Date().toISOString()
         }));
 
@@ -200,22 +202,80 @@ export const removeHighlight = async (bookId, chapter, verse, version) => {
 };
 
 /**
+ * Delete highlights by their IDs (Bulk Delete)
+ * @param {Array<string>} ids - List of highlight UUIDs
+ */
+export const deleteHighlightsByIds = async (ids) => {
+    if (!ids || ids.length === 0) return { success: true };
+    const userId = await getUserId();
+
+    try {
+        const { error } = await supabase
+            .from('verse_highlights')
+            .delete()
+            .eq('user_id', userId)
+            .in('id', ids);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (err) {
+        console.error('Error bulk deleting highlights by ID:', err);
+        return { success: false, error: err.message };
+    }
+};
+
+/**
  * Get all highlights for a user (for Profile page)
  */
 export const getAllHighlights = async () => {
     const userId = await getUserId();
     try {
-        const { data: highlights, error } = await supabase
+        const { data, error } = await supabase
             .from('verse_highlights')
             .select('*')
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (!highlights || highlights.length === 0) return { success: true, highlights: [] };
+        return { success: true, highlights: data || [] };
+    } catch (err) {
+        console.error('Error fetching all highlights:', err);
+        return { success: false, highlights: [] };
+    }
+};
 
-        // Enrich with text (Client-side Join)
-        // 1. Group by book/chapter/version to minimize requests
+/**
+ * Get highlights for specific colors (On-Demand Loading)
+ * @param {Array<string>} colors - List of hex color codes
+ */
+export const getHighlightsByColors = async (colors) => {
+    const userId = await getUserId();
+    if (!colors || colors.length === 0) return { success: true, highlights: [] };
+
+    try {
+        const { data, error } = await supabase
+            .from('verse_highlights')
+            .select('*')
+            .eq('user_id', userId)
+            .in('color', colors)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return { success: true, highlights: data || [] };
+    } catch (err) {
+        console.error('Error fetching highlights by color:', err);
+        return { success: false, highlights: [] };
+    }
+};
+
+/**
+ * Fetch text for specific highlights (for filtering)
+ */
+export const fetchHighlightTexts = async (highlights) => {
+    if (!highlights || highlights.length === 0) return [];
+
+    try {
+        // 1. Group by book/chapter/version
         const groups = {};
         highlights.forEach(h => {
             const key = `${h.book_id}-${h.chapter}-${h.version}`;
@@ -225,39 +285,43 @@ export const getAllHighlights = async () => {
             groups[key].verses.push(h.verse);
         });
 
-        // 2. Fetch texts for each group concurrently
-        const promises = Object.values(groups).map(async (g) => {
-            const { data: versesData } = await supabase
-                .from('verses')
-                .select('verse, text')
-                .eq('book_id', g.bookId)
-                .eq('chapter', g.chapter)
-                .eq('version', g.version)
-                .in('verse', g.verses);
+        // 2. Fetch concurrently (batched)
+        // Optimization: Process groups in chunks of 10 to avoid browser connection limits
+        const groupValues = Object.values(groups);
+        const results = [];
+        const CHUNK_SIZE = 10;
 
-            return { key: `${g.bookId}-${g.chapter}-${g.version}`, data: versesData || [] };
-        });
+        for (let i = 0; i < groupValues.length; i += CHUNK_SIZE) {
+            const chunk = groupValues.slice(i, i + CHUNK_SIZE);
+            const chunkPromises = chunk.map(async (g) => {
+                const { data } = await supabase
+                    .from('verses')
+                    .select('verse, text')
+                    .eq('book_id', g.bookId)
+                    .eq('chapter', g.chapter)
+                    .eq('version', g.version)
+                    .in('verse', g.verses);
+                return { key: `${g.bookId}-${g.chapter}-${g.version}`, data: data || [] };
+            });
+            const chunkResults = await Promise.all(chunkPromises);
+            results.push(...chunkResults);
+        }
 
-        const results = await Promise.all(promises);
-
-        // 3. Create a lookup map
-        const textMap = {}; // "book-chapter-version-verse" -> text
+        // 3. Map back
+        const textMap = {};
         results.forEach(r => {
             r.data.forEach(v => {
                 textMap[`${r.key}-${v.verse}`] = v.text;
             });
         });
 
-        // 4. Merge text into highlights
-        const enriched = highlights.map(h => ({
+        return highlights.map(h => ({
             ...h,
             text: textMap[`${h.book_id}-${h.chapter}-${h.version}-${h.verse}`] || ''
         }));
-
-        return { success: true, highlights: enriched };
     } catch (err) {
-        console.error('Error fetching all highlights:', err);
-        return { success: false, highlights: [] };
+        console.error('Error enriching highlights:', err);
+        return highlights; // Return original if fail
     }
 };
 
@@ -351,6 +415,11 @@ export const deleteCategory = async (labelToDelete) => {
         });
 
         // 3. Remove all highlights for affected colors
+        // 3. Remove all highlights for affected colors
+        // [MODIFIED] We do NOT auto-delete highlights here anymore.
+        // The Deep Delete logic in Profile.jsx handles selective deletion of highlights.
+        // If we delete by color here, we risk deleting shared highlights (e.g. Glo/Bely).
+        /*
         if (colorsToRemoveHighlightsFrom.length > 0) {
             const { error: highlightError } = await supabase
                 .from('verse_highlights')
@@ -360,6 +429,7 @@ export const deleteCategory = async (labelToDelete) => {
 
             if (highlightError) throw highlightError;
         }
+        */
 
         // 4. Update or Delete category records
         for (const update of categoriesToUpdate) {

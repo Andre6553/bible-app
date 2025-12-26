@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory } from '../services/highlightService';
+import { getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory, getHighlightsByColors, deleteHighlightsByIds, fetchHighlightTexts } from '../services/highlightService';
 import { getBooks, getVersions } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
@@ -39,6 +39,7 @@ function Profile() {
 
     // Confirm delete dialog
     const [confirmDelete, setConfirmDelete] = useState({ show: false, type: '', id: null, name: '' });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Downloads state
     const [versions, setVersions] = useState([]);
@@ -47,6 +48,7 @@ function Profile() {
     const [storageUsage, setStorageUsage] = useState('0 B');
     const [selectedStudyId, setSelectedStudyId] = useState(null);
     const [expandedCategories, setExpandedCategories] = useState({}); // { label: boolean }
+    const [loadedColors, setLoadedColors] = useState(new Set()); // Track which colors have been loaded
 
     useEffect(() => {
         loadData();
@@ -113,8 +115,9 @@ function Profile() {
 
     const loadData = async () => {
         setLoading(true);
-        const [highlightRes, noteRes, studyRes, wordStudyRes, labelRes, bookRes, categoryRes] = await Promise.all([
-            getAllHighlights(),
+        // Optimization: Removed getAllHighlights() from initial load.
+        // Highlights are now loaded on-demand when expanding categories.
+        const [noteRes, studyRes, wordStudyRes, labelRes, bookRes, categoryRes] = await Promise.all([
             getAllNotes(),
             getStudyCollections(),
             getSavedWordStudies(),
@@ -123,7 +126,6 @@ function Profile() {
             getHighlightCategories()
         ]);
 
-        if (highlightRes.success) setHighlights(highlightRes.highlights);
         if (noteRes.success) setNotes(noteRes.notes);
         if (studyRes.success) setStudies(studyRes.collections);
         if (wordStudyRes.success) setWordStudies(wordStudyRes.studies);
@@ -220,6 +222,17 @@ function Profile() {
         });
     };
 
+    // Calculate unique labels from categories map for rendering the list
+    const usedColors = Object.keys(categories);
+    const unusedColors = HIGHLIGHT_COLORS.map(c => c.color).filter(c => !usedColors.includes(c));
+
+    let uniqueLabels = [...new Set(Object.values(categories).flatMap(label => String(label).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l)))].sort();
+
+    // Always add 'Other Highlights' if there are colors not assigned to a category
+    if (unusedColors.length > 0) {
+        uniqueLabels.push('Other Highlights');
+    }
+
     // Delete handlers
     const openDeleteConfirm = (type, id, name, e) => {
         e.stopPropagation();
@@ -250,30 +263,239 @@ function Profile() {
             success = result.success;
             if (success) setWordStudies(wordStudies.filter(x => x.id !== id));
         } else if (type === 'category') {
-            const result = await deleteCategory(id); // id is the label here
-            success = result.success;
-            if (success) {
-                // Refresh all data to reflect the changes
-                loadData();
+            // DEEP DELETE LOGIC
+            const label = id;
+            setIsDeleting(true);
+
+            try {
+                // 1. Identify relevant colors
+                let colorsToCheck = [];
+                let idsToDelete = []; // [Moved] Scope to top of try block for UI update access
+                if (label === 'Other Highlights') {
+                    colorsToCheck = unusedColors;
+                } else {
+                    colorsToCheck = Object.entries(categories)
+                        .filter(([_, catLabel]) => {
+                            const labels = String(catLabel).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l);
+                            return labels.includes(label);
+                        })
+                        .map(([color]) => color);
+                }
+
+                // 2. Fetch ALL verses for these colors (even if not loaded in UI yet)
+                if (colorsToCheck.length > 0) {
+                    const res = await getHighlightsByColors(colorsToCheck);
+                    if (res.success && res.highlights.length > 0) {
+                        let candidates = res.highlights;
+
+                        // 3. Filter candidates to find exact matches for THIS category
+                        // If it's a split category, we MUST check text content
+                        // We first identify which candidates need text checking
+                        const needsTextCheck = candidates.filter(h => {
+                            if (h.label) return false; // [NEW] If specific label exists, we trust it; no text check needed
+
+                            if (label === 'Other Highlights') return false;
+                            const catLabel = categories[h.color];
+                            if (!catLabel) return false;
+                            const allLabels = String(catLabel).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l);
+                            return allLabels.length > 1; // Only check text if multiple labels exist
+                        });
+
+                        // let idsToDelete = []; // [REMOVED] Used outer scope variable
+                        let straightDeleteIds = candidates
+                            .filter(h => !needsTextCheck.includes(h))
+                            .filter(h => {
+                                // [NEW] If explicit label exists, only delete if it matches the target
+                                if (h.label) {
+                                    // EXCEPTION: If we are deleting 'Other Highlights', we delete EVERYTHING in it, regardless of label/tag.
+                                    if (label === 'Other Highlights') return true;
+
+                                    return h.label === label;
+                                }
+                                return true; // If no label (and not multi-label), assume safe to delete
+                            })
+                            .map(h => h.id);
+
+                        idsToDelete = [...straightDeleteIds];
+
+                        // 4. For text-check needed items, fetch text and verify
+                        if (needsTextCheck.length > 0) {
+                            const enriched = await fetchHighlightTexts(needsTextCheck);
+                            // Now filter based on text
+                            // Now filter based on text
+                            const verifiedIds = enriched.filter(e => {
+                                const verseText = (e.text || '').toLowerCase();
+                                const targetLabel = label.toLowerCase();
+
+                                // 1. Must match the target category to be a candidate
+                                if (!verseText.includes(targetLabel)) return false;
+
+                                // 2. PROTECTION CHECK:
+                                // If this highlight ALSO belongs to a sibling category (e.g. "Glo"), we must NOT delete it
+                                // because the record is shared. 
+                                const catLabel = categories[e.color];
+                                if (catLabel) {
+                                    const allLabels = String(catLabel).split(/[,，、;|/&+]/).map(l => l.trim().toLowerCase()).filter(l => l);
+                                    const siblingLabels = allLabels.filter(l => l !== targetLabel);
+
+                                    const matchesSibling = siblingLabels.some(sibling => verseText.includes(sibling));
+                                    if (matchesSibling) {
+                                        console.log(`Protected highlight ${e.id} because it also matches sibling label`);
+                                        return false; // Don't delete, it's shared!
+                                    }
+                                }
+
+                                return true; // Matches target and NO siblings -> Safe to delete
+                            }).map(e => e.id);
+
+                            idsToDelete = [...idsToDelete, ...verifiedIds];
+                        }
+
+                        // 5. Perform Bulk Delete
+                        if (idsToDelete.length > 0) {
+                            console.log(`🗑️ Deep deleting ${idsToDelete.length} highlights for category: ${label}`);
+                            await deleteHighlightsByIds(idsToDelete);
+                        }
+                    }
+                }
+
+                // 6. Finally delete the category label itself (if not 'Other Highlights')
+                if (label !== 'Other Highlights') {
+                    const result = await deleteCategory(id);
+                    success = result.success;
+                } else {
+                    success = true; // Can't "delete" Other, but we successfully cleared it.
+                }
+
+                if (success) {
+                    // Update state: remove deleted highlights and re-fetch categories
+                    setHighlights(prev => prev.filter(h => {
+                        // Immediately remove deleted items from UI to prevent "ghost" jumping
+                        if (idsToDelete.includes(h.id)) return false;
+                        return true;
+                    }));
+                    await loadData();
+                    setExpandedCategories(prev => ({ ...prev, [label]: false }));
+                    setLoadedColors(prev => {
+                        // Invalidate cache for these colors so they re-fetch if needed (e.g. if we only deleted partials)
+                        // Actually easier to just clear cache for relevant colors
+                        const next = new Set(prev);
+                        colorsToCheck.forEach(c => next.delete(c));
+                        return next;
+                    });
+                }
+            } catch (err) {
+                console.error("Deep delete failed", err);
+                alert("Failed to delete category contents. Please try again.");
+            } finally {
+                setIsDeleting(false);
             }
         }
 
-        setConfirmDelete({ show: false, type: '', id: null, name: '' });
+        if (type !== 'category') {
+            setConfirmDelete({ show: false, type: '', id: null, name: '' });
+        } else {
+            // For category, we close it manually after success or if we want to force close
+            // But logic above sets show: false implicitly? No.
+            // We should just close it here.
+            setConfirmDelete({ show: false, type: '', id: null, name: '' });
+        }
     };
 
     const cancelDelete = () => {
         setConfirmDelete({ show: false, type: '', id: null, name: '' });
     };
 
-    const toggleCategory = (label) => {
+    const toggleCategory = async (label) => {
+        const isNowExpanded = !expandedCategories[label];
         setExpandedCategories(prev => ({
             ...prev,
-            [label]: !prev[label]
+            [label]: isNowExpanded
         }));
+
+        if (isNowExpanded) {
+            let colorsToLoad = [];
+
+            if (label === 'Other Highlights') {
+                // Load all colors that are NOT in the categories map
+                colorsToLoad = unusedColors.filter(c => !loadedColors.has(c));
+            } else {
+                // 1. Identify which colors map to this label
+                const relevantColors = Object.entries(categories)
+                    .filter(([_, catLabel]) => {
+                        const labels = String(catLabel).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l);
+                        return labels.includes(label);
+                    })
+                    .map(([color]) => color);
+
+                // 2. Filter out colors that are ALREADY loaded
+                colorsToLoad = relevantColors.filter(c => !loadedColors.has(c));
+            }
+
+            if (colorsToLoad.length > 0) {
+                const res = await getHighlightsByColors(colorsToLoad);
+                if (res.success && res.highlights.length > 0) {
+                    let newHighlights = res.highlights;
+
+                    // 3. Check if we need to enrich with text (if label implies splitting)
+                    const multiLabelColors = colorsToLoad.filter(c => {
+                        const lbl = categories[c];
+                        return lbl && String(lbl).match(/[,，、;|/&+]/);
+                    });
+
+                    if (multiLabelColors.length > 0) {
+                        const highlightsToEnrich = newHighlights.filter(h => multiLabelColors.includes(h.color));
+                        if (highlightsToEnrich.length > 0) {
+                            import('../services/highlightService').then(async ({ fetchHighlightTexts }) => {
+                                const enriched = await fetchHighlightTexts(highlightsToEnrich);
+                                setHighlights(prev => {
+                                    // Merge enriched data
+                                    const enrichedMap = {};
+                                    enriched.forEach(e => enrichedMap[e.id] = e.text);
+
+                                    const finalHighlights = newHighlights.map(h => ({
+                                        ...h,
+                                        text: enrichedMap[h.id] || h.text || ''
+                                    }));
+
+                                    // De-dupe
+                                    const existingIds = new Set(prev.map(p => p.id));
+                                    const uniqueNew = finalHighlights.filter(f => !existingIds.has(f.id));
+
+                                    return [...prev, ...uniqueNew];
+                                });
+                            });
+                            return;
+                        }
+                    }
+
+                    // If no enrichment needed, just add them
+                    setHighlights(prev => {
+                        const existingIds = new Set(prev.map(p => p.id));
+                        const uniqueNew = newHighlights.filter(f => !existingIds.has(f.id));
+                        return [...prev, ...uniqueNew];
+                    });
+
+                    // Mark colors as loaded
+                    setLoadedColors(prev => {
+                        const next = new Set(prev);
+                        colorsToLoad.forEach(c => next.add(c));
+                        return next;
+                    });
+                } else {
+                    // Even if empty, mark as loaded to avoid re-fetch
+                    setLoadedColors(prev => {
+                        const next = new Set(prev);
+                        colorsToLoad.forEach(c => next.add(c));
+                        return next;
+                    });
+                }
+            }
+        }
     };
 
     const tabs = [
-        { id: 'highlights', label: '📌 Highlights', count: highlights.length },
+        { id: 'highlights', label: '📌 Highlights', count: Object.keys(categories).length },
         { id: 'notes', label: '📝 Notes', count: notes.length },
         { id: 'studies', label: '📚 Studies', count: studies.length },
         { id: 'wordStudies', label: '📜 Word Studies', count: wordStudies.length },
@@ -453,60 +675,62 @@ function Profile() {
                         {/* Highlights Tab */}
                         {activeTab === 'highlights' && (
                             <div className="highlights-grouped-container">
-                                {highlights.length === 0 ? (
+                                {uniqueLabels.length === 0 ? (
                                     <div className="empty-state">
                                         <p>No highlights yet</p>
                                         <p className="empty-hint">Tap on a verse while reading to add highlights</p>
                                     </div>
                                 ) : (
-                                    // Group highlights by category label
-                                    Object.entries(
-                                        highlights.reduce((acc, h) => {
-                                            const labelString = String(categories[h.color] || 'Other Highlights');
-                                            // Split by ANY kind of comma or semicolon
-                                            const labels = labelString.split(/[,，、;|]/).map(l => l.trim()).filter(l => l);
-                                            const verseText = (h.text || '').toLowerCase(); // Use enriched text for filtering
-
-                                            // Logic: If multiple labels exist (e.g. "Glo, Bely"), try to filter by verse text.
-                                            // If verse contains "glo", assign to Glo. If "bely", assign to Bely.
-                                            // If it contains neither (or assuming the user used abstract labels), fallback to assigning to ALL.
-
-                                            if (labels.length > 1) {
-                                                let assigned = false;
-                                                labels.forEach(label => {
-                                                    // Check if label appears in text (case-insensitive)
-                                                    if (verseText.includes(label.toLowerCase())) {
-                                                        if (!acc[label]) acc[label] = [];
-                                                        acc[label].push(h);
-                                                        assigned = true;
-                                                    }
-                                                });
-
-                                                if (!assigned) {
-                                                    // Fallback: Assign to all labels to prevent data loss or if no keywords match
-                                                    labels.forEach(label => {
-                                                        if (!acc[label]) acc[label] = [];
-                                                        acc[label].push(h);
-                                                    });
-                                                }
-                                            } else {
-                                                // Single label: Just assign normally
-                                                labels.forEach(label => {
-                                                    if (!acc[label]) acc[label] = [];
-                                                    acc[label].push(h);
-                                                });
-                                            }
-
-                                            // Fallback if split resulted in nothing (shouldn't happen with default)
-                                            if (labels.length === 0) {
-                                                if (!acc['Other Highlights']) acc['Other Highlights'] = [];
-                                                acc['Other Highlights'].push(h);
-                                            }
-
-                                            return acc;
-                                        }, {})
-                                    ).map(([label, group]) => {
+                                    // Render Category Headers directly (On-Demand Mode)
+                                    uniqueLabels.map(label => {
                                         const isExpanded = expandedCategories[label];
+
+                                        // Filter highlights for this label from the loaded 'highlights' array
+                                        const group = highlights.filter(h => {
+                                            const catLabel = categories[h.color];
+
+                                            // Handle Other Highlights
+                                            if (label === 'Other Highlights') {
+                                                if (!catLabel) return true; // It's uncategorized/unused color
+                                                // Check unused colors logic
+                                                return false;
+                                            }
+
+                                            if (!catLabel) return false;
+
+                                            // Check text splitting logic
+                                            const allLabels = String(catLabel).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l);
+                                            if (!allLabels.includes(label)) return false;
+
+                                            if (allLabels.length > 1) {
+                                                // [NEW] Use explicit label if available
+                                                if (h.label) {
+                                                    return h.label === label;
+                                                }
+
+                                                const verseText = (h.text || '').toLowerCase();
+                                                const match = verseText.includes(label.toLowerCase());
+                                                // Fallback if no match: show in all
+                                                if (!match) {
+                                                    const anyMatch = allLabels.some(l => verseText.includes(l.toLowerCase()));
+                                                    if (!anyMatch) return true; // Show in all if no match found
+                                                    return false; // Matched another label, not this one
+                                                }
+                                                return true;
+                                            }
+                                            return true;
+                                        });
+
+                                        // Calculate if we are still loading data for this category
+                                        const categoryColors = label === 'Other Highlights'
+                                            ? unusedColors
+                                            : Object.keys(categories).filter(c => {
+                                                const l = categories[c];
+                                                return String(l).split(/[,，、;|/&+]/).map(s => s.trim()).includes(label);
+                                            });
+
+                                        const isFullyLoaded = categoryColors.every(c => loadedColors.has(c));
+
                                         return (
                                             <div key={label} className={`highlight-category-group ${isExpanded ? 'is-expanded' : ''}`}>
                                                 <div className="category-header-wrapper">
@@ -516,7 +740,10 @@ function Profile() {
                                                         aria-expanded={isExpanded}
                                                     >
                                                         <span className="category-title">{label}</span>
-                                                        <span className="category-count">({group.length})</span>
+                                                        <span className="category-count">
+                                                            {/* If loaded, show count. If not, show '?' or just '...' */}
+                                                            {isExpanded ? `(${group.length})` : '(Click to Load)'}
+                                                        </span>
                                                         <span className="category-chevron">{isExpanded ? '▼' : '▶'}</span>
                                                     </button>
 
@@ -531,30 +758,38 @@ function Profile() {
 
                                                 {isExpanded && (
                                                     <div className="highlights-list">
-                                                        {group.map(h => (
-                                                            <div
-                                                                key={h.id}
-                                                                className="highlight-item"
-                                                                onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}
-                                                            >
+                                                        {group.length === 0 ? (
+                                                            !isFullyLoaded ? (
+                                                                <div style={{ padding: '10px', color: '#888', fontStyle: 'italic' }}>Loading verses...</div>
+                                                            ) : (
+                                                                <div style={{ padding: '10px', color: '#888', fontStyle: 'italic' }}>No verses found</div>
+                                                            )
+                                                        ) : (
+                                                            group.map(h => (
                                                                 <div
-                                                                    className="highlight-color-dot"
-                                                                    style={{ backgroundColor: h.color }}
-                                                                />
-                                                                <div className="highlight-info">
-                                                                    <span className="highlight-ref">
-                                                                        {getBookName(h.book_id)} {h.chapter}:{h.verse}
-                                                                    </span>
-                                                                    <span className="highlight-version">{h.version}</span>
-                                                                </div>
-                                                                <button
-                                                                    className="delete-btn"
-                                                                    onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:{h.verse}`, e)}
+                                                                    key={h.id}
+                                                                    className="highlight-item"
+                                                                    onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}
                                                                 >
-                                                                    🗑️
-                                                                </button>
-                                                            </div>
-                                                        ))}
+                                                                    <div
+                                                                        className="highlight-color-dot"
+                                                                        style={{ backgroundColor: h.color }}
+                                                                    />
+                                                                    <div className="highlight-info">
+                                                                        <span className="highlight-ref">
+                                                                            {getBookName(h.book_id)} {h.chapter}:{h.verse}
+                                                                        </span>
+                                                                        <span className="highlight-version">{h.version}</span>
+                                                                    </div>
+                                                                    <button
+                                                                        className="delete-btn"
+                                                                        onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:{h.verse}`, e)}
+                                                                    >
+                                                                        🗑️
+                                                                    </button>
+                                                                </div>
+                                                            ))
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -766,19 +1001,19 @@ function Profile() {
                                                         {formatBytes(info.size_bytes)}
                                                     </span>
                                                 )}
-                                            </div>
-                                            <div className="download-actions">
-                                                {isDownloading ? (
-                                                    <div className="download-progress">
+                                                {isDownloading && (
+                                                    <div className="progress-bar-container">
                                                         <div
-                                                            className="progress-bar"
+                                                            className="progress-bar-fill"
                                                             style={{ width: `${progress}%` }}
                                                         />
-                                                        <span className="progress-text">{progress}%</span>
                                                     </div>
-                                                ) : downloaded ? (
+                                                )}
+                                            </div>
+                                            <div className="download-actions">
+                                                {downloaded ? (
                                                     <button
-                                                        className="delete-download-btn"
+                                                        className="delete-dl-btn"
                                                         onClick={() => handleDeleteDownload(version.id)}
                                                     >
                                                         🗑️
@@ -787,64 +1022,48 @@ function Profile() {
                                                     <button
                                                         className="download-btn"
                                                         onClick={() => handleDownload(version.id)}
+                                                        disabled={isDownloading}
                                                     >
-                                                        ⬇️ Download
+                                                        {isDownloading ? `${Math.round(progress)}%` : '⬇️'}
                                                     </button>
                                                 )}
                                             </div>
                                         </div>
                                     );
                                 })}
-
-                                <p className="download-hint">
-                                    Downloaded versions are available offline
-                                </p>
                             </div>
                         )}
                     </>
                 )}
             </div>
 
+            {/* Modals */}
+            {selectedWordStudy && (
+                <WordStudyModal
+                    wordData={selectedWordStudy.analysis}
+                    onClose={() => setSelectedWordStudy(null)}
+                />
+            )}
+
             {/* Confirm Delete Modal */}
             {confirmDelete.show && (
                 <div className="confirm-modal-overlay" onClick={cancelDelete}>
-                    <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-                        <h3>{settings.language === 'af' ? `Vee ${confirmDelete.type === 'category' ? 'kategorie' : confirmDelete.type} uit?` : `Delete ${confirmDelete.type}?`}</h3>
-                        <p>{settings.language === 'af'
-                            ? (confirmDelete.type === 'category'
-                                ? `Is jy seker jy wil hierdie hele kategorie verwyder? Alle verligte verse onder hierdie naam sal ook onthark word.`
-                                : `Is jy seker jy wil hierdie ${confirmDelete.name} verwyder?`)
-                            : (confirmDelete.type === 'category'
-                                ? `Are you sure you want to delete this entire category? All highlighted verses under this name will also be un-highlighted.`
-                                : `Are you sure you want to delete this ${confirmDelete.type}?`)}
-                        </p>
-                        <p className="confirm-item-name">"{confirmDelete.name}"</p>
-                        <div className="confirm-buttons">
-                            <button className="cancel-btn" onClick={cancelDelete}>Cancel</button>
-                            <button className="delete-confirm-btn" onClick={handleConfirmDelete}>Delete</button>
+                    <div className="modal-content confirm-modal" onClick={e => e.stopPropagation()}>
+                        <h3>Confirm Delete</h3>
+                        <p>Are you sure you want to delete {confirmDelete.name}?</p>
+                        <div className="modal-actions">
+                            <button className="cancel-btn" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                            <button
+                                className="confirm-delete-btn"
+                                onClick={handleConfirmDelete}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? 'Deleting...' : 'Delete'}
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
-
-            {/* Word Study Modal View */}
-            {selectedWordStudy && (
-                <WordStudyModal
-                    verse={{
-                        book_id: selectedWordStudy.book_id,
-                        chapter: selectedWordStudy.chapter,
-                        verse: selectedWordStudy.verse
-                    }}
-                    verseText={selectedWordStudy.analysis.verseText || ''}
-                    verseRef={selectedWordStudy.verse_ref}
-                    originalText={selectedWordStudy.original_word} // This is actually handled internally by the modal's currentVerse logic if we pass enough props
-                    initialSelectedWord={selectedWordStudy.word}
-                    initialStudyData={selectedWordStudy.analysis}
-                    onClose={() => setSelectedWordStudy(null)}
-                />
-            )}
-            {/* Final spacer for mobile scroll clearance */}
-            <div className="bottom-spacer" />
         </div>
     );
 }

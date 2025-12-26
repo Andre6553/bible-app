@@ -283,6 +283,22 @@
     transition: all 0.2s ease;
     text-align: left;
     border-left: 4px solid var(--accent-primary);
+    /* Improved Light Mode Visibility */
+    box-shadow: var(--shadow-sm);
+    border: 1px solid transparent;
+    /* default */
+}
+
+/* Light Mode Specific Overrides for better contrast */
+:root[class~="light"] .category-header,
+body.light-mode .category-header,
+/* Assuming 'theme-light' class might be used on root or body */
+:root.theme-light .category-header {
+    background: white;
+    border: 1px solid var(--border-color);
+    /* Add border */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    /* Soft float */
 }
 
 .category-header:hover {
@@ -663,6 +679,18 @@
 
 .delete-confirm-btn:hover {
     background: #dc2626;
+}
+
+.delete-confirm-btn:active {
+    transform: scale(0.96);
+    background: #b91c1c;
+}
+
+.delete-confirm-btn:disabled,
+.cancel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
 
 /* Downloads Tab */
