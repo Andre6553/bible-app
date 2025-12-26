@@ -145,22 +145,15 @@ const getDiversePromptAngle = (language = 'en') => {
  * Get seasonal context based on current date
  */
 const getSeasonalContext = (month, day, language = 'en') => {
-    // Christmas Season (Dec 1-31)
-    if (month === 11) {
+    // Christmas Season (Dec 1-26)
+    if (month === 11 && day <= 26) {
         if (day >= 24 && day <= 26) return language === 'af' ? 'Kersdag vieringe' : 'Christmas Day celebrations';
 
         // Only include Advent/Christmas prep ~30% of the time to vary content
         if (Math.random() > 0.7) {
-            if (day >= 1 && day <= 23) {
-                return language === 'af'
-                    ? 'die Kersfeestyd van afwagting en hoop'
-                    : 'Christmas Time and the anticipation of Jesus\' birth';
-            }
-            if (day >= 27) {
-                return language === 'af'
-                    ? 'die Kerstyd van dankbaarheid'
-                    : 'the Christmas season of gratitude and new beginnings';
-            }
+            return language === 'af'
+                ? 'die Kersfeestyd van afwagting en hoop'
+                : 'Christmas Time and the anticipation of Jesus\' birth';
         }
     }
 
