@@ -36,7 +36,7 @@ export default defineConfig({
                         urlPattern: /^https:\/\/fikjnvkzhemamtlwsrin\.supabase\.co\/.*/i,
                         handler: 'NetworkFirst',
                         options: {
-                            cacheName: 'bible-api-cache',
+                            cacheName: 'bible-api-cache-v2', // Bump version to force refresh
                             expiration: {
                                 maxEntries: 100,
                                 maxAgeSeconds: 60 * 60 * 24 // 24 hours

@@ -257,14 +257,18 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const scrollToVerse = (verseNum) => {
+    // Improved Scroll to Verse with Retry
+    const scrollToVerse = (verseNum, attempt = 1) => {
         const element = document.getElementById(`verse-${verseNum}`);
-        console.log('🎯 scrollToVerse called for:', verseNum, 'Element found:', !!element);
+        console.log(`🎯 scrollToVerse attempt ${attempt} for:`, verseNum, 'Element found:', !!element);
+
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Add highlight effect
             element.classList.add('highlight-verse');
             setTimeout(() => element.classList.remove('highlight-verse'), 2000);
+        } else if (attempt < 5) {
+            // Retry if element not found (DOM render delay)
+            setTimeout(() => scrollToVerse(verseNum, attempt + 1), 200);
         }
     };
 
@@ -273,7 +277,6 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         setError(null);
         const result = await getBooks();
         if (result.success) {
-            setBooks(result.data);
             setBooks(result.data);
 
             // Handle Deep Link from Search or Default to Genesis
@@ -343,6 +346,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const loadChapter = async () => {
         if (!selectedBook || !currentVersion) return;
         setLoading(true);
+        // Clear verses prevents potential race conditions with auto-scroll looking at old verses
+        setVerses([]);
 
         try {
             // Load main version
