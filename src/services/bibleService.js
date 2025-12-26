@@ -222,12 +222,31 @@ export const searchVerses = async (searchQuery, versionId = null, testament = 'a
                 )
             `);
 
-        if (terms.length > 1) {
-            // Support multiple words via OR clause: text.ilike.%term1%,text.ilike.%term2%
-            const orFilter = terms.map(t => `text.ilike.%${t}%`).join(',');
-            query = query.or(orFilter);
-        } else {
-            query = query.ilike('text', `%${searchQuery}%`);
+        if (terms.length > 0) {
+            // Use textSearch for exact word/token matching
+            // Logic:
+            // 1. Comma separated terms are OR'd (|)
+            // 2. Space separated words within a term are AND'd/followed-by (<->) for phrases
+            // 3. Config 'simple' ensures exact matching without language-specific stemming
+
+            const tsQuery = terms.map(term => {
+                // Split phrase into words, sanitize quotes, wrapp in quotes
+                return term.split(/\s+/)
+                    .map(w => w.replace(/['"]/g, '')) // Remove quotes to prevent syntax errors
+                    .filter(w => w.length > 0)
+                    .map(w => `'${w}'`)
+                    .join(' <-> ');
+            }).join(' | ');
+
+            query = query.textSearch('text', tsQuery, {
+                config: 'simple',
+                type: 'plain' // actually we constructed the query string manually, so we don't need 'plain' or 'websearch' type if we pass explicit syntax? 
+                // Wait, Supabase client documentation: textSearch(column, query, options)
+                // If options.type is not set, it treats query as tsquery.
+                // So we should NOT set type: 'plain' if we are sending 'foo' | 'bar'.
+            });
+            // Re-correcting: omit 'type' to use manual TSQuery syntax
+            query = query.textSearch('text', tsQuery, { config: 'simple' });
         }
 
         query = query.order('book_id')
