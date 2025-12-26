@@ -670,7 +670,54 @@ function Profile() {
                         {/* Downloads Tab */}
                         {activeTab === 'downloads' && (
                             <div className="downloads-list">
-                                <div className="storage-info">
+                                <div className="debug-section" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#3f1a1a', borderRadius: '8px', border: '1px solid #ef4444' }}>
+                                    <h3 style={{ color: '#ef4444', marginTop: 0 }}>Troubleshooting</h3>
+                                    <p style={{ fontSize: '0.9rem', color: '#ccc' }}>
+                                        If you are seeing old data or weird characters (like "Â k"), tap this button to reset the app cache completely.
+                                    </p>
+                                    <button
+                                        className="reset-app-btn"
+                                        style={{
+                                            backgroundColor: '#ef4444',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '10px 20px',
+                                            borderRadius: '6px',
+                                            marginTop: '10px',
+                                            cursor: 'pointer',
+                                            width: '100%',
+                                            fontWeight: 'bold'
+                                        }}
+                                        onClick={async () => {
+                                            if (window.confirm("This will clear all offline data and refresh the app. Continue?")) {
+                                                // 1. Unregister Service Workers
+                                                if ('serviceWorker' in navigator) {
+                                                    const registrations = await navigator.serviceWorker.getRegistrations();
+                                                    for (let registration of registrations) {
+                                                        await registration.unregister();
+                                                    }
+                                                }
+                                                // 2. Clear Cache Storage
+                                                if ('caches' in window) {
+                                                    const keys = await caches.keys();
+                                                    for (let key of keys) {
+                                                        await caches.delete(key);
+                                                    }
+                                                }
+                                                // 3. Clear Local Storage (Optional, but safe for verse data)
+                                                // We preserve 'user_settings' if needed, but for 'corrupt verse data' total wipe is safer.
+                                                // localStorage.clear(); 
+                                                // Let's NOT clear localStorage entirely to keep highlights/notes unless user wants to.
+                                                // Just reload.
+                                                window.location.reload(true);
+                                            }
+                                        }}
+                                    >
+                                        ⚠️ Hard Reset App Data
+                                    </button>
+                                </div>
+
+                                <div className="storage-info" style={{ marginTop: '20px' }}>
                                     <span>💾 Storage used: {storageUsage}</span>
                                 </div>
 
