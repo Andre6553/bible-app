@@ -47,6 +47,18 @@ const BibleHelpModal = ({ onClose, language }) => {
                     text: "**Select any word** in the Bible text, then choose to search for it in the Old or New Testament."
                 },
                 {
+                    title: "🖍️ Highlights & Categories",
+                    text: "Swipe or tap a verse to highlight it. **Right-click (PC)** or **Long-press (Mobile)** a color circle to rename it. You can see all your highlights grouped by category in your **Profile**."
+                },
+                {
+                    title: "🏷️ Multi-Topic Tagging",
+                    text: "You can tag a verse under multiple topics! Use a **comma** when naming a color (e.g., 'Faith, Promises'). The verse will appear under both categories in your Profile."
+                },
+                {
+                    title: "🧹 Bulk Actions",
+                    text: "In **Search**, use the 'Select' button to pick multiple verses at once. You can highlight or remove highlights for all selected verses in one tap."
+                },
+                {
                     title: "🌍 Bible Versions",
                     text: "Switch between **KJV** (English), **AFR53** (Afrikaans), **AFR83**, **NLT**, and **AMP** using the dropdown at the top."
                 }
@@ -79,8 +91,8 @@ const BibleHelpModal = ({ onClose, language }) => {
                         { cmd: "/story", desc: "Vertel my die storie van..." },
                         { cmd: "/explain", desc: "Verduidelik..." },
                         { cmd: "/meaning", desc: "Wat is die bybelse betekenis van..." },
-                        { cmd: "/who", desc: "Wie was..." },
-                        { cmd: "/what", desc: "Wat was..." },
+                        { cmd: "/who", desc: "Who was..." },
+                        { cmd: "/what", desc: "What was..." },
                         { cmd: "/why", desc: "Hoekom het..." },
                         { cmd: "/teach", desc: "Wat leer die Bybel oor..." },
                         { cmd: "/compare", desc: "Vergelyk in die Bybel..." },
@@ -94,6 +106,18 @@ const BibleHelpModal = ({ onClose, language }) => {
                 {
                     title: "📝 Vinnige Soektog",
                     text: "**Kies enige woord** in die Bybelteks, en kies dan om daarvoor te soek in die Ou of Nuwe Testament."
+                },
+                {
+                    title: "🖍️ Verligting & Kategorieë",
+                    text: "Tik op 'n vers om dit te verlig. **Regsklik (PC)** of **Lang-druk (Mobiel)** op 'n kleur sirkel om dit te hernoem. Jy kan al jou verligte verse gegroepeer volgens kategorie in jou **Profiel** sien."
+                },
+                {
+                    title: "🏷️ Veelvuldige Onderwerpe",
+                    text: "Jy kan 'n vers onder verskeie onderwerpe merk! Gebruik 'n **komma** wanneer jy 'n kleur benoem (bv. 'Geloof, Beloftes'). Die vers sal onder beide kategorieë in jou Profiel verskyn."
+                },
+                {
+                    title: "🧹 Massa-aksies",
+                    text: "In **Soek**, gebruik die 'Select' knoppie om veelvuldige verse gelyktydig te kies. Jy kan verligting byvoeg of verwyder vir alle geselekteerde verse met een tik."
                 },
                 {
                     title: "🌍 Bybel Weergawes",

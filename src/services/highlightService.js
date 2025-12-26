@@ -78,6 +78,103 @@ export const saveHighlight = async (bookId, chapter, verse, version, color) => {
 };
 
 /**
+ * Save highlights for multiple verses at once (Bulk)
+ * @param {Array} verseList - Array of { bookId, chapter, verse, version }
+ * @param {string} color - Hex color code
+ */
+export const saveBulkHighlights = async (verseList, color) => {
+    const userId = await getUserId();
+    if (!verseList || verseList.length === 0) return { success: true };
+
+    try {
+        // 1. Group by Book and Chapter for efficient deletion
+        const groups = {};
+        verseList.forEach(v => {
+            const key = `${v.bookId}-${v.chapter}`;
+            if (!groups[key]) {
+                groups[key] = { bookId: v.bookId, chapter: v.chapter, verses: [] };
+            }
+            groups[key].verses.push(v.verse);
+        });
+
+        // 2. Delete existing highlights for these verses (cross-version)
+        // We do this concurrently for each book/chapter group
+        const deletePromises = Object.values(groups).map(group => {
+            return supabase
+                .from('verse_highlights')
+                .delete()
+                .eq('user_id', userId)
+                .eq('book_id', group.bookId)
+                .eq('chapter', group.chapter)
+                .in('verse', group.verses);
+        });
+
+        await Promise.all(deletePromises);
+
+        // 3. Insert new highlights
+        const updates = verseList.map(v => ({
+            user_id: userId,
+            book_id: v.bookId,
+            chapter: v.chapter,
+            verse: v.verse,
+            version: v.version || 'AFR53', // Default if missing
+            color,
+            created_at: new Date().toISOString()
+        }));
+
+        const { error: insertError } = await supabase
+            .from('verse_highlights')
+            .insert(updates);
+
+        if (insertError) throw insertError;
+
+        console.log(`✅ Bulk saved ${verseList.length} highlights`);
+        return { success: true, count: verseList.length };
+    } catch (err) {
+        console.error('Error saving bulk highlights:', err);
+        return { success: false, error: err.message };
+    }
+};
+
+/**
+ * Remove highlights for multiple verses at once (Bulk)
+ */
+export const removeBulkHighlights = async (verseList) => {
+    const userId = await getUserId();
+    if (!verseList || verseList.length === 0) return { success: true };
+
+    try {
+        // Group by Book and Chapter for efficient deletion
+        const groups = {};
+        verseList.forEach(v => {
+            const key = `${v.bookId}-${v.chapter}`;
+            if (!groups[key]) {
+                groups[key] = { bookId: v.bookId, chapter: v.chapter, verses: [] };
+            }
+            groups[key].verses.push(v.verse);
+        });
+
+        const deletePromises = Object.values(groups).map(group => {
+            return supabase
+                .from('verse_highlights')
+                .delete()
+                .eq('user_id', userId)
+                .eq('book_id', group.bookId)
+                .eq('chapter', group.chapter)
+                .in('verse', group.verses);
+        });
+
+        await Promise.all(deletePromises);
+
+        console.log(`✅ Bulk removed ${verseList.length} highlights`);
+        return { success: true, count: verseList.length };
+    } catch (err) {
+        console.error('Error removing bulk highlights:', err);
+        return { success: false, error: err.message };
+    }
+};
+
+/**
  * Remove a verse highlight
  * Cross-version: removes highlight from all versions
  */

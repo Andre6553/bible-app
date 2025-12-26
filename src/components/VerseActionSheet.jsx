@@ -26,6 +26,7 @@ function VerseActionSheet({
     const [copied, setCopied] = useState(false);
     const [editingColor, setEditingColor] = useState(null); // color hex being renamed
     const [tempLabel, setTempLabel] = useState('');
+    const [showHelp, setShowHelp] = useState(false);
 
     const isAfrikaans = settings.language === 'af';
 
@@ -39,7 +40,9 @@ function VerseActionSheet({
             renamePlaceholder: "Name this color (e.g. Faith)",
             save: "Save",
             mobileHint: "Long press a color to name it",
-            pcHint: "Right click a color to name it"
+            pcHint: "Right click a color to name it",
+            multiTagTitle: "Multi-Topic Tagging",
+            multiTagDesc: "Use a comma to add multiple labels (e.g. 'Faith, Hope'). The verse will appear under each label in your Profile."
         },
         af: {
             note: "Nota",
@@ -50,7 +53,9 @@ function VerseActionSheet({
             renamePlaceholder: "Gee kleur 'n naam (bv. Geloof)",
             save: "Stoor",
             mobileHint: "Druk lank op 'n kleur om dit te benoem",
-            pcHint: "Regskliek op 'n kleur om dit te benoem"
+            pcHint: "Regskliek op 'n kleur om dit te benoem",
+            multiTagTitle: "Veelvuldige Onderwerpe",
+            multiTagDesc: "Gebruik 'n komma vir meer as een etiket (bv. 'Geloof, Hoop'). Die vers sal onder elke etiket in jou Profiel verskyn."
         }
     };
 
@@ -172,9 +177,25 @@ function VerseActionSheet({
                     </div>
                 ) : (
                     <div className="color-naming-hint">
-                        {window.matchMedia('(pointer: coarse)').matches
-                            ? t.mobileHint
-                            : t.pcHint}
+                        <span>
+                            {window.matchMedia('(pointer: coarse)').matches
+                                ? t.mobileHint
+                                : t.pcHint}
+                        </span>
+                        <button
+                            className={`help-info-btn ${showHelp ? 'active' : ''}`}
+                            onClick={() => setShowHelp(!showHelp)}
+                            title="Help"
+                        >
+                            ⓘ
+                        </button>
+                    </div>
+                )}
+
+                {showHelp && !editingColor && (
+                    <div className="contextual-help-box">
+                        <h4>{t.multiTagTitle} 🏷️</h4>
+                        <p>{t.multiTagDesc}</p>
                     </div>
                 )}
 

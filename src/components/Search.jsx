@@ -5,7 +5,8 @@ import { useSettings } from '../context/SettingsContext';
 import SearchHelpModal from './SearchHelpModal';
 import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch } from '../services/aiService';
 import { getLocalizedBookName } from '../constants/bookNames';
-
+import { saveBulkHighlights, removeBulkHighlights, getAllHighlights } from '../services/highlightService';
+import ColorPickerModal from './ColorPickerModal';
 
 function Search({ currentVersion, versions }) {
     const isSearchingRef = useRef(false);
@@ -42,6 +43,88 @@ function Search({ currentVersion, versions }) {
     const [semanticSummary, setSemanticSummary] = useState(''); // AI biblical reflection
     const [currentUserId, setCurrentUserId] = useState(null);
     const [showMobileResults, setShowMobileResults] = useState(false);
+
+    // Bulk Highlight State
+    const [selectedVerses, setSelectedVerses] = useState(new Set());
+    const [isSelectMode, setIsSelectMode] = useState(false);
+    const [showColorPicker, setShowColorPicker] = useState(false);
+
+    // Toggle single verse selection
+    const toggleVerseSelection = (verseKey, e) => {
+        e.stopPropagation(); // Prevent navigation
+        const newSet = new Set(selectedVerses);
+        if (newSet.has(verseKey)) {
+            newSet.delete(verseKey);
+        } else {
+            newSet.add(verseKey);
+        }
+        setSelectedVerses(newSet);
+        setIsSelectMode(newSet.size > 0);
+    };
+
+    // Select/Deselect All visible results
+    const handleSelectAll = () => {
+        const targetResults = searchMode === 'semantic' ? semanticResults : results;
+        if (selectedVerses.size === targetResults.length) {
+            setSelectedVerses(new Set());
+            setIsSelectMode(false);
+        } else {
+            const newSet = new Set();
+            targetResults.forEach(v => {
+                // Unique key: BookID-Chapter-Verse-Version
+                const key = `${v.books.id}-${v.chapter}-${v.verse}-${v.version}`;
+                newSet.add(key);
+            });
+            setSelectedVerses(newSet);
+            setIsSelectMode(true);
+        }
+    };
+
+    const handleBulkHighlight = async (color) => {
+        setShowColorPicker(false);
+        if (selectedVerses.size === 0) return;
+
+        const targetResults = searchMode === 'semantic' ? semanticResults : results;
+        const versesToHighlight = [];
+
+        targetResults.forEach(v => {
+            const key = `${v.books.id}-${v.chapter}-${v.verse}-${v.version}`;
+            if (selectedVerses.has(key)) {
+                versesToHighlight.push({
+                    bookId: v.books.id,
+                    chapter: v.chapter,
+                    verse: v.verse,
+                    version: v.version
+                });
+            }
+        });
+
+
+        let result;
+        if (color === 'REMOVE') {
+            result = await removeBulkHighlights(versesToHighlight);
+        } else {
+            result = await saveBulkHighlights(versesToHighlight, color);
+        }
+
+        if (result.success) {
+            // Success! Clear selection
+            setSelectedVerses(new Set());
+            setIsSelectMode(false);
+            // Optional: Show toast or feedback
+            const msg = color === 'REMOVE'
+                ? (settings.language === 'af' ? 'Verwyder!' : 'Removed!')
+                : (settings.language === 'af' ? 'Gestoor!' : 'Saved!');
+
+            setCopyStatus(msg);
+            setTimeout(() => setCopyStatus('Copy'), 2000);
+
+            // Refresh highlights to update UI
+            refreshHighlights();  // We need to re-fetch to update checked state (unchecked)
+        } else {
+            alert('Failed to update highlights');
+        }
+    };
 
     const AI_SHORTCUTS = [
         { cmd: '/story', desc: settings.language === 'af' ? 'Vertel my die storie van...' : 'Tell me the story of...', icon: '📖' },
@@ -140,6 +223,68 @@ function Search({ currentVersion, versions }) {
         loadQuotaInfo();
         loadBooks();
     }, []);
+
+    const refreshHighlights = async () => {
+        const targetResults = searchMode === 'semantic' ? semanticResults : results;
+        if (targetResults.length === 0) return;
+
+        try {
+            const result = await getAllHighlights();
+            if (result.success && result.highlights) {
+                const highlightedRefs = new Set();
+                result.highlights.forEach(h => {
+                    highlightedRefs.add(`${h.book_id}-${h.chapter}-${h.verse}`);
+                });
+
+                const newSelected = new Set(selectedVerses);
+
+                targetResults.forEach(v => {
+                    if (highlightedRefs.has(`${v.books.id}-${v.chapter}-${v.verse}`)) {
+                        const key = `${v.books.id}-${v.chapter}-${v.verse}-${v.version}`;
+                        newSelected.add(key);
+                    } else if (isSelectMode) {
+                        // Crucial: If we are refreshing, we should UNCHECK verses that are no longer highlighted
+                        // ONLY IF they were selected purely because they were highlighted?
+                        // Or should we just sync state strictly?
+                        // User request: "as soon as they click mark or remove mark that the checkbox can be updated immediately"
+                        // So if I just REMOVED a highlight, I expect the box to UNCHECK.
+                        const key = `${v.books.id}-${v.chapter}-${v.verse}-${v.version}`;
+                        // To be safe, let's just re-evaluate "highlighted status" vs "manual selection".
+                        // Actually, the current logic only ADDS. It doesn't REMOVE.
+                        // To support "unmark -> uncheck", we need to check if it's NO LONGER in highlightedRefs.
+                        // But wait, manual selection is also a thing.
+                        // If I manually selected it to highlighting it, and then highlighted it, it ends up highlighted.
+                        // If I manually selected it to remove highlight, and remove it, it is no longer highlighted.
+                        // Should it stay selected? No, probably not.
+                        // If I just finished a bulk action, I clear selection anyway (lines 111-113).
+                        // So `selectedVerses` is cleared to empty Set.
+                        // Then `loadExistingHighlights` (or `refreshHighlights`) runs.
+                        // It should populate `selectedVerses` ONLY with verses that are currently highlighted.
+                    }
+                });
+
+                // Since we clear selections on success, this logic serves to RE-populate based on DB state.
+                if (newSelected.size > 0) {
+                    setSelectedVerses(newSelected);
+                    // Only Force Select Mode if we actually have selections?
+                    // Actually, if we have highlighted verses, we might NOT want to force "Select Mode" visually 
+                    // if it changes the UI too much? 
+                    // But the user accepted the "pre-check" logic previously.
+                    setIsSelectMode(true);
+                } else {
+                    // If nothing is highlighted effectively, we might want to turn off select mode?
+                    // Only if we just cleared it.
+                }
+            }
+        } catch (e) {
+            console.error("Error refreshing highlights", e);
+        }
+    };
+
+    // Effect to check verses when results change
+    useEffect(() => {
+        refreshHighlights();
+    }, [results, semanticResults]); // Run when results update
 
     // Persist AI State whenever it changes
     useEffect(() => {
@@ -1006,6 +1151,30 @@ Here are the available shortcuts to quickly ask questions:
                                 </div>
                             </div>
 
+                            {/* Bulk Action Bar */}
+                            {(results.length > 0 || semanticResults.length > 0) && (
+                                <div className="bulk-action-bar">
+                                    <label className="select-all-label">
+                                        <input
+                                            type="checkbox"
+                                            className="select-all-checkbox"
+                                            checked={selectedVerses.size > 0 && selectedVerses.size === (searchMode === 'semantic' ? semanticResults.length : results.length)}
+                                            onChange={handleSelectAll}
+                                        />
+                                        <span>{settings.language === 'af' ? 'Kies Alles' : 'Select All'} ({selectedVerses.size})</span>
+                                    </label>
+
+                                    <button
+                                        className="bulk-highlight-btn"
+                                        onClick={() => setShowColorPicker(true)}
+                                        disabled={selectedVerses.size === 0}
+                                        title={settings.language === 'af' ? 'Merk gekose verse' : 'Highlight selected verses'}
+                                    >
+                                        🖌️ <span className="btn-label">{settings.language === 'af' ? 'Merk' : 'Highlight'}</span>
+                                    </button>
+                                </div>
+                            )}
+
                             <div
                                 className="results-list"
                                 style={{
@@ -1021,71 +1190,89 @@ Here are the available shortcuts to quickly ask questions:
                                 )}
 
                                 {searchMode === 'semantic' ? (
-                                    semanticResults.map((verse, index) => (
-                                        <div key={index} className="verse-card semantic-card" onClick={() => {
-                                            navigate('/bible', {
-                                                state: {
-                                                    bookId: verse.books.id,
-                                                    chapter: verse.chapter,
-                                                    targetVerse: verse.verse,
-                                                    fromSearch: true,
-                                                    searchParams: {
-                                                        q: searchQuery,
-                                                        version: searchVersion,
-                                                        testament: searchTestament,
-                                                        mode: searchMode
+                                    semanticResults.map((verse, index) => {
+                                        const key = `${verse.books.id}-${verse.chapter}-${verse.verse}-${verse.version}`;
+                                        const isSelected = selectedVerses.has(key);
+                                        return (
+                                            <div key={index} className={`verse-card semantic-card ${isSelected ? 'selected' : ''}`} onClick={() => {
+                                                navigate('/bible', {
+                                                    state: {
+                                                        bookId: verse.books.id,
+                                                        chapter: verse.chapter,
+                                                        targetVerse: verse.verse,
+                                                        fromSearch: true,
+                                                        searchParams: {
+                                                            q: searchQuery,
+                                                            version: searchVersion,
+                                                            testament: searchTestament,
+                                                            mode: searchMode
+                                                        }
                                                     }
-                                                }
-                                            });
-                                        }}>
-                                            <div className="result-header">
-                                                <span className="result-ref">
-                                                    {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
-                                                </span>
-                                                <span className="semantic-badge">AI Reason</span>
-                                                <span className="result-version">
-                                                    {verse.version}
-                                                </span>
+                                                });
+                                            }}>
+                                                <div className="result-header">
+                                                    <div className="header-left">
+                                                        <span className="result-ref">
+                                                            {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
+                                                        </span>
+                                                        <span className="semantic-badge">AI Reason</span>
+                                                        <span className="result-version">
+                                                            {verse.version}
+                                                        </span>
+                                                    </div>
+                                                    <div className="selection-checkbox" onClick={(e) => toggleVerseSelection(key, e)}>
+                                                        {isSelected ? '☑️' : '⬜'}
+                                                    </div>
+                                                </div>
+                                                <p className="semantic-reason">
+                                                    {verse.semanticReason}
+                                                </p>
+                                                <p className="result-text">
+                                                    {verse.text}
+                                                </p>
                                             </div>
-                                            <p className="semantic-reason">
-                                                {verse.semanticReason}
-                                            </p>
-                                            <p className="result-text">
-                                                {verse.text}
-                                            </p>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 ) : (
-                                    results.map((verse, index) => (
-                                        <div key={index} className="verse-card" onClick={() => {
-                                            navigate('/bible', {
-                                                state: {
-                                                    bookId: verse.books.id,
-                                                    chapter: verse.chapter,
-                                                    targetVerse: verse.verse,
-                                                    fromSearch: true,
-                                                    searchParams: {
-                                                        q: searchQuery,
-                                                        version: searchVersion,
-                                                        testament: searchTestament,
-                                                        mode: searchMode
+                                    results.map((verse, index) => {
+                                        const key = `${verse.books.id}-${verse.chapter}-${verse.verse}-${verse.version}`;
+                                        const isSelected = selectedVerses.has(key);
+                                        return (
+                                            <div key={index} className={`verse-card ${isSelected ? 'selected' : ''}`} onClick={() => {
+                                                navigate('/bible', {
+                                                    state: {
+                                                        bookId: verse.books.id,
+                                                        chapter: verse.chapter,
+                                                        targetVerse: verse.verse,
+                                                        fromSearch: true,
+                                                        searchParams: {
+                                                            q: searchQuery,
+                                                            version: searchVersion,
+                                                            testament: searchTestament,
+                                                            mode: searchMode
+                                                        }
                                                     }
-                                                }
-                                            });
-                                        }}>
-                                            <div className="result-header">
-                                                <span className="result-ref">
-                                                    {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
-                                                </span>
-                                                <span className="result-version">
-                                                    {verse.version}
-                                                </span>
+                                                });
+                                            }}>
+                                                <div className="result-header">
+                                                    <div className="header-left">
+                                                        <span className="result-ref">
+                                                            {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
+                                                        </span>
+                                                        <span className="result-version">
+                                                            {verse.version}
+                                                        </span>
+                                                    </div>
+                                                    <div className="selection-checkbox" onClick={(e) => toggleVerseSelection(key, e)}>
+                                                        {isSelected ? '☑️' : '⬜'}
+                                                    </div>
+                                                </div>
+                                                <p className="result-text">
+                                                    {highlightText(verse.text, searchQuery)}
+                                                </p>
                                             </div>
-                                            <p className="result-text">
-                                                {highlightText(verse.text, searchQuery)}
-                                            </p>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
 
@@ -1303,7 +1490,14 @@ Here are the available shortcuts to quickly ask questions:
                     />
                 )
             }
-        </div >
+            {/* Bulk Color Picker */}
+            <ColorPickerModal
+                isOpen={showColorPicker}
+                onClose={() => setShowColorPicker(false)}
+                onSelectColor={handleBulkHighlight}
+                allowNaming={true}
+            />
+        </div>
     );
 }
 

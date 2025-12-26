@@ -46,6 +46,7 @@ function Profile() {
     const [downloadProgress, setDownloadProgress] = useState({});
     const [storageUsage, setStorageUsage] = useState('0 B');
     const [selectedStudyId, setSelectedStudyId] = useState(null);
+    const [expandedCategories, setExpandedCategories] = useState({}); // { label: boolean }
 
     useEffect(() => {
         loadData();
@@ -257,6 +258,13 @@ function Profile() {
         setConfirmDelete({ show: false, type: '', id: null, name: '' });
     };
 
+    const toggleCategory = (label) => {
+        setExpandedCategories(prev => ({
+            ...prev,
+            [label]: !prev[label]
+        }));
+    };
+
     const tabs = [
         { id: 'highlights', label: '📌 Highlights', count: highlights.length },
         { id: 'notes', label: '📝 Notes', count: notes.length },
@@ -447,42 +455,68 @@ function Profile() {
                                     // Group highlights by category label
                                     Object.entries(
                                         highlights.reduce((acc, h) => {
-                                            const label = categories[h.color] || 'Other Highlights';
-                                            if (!acc[label]) acc[label] = [];
-                                            acc[label].push(h);
+                                            const labelString = String(categories[h.color] || 'Other Highlights');
+                                            // Split by ANY kind of comma or semicolon
+                                            const labels = labelString.split(/[,，、;|]/).map(l => l.trim()).filter(l => l);
+
+                                            labels.forEach(label => {
+                                                if (!acc[label]) acc[label] = [];
+                                                acc[label].push(h);
+                                            });
+
+                                            // Fallback if split resulted in nothing (e.g. empty string)
+                                            if (labels.length === 0) {
+                                                if (!acc['Other Highlights']) acc['Other Highlights'] = [];
+                                                acc['Other Highlights'].push(h);
+                                            }
+
                                             return acc;
                                         }, {})
-                                    ).map(([label, group]) => (
-                                        <div key={label} className="highlight-category-group">
-                                            <h2 className="category-header">{label}</h2>
-                                            <div className="highlights-list">
-                                                {group.map(h => (
-                                                    <div
-                                                        key={h.id}
-                                                        className="highlight-item"
-                                                        onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}
-                                                    >
-                                                        <div
-                                                            className="highlight-color-dot"
-                                                            style={{ backgroundColor: h.color }}
-                                                        />
-                                                        <div className="highlight-info">
-                                                            <span className="highlight-ref">
-                                                                {getBookName(h.book_id)} {h.chapter}:{h.verse}
-                                                            </span>
-                                                            <span className="highlight-version">{h.version}</span>
-                                                        </div>
-                                                        <button
-                                                            className="delete-btn"
-                                                            onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:${h.verse}`, e)}
-                                                        >
-                                                            🗑️
-                                                        </button>
+                                    ).map(([label, group]) => {
+                                        const isExpanded = expandedCategories[label];
+                                        return (
+                                            <div key={label} className={`highlight-category-group ${isExpanded ? 'is-expanded' : ''}`}>
+                                                <button
+                                                    className="category-header"
+                                                    onClick={() => toggleCategory(label)}
+                                                    aria-expanded={isExpanded}
+                                                >
+                                                    <span className="category-title">{label}</span>
+                                                    <span className="category-count">({group.length})</span>
+                                                    <span className="category-chevron">{isExpanded ? '▼' : '▶'}</span>
+                                                </button>
+
+                                                {isExpanded && (
+                                                    <div className="highlights-list">
+                                                        {group.map(h => (
+                                                            <div
+                                                                key={h.id}
+                                                                className="highlight-item"
+                                                                onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}
+                                                            >
+                                                                <div
+                                                                    className="highlight-color-dot"
+                                                                    style={{ backgroundColor: h.color }}
+                                                                />
+                                                                <div className="highlight-info">
+                                                                    <span className="highlight-ref">
+                                                                        {getBookName(h.book_id)} {h.chapter}:{h.verse}
+                                                                    </span>
+                                                                    <span className="highlight-version">{h.version}</span>
+                                                                </div>
+                                                                <button
+                                                                    className="delete-btn"
+                                                                    onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:{h.verse}`, e)}
+                                                                >
+                                                                    🗑️
+                                                                </button>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
+                                                )}
                                             </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         )}
