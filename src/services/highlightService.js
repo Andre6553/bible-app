@@ -269,6 +269,80 @@ export const saveHighlightCategory = async (color, label) => {
     }
 };
 
+/**
+ * Delete an entire category and all its associated highlights
+ * @param {string} labelToDelete - The name of the category to remove
+ */
+export const deleteCategory = async (labelToDelete) => {
+    const userId = await getUserId();
+    try {
+        // 1. Get all categories for this user
+        const { data: catData, error: catError } = await supabase
+            .from('highlight_categories')
+            .select('*')
+            .eq('user_id', userId);
+
+        if (catError) throw catError;
+
+        const colorsToRemoveHighlightsFrom = [];
+        const categoriesToUpdate = [];
+        const categoriesToDelete = [];
+
+        // 2. Identify which colors are affected
+        catData?.forEach(cat => {
+            const labels = cat.label.split(/[,，、;|]/).map(l => l.trim()).filter(l => l);
+            if (labels.includes(labelToDelete)) {
+                // This color is used for this category
+                colorsToRemoveHighlightsFrom.push(cat.color);
+
+                // Check if this was a multi-label color
+                const remainingLabels = labels.filter(l => l !== labelToDelete);
+                if (remainingLabels.length > 0) {
+                    categoriesToUpdate.push({
+                        color: cat.color,
+                        newLabel: remainingLabels.join(', ')
+                    });
+                } else {
+                    categoriesToDelete.push(cat.color);
+                }
+            }
+        });
+
+        // 3. Remove all highlights for affected colors
+        if (colorsToRemoveHighlightsFrom.length > 0) {
+            const { error: highlightError } = await supabase
+                .from('verse_highlights')
+                .delete()
+                .eq('user_id', userId)
+                .in('color', colorsToRemoveHighlightsFrom);
+
+            if (highlightError) throw highlightError;
+        }
+
+        // 4. Update or Delete category records
+        for (const update of categoriesToUpdate) {
+            await supabase
+                .from('highlight_categories')
+                .update({ label: update.newLabel, updated_at: new Date().toISOString() })
+                .eq('user_id', userId)
+                .eq('color', update.color);
+        }
+
+        if (categoriesToDelete.length > 0) {
+            await supabase
+                .from('highlight_categories')
+                .delete()
+                .eq('user_id', userId)
+                .in('color', categoriesToDelete);
+        }
+
+        return { success: true };
+    } catch (err) {
+        console.error('Error deleting category:', err);
+        return { success: false, error: err.message };
+    }
+};
+
 // =====================================================
 // Study Collections
 // =====================================================

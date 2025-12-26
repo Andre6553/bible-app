@@ -9,13 +9,37 @@ import './ColorPickerModal.css';
  * .remove-highlight-btn:hover { background: rgba(255, 59, 48, 0.1); color: #ff3b30; border-color: #ff3b30; }
  */
 
-function ColorPickerModal({ isOpen, onClose, onSelectColor, initialColor, allowNaming = true }) {
+function ColorPickerModal({ isOpen, onClose, onSelectColor, initialColor, allowNaming = true, language = 'en' }) {
     const [categories, setCategories] = useState({});
     const [longPressTimer, setLongPressTimer] = useState(null);
     const [editingColor, setEditingColor] = useState(null);
     const [tempLabel, setTempLabel] = useState('');
+    const [showHelp, setShowHelp] = useState(false);
     const isLongPressRef = useRef(false);
     const modalRef = useRef(null);
+
+    const translations = {
+        en: {
+            title: "Highlight Colors",
+            renamePlaceholder: "Name this color (e.g. Faith)",
+            save: "Save",
+            mobileHint: "Long press a color to name it",
+            pcHint: "Right click a color to name it",
+            multiTagTitle: "Multi-Topic Tagging",
+            multiTagDesc: "Use a comma to add multiple labels (e.g. 'Faith, Hope'). The verse will appear under each label in your Profile."
+        },
+        af: {
+            title: "Verligkleure",
+            renamePlaceholder: "Gee kleur 'n naam (bv. Geloof)",
+            save: "Stoor",
+            mobileHint: "Druk lank op 'n kleur om dit te benoem",
+            pcHint: "Regskliek op 'n kleur om dit te benoem",
+            multiTagTitle: "Veelvuldige Onderwerpe",
+            multiTagDesc: "Gebruik 'n komma vir meer as een etiket (bv. 'Geloof, Hoop'). Die vers sal onder elke etiket in jou Profiel verskyn."
+        }
+    };
+
+    const t = translations[language] || translations.en;
 
     useEffect(() => {
         if (isOpen) {

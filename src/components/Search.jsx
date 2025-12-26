@@ -1496,6 +1496,7 @@ Here are the available shortcuts to quickly ask questions:
                 onClose={() => setShowColorPicker(false)}
                 onSelectColor={handleBulkHighlight}
                 allowNaming={true}
+                language={settings.language}
             />
         </div>
     );

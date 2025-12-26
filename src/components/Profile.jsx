@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories } from '../services/highlightService';
+import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory } from '../services/highlightService';
 import { getBooks, getVersions } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
@@ -249,6 +249,13 @@ function Profile() {
             const result = await removeSavedWordStudy(id);
             success = result.success;
             if (success) setWordStudies(wordStudies.filter(x => x.id !== id));
+        } else if (type === 'category') {
+            const result = await deleteCategory(id); // id is the label here
+            success = result.success;
+            if (success) {
+                // Refresh all data to reflect the changes
+                loadData();
+            }
         }
 
         setConfirmDelete({ show: false, type: '', id: null, name: '' });
@@ -476,15 +483,25 @@ function Profile() {
                                         const isExpanded = expandedCategories[label];
                                         return (
                                             <div key={label} className={`highlight-category-group ${isExpanded ? 'is-expanded' : ''}`}>
-                                                <button
-                                                    className="category-header"
-                                                    onClick={() => toggleCategory(label)}
-                                                    aria-expanded={isExpanded}
-                                                >
-                                                    <span className="category-title">{label}</span>
-                                                    <span className="category-count">({group.length})</span>
-                                                    <span className="category-chevron">{isExpanded ? '▼' : '▶'}</span>
-                                                </button>
+                                                <div className="category-header-wrapper">
+                                                    <button
+                                                        className="category-header"
+                                                        onClick={() => toggleCategory(label)}
+                                                        aria-expanded={isExpanded}
+                                                    >
+                                                        <span className="category-title">{label}</span>
+                                                        <span className="category-count">({group.length})</span>
+                                                        <span className="category-chevron">{isExpanded ? '▼' : '▶'}</span>
+                                                    </button>
+
+                                                    <button
+                                                        className="delete-category-btn"
+                                                        onClick={(e) => openDeleteConfirm('category', label, label, e)}
+                                                        title={settings.language === 'af' ? 'Vee kategorie uit' : 'Delete category'}
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
 
                                                 {isExpanded && (
                                                     <div className="highlights-list">
@@ -719,8 +736,15 @@ function Profile() {
             {confirmDelete.show && (
                 <div className="confirm-modal-overlay" onClick={cancelDelete}>
                     <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-                        <h3>Delete {confirmDelete.type}?</h3>
-                        <p>Are you sure you want to delete this {confirmDelete.type}?</p>
+                        <h3>{settings.language === 'af' ? `Vee ${confirmDelete.type === 'category' ? 'kategorie' : confirmDelete.type} uit?` : `Delete ${confirmDelete.type}?`}</h3>
+                        <p>{settings.language === 'af'
+                            ? (confirmDelete.type === 'category'
+                                ? `Is jy seker jy wil hierdie hele kategorie verwyder? Alle verligte verse onder hierdie naam sal ook onthark word.`
+                                : `Is jy seker jy wil hierdie ${confirmDelete.name} verwyder?`)
+                            : (confirmDelete.type === 'category'
+                                ? `Are you sure you want to delete this entire category? All highlighted verses under this name will also be un-highlighted.`
+                                : `Are you sure you want to delete this ${confirmDelete.type}?`)}
+                        </p>
                         <p className="confirm-item-name">"{confirmDelete.name}"</p>
                         <div className="confirm-buttons">
                             <button className="cancel-btn" onClick={cancelDelete}>Cancel</button>

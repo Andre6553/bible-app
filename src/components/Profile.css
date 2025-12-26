@@ -263,8 +263,15 @@
     gap: 12px;
 }
 
-.category-header {
+.category-header-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     width: 100%;
+}
+
+.category-header {
+    flex: 1;
     background: var(--bg-tertiary);
     border: none;
     padding: 14px 16px;
@@ -280,7 +287,27 @@
 
 .category-header:hover {
     background: var(--bg-hover);
-    transform: translateX(4px);
+}
+
+.delete-category-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+}
+
+.delete-category-btn:hover {
+    background: rgba(255, 59, 48, 0.1);
+    color: #ff3b30;
+    border-color: rgba(255, 59, 48, 0.2);
 }
 
 .category-title {
