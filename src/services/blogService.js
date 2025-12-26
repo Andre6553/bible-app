@@ -96,12 +96,12 @@ const getUnusedTopics = async (userId, allTopics) => {
 };
 
 /**
- * Get diverse prompt angle based on day, season, and randomness
+ * Get diverse prompt angle based on randomness
  */
 const getDiversePromptAngle = (language = 'en') => {
     const isAf = language === 'af';
     const now = new Date();
-    const dayOfWeek = now.getDay();
+    const dayOfWeek = now.getDay(); // Used for consistent rotation if needed, or just random
 
     const anglesEn = [
         'practical daily application with a specific action step',
@@ -126,65 +126,14 @@ const getDiversePromptAngle = (language = 'en') => {
     ];
 
     const baseAngles = isAf ? anglesAf : anglesEn;
-    const seasonalContext = getSeasonalContext(now.getMonth(), now.getDate(), language);
 
+    // Purely random rotation based on day to ensure variety but consistency for a "daily" feel if re-rolled
     const randomIndex = Math.floor(Math.random() * baseAngles.length);
+    // Combine dayOfWeek with random element to mix it up but keep slight structure
     const baseAngle = baseAngles[(dayOfWeek + randomIndex) % baseAngles.length];
-
-    if (seasonalContext) {
-        return isAf
-            ? `${baseAngle}, met temas wat pas by ${seasonalContext}`
-            : `${baseAngle}, with themes appropriate for ${seasonalContext}`;
-    }
 
     return baseAngle;
 };
-
-
-/**
- * Get seasonal context based on current date
- */
-const getSeasonalContext = (month, day, language = 'en') => {
-    // Christmas Season (Dec 1-26)
-    if (month === 11 && day <= 26) {
-        if (day >= 24 && day <= 26) return language === 'af' ? 'Kersdag vieringe' : 'Christmas Day celebrations';
-
-        // Only include Advent/Christmas prep ~30% of the time to vary content
-        if (Math.random() > 0.7) {
-            return language === 'af'
-                ? 'die Kersfeestyd van afwagting en hoop'
-                : 'Christmas Time and the anticipation of Jesus\' birth';
-        }
-    }
-
-    // New Year (Dec 31 - Jan 7)
-    if ((month === 11 && day === 31) || (month === 0 && day <= 7)) {
-        return language === 'af'
-            ? 'Nuwejaar - vars begin, refleksie en doelgerigtheid'
-            : 'New Year - fresh starts, reflection, and purpose';
-    }
-
-
-    // Easter season (approximate - March/April)
-    if (month === 2 || month === 3) {
-        if (month === 2) return language === 'af' ? 'die Lydenstyd van refleksie en voorbereiding' : 'the Lenten season of reflection and preparation';
-        if (month === 3 && day <= 21) return language === 'af' ? 'die Paastyd van opstanding en nuwe lewe' : 'the Easter season of resurrection and new life';
-    }
-
-    // Thanksgiving (November)
-    if (month === 10 && day >= 20 && day <= 30) {
-        return language === 'af' ? 'die seisoen van dankbaarheid' : 'the season of Thanksgiving and gratitude';
-    }
-
-    // Mother's Day / Father's Day (May/June)
-    if (month === 4 && day >= 8 && day <= 14) return language === 'af' ? 'gebeurtenisse rondom moeders en familie' : 'honoring mothers and family';
-    if (month === 5 && day >= 15 && day <= 21) return language === 'af' ? 'gebeurtenisse rondom vaders en familie' : 'honoring fathers and family';
-
-    // Fall/Back to school (September)
-    if (month === 8) return language === 'af' ? 'nuwe begin en oorgange' : 'new beginnings and transitions';
-
-    return null; // No special season
-}
 
 
 /**
