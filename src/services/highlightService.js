@@ -205,14 +205,56 @@ export const removeHighlight = async (bookId, chapter, verse, version) => {
 export const getAllHighlights = async () => {
     const userId = await getUserId();
     try {
-        const { data, error } = await supabase
+        const { data: highlights, error } = await supabase
             .from('verse_highlights')
             .select('*')
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return { success: true, highlights: data || [] };
+        if (!highlights || highlights.length === 0) return { success: true, highlights: [] };
+
+        // Enrich with text (Client-side Join)
+        // 1. Group by book/chapter/version to minimize requests
+        const groups = {};
+        highlights.forEach(h => {
+            const key = `${h.book_id}-${h.chapter}-${h.version}`;
+            if (!groups[key]) {
+                groups[key] = { bookId: h.book_id, chapter: h.chapter, version: h.version, verses: [] };
+            }
+            groups[key].verses.push(h.verse);
+        });
+
+        // 2. Fetch texts for each group concurrently
+        const promises = Object.values(groups).map(async (g) => {
+            const { data: versesData } = await supabase
+                .from('verses')
+                .select('verse, text')
+                .eq('book_id', g.bookId)
+                .eq('chapter', g.chapter)
+                .eq('version', g.version)
+                .in('verse', g.verses);
+
+            return { key: `${g.bookId}-${g.chapter}-${g.version}`, data: versesData || [] };
+        });
+
+        const results = await Promise.all(promises);
+
+        // 3. Create a lookup map
+        const textMap = {}; // "book-chapter-version-verse" -> text
+        results.forEach(r => {
+            r.data.forEach(v => {
+                textMap[`${r.key}-${v.verse}`] = v.text;
+            });
+        });
+
+        // 4. Merge text into highlights
+        const enriched = highlights.map(h => ({
+            ...h,
+            text: textMap[`${h.book_id}-${h.chapter}-${h.version}-${h.verse}`] || ''
+        }));
+
+        return { success: true, highlights: enriched };
     } catch (err) {
         console.error('Error fetching all highlights:', err);
         return { success: false, highlights: [] };

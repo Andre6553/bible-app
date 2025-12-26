@@ -465,13 +465,39 @@ function Profile() {
                                             const labelString = String(categories[h.color] || 'Other Highlights');
                                             // Split by ANY kind of comma or semicolon
                                             const labels = labelString.split(/[,，、;|]/).map(l => l.trim()).filter(l => l);
+                                            const verseText = (h.text || '').toLowerCase(); // Use enriched text for filtering
 
-                                            labels.forEach(label => {
-                                                if (!acc[label]) acc[label] = [];
-                                                acc[label].push(h);
-                                            });
+                                            // Logic: If multiple labels exist (e.g. "Glo, Bely"), try to filter by verse text.
+                                            // If verse contains "glo", assign to Glo. If "bely", assign to Bely.
+                                            // If it contains neither (or assuming the user used abstract labels), fallback to assigning to ALL.
 
-                                            // Fallback if split resulted in nothing (e.g. empty string)
+                                            if (labels.length > 1) {
+                                                let assigned = false;
+                                                labels.forEach(label => {
+                                                    // Check if label appears in text (case-insensitive)
+                                                    if (verseText.includes(label.toLowerCase())) {
+                                                        if (!acc[label]) acc[label] = [];
+                                                        acc[label].push(h);
+                                                        assigned = true;
+                                                    }
+                                                });
+
+                                                if (!assigned) {
+                                                    // Fallback: Assign to all labels to prevent data loss or if no keywords match
+                                                    labels.forEach(label => {
+                                                        if (!acc[label]) acc[label] = [];
+                                                        acc[label].push(h);
+                                                    });
+                                                }
+                                            } else {
+                                                // Single label: Just assign normally
+                                                labels.forEach(label => {
+                                                    if (!acc[label]) acc[label] = [];
+                                                    acc[label].push(h);
+                                                });
+                                            }
+
+                                            // Fallback if split resulted in nothing (shouldn't happen with default)
                                             if (labels.length === 0) {
                                                 if (!acc['Other Highlights']) acc['Other Highlights'] = [];
                                                 acc['Other Highlights'].push(h);
