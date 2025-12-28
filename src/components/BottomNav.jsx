@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
+import { logActivity } from '../services/bibleService';
 import './BottomNav.css';
 
 function BottomNav() {
@@ -83,6 +84,7 @@ function BottomNav() {
             <NavLink
                 to="/blog"
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => logActivity('blog_visit')}
             >
                 <span className="nav-icon">✨</span>
                 <span className="nav-label">{t.foryou}</span>

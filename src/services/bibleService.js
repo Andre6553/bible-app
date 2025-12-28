@@ -62,6 +62,9 @@ export const getBooks = async () => {
 export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
     const cacheKey = `chapter_${bookId}_${chapter}_${versionId}`;
 
+    // [NEW] Log Bible reading activity (Always log, even on cache hits)
+    logBibleReading(bookId, chapter);
+
     // 1. Try to get from cache first
     try {
         const cached = localStorage.getItem(cacheKey);
@@ -322,6 +325,12 @@ export const getUserId = async () => {
             if (localStorage.getItem('bible_user_id')) {
                 localStorage.removeItem('bible_user_id');
             }
+
+            // [NEW] Check Auto-SuperUser for authenticated users too
+            // Run in background to not block ID return
+            initializeNewUser(uid).catch(err => console.warn('Auth user init failed', err));
+            if (email) initializeNewUser(email).catch(err => console.warn('Auth email init failed', err));
+
             return uid;
         }
     } catch (e) {
@@ -433,19 +442,44 @@ export const logSearch = async (query, version, testament) => {
 };
 
 /**
+ * Log generic app activity
+ */
+export const logActivity = async (type) => {
+    try {
+        const userId = await getUserId();
+        await supabase.from('user_activity_logs').insert([
+            {
+                activity_type: type,
+                user_id: userId,
+                device_info: navigator.userAgent
+            }
+        ]);
+    } catch (err) {
+        console.error('Activity log error', err);
+    }
+};
+
+/**
  * Get User Statistics (Total Users, Most Active)
  */
 export const getUserStatistics = async () => {
     try {
         // 1. Fetch search and AI logs
-        const searchReq = supabase.from('search_logs').select('user_id, device_info').limit(5000);
-        const aiReq = supabase.from('ai_questions').select('user_id, device_info').limit(5000);
+        // 1. Fetch search and AI logs (latest 5000 for each to get a representative active set)
+        const searchReq = supabase.from('search_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
+        const aiReq = supabase.from('ai_questions').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
+        const blogReq = supabase.from('blog_views').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
+        const readingReq = supabase.from('bible_reading_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
+        const activityReq = supabase.from('user_activity_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
         const profileReq = supabase.from('user_profiles').select('user_id, email');
 
-        const [searchRes, aiRes, profileRes] = await Promise.all([searchReq, aiReq, profileReq]);
+        const [searchRes, aiRes, blogRes, readingRes, activityRes, profileRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq, profileReq]);
 
         if (searchRes.error) throw searchRes.error;
         if (aiRes.error) throw aiRes.error;
+        if (blogRes.error) throw blogRes.error;
+        if (readingRes.error) throw readingRes.error;
+        // Don't throw for activityRes.error as it's a new table that might not exist yet
 
         // Map userId to email for quick lookup
         const profileMap = {};
@@ -457,8 +491,11 @@ export const getUserStatistics = async () => {
 
         // Combined list of all actions
         const allActions = [
-            ...searchRes.data.map(d => ({ user: d.user_id, type: 'search', device: d.device_info })),
-            ...aiRes.data.map(d => ({ user: d.user_id, type: 'ai', device: d.device_info }))
+            ...(searchRes.data || []).map(d => ({ user: d.user_id, type: 'search', device: d.device_info })),
+            ...(aiRes.data || []).map(d => ({ user: d.user_id, type: 'ai', device: d.device_info })),
+            ...(blogRes.data || []).map(d => ({ user: d.user_id, type: 'blog', device: d.device_info })),
+            ...(readingRes.data || []).map(d => ({ user: d.user_id, type: 'bible', device: d.device_info })),
+            ...(activityRes.data || []).map(d => ({ user: d.user_id, type: 'activity', device: d.device_info }))
         ];
 
         // 2. User Activity Count & Device Parsing
@@ -540,11 +577,21 @@ export const getUserStatistics = async () => {
             }))
             .sort((a, b) => b.count - a.count);
 
+        // 4. Calculate Global Activity Distribution
+        const globalActivityCounts = {
+            search: searchRes.data?.length || 0,
+            ai: aiRes.data?.length || 0,
+            blog: blogRes.data?.length || 0,
+            bible: readingRes.data?.length || 0,
+            activity: activityRes.data?.length || 0
+        };
+
         return {
             success: true,
             data: {
                 totalUsers: totalUniqueUsers,
-                topUsers: topUsers
+                topUsers: topUsers,
+                globalActivityCounts: globalActivityCounts
             }
         };
     } catch (error) {
@@ -590,10 +637,34 @@ export const getUserHistory = async (userId) => {
             .order('created_at', { ascending: false })
             .limit(50);
 
-        const [searchRes, aiRes] = await Promise.all([searchReq, aiReq]);
+        const blogReq = supabase
+            .from('blog_views')
+            .select('*')
+            .in('user_id', userIdsToFetch)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        const readingReq = supabase
+            .from('bible_reading_logs')
+            .select('*') // No join here, much safer
+            .in('user_id', userIdsToFetch)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        const activityReq = supabase
+            .from('user_activity_logs')
+            .select('*')
+            .in('user_id', userIdsToFetch)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        const [searchRes, aiRes, blogRes, readingRes, activityRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq]);
 
         let searches = searchRes.data || [];
         let aiQuestions = aiRes.data || [];
+        let blogViews = blogRes.data || [];
+        let bibleReadings = readingRes.data || [];
+        let activities = activityRes.data || [];
 
         // 2. Fallback: If no results, try client-side filtering (handles potential column type casting issues)
         if (searches.length === 0) {
@@ -625,14 +696,60 @@ export const getUserHistory = async (userId) => {
             }
         }
 
+        if (blogViews.length === 0) {
+            console.log(`Direct blog_views query returned 0 for ${cleanUserId}, trying fallback (limit 5000)...`);
+            const { data: allBlog } = await supabase
+                .from('blog_views')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(5000);
+
+            if (allBlog) {
+                blogViews = allBlog.filter(b => b.user_id && b.user_id.trim() === cleanUserId).slice(0, 20);
+                console.log(`Fallback found ${blogViews.length} blog views`);
+            }
+        }
+
+        if (bibleReadings.length === 0) {
+            console.log(`Direct bible_reading_logs query returned 0 for ${cleanUserId}, trying fallback (limit 5000)...`);
+            const { data: allReading, error: readingErr } = await supabase
+                .from('bible_reading_logs')
+                .select('*') // No join
+                .order('created_at', { ascending: false })
+                .limit(5000);
+
+            if (readingErr) console.error('Fallback query error:', readingErr);
+
+            if (allReading) {
+                bibleReadings = allReading.filter(b => b.user_id && b.user_id.trim() === cleanUserId).slice(0, 20);
+                console.log(`Fallback found ${bibleReadings.length} bible readings`);
+            }
+        }
+
+        // 3. Post-process to add book names (since join might fail if SQL hasn't been run perfect)
+        if (bibleReadings.length > 0) {
+            const { data: bookNames } = await supabase.from('books').select('id, name_full');
+            if (bookNames) {
+                const bookMap = {};
+                bookNames.forEach(b => bookMap[b.id] = b.name_full);
+                bibleReadings = bibleReadings.map(r => ({
+                    ...r,
+                    books: { name_full: bookMap[r.book_id] || `Book ${r.book_id}` }
+                }));
+            }
+        }
+
         return {
             success: true,
             searches,
-            aiQuestions
+            aiQuestions,
+            blogViews,
+            bibleReadings,
+            activities
         };
     } catch (error) {
         console.error('Error getting user history:', error);
-        return { success: false, searches: [], aiQuestions: [] };
+        return { success: false, searches: [], aiQuestions: [], blogViews: [], bibleReadings: [], activities: [] };
     }
 };
 /**
@@ -745,5 +862,32 @@ export const getVerseByReference = async (refString, versionId = 'KJV') => {
     } catch (error) {
         console.error('Error fetching verse by reference:', error);
         return { success: false, error: error.message };
+    }
+};
+/**
+ * Log a Bible reading entry
+ */
+export const logBibleReading = async (bookId, chapter) => {
+    try {
+        const userId = await getUserId();
+
+        const { data, error } = await supabase
+            .from('bible_reading_logs')
+            .insert({
+                user_id: userId,
+                book_id: bookId,
+                chapter: chapter,
+                device_info: navigator.userAgent
+            })
+            .select();
+
+        if (error) {
+            console.error('❌ Supabase Error logging Bible reading:', error);
+            throw error;
+        }
+
+        console.log(`📖 Bible reading logged: Book ${bookId}, Ch ${chapter}`, data);
+    } catch (err) {
+        console.warn('Could not log Bible reading:', err);
     }
 };

@@ -14,10 +14,12 @@ import {
     getSuperUsers
 } from '../services/blogService';
 import './Stats.css';
+import './StatsChart.css';
 
 function Stats() {
     const [logs, setLogs] = useState([]);
     const [aiQuestions, setAiQuestions] = useState([]);
+    const [readingLogs, setReadingLogs] = useState([]); // New reading logs
     const [errorLogs, setErrorLogs] = useState([]); // New Error Logs
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -25,14 +27,10 @@ function Stats() {
     // User Stats
     const [userStats, setUserStats] = useState({ totalUsers: 0, topUsers: [] });
     const [selectedUser, setSelectedUser] = useState(null);
-    const [selectedUserHistory, setSelectedUserHistory] = useState({ searches: [], aiQuestions: [] });
+    const [selectedUserHistory, setSelectedUserHistory] = useState({ searches: [], aiQuestions: [], blogViews: [], bibleReadings: [], activities: [] });
     const [historyLoading, setHistoryLoading] = useState(false);
 
     const [stats, setStats] = useState({ total: 0, topTerms: [] });
-
-    // ... (rest of code) ...
-
-
 
     // AI Stats State
     const [aiStats, setAiStats] = useState({ total: 0, topQuestions: [] });
@@ -64,6 +62,7 @@ function Stats() {
         if (isAuthenticated) {
             fetchLogs();
             fetchAIQuestions();
+            fetchReadingLogs();
             fetchUserStats();
             fetchRateLimitSetting();
             fetchSuperAutoSetting();
@@ -105,6 +104,29 @@ function Stats() {
             alert('Failed to update setting: ' + result.error);
         }
         setSuperAutoLoading(false);
+    };
+
+    const fetchReadingLogs = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('bible_reading_logs')
+                .select('*, books(name_full)')
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (data) setReadingLogs(data);
+            if (error) {
+                // If it's a known schema error (missing relationship or table), fallback silently
+                if (error.code === 'PGRST200' || error.status === 404) {
+                    const { data: raw } = await supabase.from('bible_reading_logs').select('*').order('created_at', { ascending: false }).limit(50);
+                    if (raw) setReadingLogs(raw);
+                } else {
+                    console.warn('Reading logs fetch error:', error);
+                }
+            }
+        } catch (e) {
+            console.warn('Error fetching reading logs:', e);
+        }
     };
 
     const handleLogin = (e) => {
@@ -180,59 +202,95 @@ function Stats() {
     };
 
     const handleUserClick = async (user) => {
-        console.group('🔍 Debugging User Value');
-        console.log('Selected User Object:', user);
-        console.log('Total Local Logs Available:', logs.length);
-        console.log('Total Local AI Questions Available:', aiQuestions.length);
-
+        setIsUserSuper(false);
         setSelectedUser(user);
+        setHistoryLoading(true);
         setShowDeleteConfirm(false);
 
-        // Check if this user is a super user
-        const superStatus = await isSuperUser(user.userId);
-        setIsUserSuper(superStatus);
+        try {
+            // 1. Check super user status (Check ALL linked IDs)
+            const idsToCheck = user.originalIds && user.originalIds.length > 0 ? user.originalIds : [user.userId];
+            let superStatus = false;
+            // If ANY of the linked IDs are super, we consider the user super
+            for (const id of idsToCheck) {
+                if (await isSuperUser(id)) {
+                    superStatus = true;
+                    break;
+                }
+            }
+            setIsUserSuper(superStatus);
 
-        // 1. Immediate Local Filter
-        const targetId = String(user.userId).trim();
-        console.log('Target User ID (Trimmed):', targetId);
+            // 2. Initial Local Fetch (from already loaded logs if available)
+            const targetId = String(user.userId).trim();
+            const localSearches = logs.filter(l => String(l.user_id).trim() === targetId).slice(0, 20);
+            const localAi = aiQuestions.filter(q => String(q.user_id).trim() === targetId).slice(0, 20);
 
-        const localSearches = logs.filter(l => String(l.user_id).trim() === targetId).slice(0, 20);
-        const localAi = aiQuestions.filter(q => String(q.user_id).trim() === targetId).slice(0, 20);
+            setSelectedUserHistory({
+                searches: localSearches,
+                aiQuestions: localAi,
+                blogViews: [],
+                bibleReadings: [],
+                activities: []
+            });
 
-        console.log(`Local Filter Results:`, {
-            foundSearches: localSearches.length,
-            foundAiQuestions: localAi.length
-        });
-
-        if (localSearches.length === 0 && localAi.length === 0) {
-            console.warn('⚠️ No local history found. Dumping first 3 logs to check ID format:', logs.slice(0, 3));
-        }
-
-        setSelectedUserHistory({
-            searches: localSearches,
-            aiQuestions: localAi
-        });
-
-        // 2. Fetch Deeper History (in background)
-        setHistoryLoading(true);
-        console.log('Fetching deeper history from server...');
-        const history = await getUserHistory(user.userId);
-        console.log('Server Fetch Result:', history);
-
-        if (history.success) {
-            const serverHasData = history.searches.length > 0 || history.aiQuestions.length > 0;
-            const localIsEmpty = localSearches.length === 0 && localAi.length === 0;
-
-            if (serverHasData || localIsEmpty) {
-                console.log('Updating history with server data');
+            // 3. Complete Server Fetch
+            const history = await getUserHistory(user.userId);
+            if (history.success) {
                 setSelectedUserHistory({
-                    searches: history.searches,
-                    aiQuestions: history.aiQuestions
+                    searches: history.searches || [],
+                    aiQuestions: history.aiQuestions || [],
+                    blogViews: history.blogViews || [],
+                    bibleReadings: history.bibleReadings || [],
+                    activities: history.activities || []
                 });
             }
+        } catch (err) {
+            console.error("Error in handleUserClick:", err);
+        } finally {
+            setHistoryLoading(false);
         }
-        setHistoryLoading(false);
-        console.groupEnd();
+    };
+
+    const handleRefreshData = async () => {
+        if (!selectedUser) return;
+        setHistoryLoading(true);
+
+        try {
+            // 1. Refresh global stats (Top users, counts, etc)
+            const result = await getUserStatistics();
+            if (result.success) {
+                setUserStats(result.data);
+
+                // Update selectedUser with latest count from fresh data
+                const updatedUser = result.data.topUsers.find(u => u.userId === selectedUser.userId);
+                if (updatedUser) {
+                    setSelectedUser(prev => ({
+                        ...prev,
+                        count: updatedUser.count,
+                        device: updatedUser.device
+                    }));
+                }
+            }
+
+            // 2. Refresh raw logs (for the local filters)
+            await Promise.all([fetchLogs(), fetchAIQuestions()]);
+
+            // 3. Refresh specific user history
+            const history = await getUserHistory(selectedUser.userId);
+            if (history.success) {
+                setSelectedUserHistory({
+                    searches: history.searches || [],
+                    aiQuestions: history.aiQuestions || [],
+                    blogViews: history.blogViews || [],
+                    bibleReadings: history.bibleReadings || [],
+                    activities: history.activities || []
+                });
+            }
+        } catch (err) {
+            console.error("Refresh error:", err);
+        } finally {
+            setHistoryLoading(false);
+        }
     };
 
     const processAIStats = (data) => {
@@ -419,19 +477,9 @@ function Stats() {
             // Immediately update local state for instant UI feedback
             if (itemType === 'search') {
                 setLogs(prevLogs => prevLogs.filter(log => log.id !== selectedItem.id));
-                // Also update the modal view if it's open
-                setSelectedUserHistory(prev => ({
-                    ...prev,
-                    searches: prev.searches.filter(l => l.id !== selectedItem.id)
-                }));
                 processStats(logs.filter(log => log.id !== selectedItem.id));
             } else if (itemType === 'ai') {
                 setAiQuestions(prevQ => prevQ.filter(q => q.id !== selectedItem.id));
-                // Also update the modal view if it's open
-                setSelectedUserHistory(prev => ({
-                    ...prev,
-                    aiQuestions: prev.aiQuestions.filter(q => q.id !== selectedItem.id)
-                }));
                 processAIStats(aiQuestions.filter(q => q.id !== selectedItem.id));
             } else if (itemType === 'error') {
                 setErrorLogs(prev => prev.filter(e => e.id !== selectedItem.id));
@@ -440,105 +488,88 @@ function Stats() {
         }
     };
 
-    // Toggle super user status
-    const toggleSuperUser = async (userId, currentStatus) => {
+    // Toggle super user status for ALL linked IDs
+    const toggleSuperUser = async (userIds, currentStatus) => {
+        // Ensure array
+        const targets = Array.isArray(userIds) ? [...userIds] : [userIds];
+
+        // [NEW] Also include the email if available (for robust cross-device access)
+        if (selectedUser?.email && !targets.includes(selectedUser.email)) {
+            targets.push(selectedUser.email);
+            console.log('📧 Including email in Super User toggle:', selectedUser.email);
+        }
+
         if (currentStatus) {
-            // Remove from super users
-            const result = await removeSuperUser(userId);
-            if (result.success) {
+            // Remove ALL from super users
+            let allSuccess = true;
+            for (const id of targets) {
+                const result = await removeSuperUser(id);
+                if (!result.success) allSuccess = false;
+            }
+
+            if (allSuccess) {
                 setIsUserSuper(false);
-                setAllSuperUsers(prev => prev.filter(id => id !== userId));
+                setAllSuperUsers(prev => prev.filter(id => !targets.includes(id)));
             }
         } else {
-            // Add to super users
-            const result = await addSuperUser(userId);
-            if (result.success) {
+            // Add ALL to super users
+            let allSuccess = true;
+            for (const id of targets) {
+                const result = await addSuperUser(id);
+                if (!result.success) allSuccess = false;
+            }
+
+            if (allSuccess) {
                 setIsUserSuper(true);
-                setAllSuperUsers(prev => [...prev, userId]);
+                setAllSuperUsers(prev => [...prev, ...targets]);
             }
         }
     };
 
-    // Delete all data for a specific user (called after UI confirmation)
+    // Delete all data for a specific user
     const deleteUserData = async (userId, isFullDelete = false) => {
+        if (!window.confirm(`Are you sure you want to delete ${isFullDelete ? 'FULLY' : 'HISTORY'} for this user?`)) return;
+
         const idsToDelete = selectedUser?.originalIds || [userId];
-        console.log(`🗑️ Deleting data for ${isFullDelete ? 'FULL USER' : 'HISTORY ONLY'} IDs:`, idsToDelete);
 
-        setShowDeleteConfirm(false);
-
-        try {
-            const deletePromises = [
-                supabase.from('search_logs').delete().in('user_id', idsToDelete),
-                supabase.from('ai_questions').delete().in('user_id', idsToDelete)
-            ];
-
-            if (isFullDelete) {
-                console.log('🧹 Purging personal data and profiles...');
-                deletePromises.push(
-                    supabase.from('verse_highlights').delete().in('user_id', idsToDelete),
-                    supabase.from('highlight_categories').delete().in('user_id', idsToDelete),
-                    supabase.from('verse_notes').delete().in('user_id', idsToDelete),
-                    supabase.from('study_collections').delete().in('user_id', idsToDelete),
-                    supabase.from('user_labels').delete().in('user_id', idsToDelete),
-                    supabase.from('user_profiles').delete().in('user_id', idsToDelete)
-                );
+        // 1. Ensure user existence is preserved in user_profiles before wiping logs
+        // This prevents the "Total Users" count from dropping when logs are cleared.
+        if (!isFullDelete) {
+            for (const id of idsToDelete) {
+                await supabase.from('user_profiles').upsert({ user_id: id }).select();
             }
+        }
 
-            const results = await Promise.all(deletePromises);
-            const errors = results.filter(r => r.error);
-            if (errors.length > 0) {
-                console.error('Errors during deletion:', errors);
-                alert('Warning: Some records could not be deleted. Check console for details.');
-            }
+        const deletePromises = [
+            supabase.from('search_logs').delete().in('user_id', idsToDelete),
+            supabase.from('ai_questions').delete().in('user_id', idsToDelete),
+            supabase.from('blog_views').delete().in('user_id', idsToDelete),
+            supabase.from('bible_reading_logs').delete().in('user_id', idsToDelete),
+            supabase.from('user_activity_logs').delete().in('user_id', idsToDelete)
+        ];
 
-            // [NEW] Optimistic Local state update for immediate UI feedback
-            if (isFullDelete) {
-                const targetIdentity = selectedUser?.userId; // This matches u.userId in the list
-                setUserStats(prev => ({
-                    totalUsers: Math.max(0, prev.totalUsers - 1),
-                    topUsers: prev.topUsers.filter(u => u.userId !== targetIdentity)
-                }));
-                // Also remove if they were a super user
-                setAllSuperUsers(prev => prev.filter(id => !idsToDelete.includes(id)));
-            }
+        if (isFullDelete) {
+            // Delete from tables that use the primary user_id (and iterate if multiple)
+            idsToDelete.forEach(id => {
+                deletePromises.push(supabase.from('user_profiles').delete().eq('user_id', id));
+                deletePromises.push(supabase.from('verse_highlights').delete().eq('user_id', id));
+                deletePromises.push(supabase.from('verse_notes').delete().eq('user_id', id));
+            });
+        }
 
-            setLogs(prevLogs => prevLogs.filter(log => !idsToDelete.includes(log.user_id)));
-            setAiQuestions(prevQ => prevQ.filter(q => !idsToDelete.includes(q.user_id)));
+        const results = await Promise.all(deletePromises);
+        const errors = results.filter(r => r.error);
 
-            // Refresh stats (await with longer delay to ensure propagation)
-            await new Promise(r => setTimeout(r, 600));
-            const freshStats = await Promise.all([
-                fetchLogs(),
-                fetchAIQuestions(),
-                fetchUserStats()
-            ]);
-
-            // [NEW] Secondary refresh after 2 seconds to catch slow DB propagation
-            setTimeout(() => {
-                fetchUserStats();
-                console.log('🔄 Secondary stats refresh complete');
-            }, 2500);
-
-            // Close the modal
+        if (errors.length > 0) {
+            alert('Error during deletion. See console.');
+        } else {
+            alert('✅ User data deleted.');
+            fetchUserStats();
             setSelectedUser(null);
-
-            const displayLabel = selectedUser?.email || (typeof userId === 'string' ? userId.substring(0, 15) + '...' : 'User');
-            alert(`✅ ${isFullDelete ? `User ${displayLabel} and all data deleted.` : `All activity logs for ${displayLabel} cleared.`}`);
-
-            console.log('🏁 Deletion sequence complete');
-        } catch (err) {
-            console.error('Error in deletion sequence:', err);
-            alert('Error deleting data: ' + err.message);
         }
     };
 
-    // Fully delete user wrapper
-    const handleDeleteUserFully = async (userId) => {
-        if (!window.confirm("⚠️ This will PERMANENTLY delete all highlights, notes, and profile data for this user. Are you sure?")) {
-            return;
-        }
-        await deleteUserData(userId, true);
-    };
+    const handleDeleteUserFully = (userId) => deleteUserData(userId, true);
 
     // Open date range modal
     const openDateRangeModal = (type) => {
@@ -550,39 +581,15 @@ function Stats() {
 
     // Delete by date range
     const deleteByDateRange = async () => {
-        if (!startDate || !endDate) {
-            alert('Please select both start and end dates.');
-            return;
-        }
-
+        if (!startDate || !endDate) return;
         const table = dateRangeType === 'search' ? 'search_logs' : 'ai_questions';
-        const typeName = dateRangeType === 'search' ? 'search logs' : 'AI questions';
-
-        // Add time to dates for proper range (start of day to end of day)
         const startDateTime = `${startDate}T00:00:00`;
         const endDateTime = `${endDate}T23:59:59`;
 
-        if (!window.confirm(`⚠️ Delete all ${typeName} from ${startDate} to ${endDate}? This cannot be undone!`)) {
-            return;
-        }
-
-        const { error, count } = await supabase
-            .from(table)
-            .delete()
-            .gte('created_at', startDateTime)
-            .lte('created_at', endDateTime);
-
-        if (error) {
-            alert('Error deleting: ' + error.message);
-        } else {
+        const { error } = await supabase.from(table).delete().gte('created_at', startDateTime).lte('created_at', endDateTime);
+        if (!error) {
             setShowDateRangeModal(false);
-            alert(`✅ Deleted ${typeName} from ${startDate} to ${endDate}!`);
-            // Refresh the data
-            if (dateRangeType === 'search') {
-                fetchLogs();
-            } else {
-                fetchAIQuestions();
-            }
+            dateRangeType === 'search' ? fetchLogs() : fetchAIQuestions();
         }
     };
 
@@ -592,7 +599,6 @@ function Stats() {
                 <div className="stats-login-card">
                     <h2>Admin Access 🔒</h2>
                     <form onSubmit={handleLogin}>
-                        {/* Hidden username field for accessibility/password managers */}
                         <input type="text" autoComplete="username" style={{ display: 'none' }} />
                         <input
                             type="password"
@@ -627,30 +633,66 @@ function Stats() {
                 <div className="stats-error">
                     <h3>⚠️ Permission Needed</h3>
                     <p>{error}</p>
-                    <p>Run this SQL in Supabase to fix:</p>
-                    <code className="sql-snippet">
-                        create policy "Enable select for all" on search_logs for select using (true);
-                    </code>
                 </div>
             )}
 
+            {/* Global Activity Chart using CSS Grid/Flex */}
+            {
+                userStats.globalActivityCounts && (
+                    <div className="full-width-card" style={{ marginTop: '20px', marginBottom: '20px' }}>
+                        <div className="settings-card">
+                            <h3>📊 Global Activity Distribution</h3>
+                            <div className="activity-chart-container">
+                                {[
+                                    { key: 'search', label: 'Searches', icon: '🔍', color: '#60a5fa' },
+                                    { key: 'ai', label: 'AI Questions', icon: '🤖', color: '#a78bfa' },
+                                    { key: 'bible', label: 'Bible Reads', icon: '📖', color: '#34d399' },
+                                    { key: 'blog', label: 'Blog Visits', icon: '📰', color: '#f472b6' },
+                                    { key: 'activity', label: 'Other', icon: '⚡', color: '#fbbf24' }
+                                ].map(item => {
+                                    const count = userStats.globalActivityCounts[item.key] || 0;
+                                    const max = Math.max(...Object.values(userStats.globalActivityCounts)) || 1; // Avoid divide by zero
+                                    const percentage = max > 0 ? (count / max) * 100 : 0;
+
+                                    // Only show if there is data
+                                    if (count === 0 && max > 0) return null;
+
+                                    return (
+                                        <div key={item.key} className="chart-row">
+                                            <div className="chart-label">
+                                                <span className="chart-icon">{item.icon}</span>
+                                                <span className="chart-name">{item.label}</span>
+                                            </div>
+                                            <div className="chart-bar-bg">
+                                                <div
+                                                    className="chart-bar-fill"
+                                                    style={{
+                                                        width: `${percentage}%`,
+                                                        backgroundColor: item.color
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="chart-value">{count}</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
             <div className="stats-grid">
-                {/* Summary Card */}
                 <div className="stat-card summary-card">
                     <h3>Total Searches</h3>
                     <div className="big-number">{stats.total}</div>
-                    <p className="subtitle">Last 1000 records</p>
+                    <p className="subtitle">Last 5000 records</p>
                     <div className="card-actions">
-                        <button className="clear-all-btn" onClick={clearAllSearchLogs}>
-                            🗑️ Clear All
-                        </button>
-                        <button className="date-range-btn" onClick={() => openDateRangeModal('search')}>
-                            📅 Delete by Date
-                        </button>
+                        <button className="clear-all-btn" onClick={clearAllSearchLogs}>🗑️ Clear All</button>
+                        <button className="date-range-btn" onClick={() => openDateRangeModal('search')}>📅 Delete by Date</button>
                     </div>
                 </div>
 
-                {/* Top Terms Card */}
                 <div className="stat-card">
                     <h3>🏆 Top Search Terms</h3>
                     {stats.topTerms.length === 0 ? (
@@ -668,74 +710,30 @@ function Stats() {
                     )}
                 </div>
 
-                {/* Recent Searches */}
                 <div className="stat-card recent-list">
                     <h3>🕒 Recent Activity</h3>
                     <div className="log-table-wrapper">
-                        {/* Desktop Table View */}
                         <table className="log-table desktop-only">
                             <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>User</th>
-                                    <th>Query</th>
-                                    <th>Ver</th>
-                                </tr>
+                                <tr><th>Time</th><th>User</th><th>Query</th></tr>
                             </thead>
                             <tbody>
-                                {logs.slice(0, 20).map((log) => (
-                                    <tr
-                                        key={log.id}
-                                        className="clickable-row"
-                                        onClick={() => { setSelectedItem(log); setItemType('search'); }}
-                                    >
+                                {logs.slice(0, 15).map((log) => (
+                                    <tr key={log.id} className="clickable-row" onClick={() => { setSelectedItem(log); setItemType('search'); }}>
                                         <td>{new Date(log.created_at).toLocaleTimeString()}</td>
-                                        <td>
-                                            <span
-                                                className="user-badge clickable-user"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (log.user_id) {
-                                                        handleUserClick({ userId: log.user_id, count: 1, device: 'Unknown' });
-                                                    }
-                                                }}
-                                            >
-                                                {log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}
-                                            </span>
-                                        </td>
+                                        <td>{log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}</td>
                                         <td>{log.query}</td>
-                                        <td>{log.version}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-
-                        {/* Mobile Card View */}
                         <div className="mobile-cards mobile-only">
-                            {logs.slice(0, 20).map((log) => (
-                                <div
-                                    key={log.id}
-                                    className="log-card clickable-row"
-                                    onClick={() => { setSelectedItem(log); setItemType('search'); }}
-                                >
+                            {logs.slice(0, 10).map((log) => (
+                                <div key={log.id} className="log-card" onClick={() => { setSelectedItem(log); setItemType('search'); }}>
                                     <div className="log-card-header">
                                         <span>{new Date(log.created_at).toLocaleTimeString()}</span>
-                                        <span>{log.version}</span>
                                     </div>
                                     <div className="log-card-query">{log.query}</div>
-                                    <div className="log-card-meta">
-                                        <span
-                                            className="user-badge clickable-user"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (log.user_id) {
-                                                    handleUserClick({ userId: log.user_id, count: 1, device: 'Unknown' });
-                                                }
-                                            }}
-                                        >
-                                            👤 {log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}
-                                        </span>
-                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -743,651 +741,292 @@ function Stats() {
                 </div>
             </div>
 
-            {/* User Activity Section */}
+            <h2 className="section-title">📖 Bible Reading Analytics</h2>
+            <div className="stats-grid">
+                <div className="stat-card recent-list full-width-card">
+                    <h3>🕒 Recent Bible Activity</h3>
+                    <div className="log-table-wrapper">
+                        <table className="log-table desktop-only">
+                            <thead>
+                                <tr><th>Time</th><th>User</th><th>Book/Ch</th></tr>
+                            </thead>
+                            <tbody>
+                                {readingLogs.slice(0, 15).map((log) => (
+                                    <tr key={log.id} className="clickable-row">
+                                        <td>{new Date(log.created_at).toLocaleTimeString()}</td>
+                                        <td>{log.user_id?.substring(0, 8)}...</td>
+                                        <td>{log.books?.name_full || `Book ${log.book_id}`} {log.chapter}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div className="mobile-cards mobile-only">
+                            {readingLogs.slice(0, 10).map((log) => (
+                                <div key={log.id} className="log-card">
+                                    <div className="log-card-header">
+                                        <span>{new Date(log.created_at).toLocaleTimeString()}</span>
+                                    </div>
+                                    <div className="log-card-query">{log.books?.name_full || `Book ${log.book_id}`} Ch {log.chapter}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <h2 className="section-title">👥 User Activity</h2>
             <div className="stats-grid">
-                {/* Total Users Card */}
                 <div className="stat-card summary-card user-summary">
                     <h3>Total Users</h3>
                     <div className="big-number">{userStats.totalUsers}</div>
-                    <p className="subtitle">Unique devices/browsers</p>
+                    <p className="subtitle">Unique devices</p>
                 </div>
 
-                {/* Top Active Users Card */}
                 <div className="stat-card">
-                    <h3>🏆 Most Active Users ({userStats.topUsers.length})</h3>
-                    {userStats.topUsers.length === 0 ? (
-                        <p className="no-data">No data yet</p>
-                    ) : (
-                        <div className="scrollable-user-list">
-                            <ul className="top-list">
-                                {userStats.topUsers.map((u, idx) => (
+                    <h3>🏆 Most Active Users</h3>
+                    <div className="scrollable-user-list">
+                        <ul className="top-list">
+                            {userStats.topUsers.map((u, idx) => {
+                                // Check if user is super (check all IDs + email)
+                                const isSuper = (u.originalIds || [u.userId]).some(id => allSuperUsers.includes(id)) ||
+                                    (u.email && allSuperUsers.includes(u.email));
+
+                                return (
                                     <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>
                                         <span className="rank">#{idx + 1}</span>
                                         <div className="user-info-col">
-                                            <span className="term user-id-term" title={u.displayId}>
-                                                {u.displayId.includes('@') ? (
-                                                    <span className="email-display">📧 {u.displayId}</span>
-                                                ) : (
-                                                    u.displayId.substring(0, 15) + (u.displayId.length > 15 ? '...' : '')
-                                                )}
-                                                {allSuperUsers.includes(u.userId) && <span className="list-super-badge" title="Super User"> ⭐</span>}
+                                            <span className="term">{u.displayId.substring(0, 15)}...</span>
+                                            <span className="device-badge">
+                                                {u.device}
+                                                {isSuper && <span title="Super User" style={{ marginLeft: '4px' }}>⭐</span>}
                                             </span>
-                                            <span className="device-badge">{u.device}</span>
                                         </div>
-                                        <span className="count">{u.count} actions</span>
+                                        <span className="count">{u.count > 0 ? `${u.count} actions` : 'No recent activity'}</span>
                                     </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
+                                )
+                            })}
+                        </ul>
+                    </div>
                 </div>
             </div>
 
-            {/* AI Questions Section */}
             <h2 className="section-title">🤖 AI Research Analytics</h2>
             <div className="stats-grid">
-                {/* AI Summary Card */}
                 <div className="stat-card summary-card ai-summary">
                     <h3>Total AI Questions</h3>
                     <div className="big-number">{aiStats.total}</div>
-                    <p className="subtitle">Last 500 records</p>
+                    <p className="subtitle">Last 5000 records</p>
                     <div className="card-actions">
-                        <button className="clear-all-btn clear-all-ai" onClick={clearAllAILogs}>
-                            🗑️ Clear All
-                        </button>
-                        <button className="date-range-btn date-range-ai" onClick={() => openDateRangeModal('ai')}>
-                            📅 Delete by Date
-                        </button>
+                        <button className="clear-all-btn clear-all-ai" onClick={clearAllAILogs}>🗑️ Clear All</button>
+                        <button className="date-range-btn date-range-ai" onClick={() => openDateRangeModal('ai')}>📅 Delete by Date</button>
                     </div>
                 </div>
 
-                {/* Top AI Questions Card */}
-                <div className="stat-card">
-                    <h3>🔥 Popular Questions</h3>
-                    {aiStats.topQuestions.length === 0 ? (
-                        <p className="no-data">No AI questions yet</p>
-                    ) : (
-                        <ul className="top-list">
-                            {aiStats.topQuestions.map((item, idx) => (
-                                <li key={idx} className="top-item ai-question-item">
-                                    <span className="rank">#{idx + 1}</span>
-                                    <span className="term ai-q-text">"{item.question.substring(0, 60)}..."</span>
-                                    <span className="count">{item.count}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-
-                {/* Recent AI Questions */}
                 <div className="stat-card recent-list">
-                    <h3>💬 Recent AI Questions</h3>
+                    <h3>💬 Recent Questions</h3>
                     <div className="log-table-wrapper">
-                        {/* Desktop View */}
                         <table className="log-table desktop-only">
                             <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>User</th>
-                                    <th>Question</th>
-                                </tr>
+                                <tr><th>Time</th><th>User</th><th>Question</th></tr>
                             </thead>
                             <tbody>
-                                {aiQuestions.slice(0, 20).map((q) => (
-                                    <tr
-                                        key={q.id}
-                                        className="clickable-row"
-                                        onClick={() => { setSelectedItem(q); setItemType('ai'); }}
-                                    >
-                                        <td>{new Date(q.created_at).toLocaleString()}</td>
-                                        <td>
-                                            <span
-                                                className="user-badge clickable-user"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (q.user_id) {
-                                                        handleUserClick({ userId: q.user_id, count: 1, device: 'Unknown' });
-                                                    }
-                                                }}
-                                            >
-                                                {q.user_id ? q.user_id.substring(0, 8) + '...' : 'Anon'}
-                                            </span>
-                                        </td>
-                                        <td className="ai-q-cell">{q.question.substring(0, 80)}{q.question.length > 80 ? '...' : ''}</td>
+                                {aiQuestions.slice(0, 15).map((q) => (
+                                    <tr key={q.id} className="clickable-row" onClick={() => { setSelectedItem(q); setItemType('ai'); }}>
+                                        <td>{new Date(q.created_at).toLocaleTimeString()}</td>
+                                        <td>{q.user_id?.substring(0, 8)}...</td>
+                                        <td>{q.question.substring(0, 50)}...</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-
-                        {/* Mobile View */}
-                        <div className="mobile-cards mobile-only">
-                            {aiQuestions.slice(0, 20).map((q) => (
-                                <div
-                                    key={q.id}
-                                    className="log-card clickable-row"
-                                    onClick={() => { setSelectedItem(q); setItemType('ai'); }}
-                                >
-                                    <div className="log-card-header">
-                                        <span>{new Date(q.created_at).toLocaleTimeString()}</span>
-                                    </div>
-                                    <div className="log-card-query ai-q-text">{q.question.substring(0, 100)}{q.question.length > 100 ? '...' : ''}</div>
-                                    <div className="log-card-meta">
-                                        <span
-                                            className="user-badge clickable-user"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (q.user_id) {
-                                                    handleUserClick({ userId: q.user_id, count: 1, device: 'Unknown' });
-                                                }
-                                            }}
-                                        >
-                                            👤 {q.user_id ? q.user_id.substring(0, 8) + '...' : 'Anon'}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Detail Modal */}
-            {selectedItem && (
-                <div className="detail-modal-overlay" onClick={() => setSelectedItem(null)}>
-                    <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="detail-modal-header">
-                            <h3>{itemType === 'ai' ? '🤖 AI Question Details' : '🔍 Search Details'}</h3>
-                            <button className="close-modal-btn" onClick={() => setSelectedItem(null)}>✕</button>
-                        </div>
-                        <div className="detail-modal-body">
-                            <div className="detail-row">
-                                <span className="detail-label">📅 Date & Time:</span>
-                                <span className="detail-value">{new Date(selectedItem.created_at).toLocaleString()}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">👤 User ID:</span>
-                                <span className="detail-value user-id-full">{selectedItem.user_id || 'Anonymous'}</span>
-                            </div>
-                            {itemType === 'search' && (
-                                <>
-                                    <div className="detail-row">
-                                        <span className="detail-label">🔎 Search Query:</span>
-                                        <span className="detail-value">{selectedItem.query}</span>
-                                    </div>
-                                    <div className="detail-row">
-                                        <span className="detail-label">📖 Version:</span>
-                                        <span className="detail-value">{selectedItem.version}</span>
-                                    </div>
-                                    <div className="detail-row">
-                                        <span className="detail-label">📜 Testament:</span>
-                                        <span className="detail-value">{selectedItem.testament || 'All'}</span>
-                                    </div>
-                                </>
-                            )}
-
-                            {itemType === 'ai' && (
-                                <>
-                                    <div className="detail-row full-width">
-                                        <span className="detail-label">❓ Question:</span>
-                                        <p className="detail-value question-full">{selectedItem.question}</p>
-                                    </div>
-                                    {selectedItem.context && (
-                                        <div className="detail-row full-width">
-                                            <span className="detail-label">📚 Context Provided:</span>
-                                            <p className="detail-value context-text">{selectedItem.context}</p>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-
-                            {itemType === 'error' && (
-                                <>
-                                    <div className="detail-row full-width">
-                                        <span className="detail-label">🛑 Error Message:</span>
-                                        <p className="detail-value error-text-full">{selectedItem.error_message}</p>
-                                    </div>
-                                    <div className="detail-row full-width">
-                                        <span className="detail-label">📱 Device Info:</span>
-                                        <div className="code-block">
-                                            <pre>{JSON.stringify(selectedItem.device_info, null, 2)}</pre>
-                                        </div>
-                                    </div>
-                                    <div className="detail-row full-width">
-                                        <span className="detail-label">📍 URL:</span>
-                                        <p className="detail-value">{selectedItem.url}</p>
-                                    </div>
-                                    {selectedItem.stack_trace && (
-                                        <div className="detail-row full-width">
-                                            <span className="detail-label">🥞 Stack Trace:</span>
-                                            <div className="code-block scroll-block">
-                                                <pre>{selectedItem.stack_trace}</pre>
-                                                {selectedItem.component_stack && (
-                                                    <>
-                                                        <hr />
-                                                        <pre>{selectedItem.component_stack}</pre>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                        <div className="detail-modal-footer">
-                            <button className="delete-entry-btn" onClick={deleteSingleEntry}>
-                                🗑️ Delete This Entry
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Date Range Delete Modal */}
-            {
-                showDateRangeModal && (
-                    <div className="detail-modal-overlay" onClick={() => setShowDateRangeModal(false)}>
-                        <div className="detail-modal date-range-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="detail-modal-header">
-                                <h3>📅 Delete {dateRangeType === 'search' ? 'Search Logs' : 'AI Questions'} by Date</h3>
-                                <button className="close-modal-btn" onClick={() => setShowDateRangeModal(false)}>✕</button>
-                            </div>
-                            <div className="detail-modal-body">
-                                <div className="date-input-group">
-                                    <label>Start Date:</label>
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="date-input"
-                                    />
-                                </div>
-                                <div className="date-input-group">
-                                    <label>End Date:</label>
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        className="date-input"
-                                    />
-                                </div>
-                                <p className="date-range-info">
-                                    ⚠️ All records from {startDate || '(start)'} to {endDate || '(end)'} will be permanently deleted.
-                                </p>
-                            </div>
-                            <div className="detail-modal-footer">
-                                <button
-                                    className="delete-entry-btn"
-                                    onClick={deleteByDateRange}
-                                    disabled={!startDate || !endDate}
-                                >
-                                    🗑️ Delete Records in Range
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* User Detail Modal */}
-            {
-                selectedUser && (
-                    <div className="detail-modal-overlay" onClick={() => setSelectedUser(null)}>
-                        <div className="detail-modal user-detail-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="detail-modal-header user-modal-header">
-                                <h3>👤 User Analysis</h3>
-                                <button className="close-modal-btn" onClick={() => setSelectedUser(null)}>✕</button>
-                            </div>
-                            <div className="detail-modal-body">
-                                {/* Super User Toggle */}
-                                <div className="super-user-toggle">
-                                    <label className="super-checkbox-label">
-                                        <input
-                                            type="checkbox"
-                                            checked={isUserSuper}
-                                            onChange={() => toggleSuperUser(selectedUser.userId, isUserSuper)}
-                                        />
-                                        <span className="super-badge">⭐ Super User</span>
-                                        <span className="super-desc">(bypasses rate limits)</span>
-                                    </label>
-                                </div>
-
-                                <div className="detail-row">
-                                    <span className="detail-label">🆔 User ID:</span>
-                                    <span className="detail-value user-id-full">{selectedUser.userId || 'Anonymous'}</span>
-                                </div>
-                                <div className="detail-row">
-                                    <span className="detail-label">⚡ Total Actions:</span>
-                                    <span className="detail-value">{selectedUser.count} (Search + AI)</span>
-                                </div>
-                                <div className="detail-row">
-                                    <span className="detail-label">📱 Primary Device:</span>
-                                    <span className="detail-value">{selectedUser.device}</span>
-                                </div>
-
-                                <div className="detail-row full-width">
-                                    <span className="detail-label">🕵️ Detected User Agents:</span>
-                                    <div className="user-agents-list">
-                                        {selectedUser.fullUserAgents && selectedUser.fullUserAgents.length > 0 ? (
-                                            selectedUser.fullUserAgents.map((ua, i) => (
-                                                <div key={i} className="ua-item">{ua}</div>
-                                            ))
-                                        ) : (
-                                            <p className="no-data-text">No device info recorded.</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* New History Section */}
-                                <div className="history-section">
-                                    <h4>🕒 Recent Activity</h4>
-                                    {historyLoading ? (
-                                        <p className="loading-text">Loading history...</p>
-                                    ) : (
-                                        <div className="history-lists">
-                                            <div className="history-col">
-                                                <h5>🔍 Recent Searches</h5>
-                                                {selectedUserHistory.searches.length === 0 ? (
-                                                    <p className="no-data-text">No recent searches</p>
-                                                ) : (
-                                                    <ul className="mini-list">
-                                                        {selectedUserHistory.searches.map(log => (
-                                                            <li key={log.id} className="mini-item">
-                                                                <span className="mini-time">{new Date(log.created_at).toLocaleDateString()}</span>
-                                                                <span className="mini-text">{log.query}</span>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </div>
-                                            <div className="history-col">
-                                                <h5>🤖 AI Questions</h5>
-                                                {selectedUserHistory.aiQuestions.length === 0 ? (
-                                                    <p className="no-data-text">No AI questions</p>
-                                                ) : (
-                                                    <ul className="mini-list">
-                                                        {selectedUserHistory.aiQuestions.map(q => (
-                                                            <li key={q.id} className="mini-item">
-                                                                <span className="mini-time">{new Date(q.created_at).toLocaleDateString()}</span>
-                                                                <span className="mini-text" title={q.question}>{q.question.substring(0, 40)}...</span>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Delete User Data Buttons */}
-                                <div className="delete-user-section">
-                                    {!showDeleteConfirm ? (
-                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                            <button
-                                                className="delete-user-btn"
-                                                onClick={() => setShowDeleteConfirm('data')}
-                                            >
-                                                🗑️ Delete History Logs
-                                            </button>
-                                            <button
-                                                className="delete-user-btn"
-                                                style={{ backgroundColor: '#dc2626' }}
-                                                onClick={() => setShowDeleteConfirm('full')}
-                                            >
-                                                💀 Delete User Fully
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="delete-confirm-box">
-                                            <p className="confirm-text">
-                                                {showDeleteConfirm === 'full'
-                                                    ? '⚠️ NUKE USER? This deletes logs AND removes Super User status. It will happen immediately.'
-                                                    : '⚠️ Clear history? This deletes all search/AI logs but keeps the user ID alive.'}
-                                            </p>
-                                            <div className="confirm-buttons">
-                                                <button
-                                                    className="confirm-yes-btn"
-                                                    onClick={() => showDeleteConfirm === 'full' ? handleDeleteUserFully(selectedUser.userId) : deleteUserData(selectedUser.userId)}
-                                                >
-                                                    ✓ Yes, Delete
-                                                </button>
-                                                <button
-                                                    className="confirm-no-btn"
-                                                    onClick={() => setShowDeleteConfirm(false)}
-                                                >
-                                                    ✕ Cancel
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Admin Settings Section */}
             <h2 className="section-title">⚙️ Admin Settings</h2>
             <div className="stats-grid">
                 <div className="stat-card settings-card">
-                    <h3>Blog Rate Limit</h3>
+                    <h3>Settings</h3>
                     <div className="setting-row">
-                        <div className="setting-info">
-                            <p className="setting-desc">Limit AI devotionals to 1 per user per day</p>
-                            <p className="setting-status">
-                                Status: <strong>{rateLimitEnabled ? '🔒 Enabled' : '🔓 Disabled'}</strong>
-                            </p>
-                        </div>
-                        <label className="toggle-switch">
-                            <input
-                                type="checkbox"
-                                checked={rateLimitEnabled}
-                                onChange={handleToggleRateLimit}
-                                disabled={rateLimitLoading}
-                            />
+                        <p>Blog Rate Limit: <strong>{rateLimitEnabled ? 'ON' : 'OFF'}</strong></p>
+                        <label className="switch">
+                            <input type="checkbox" checked={rateLimitEnabled} onChange={handleToggleRateLimit} />
                             <span className="slider"></span>
                         </label>
                     </div>
-                    <p className="setting-hint">
-                        {rateLimitEnabled
-                            ? '✅ Users get 1 AI devotional per day (reduces API costs)'
-                            : '⚡ Users can generate unlimited devotionals (testing mode)'}
-                    </p>
-
-                    {/* New Super User Auto Toggle */}
-                    <div className="setting-row" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #333' }}>
-                        <div className="setting-info">
-                            <p className="setting-desc">Auto-SuperUser for New Users</p>
-                            <p className="setting-status">
-                                Status: <strong>{superAutoEnabled ? '🔒 Enabled' : '🔓 Disabled'}</strong>
-                            </p>
-                        </div>
-                        <label className="toggle-switch">
-                            <input
-                                type="checkbox"
-                                checked={superAutoEnabled}
-                                onChange={handleToggleSuperAuto}
-                                disabled={superAutoLoading}
-                            />
+                    <div className="setting-row">
+                        <p>Auto SuperUser: <strong>{superAutoEnabled ? 'ON' : 'OFF'}</strong></p>
+                        <label className="switch">
+                            <input type="checkbox" checked={superAutoEnabled} onChange={handleToggleSuperAuto} />
                             <span className="slider"></span>
                         </label>
                     </div>
-                    <p className="setting-hint">
-                        {superAutoEnabled
-                            ? '✅ New users automatically become Super Users (no rate limits)'
-                            : '⚡ New users start with standard rate limits'}
-                    </p>
                 </div>
             </div>
 
-            {/* Error Logs Section */}
-            <h2 className="section-title">🚨 System Health & Crashes</h2>
+            <h2 className="section-title">🚨 System Health</h2>
             <div className="stats-grid">
-                {/* Error Summary Card */}
                 <div className="stat-card summary-card error-summary">
                     <h3>Total Crashes</h3>
                     <div className="big-number">{errorLogs.length}</div>
-                    <p className="subtitle">Recorded Events</p>
-                    <div className="card-actions">
-                        {!showClearErrorConfirm ? (
-                            <button className="clear-all-btn clear-all-error" onClick={clickClearErrors}>
-                                🗑️ Clear All
-                            </button>
-                        ) : (
-                            <div className="confirm-row" style={{ display: 'flex', gap: '5px' }}>
-                                <button className="confirm-yes-btn" onClick={confirmClearErrors} style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Yes</button>
-                                <button className="confirm-no-btn" onClick={() => setShowClearErrorConfirm(false)} style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#555', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>No</button>
-                            </div>
-                        )}
-                        <button className="clear-all-btn" style={{ borderColor: '#fca5a5', color: '#fca5a5' }} onClick={sendTestError}>
-                            ⚡ Send Test Crash
-                        </button>
-                    </div>
+                    <button className="clear-all-btn" onClick={confirmClearErrors}>🗑️ Clear All</button>
+                    <button className="date-range-btn" onClick={sendTestError}>⚡ Send Test</button>
                 </div>
 
-                {/* Recent Errors List */}
                 <div className="stat-card recent-list full-width-card">
                     <h3>🛑 Crash Reports</h3>
-                    {errorLogs.length === 0 ? (
-                        <p className="no-data">No crashes recorded (System Healthy)</p>
-                    ) : (
-                        <div className="log-table-wrapper">
-                            {/* Desktop Table View */}
-                            <table className="log-table desktop-only">
-                                <thead>
-                                    <tr>
-                                        <th>Time</th>
-                                        <th>Message</th>
-                                        <th>Device</th>
+                    <div className="log-table-wrapper">
+                        <table className="log-table desktop-only">
+                            <thead>
+                                <tr><th>Time</th><th>Message</th><th>Device</th></tr>
+                            </thead>
+                            <tbody>
+                                {errorLogs.slice(0, 10).map((err) => (
+                                    <tr key={err.id} className="clickable-row error-row" onClick={() => { setSelectedItem(err); setItemType('error'); }}>
+                                        <td>{new Date(err.created_at).toLocaleString()}</td>
+                                        <td>{err.error_message.substring(0, 50)}...</td>
+                                        <td>{err.device_info?.os || 'Unknown'}</td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {errorLogs.map((err) => (
-                                        <tr
-                                            key={err.id}
-                                            className="clickable-row error-row"
-                                            onClick={() => { setSelectedItem(err); setItemType('error'); }}
-                                            onContextMenu={(e) => handleContextMenu(e, err.error_message)}
-                                            onTouchStart={(e) => handleTouchStart(e, err.error_message)}
-                                            onTouchEnd={handleTouchEnd}
-                                            onTouchMove={handleTouchEnd}
-                                        >
-                                            <td>{new Date(err.created_at).toLocaleString()}</td>
-                                            <td className="error-msg-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                                                <span>
-                                                    {err.error_message.substring(0, 50)}...
-                                                    <span className="ver-badge">Build: {err.metadata?.version || '?'}</span>
-                                                </span>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleCopyError(err.error_message);
-                                                    }}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        fontSize: '1.2rem',
-                                                        padding: '5px'
-                                                    }}
-                                                    title="Copy Error"
-                                                >
-                                                    📋
-                                                </button>
-                                            </td>
-                                            <td>
-                                                {err.device_info?.os || 'Unknown'}
-                                                {err.device_info?.screen ? ` (${err.device_info.screen.width}x${err.device_info.screen.height})` : ''}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-
-                            {/* Mobile Card View */}
-                            <div className="mobile-cards mobile-only">
-                                {errorLogs.map((err) => (
-                                    <div
-                                        key={err.id}
-                                        className="log-card clickable-row error-row"
-                                        onClick={() => { setSelectedItem(err); setItemType('error'); }}
-                                    >
-                                        <div className="log-card-header">
-                                            <span>{new Date(err.created_at).toLocaleTimeString()}</span>
-                                            <span className="ver-badge">v{err.metadata?.version || '?'}</span>
-                                        </div>
-                                        <div className="log-card-query error-msg-cell" style={{ fontSize: '0.9rem' }}>
-                                            {err.error_message.substring(0, 60)}...
-                                        </div>
-                                        <div className="log-card-meta">
-                                            <span className="user-badge">
-                                                📱 {err.device_info?.os || 'Unknown'}
-                                            </span>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleCopyError(err.error_message);
-                                                }}
-                                                style={{
-                                                    background: 'rgba(255,255,255,0.1)',
-                                                    border: '1px solid var(--border-subtle)',
-                                                    borderRadius: '4px',
-                                                    padding: '4px'
-                                                }}
-                                            >
-                                                📋 Copy
-                                            </button>
-                                        </div>
-                                    </div>
                                 ))}
-                            </div>
-                        </div>
-                    )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-            {/* Project Credentials Section */}
-            <h2 className="section-title">🔑 Project Credentials & Backend</h2>
+
+            <h2 className="section-title">🔑 Project Credentials</h2>
             <div className="stats-grid">
                 <div className="stat-card credentials-card full-width-card">
-                    <h3>Project Connections</h3>
-                    <div className="credentials-grid">
-                        <div className="credential-item">
-                            <span className="credential-label">📂 GitHub Repository:</span>
-                            <span className="credential-value">
-                                <a href="https://github.com/Andre6553/bible-app" target="_blank" rel="noopener noreferrer">
-                                    Andre6553/bible-app 🌐
-                                </a>
-                            </span>
-                        </div>
-                        <div className="credential-item">
-                            <span className="credential-label">🤖 Google Gemini API:</span>
-                            <span className="credential-value code-style">
-                                {import.meta.env.VITE_GEMINI_API_KEY || 'Not Configured'}
-                                <span className="api-url"> (URL: https://generativelanguage.googleapis.com)</span>
-                            </span>
-                        </div>
-                        <div className="credential-item">
-                            <span className="credential-label">🛢️ Supabase Backend:</span>
-                            <div className="credential-value code-block-small">
-                                <p><strong>URL:</strong> {supabaseUrl}</p>
-                                <p><strong>Anon Key:</strong> {supabaseKey}</p>
-                            </div>
-                        </div>
-                        <div className="credential-item">
-                            <span className="credential-label">🚀 Vercel Deployment:</span>
-                            <span className="credential-value">
-                                <a href="https://bible-app-phi-one.vercel.app" target="_blank" rel="noopener noreferrer">
-                                    bible-app-phi-one.vercel.app 🔗
-                                </a>
-                            </span>
-                        </div>
-                    </div>
-                    <div className="credential-hint">
-                        💡 These keys are managed via environment variables and project configurations.
-                    </div>
+                    <p><strong>GitHub:</strong> Andre6553/bible-app</p>
+                    <p><strong>Supabase:</strong> {supabaseUrl}</p>
+                    <p><strong>Vercel:</strong> https://bible-app-phi-one.vercel.app</p>
                 </div>
             </div>
+
+            {/* Modals */}
+            {
+                selectedItem && (
+                    <div className="detail-modal-overlay" onClick={() => setSelectedItem(null)}>
+                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="detail-modal-header">
+                                <h3>Details</h3>
+                                <button onClick={() => setSelectedItem(null)}>✕</button>
+                            </div>
+                            <div className="detail-modal-body">
+                                <pre>{JSON.stringify(selectedItem, null, 2)}</pre>
+                            </div>
+                            <div className="detail-modal-footer">
+                                <button className="delete-entry-btn" onClick={deleteSingleEntry}>🗑️ Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {
+                showDateRangeModal && (
+                    <div className="detail-modal-overlay" onClick={() => setShowDateRangeModal(false)}>
+                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                            <h3>Delete by Date</h3>
+                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                            <button onClick={deleteByDateRange}>Confirm Delete</button>
+                        </div>
+                    </div>
+                )
+            }
+
+            {
+                selectedUser && (
+                    <div className="detail-modal-overlay" onClick={() => setSelectedUser(null)}>
+                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="detail-modal-header">
+                                <h3>👤 User Analysis</h3>
+                                <div className="header-actions">
+                                    <button
+                                        className={`refresh-modal-btn ${historyLoading ? 'spinning' : ''}`}
+                                        onClick={handleRefreshData}
+                                        title="Refresh Data"
+                                    >
+                                        🔄
+                                    </button>
+                                    <button onClick={() => setSelectedUser(null)}>✕</button>
+                                </div>
+                            </div>
+                            <div className="detail-modal-body">
+                                <p><strong>ID:</strong> {selectedUser.userId}</p>
+                                <p><strong>Actions:</strong> {selectedUser.count}</p>
+                                <p><strong>Blog Visits:</strong> {selectedUserHistory.blogViews.length > 0
+                                    ? `${selectedUserHistory.blogViews.length} visits (Last: ${new Date(selectedUserHistory.blogViews[0].created_at).toLocaleDateString()})`
+                                    : 'No visits recorded'}
+                                </p>
+                                <div className="super-user-toggle">
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={isUserSuper}
+                                            onChange={() => toggleSuperUser(selectedUser.originalIds || [selectedUser.userId], isUserSuper)}
+                                        />
+                                        ⭐ Super User
+                                    </label>
+                                </div>
+                                <div className="history-lists">
+                                    <h5>Recent History</h5>
+                                    {historyLoading ? <p>Loading...</p> : (
+                                        <ul>
+                                            {selectedUserHistory.searches
+                                                .filter((s, i, self) => i === 0 || s.query !== self[i - 1].query || Math.abs(new Date(s.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                .slice(0, 5).map(s => <li key={s.id}>🔍 {s.query} <span className="history-time">({new Date(s.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                            {selectedUserHistory.aiQuestions
+                                                .filter((q, i, self) => i === 0 || q.question !== self[i - 1].question || Math.abs(new Date(q.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                .slice(0, 5).map(q => <li key={q.id}>🤖 {q.question.substring(0, 30)}... <span className="history-time">({new Date(q.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                            {selectedUserHistory.bibleReadings
+                                                .filter((r, i, self) => i === 0 || r.book_id !== self[i - 1].book_id || r.chapter !== self[i - 1].chapter || Math.abs(new Date(r.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                .slice(0, 5).map(r => <li key={r.id}>📖 Read {r.books?.name_full || `Book ${r.book_id}`} {r.chapter} <span className="history-time">({new Date(r.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                            {selectedUserHistory.blogViews
+                                                .filter((v, i, self) => i === 0 || v.post_id !== self[i - 1].post_id || Math.abs(new Date(v.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                .slice(0, 5).map(v => <li key={v.id}>📰 Visited Blog <span className="history-time">({new Date(v.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                            {selectedUserHistory.activities
+                                                .filter((a, i, self) => i === 0 || a.activity_type !== self[i - 1].activity_type || Math.abs(new Date(a.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                .slice(0, 10).map(a => {
+                                                    const typeMap = {
+                                                        'study_page_visit': 'Visited Study Page',
+                                                        'notes_visit': 'Visited Notes',
+                                                        'word_study_visit': 'Visited Word Study',
+                                                        'verse_highlight': 'Highlighted verse',
+                                                        'blog_visit': 'Visited "For You" Blog',
+                                                        'blog_post_open': 'Opened Blog Post'
+                                                    };
+                                                    return <li key={a.id}>📰 {typeMap[a.activity_type] || a.activity_type} <span className="history-time">({new Date(a.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>;
+                                                })}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="detail-modal-footer">
+                                <div className="modal-footer-actions">
+                                    <button
+                                        className="secondary-action-btn"
+                                        onClick={() => deleteUserData(selectedUser.userId, false)}
+                                    >
+                                        🗑️ Clear History
+                                    </button>
+                                    <button
+                                        className="danger-action-btn"
+                                        onClick={() => handleDeleteUserFully(selectedUser.userId)}
+                                    >
+                                        💀 Nuke User
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div >
     );
 }

@@ -8,7 +8,8 @@ import {
     getUserId,
     getOriginalVerse,
     getChapterCount,
-    getVerseCount
+    getVerseCount,
+    logActivity
 } from '../services/bibleService';
 import {
     getChapterHighlights,
@@ -432,6 +433,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const handleHighlight = async (color) => {
         if (selectedVerses.length === 0 || !selectedBook || !currentVersion) return;
 
+        // Log the trigger only
+        logActivity('verse_highlight');
+
         const promises = selectedVerses.map(v => {
             if (color === null) {
                 return removeHighlight(selectedBook.id, selectedChapter, v.verse, currentVersion.id);
@@ -472,6 +476,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const handleOpenNote = async () => {
         if (selectedVerses.length === 0 || !selectedBook || !currentVersion) return;
 
+        logActivity('notes_visit');
+
         const primaryVerse = selectedVerses[0].verse;
         const result = await getVerseNote(selectedBook.id, selectedChapter, primaryVerse, currentVersion.id);
         setExistingNote(result.note);
@@ -494,6 +500,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const handleStartStudy = () => {
         if (selectedVerses.length === 0) return;
 
+        logActivity('study_page_visit');
+
         // Sort selected verses to get the range
         const sorted = [...selectedVerses].sort((a, b) => a.verse - b.verse);
         const verseStart = sorted[0].verse;
@@ -513,6 +521,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     const handleWordStudy = async () => {
         if (selectedVerses.length === 0) return;
+
+        logActivity('word_study_visit');
         const firstVerse = selectedVerses[0];
 
         // Fetch original text for the first selected verse

@@ -610,7 +610,27 @@ export const toggleSuperUserAuto = async (enabled) => {
 export const isSuperUser = async (userId) => {
     if (!userId) userId = await getUserId();
     const superUsers = await getSuperUsers();
-    return superUsers.includes(userId);
+
+    // 1. Direct ID Check
+    if (superUsers.includes(userId)) return true;
+
+    // 2. Email Check (Robustness for ID rotation)
+    try {
+        const { data } = await supabase
+            .from('user_profiles')
+            .select('email')
+            .eq('user_id', userId)
+            .single();
+
+        if (data?.email && superUsers.includes(data.email)) {
+            console.log(`🔓 Super User authenticated via Email: ${data.email}`);
+            return true;
+        }
+    } catch (e) {
+        // Ignore error
+    }
+
+    return false;
 };
 
 /**
@@ -1140,5 +1160,25 @@ export const getTrendingTopics = async () => {
     } catch (err) {
         console.error('Error getting trending topics:', err);
         return { success: false, topics: [] };
+    }
+};
+
+/**
+ * Log a blog view entry
+ */
+export const logBlogView = async (userId) => {
+    try {
+        if (!userId) userId = await getUserId();
+
+        await supabase
+            .from('blog_views')
+            .insert({
+                user_id: userId,
+                device_info: navigator.userAgent
+            });
+
+        console.log('📈 Blog view logged');
+    } catch (err) {
+        console.warn('Could not log blog view:', err);
     }
 };

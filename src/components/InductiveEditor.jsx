@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getStudyById, saveInductiveStudy } from '../services/studyService';
 import { getInductiveStudyHints } from '../services/aiService';
 import { getLocalizedBookName } from '../constants/bookNames';
-import { getUserId, getVerseCount, getChapter } from '../services/bibleService';
+import { getUserId, getVerseCount, getChapter, logActivity } from '../services/bibleService';
 import { useSettings } from '../context/SettingsContext';
 import './Study.css';
 
@@ -55,6 +55,7 @@ function InductiveEditor() {
     const [verses, setVerses] = useState([]);
 
     useEffect(() => {
+        logActivity('study_page_visit');
         if (id && id !== 'new') {
             loadStudy();
         } else if (location.state) {

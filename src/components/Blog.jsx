@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserId, getBooks } from '../services/bibleService';
+import { getUserId, getBooks, logActivity } from '../services/bibleService';
 import {
     getRecommendedPosts,
     getDailyDevotional,
@@ -9,7 +9,8 @@ import {
     checkRefreshCooldown,
     getSearchKeywords,
     toggleKeywordHighlight,
-    hideSearchKeyword
+    hideSearchKeyword,
+    logBlogView
 } from '../services/blogService';
 import { useSettings } from '../context/SettingsContext';
 import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
@@ -90,6 +91,9 @@ function Blog() {
         loadBlogContent(force);
         loadBooks();
         prevLanguage.current = settings.language;
+
+        // [NEW] Log blog view
+        logBlogView();
     }, [settings.language]); // Reload when language changes
 
     const loadBooks = async () => {
@@ -541,7 +545,10 @@ function Blog() {
                             <article
                                 key={post.id}
                                 className="post-card"
-                                onClick={() => setSelectedPost(post)}
+                                onClick={() => {
+                                    setSelectedPost(post);
+                                    logActivity('blog_post_open');
+                                }}
                             >
                                 <h3>{post.title}</h3>
                                 <p className="post-summary">{post.summary}</p>

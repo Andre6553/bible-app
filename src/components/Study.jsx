@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getInductiveStudies, deleteInductiveStudy } from '../services/studyService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { useSettings } from '../context/SettingsContext';
+import { logActivity } from '../services/bibleService';
 import './Study.css';
 
 function Study() {
@@ -14,6 +15,7 @@ function Study() {
 
     useEffect(() => {
         loadStudies();
+        logActivity('study_page_visit');
     }, []);
 
     const loadStudies = async () => {
