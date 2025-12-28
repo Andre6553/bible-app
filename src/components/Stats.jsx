@@ -513,35 +513,55 @@ function Stats() {
         }
     };
 
-    // Fully delete user (Data + Super User status + Profile mapping)
+    // Fully delete user (Data + Highlights + Notes + Profile mapping)
     const handleDeleteUserFully = async (userId) => {
         const idsToDelete = selectedUser?.originalIds || [userId];
         console.log('💀 Fully deleting user and all associated IDs:', idsToDelete);
 
-        // 1. Remove from super users list for all associated IDs
-        for (const id of idsToDelete) {
-            const superResult = await removeSuperUser(id);
-            if (superResult.success) {
-                console.log(`✅ Removed ID ${id} from Super Users list`);
+        if (!window.confirm("⚠️ This will PERMANENTLY delete all highlights, notes, and profile data for this user. Are you sure?")) {
+            return;
+        }
+
+        try {
+            // 1. Remove from super users list for all associated IDs
+            for (const id of idsToDelete) {
+                const superResult = await removeSuperUser(id);
+                if (superResult.success) {
+                    console.log(`✅ Removed ID ${id} from Super Users list`);
+                }
             }
+            setAllSuperUsers(prev => prev.filter(id => !idsToDelete.includes(id)));
+
+            // 2. Clear all other data tables in parallel
+            console.log('🧹 Purging personal data tables...');
+            const purgePromises = [
+                supabase.from('verse_highlights').delete().in('user_id', idsToDelete),
+                supabase.from('highlight_categories').delete().in('user_id', idsToDelete),
+                supabase.from('verse_notes').delete().in('user_id', idsToDelete),
+                supabase.from('study_collections').delete().in('user_id', idsToDelete),
+                supabase.from('user_labels').delete().in('user_id', idsToDelete)
+            ];
+
+            // 3. Delete profile mappings if they exist
+            console.log(`🗑️ Removing profile mappings for IDs:`, idsToDelete);
+            purgePromises.push(
+                supabase.from('user_profiles').delete().in('user_id', idsToDelete)
+            );
+
+            const results = await Promise.all(purgePromises);
+            const errors = results.filter(r => r.error);
+            if (errors.length > 0) {
+                console.warn('Some tables had errors during purge:', errors);
+            }
+
+            // 4. Delete activity logs (Search + AI) via existing logic
+            await deleteUserData(userId);
+
+            console.log('🏁 User full deletion sequence complete');
+        } catch (err) {
+            console.error('Error during full user deletion:', err);
+            alert('Failed to fully delete user: ' + err.message);
         }
-        setAllSuperUsers(prev => prev.filter(id => !idsToDelete.includes(id)));
-
-        // 2. Delete profile mappings if they exist
-        if (selectedUser?.email) {
-            console.log(`🗑️ Removing profile mappings for ${selectedUser.email}`);
-            const { error: profileError } = await supabase
-                .from('user_profiles')
-                .delete()
-                .eq('email', selectedUser.email);
-
-            if (profileError) console.warn('Error clearing profiles:', profileError.message);
-        }
-
-        // 3. Delete all data (reuses existing logic which now supports multiple IDs)
-        await deleteUserData(userId);
-
-        console.log('🏁 User full deletion sequence complete');
     };
 
     // Open date range modal

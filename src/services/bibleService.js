@@ -337,6 +337,16 @@ export const getUserId = async () => {
         // Initialize new user (check for auto-super-user)
         initializeNewUser(userId).catch(err => console.error('User initialization failed:', err));
     }
+
+    // [NEW] Always sync profile to user_profiles for anonymous users too
+    // This ensures they appear in Stats dashboard even if history is cleared
+    supabase.from('user_profiles').upsert({
+        user_id: userId,
+        last_seen: new Date().toISOString()
+    }, { onConflict: 'user_id' }).then(({ error }) => {
+        if (error) console.warn('[ProfileSync] Error syncing anonymous profile:', error.message);
+    });
+
     return userId;
 };
 
@@ -454,12 +464,29 @@ export const getUserStatistics = async () => {
         // 2. User Activity Count & Device Parsing
         const userStats = {};
 
+        // Initialize userStats with ALL users from user_profiles first
+        if (profileRes.data) {
+            profileRes.data.forEach(p => {
+                const identity = p.email || p.user_id;
+                if (!userStats[identity]) {
+                    userStats[identity] = {
+                        count: 0,
+                        devices: [],
+                        email: p.email || null,
+                        originalIds: new Set()
+                    };
+                }
+                userStats[identity].originalIds.add(p.user_id);
+            });
+        }
+
         allActions.forEach(action => {
             const uid = action.user || 'Anonymous';
             // Determine the "identity" of this user - if they have an email, use it to group
             const identity = profileMap[uid] || uid;
 
             if (!userStats[identity]) {
+                // This handles legacy logs with no profile mapping
                 userStats[identity] = {
                     count: 0,
                     devices: [],
@@ -495,7 +522,7 @@ export const getUserStatistics = async () => {
             return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
         };
 
-        // 3. Sort by activity
+        // 3. Sort by activity (but keep 0 count users)
         const topUsers = Object.entries(userStats)
             .map(([identity, stats]) => ({
                 userId: identity, // This will be the email if available, otherwise userId
