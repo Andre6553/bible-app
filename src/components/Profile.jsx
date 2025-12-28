@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory, getHighlightsByColors, deleteHighlightsByIds, fetchHighlightTexts } from '../services/highlightService';
-import { getBooks, getVersions } from '../services/bibleService';
+import { getBooks, getVersions, logActivity } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
 import { getSavedWordStudies, deleteWordStudy as removeSavedWordStudy } from '../services/wordStudyService';
@@ -820,7 +820,10 @@ function Profile() {
                                         <div
                                             key={note.id}
                                             className="note-item"
-                                            onClick={() => navigateToVerse(note.book_id, note.chapter, note.verse)}
+                                            onClick={() => {
+                                                logActivity('notes_visit');
+                                                navigateToVerse(note.book_id, note.chapter, note.verse);
+                                            }}
                                         >
                                             <div className="note-ref">
                                                 {getBookName(note.book_id)} {note.chapter}:{note.verse}
@@ -1040,7 +1043,14 @@ function Profile() {
             {/* Modals */}
             {selectedWordStudy && (
                 <WordStudyModal
-                    wordData={selectedWordStudy.analysis}
+                    verse={{
+                        book_id: selectedWordStudy.book_id,
+                        chapter: selectedWordStudy.chapter,
+                        verse: selectedWordStudy.verse
+                    }}
+                    verseRef={selectedWordStudy.verse_ref}
+                    initialSelectedWord={selectedWordStudy.word}
+                    initialStudyData={selectedWordStudy.analysis}
                     onClose={() => setSelectedWordStudy(null)}
                 />
             )}

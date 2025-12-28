@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getInductiveStudies, deleteInductiveStudy } from '../services/studyService';
 import { getLocalizedBookName } from '../constants/bookNames';
@@ -13,9 +13,15 @@ function Study() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // Prevent double logging in strict mode
+    const loggingRef = useRef(false);
+
     useEffect(() => {
+        if (!loggingRef.current) {
+            logActivity('study_page_visit');
+            loggingRef.current = true;
+        }
         loadStudies();
-        logActivity('study_page_visit');
     }, []);
 
     const loadStudies = async () => {

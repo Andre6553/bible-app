@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '../config/supabaseClient';
-import { getUserId } from './bibleService';
+import { getUserId, logActivity } from './bibleService';
 
 // =====================================================
 // Highlight Functions
@@ -69,6 +69,10 @@ export const saveHighlight = async (bookId, chapter, verse, version, color) => {
             });
 
         if (error) throw error;
+
+        // Log activity
+        logActivity('verse_highlight');
+
         console.log('✅ Highlight saved (cross-version)');
         return { success: true };
     } catch (err) {
@@ -129,6 +133,9 @@ export const saveBulkHighlights = async (verseList, color, label) => {
             .insert(updates);
 
         if (insertError) throw insertError;
+
+        // Log activity (just once for the batch)
+        logActivity('verse_highlight');
 
         console.log(`✅ Bulk saved ${verseList.length} highlights`);
         return { success: true, count: verseList.length };

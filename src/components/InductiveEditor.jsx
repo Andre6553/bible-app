@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getStudyById, saveInductiveStudy } from '../services/studyService';
 import { getInductiveStudyHints } from '../services/aiService';
@@ -54,8 +54,15 @@ function InductiveEditor() {
     const [verseCount, setVerseCount] = useState(0);
     const [verses, setVerses] = useState([]);
 
+    // Prevent double logging in strict mode
+    const loggingRef = useRef(false);
+
     useEffect(() => {
-        logActivity('study_page_visit');
+        if (!loggingRef.current) {
+            logActivity('inductive_study');
+            loggingRef.current = true;
+        }
+
         if (id && id !== 'new') {
             loadStudy();
         } else if (location.state) {
@@ -207,6 +214,7 @@ function InductiveEditor() {
     const handleSave = async () => {
         const result = await saveInductiveStudy(study);
         if (result.success) {
+            logActivity('inductive_study_saved');
             navigate('/study');
         } else {
             alert('Failed to save study: ' + result.error);

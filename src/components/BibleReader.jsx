@@ -433,8 +433,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const handleHighlight = async (color) => {
         if (selectedVerses.length === 0 || !selectedBook || !currentVersion) return;
 
-        // Log the trigger only
-        logActivity('verse_highlight');
+        // Log the trigger only - MOVED to highlightService.js
+        // logActivity('verse_highlight');
 
         const promises = selectedVerses.map(v => {
             if (color === null) {
@@ -491,6 +491,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
         const primaryVerse = selectedVerses[0].verse;
         await saveNote(selectedBook.id, selectedChapter, primaryVerse, currentVersion.id, noteText, studyId, labelIds);
+        logActivity('note_created');
         setShowNoteModal(false);
         setSelectedVerses([]);
         setExistingNote(null);
@@ -500,7 +501,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const handleStartStudy = () => {
         if (selectedVerses.length === 0) return;
 
-        logActivity('study_page_visit');
+        // Log handled by InductiveEditor on mount
+        // logActivity('study_page_visit');
 
         // Sort selected verses to get the range
         const sorted = [...selectedVerses].sort((a, b) => a.verse - b.verse);

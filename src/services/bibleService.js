@@ -444,18 +444,28 @@ export const logSearch = async (query, version, testament) => {
 /**
  * Log generic app activity
  */
-export const logActivity = async (type) => {
+export const logActivity = async (activityType) => {
     try {
+        if (!activityType) {
+            console.warn('⚠️ logActivity called without activityType! Defaulting to "unknown_action". Trace:', new Error().stack);
+            activityType = 'unknown_action';
+        }
+
         const userId = await getUserId();
-        await supabase.from('user_activity_logs').insert([
-            {
-                activity_type: type,
-                user_id: userId,
-                device_info: navigator.userAgent
-            }
-        ]);
+
+        // Don't log repeats for simple page visits within short timeframe (optional optimization)
+        // ...
+
+        const { error } = await supabase.from('user_activity_logs').insert({
+            user_id: userId,
+            activity_type: activityType,
+            // details: {}, // Removed due to missing schema column
+            created_at: new Date().toISOString()
+        });
+
+        if (error) throw error;
     } catch (err) {
-        console.error('Activity log error', err);
+        console.error('Error logging activity:', err);
     }
 };
 
@@ -577,14 +587,80 @@ export const getUserStatistics = async () => {
             }))
             .sort((a, b) => b.count - a.count);
 
-        // 4. Calculate Global Activity Distribution
-        const globalActivityCounts = {
-            search: searchRes.data?.length || 0,
-            ai: aiRes.data?.length || 0,
-            blog: blogRes.data?.length || 0,
-            bible: readingRes.data?.length || 0,
-            activity: activityRes.data?.length || 0
+        /**
+         * Get distribution of all user activities for global chart
+         */
+        const getGlobalActivityCounts = async () => {
+            try {
+                // 1. Get raw AI logs to parse types
+                const { data: aiLogs, error: aiError } = await supabase
+                    .from('ai_questions')
+                    .select('question'); // We need the text to categorize
+
+                // 2. Get Bible reading count
+                const { count: bibleCount, error: bibleError } = await supabase
+                    .from('bible_reading_logs')
+                    .select('id', { count: 'exact', head: true });
+
+                // 3. Get generic activity logs
+                const { data: activityLogs, error: activityError } = await supabase
+                    .from('user_activity_logs')
+                    .select('activity_type');
+
+                if (aiError || bibleError || activityError) throw new Error('Failed to fetch stats');
+
+                const counts = {
+                    bible: bibleCount || 0,
+                    ai: 0,
+                    search: 0,
+                    // Granular AI types
+                    inductive_hint_1: 0,
+                    inductive_hint_2: 0,
+                    inductive_hint_3: 0,
+                    word_study_ai: 0,
+                    semantic_search: 0
+                };
+
+                // Parse AI Logs
+                (aiLogs || []).forEach(log => {
+                    const q = log.question || '';
+                    if (q.startsWith('Inductive Hint Step 1')) {
+                        counts.inductive_hint_1++;
+                    } else if (q.startsWith('Inductive Hint Step 2')) {
+                        counts.inductive_hint_2++;
+                    } else if (q.startsWith('Inductive Hint Step 3')) {
+                        counts.inductive_hint_3++;
+                    } else if (q.startsWith('Word Study:')) {
+                        counts.word_study_ai++;
+                    } else if (q.startsWith('Semantic Search:')) {
+                        counts.semantic_search++;
+                    } else {
+                        counts.ai++; // Generic AI
+                    }
+                });
+
+                // Parse Generic Activity Logs
+                (activityLogs || []).forEach(log => {
+                    const type = log.activity_type || 'uncategorized';
+                    // Search is special (Legacy: search logs might be separate, but we aren't fetching search_logs table count here anymore? 
+                    // Wait, previous code fetched search_logs count. Let's restore that.)
+                    counts[type] = (counts[type] || 0) + 1;
+                });
+
+                // 4. Get Search Logs count separately (Legacy Search)
+                const { count: searchCount } = await supabase
+                    .from('search_logs')
+                    .select('id', { count: 'exact', head: true });
+
+                counts.search = (counts.search || 0) + (searchCount || 0);
+
+                return { success: true, data: counts };
+            } catch (err) {
+                console.error('Error getting global activity:', err);
+                return { success: false, data: {} };
+            }
         };
+        const { data: globalActivityCounts } = await getGlobalActivityCounts();
 
         return {
             success: true,
@@ -628,35 +704,35 @@ export const getUserHistory = async (userId) => {
             .select('*')
             .in('user_id', userIdsToFetch)
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(1000);
 
         const aiReq = supabase
             .from('ai_questions')
             .select('*')
             .in('user_id', userIdsToFetch)
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(1000);
 
         const blogReq = supabase
             .from('blog_views')
             .select('*')
             .in('user_id', userIdsToFetch)
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(1000);
 
         const readingReq = supabase
             .from('bible_reading_logs')
             .select('*') // No join here, much safer
             .in('user_id', userIdsToFetch)
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(1000);
 
         const activityReq = supabase
             .from('user_activity_logs')
             .select('*')
             .in('user_id', userIdsToFetch)
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(1000);
 
         const [searchRes, aiRes, blogRes, readingRes, activityRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq]);
 
@@ -677,7 +753,7 @@ export const getUserHistory = async (userId) => {
 
             if (allSearches) {
                 // Manual loose comparison
-                searches = allSearches.filter(s => s.user_id && s.user_id.trim() === cleanUserId).slice(0, 20);
+                searches = allSearches.filter(s => s.user_id && s.user_id.trim() === cleanUserId).slice(0, 1000);
                 console.log(`Fallback found ${searches.length} searches`);
             }
         }
@@ -691,7 +767,7 @@ export const getUserHistory = async (userId) => {
                 .limit(5000);
 
             if (allAi) {
-                aiQuestions = allAi.filter(q => q.user_id && q.user_id.trim() === cleanUserId).slice(0, 20);
+                aiQuestions = allAi.filter(q => q.user_id && q.user_id.trim() === cleanUserId).slice(0, 1000);
                 console.log(`Fallback found ${aiQuestions.length} ai questions`);
             }
         }
@@ -705,7 +781,7 @@ export const getUserHistory = async (userId) => {
                 .limit(5000);
 
             if (allBlog) {
-                blogViews = allBlog.filter(b => b.user_id && b.user_id.trim() === cleanUserId).slice(0, 20);
+                blogViews = allBlog.filter(b => b.user_id && b.user_id.trim() === cleanUserId).slice(0, 1000);
                 console.log(`Fallback found ${blogViews.length} blog views`);
             }
         }
@@ -721,7 +797,7 @@ export const getUserHistory = async (userId) => {
             if (readingErr) console.error('Fallback query error:', readingErr);
 
             if (allReading) {
-                bibleReadings = allReading.filter(b => b.user_id && b.user_id.trim() === cleanUserId).slice(0, 20);
+                bibleReadings = allReading.filter(b => b.user_id && b.user_id.trim() === cleanUserId).slice(0, 1000);
                 console.log(`Fallback found ${bibleReadings.length} bible readings`);
             }
         }
@@ -864,11 +940,29 @@ export const getVerseByReference = async (refString, versionId = 'KJV') => {
         return { success: false, error: error.message };
     }
 };
+// Keep track of last log to prevent duplicates (e.g. from React strict mode or rapid navigations)
+let lastReadingLog = {
+    bookId: null,
+    chapter: null,
+    timestamp: 0
+};
+
 /**
  * Log a Bible reading entry
  */
 export const logBibleReading = async (bookId, chapter) => {
     try {
+        // Prevent duplicate logs within 60 seconds for the same chapter
+        const now = Date.now();
+        if (
+            lastReadingLog.bookId === bookId &&
+            lastReadingLog.chapter === chapter &&
+            now - lastReadingLog.timestamp < 60000 // 60 seconds
+        ) {
+            console.log(`Skipping duplicate reading log for ${bookId} ${chapter}`);
+            return;
+        }
+
         const userId = await getUserId();
 
         const { data, error } = await supabase
@@ -885,6 +979,13 @@ export const logBibleReading = async (bookId, chapter) => {
             console.error('❌ Supabase Error logging Bible reading:', error);
             throw error;
         }
+
+        // Update last log cache
+        lastReadingLog = {
+            bookId,
+            chapter,
+            timestamp: now
+        };
 
         console.log(`📖 Bible reading logged: Book ${bookId}, Ch ${chapter}`, data);
     } catch (err) {

@@ -19,13 +19,51 @@ function WordStudyModal({
     // Current verse being studied
     const [currentVerse, setCurrentVerse] = useState({
         verse: initialVerse,
-        text: initialVerseText,
+        text: initialVerseText || '',
         ref: initialVerseRef,
-        originalText: initialOriginalText,
+        originalText: initialOriginalText || '',
         originalVersion: initialOriginalVersion
     });
 
     const [verseCount, setVerseCount] = useState(0);
+
+
+    // New: Hydrate missing text/originalText if we only have the reference (e.g. from Profile)
+    useEffect(() => {
+        const hydrateVerse = async () => {
+            if (!currentVerse.verse) return;
+
+            // If we are missing the main text, fetch it
+            if (!currentVerse.text || !currentVerse.originalText) {
+                setLoading(true);
+                try {
+                    // Fetch Text
+                    const targetVersion = settings.language === 'af' ? 'AFR53' : 'KJV';
+                    const refStr = `${currentVerse.verse.book_id} ${currentVerse.verse.chapter}:${currentVerse.verse.verse}`;
+                    const verseRes = await getVerseByReference(refStr, targetVersion);
+
+                    // Fetch Original
+                    const origRes = await getOriginalVerse(currentVerse.verse.book_id, currentVerse.verse.chapter, currentVerse.verse.verse);
+
+                    if (verseRes.success && origRes.success) {
+                        setCurrentVerse(prev => ({
+                            ...prev,
+                            text: verseRes.data.text,
+                            ref: `${verseRes.data.books.name_full} ${verseRes.data.chapter}:${verseRes.data.verse}`, // Ensure nice format
+                            originalText: origRes.text,
+                            originalVersion: origRes.version
+                        }));
+                    }
+                } catch (err) {
+                    console.error("Failed to hydrate verse text:", err);
+                    setError("Could not load verse text.");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+        hydrateVerse();
+    }, []); // Run once on mount
 
     useEffect(() => {
         const loadCount = async () => {
@@ -286,19 +324,24 @@ function WordStudyModal({
                     <div className="translation-select-section">
                         <p className="ws-instruction">{t.instruction}</p>
                         <div className="words-container">
-                            {currentVerse.text.split(/(\s+)/).map((part, i) => {
-                                if (part.trim() === '') return <span key={i}>{part}</span>;
-                                const clean = part.replace(/[.,!?;:]/g, '');
-                                return (
-                                    <span
-                                        key={i}
-                                        className={`tappable-word ${selectedWord === clean ? 'selected' : ''}`}
-                                        onClick={() => handleWordTap(clean)}
-                                    >
-                                        {part}
-                                    </span>
-                                );
-                            })}
+                            {!currentVerse.text ? (
+                                <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
+                                    Loading verse text...
+                                </div>
+                            ) : (
+                                currentVerse.text.split(/(\s+)/).map((part, i) => {
+                                    if (part.trim() === '') return <span key={i}>{part}</span>;
+                                    const clean = part.replace(/[.,!?;:]/g, '');
+                                    return (
+                                        <span
+                                            key={i}
+                                            className={`tappable-word ${selectedWord === clean ? 'selected' : ''}`}
+                                            onClick={() => handleWordTap(clean)}
+                                        >
+                                            {part}
+                                        </span>
+                                    );
+                                }))}
                         </div>
                     </div>
 

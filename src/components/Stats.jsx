@@ -251,6 +251,16 @@ function Stats() {
         }
     };
 
+    // Auto-refresh chart data every 5 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchUserStats();
+        }, 5000); // 5000ms = 5 seconds
+
+        // Cleanup interval on component unmount
+        return () => clearInterval(interval);
+    }, []);
+
     const handleRefreshData = async () => {
         if (!selectedUser) return;
         setHistoryLoading(true);
@@ -643,39 +653,73 @@ function Stats() {
                         <div className="settings-card">
                             <h3>📊 Global Activity Distribution</h3>
                             <div className="activity-chart-container">
-                                {[
-                                    { key: 'search', label: 'Searches', icon: '🔍', color: '#60a5fa' },
-                                    { key: 'ai', label: 'AI Questions', icon: '🤖', color: '#a78bfa' },
-                                    { key: 'bible', label: 'Bible Reads', icon: '📖', color: '#34d399' },
-                                    { key: 'blog', label: 'Blog Visits', icon: '📰', color: '#f472b6' },
-                                    { key: 'activity', label: 'Other', icon: '⚡', color: '#fbbf24' }
-                                ].map(item => {
-                                    const count = userStats.globalActivityCounts[item.key] || 0;
-                                    const max = Math.max(...Object.values(userStats.globalActivityCounts)) || 1; // Avoid divide by zero
-                                    const percentage = max > 0 ? (count / max) * 100 : 0;
+                                {Object.keys(userStats.globalActivityCounts || {})
+                                    .filter(key => {
+                                        // Ignore zero counts to keep chart clean
+                                        return userStats.globalActivityCounts[key] > 0;
+                                    })
+                                    .map(key => {
+                                        // Fallback for completely unknown keys
+                                        const mappings = {
+                                            'search': { label: 'Search', icon: '🔍', color: '#6366f1' },
+                                            'ai': { label: 'AI Search', icon: '🤖', color: '#8b5cf6' },
+                                            'bible': { label: 'Bible Read', icon: '📖', color: '#10b981' },
+                                            'study_page_visit': { label: 'Visited Study Page', icon: '✍️', color: '#f59e0b' },
+                                            'inductive_study': { label: 'Inductive Study', icon: '📝', color: '#f59e0b' },
+                                            'inductive_study_saved': { label: 'Saved Inductive Study', icon: '💾', color: '#d97706' },
+                                            'notes_visit': { label: 'Visited Notes', icon: '📒', color: '#ec4899' },
+                                            'note_created': { label: 'Created Note', icon: '✨', color: '#d946ef' },
+                                            'word_study_visit': { label: 'Visited Word Study', icon: '🅰️', color: '#06b6d4' },
+                                            'verse_highlight': { label: 'Highlighted verse', icon: '🖊️', color: '#ef4444' },
+                                            'blog_visit': { label: 'Visited "For You" Blog', icon: '📰', color: '#3b82f6' },
+                                            'blog_post_open': { label: 'Opened Blog Post', icon: '👓', color: '#2563eb' },
+                                            // New Granular AI Types
+                                            'inductive_hint_1': { label: 'Inductive Hint Step 1', icon: '1️⃣', color: '#10b981' },
+                                            'inductive_hint_2': { label: 'Inductive Hint Step 2', icon: '2️⃣', color: '#3b82f6' },
+                                            'inductive_hint_3': { label: 'Inductive Hint Step 3', icon: '3️⃣', color: '#8b5cf6' },
+                                            'word_study_ai': { label: 'Word Study', icon: '🅰️', color: '#06b6d4' },
+                                            'semantic_search': { label: 'Semantic Search', icon: '🧠', color: '#f43f5e' },
 
-                                    // Only show if there is data
-                                    if (count === 0 && max > 0) return null;
+                                            'uncategorized': { label: 'General Activity', icon: '⚡', color: '#94a3b8' },
+                                            'unknown_action': { label: 'Unknown Action', icon: '❓', color: '#cbd5e1' }
+                                        };
 
-                                    return (
-                                        <div key={item.key} className="chart-row">
-                                            <div className="chart-label">
-                                                <span className="chart-icon">{item.icon}</span>
-                                                <span className="chart-name">{item.label}</span>
+                                        // Fallback for completely unknown keys
+                                        const config = mappings[key] || {
+                                            label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                                            icon: '⚡',
+                                            color: '#cbd5e1'
+                                        };
+
+                                        return { key, ...config, count: userStats.globalActivityCounts[key] };
+                                    })
+                                    .sort((a, b) => b.count - a.count) // Sort by count desc
+                                    .map((item) => {
+                                        const total = userStats.globalActivityCounts.total ||
+                                            Object.values(userStats.globalActivityCounts).reduce((a, b) => a + b, 0);
+                                        const percent = total > 0 ? (item.count / total) * 100 : 0;
+
+                                        return (
+                                            <div key={item.key} className="chart-item">
+                                                <div className="chart-label">
+                                                    <span className="chart-icon" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
+                                                        {item.icon}
+                                                    </span>
+                                                    <span className="label-text">{item.label}</span>
+                                                </div>
+                                                <div className="chart-bar-container">
+                                                    <div
+                                                        className="chart-bar-fill"
+                                                        style={{
+                                                            width: `${percent}%`,
+                                                            backgroundColor: item.color
+                                                        }}
+                                                    />
+                                                </div>
+                                                <span className="chart-count">{item.count}</span>
                                             </div>
-                                            <div className="chart-bar-bg">
-                                                <div
-                                                    className="chart-bar-fill"
-                                                    style={{
-                                                        width: `${percentage}%`,
-                                                        backgroundColor: item.color
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="chart-value">{count}</div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
                             </div>
                         </div>
                     </div>
@@ -976,30 +1020,35 @@ function Stats() {
                                         <ul>
                                             {selectedUserHistory.searches
                                                 .filter((s, i, self) => i === 0 || s.query !== self[i - 1].query || Math.abs(new Date(s.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .slice(0, 5).map(s => <li key={s.id}>🔍 {s.query} <span className="history-time">({new Date(s.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+                                                .map(s => <li key={s.id}>🔍 {s.query} <span className="history-time">({new Date(s.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
 
                                             {selectedUserHistory.aiQuestions
                                                 .filter((q, i, self) => i === 0 || q.question !== self[i - 1].question || Math.abs(new Date(q.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .slice(0, 5).map(q => <li key={q.id}>🤖 {q.question.substring(0, 30)}... <span className="history-time">({new Date(q.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+                                                .map(q => <li key={q.id}>🤖 {q.question.substring(0, 30)}... <span className="history-time">({new Date(q.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
 
                                             {selectedUserHistory.bibleReadings
                                                 .filter((r, i, self) => i === 0 || r.book_id !== self[i - 1].book_id || r.chapter !== self[i - 1].chapter || Math.abs(new Date(r.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .slice(0, 5).map(r => <li key={r.id}>📖 Read {r.books?.name_full || `Book ${r.book_id}`} {r.chapter} <span className="history-time">({new Date(r.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+                                                .map(r => <li key={r.id}>📖 Read {r.books?.name_full || `Book ${r.book_id}`} {r.chapter} <span className="history-time">({new Date(r.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
 
                                             {selectedUserHistory.blogViews
                                                 .filter((v, i, self) => i === 0 || v.post_id !== self[i - 1].post_id || Math.abs(new Date(v.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .slice(0, 5).map(v => <li key={v.id}>📰 Visited Blog <span className="history-time">({new Date(v.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+                                                .map(v => <li key={v.id}>📰 Visited Blog <span className="history-time">({new Date(v.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
 
                                             {selectedUserHistory.activities
                                                 .filter((a, i, self) => i === 0 || a.activity_type !== self[i - 1].activity_type || Math.abs(new Date(a.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .slice(0, 10).map(a => {
+                                                .map(a => {
+
                                                     const typeMap = {
                                                         'study_page_visit': 'Visited Study Page',
+                                                        'inductive_study': 'Inductive Study',
+                                                        'inductive_study_saved': 'Saved Inductive Study',
                                                         'notes_visit': 'Visited Notes',
+                                                        'note_created': 'Created Note',
                                                         'word_study_visit': 'Visited Word Study',
                                                         'verse_highlight': 'Highlighted verse',
                                                         'blog_visit': 'Visited "For You" Blog',
-                                                        'blog_post_open': 'Opened Blog Post'
+                                                        'blog_post_open': 'Opened Blog Post',
+                                                        'uncategorized': 'General Activity'
                                                     };
                                                     return <li key={a.id}>📰 {typeMap[a.activity_type] || a.activity_type} <span className="history-time">({new Date(a.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>;
                                                 })}
