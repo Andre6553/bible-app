@@ -481,7 +481,9 @@ export const getUserStatistics = async () => {
         }
 
         allActions.forEach(action => {
-            const uid = action.user || 'Anonymous';
+            const uid = action.user;
+            if (!uid || uid === 'Anonymous' || uid === 'undefined') return;
+
             // Determine the "identity" of this user - if they have an email, use it to group
             const identity = profileMap[uid] || uid;
 
@@ -501,8 +503,10 @@ export const getUserStatistics = async () => {
             }
         });
 
-        // Unique users count based on identity (email if available)
-        const totalUniqueUsers = Object.keys(userStats).length;
+        // Unique users count: Only count identities that actually have a profile or meaningful activity
+        // We filter out any 'undefined' or empty identities just in case
+        const validIdentities = Object.keys(userStats).filter(id => id && id !== 'undefined' && id !== 'null');
+        const totalUniqueUsers = validIdentities.length;
 
         // Helper to get formatted device name
         const getDeviceName = (userAgents) => {
