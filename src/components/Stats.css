@@ -1007,8 +1007,8 @@
 .delete-user-section {
     margin-top: 20px;
     padding-top: 20px;
-    padding-bottom: 40px;
-    /* Space for buttons on mobile */
+    padding-bottom: 100px;
+    /* Increased to clear BottomNav on mobile */
     border-top: 1px solid var(--border-subtle);
 }
 
