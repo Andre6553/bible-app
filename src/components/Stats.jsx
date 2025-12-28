@@ -676,7 +676,8 @@ function Stats() {
                 <div className="stat-card recent-list">
                     <h3>🕒 Recent Activity</h3>
                     <div className="log-table-wrapper">
-                        <table className="log-table">
+                        {/* Desktop Table View */}
+                        <table className="log-table desktop-only">
                             <thead>
                                 <tr>
                                     <th>Time</th>
@@ -712,6 +713,36 @@ function Stats() {
                                 ))}
                             </tbody>
                         </table>
+
+                        {/* Mobile Card View */}
+                        <div className="mobile-cards mobile-only">
+                            {logs.slice(0, 20).map((log) => (
+                                <div
+                                    key={log.id}
+                                    className="log-card clickable-row"
+                                    onClick={() => { setSelectedItem(log); setItemType('search'); }}
+                                >
+                                    <div className="log-card-header">
+                                        <span>{new Date(log.created_at).toLocaleTimeString()}</span>
+                                        <span>{log.version}</span>
+                                    </div>
+                                    <div className="log-card-query">{log.query}</div>
+                                    <div className="log-card-meta">
+                                        <span
+                                            className="user-badge clickable-user"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (log.user_id) {
+                                                    handleUserClick({ userId: log.user_id, count: 1, device: 'Unknown' });
+                                                }
+                                            }}
+                                        >
+                                            👤 {log.user_id ? log.user_id.substring(0, 8) + '...' : 'Anon'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -797,7 +828,8 @@ function Stats() {
                 <div className="stat-card recent-list">
                     <h3>💬 Recent AI Questions</h3>
                     <div className="log-table-wrapper">
-                        <table className="log-table">
+                        {/* Desktop View */}
+                        <table className="log-table desktop-only">
                             <thead>
                                 <tr>
                                     <th>Time</th>
@@ -831,6 +863,35 @@ function Stats() {
                                 ))}
                             </tbody>
                         </table>
+
+                        {/* Mobile View */}
+                        <div className="mobile-cards mobile-only">
+                            {aiQuestions.slice(0, 20).map((q) => (
+                                <div
+                                    key={q.id}
+                                    className="log-card clickable-row"
+                                    onClick={() => { setSelectedItem(q); setItemType('ai'); }}
+                                >
+                                    <div className="log-card-header">
+                                        <span>{new Date(q.created_at).toLocaleTimeString()}</span>
+                                    </div>
+                                    <div className="log-card-query ai-q-text">{q.question.substring(0, 100)}{q.question.length > 100 ? '...' : ''}</div>
+                                    <div className="log-card-meta">
+                                        <span
+                                            className="user-badge clickable-user"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (q.user_id) {
+                                                    handleUserClick({ userId: q.user_id, count: 1, device: 'Unknown' });
+                                                }
+                                            }}
+                                        >
+                                            👤 {q.user_id ? q.user_id.substring(0, 8) + '...' : 'Anon'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -976,7 +1037,7 @@ function Stats() {
             {
                 selectedUser && (
                     <div className="detail-modal-overlay" onClick={() => setSelectedUser(null)}>
-                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="detail-modal user-detail-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="detail-modal-header user-modal-header">
                                 <h3>👤 User Analysis</h3>
                                 <button className="close-modal-btn" onClick={() => setSelectedUser(null)}>✕</button>
@@ -1196,7 +1257,8 @@ function Stats() {
                         <p className="no-data">No crashes recorded (System Healthy)</p>
                     ) : (
                         <div className="log-table-wrapper">
-                            <table className="log-table">
+                            {/* Desktop Table View */}
+                            <table className="log-table desktop-only">
                                 <thead>
                                     <tr>
                                         <th>Time</th>
@@ -1246,6 +1308,44 @@ function Stats() {
                                     ))}
                                 </tbody>
                             </table>
+
+                            {/* Mobile Card View */}
+                            <div className="mobile-cards mobile-only">
+                                {errorLogs.map((err) => (
+                                    <div
+                                        key={err.id}
+                                        className="log-card clickable-row error-row"
+                                        onClick={() => { setSelectedItem(err); setItemType('error'); }}
+                                    >
+                                        <div className="log-card-header">
+                                            <span>{new Date(err.created_at).toLocaleTimeString()}</span>
+                                            <span className="ver-badge">v{err.metadata?.version || '?'}</span>
+                                        </div>
+                                        <div className="log-card-query error-msg-cell" style={{ fontSize: '0.9rem' }}>
+                                            {err.error_message.substring(0, 60)}...
+                                        </div>
+                                        <div className="log-card-meta">
+                                            <span className="user-badge">
+                                                📱 {err.device_info?.os || 'Unknown'}
+                                            </span>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCopyError(err.error_message);
+                                                }}
+                                                style={{
+                                                    background: 'rgba(255,255,255,0.1)',
+                                                    border: '1px solid var(--border-subtle)',
+                                                    borderRadius: '4px',
+                                                    padding: '4px'
+                                                }}
+                                            >
+                                                📋 Copy
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

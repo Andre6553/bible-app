@@ -1,0 +1,886 @@
+/**
+ * Profile Page - User's highlights, notes, studies, and profile picture
+ */
+
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getAllHighlights, getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory } from '../services/highlightService';
+import { getBooks, getVersions } from '../services/bibleService';
+import { getLocalizedBookName } from '../constants/bookNames';
+import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
+import { getSavedWordStudies, deleteWordStudy as removeSavedWordStudy } from '../services/wordStudyService';
+import WordStudyModal from './WordStudyModal';
+import { useSettings } from '../context/SettingsContext';
+import { supabase } from '../config/supabaseClient';
+import { migrateAnonymousData, checkIfMigrationNeeded } from '../services/migrationService';
+import './Profile.css';
+
+function Profile() {
+    const navigate = useNavigate();
+    const { settings, updateSettings } = useSettings();
+    const [activeTab, setActiveTab] = useState('highlights');
+    const [highlights, setHighlights] = useState([]);
+    const [notes, setNotes] = useState([]);
+    const [studies, setStudies] = useState([]);
+    const [wordStudies, setWordStudies] = useState([]);
+    const [labels, setLabels] = useState([]);
+    const [categories, setCategories] = useState({});
+    const [books, setBooks] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedWordStudy, setSelectedWordStudy] = useState(null);
+    const [user, setUser] = useState(null);
+    const [showSyncBtn, setShowSyncBtn] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+
+    // Profile settings (stored locally)
+    const [profilePic, setProfilePic] = useState(localStorage.getItem('profile_picture') || null);
+    const [displayName, setDisplayName] = useState(localStorage.getItem('display_name') || 'My Profile');
+    const [editingName, setEditingName] = useState(false);
+
+    // Confirm delete dialog
+    const [confirmDelete, setConfirmDelete] = useState({ show: false, type: '', id: null, name: '' });
+
+    // Downloads state
+    const [versions, setVersions] = useState([]);
+    const [downloadedVersions, setDownloadedVersions] = useState([]);
+    const [downloadProgress, setDownloadProgress] = useState({});
+    const [storageUsage, setStorageUsage] = useState('0 B');
+    const [selectedStudyId, setSelectedStudyId] = useState(null);
+    const [expandedCategories, setExpandedCategories] = useState({}); // { label: boolean }
+
+    useEffect(() => {
+        loadData();
+        checkUser();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
+                loadData();
+                checkUser();
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const checkUser = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        // Check for un-migrated local data
+        const localId = localStorage.getItem('bible_user_id');
+        if (currentUser && localId && localId !== currentUser.id) {
+            // Verify if there's actually something to sync
+            const needsSync = await checkIfMigrationNeeded(localId);
+            if (needsSync) {
+                setShowSyncBtn(true);
+            } else {
+                // If no data, just retire the ID to stop checking
+                localStorage.removeItem('bible_user_id');
+            }
+        }
+    };
+
+    const handleManualSync = async () => {
+        if (!user) return;
+        setSyncing(true);
+        try {
+            const result = await migrateAnonymousData(user.id);
+            if (result.success) {
+                const totalMigrated = result.results.reduce((sum, r) => sum + (r.count || 0), 0);
+                alert(`Sync Complete! ${totalMigrated} items moved to your account.`);
+                setShowSyncBtn(false);
+                loadData();
+            } else {
+                alert('No local data found to sync, or it has already been moved.');
+                setShowSyncBtn(false);
+            }
+        } catch (err) {
+            console.error('Manual sync failed:', err);
+            alert('Error during sync. Please try again.');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        setUser(null);
+        loadData(); // Reload to show anonymous data or empty state
+    };
+
+    const loadData = async () => {
+        setLoading(true);
+        const [highlightRes, noteRes, studyRes, wordStudyRes, labelRes, bookRes, categoryRes] = await Promise.all([
+            getAllHighlights(),
+            getAllNotes(),
+            getStudyCollections(),
+            getSavedWordStudies(),
+            getLabels(),
+            getBooks(),
+            getHighlightCategories()
+        ]);
+
+        if (highlightRes.success) setHighlights(highlightRes.highlights);
+        if (noteRes.success) setNotes(noteRes.notes);
+        if (studyRes.success) setStudies(studyRes.collections);
+        if (wordStudyRes.success) setWordStudies(wordStudyRes.studies);
+        if (labelRes.success) setLabels(labelRes.labels);
+        if (bookRes.success) setBooks(bookRes.data.all || []);
+        if (categoryRes.success) setCategories(categoryRes.categories);
+
+        // Load versions and download status
+        const versionsRes = await getVersions();
+        if (versionsRes.success) setVersions(versionsRes.data);
+
+        const downloaded = await getDownloadedVersions();
+        setDownloadedVersions(downloaded);
+
+        const usage = await getStorageUsage();
+        setStorageUsage(usage.formatted);
+
+        setLoading(false);
+
+        // Optimization: Lazily fetch text for highlights that require filtering (multi-label categories)
+        // This prevents blocking the UI load for expensive text fetches
+        if (highlightRes.success && categoryRes.success) {
+            const hData = highlightRes.highlights;
+            const cData = categoryRes.categories;
+
+            // value is the label e.g., "Glo, Bely"
+            const multiLabelColors = Object.entries(cData)
+                .filter(([_, label]) => String(label).match(/[,，、;|/&+]/))
+                .map(([color]) => color);
+
+            if (multiLabelColors.length > 0) {
+                const highlightsToEnrich = hData.filter(h => multiLabelColors.includes(h.color));
+
+                if (highlightsToEnrich.length > 0) {
+                    console.log(`⚡ Lazy loading text for ${highlightsToEnrich.length} highlights...`);
+                    // We can't import fetchHighlightTexts inside function easily if it wasn't imported at top
+                    // But assume it's available or we pass it
+                    // Ideally we imported it. I will ensure import exists in next step.
+                    import('../services/highlightService').then(async ({ fetchHighlightTexts }) => {
+                        const enriched = await fetchHighlightTexts(highlightsToEnrich);
+
+                        setHighlights(prevHighlights => {
+                            // Merge enriched data back into state
+                            return prevHighlights.map(h => {
+                                const found = enriched.find(e => e.id === h.id);
+                                return found ? { ...h, text: found.text } : h;
+                            });
+                        });
+                    });
+                }
+            }
+        }
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Max dimensions for profile pic
+                const MAX_SIZE = 300;
+
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Compress to JPEG with 0.7 quality
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                try {
+                    localStorage.setItem('profile_picture', compressedBase64);
+                    setProfilePic(compressedBase64);
+                } catch (err) {
+                    alert('Image is still too large for storage. Please try a different one.');
+                    console.error('Storage error:', err);
+                }
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const saveDisplayName = () => {
+        localStorage.setItem('display_name', displayName);
+        setEditingName(false);
+    };
+
+    const getBookName = (bookId) => {
+        // Use loose equality (==) because bookId might be string from DB but number in books array
+        const book = books.find(b => b.id == bookId);
+        const name = book?.name_full || bookId;
+        return getLocalizedBookName(name, settings.language);
+    };
+
+    const getColorName = (colorHex) => {
+        const found = HIGHLIGHT_COLORS.find(c => c.color === colorHex);
+        return found?.name || 'custom';
+    };
+
+    const navigateToVerse = (bookId, chapter, verse) => {
+        navigate('/bible', {
+            state: {
+                bookId,
+                chapter,
+                targetVerse: verse
+            }
+        });
+    };
+
+    // Delete handlers
+    const openDeleteConfirm = (type, id, name, e) => {
+        e.stopPropagation();
+        setConfirmDelete({ show: true, type, id, name });
+    };
+
+    const handleConfirmDelete = async () => {
+        const { type, id } = confirmDelete;
+        let success = false;
+
+        if (type === 'highlight') {
+            const h = highlights.find(h => h.id === id);
+            if (h) {
+                const result = await removeHighlight(h.book_id, h.chapter, h.verse, h.version);
+                success = result.success;
+                if (success) setHighlights(highlights.filter(x => x.id !== id));
+            }
+        } else if (type === 'note') {
+            const result = await deleteNote(id);
+            success = result.success;
+            if (success) setNotes(notes.filter(x => x.id !== id));
+        } else if (type === 'study') {
+            const result = await deleteStudyCollection(id);
+            success = result.success;
+            if (success) setStudies(studies.filter(x => x.id !== id));
+        } else if (type === 'word study') {
+            const result = await removeSavedWordStudy(id);
+            success = result.success;
+            if (success) setWordStudies(wordStudies.filter(x => x.id !== id));
+        } else if (type === 'category') {
+            const result = await deleteCategory(id); // id is the label here
+            success = result.success;
+            if (success) {
+                // Refresh all data to reflect the changes
+                loadData();
+            }
+        }
+
+        setConfirmDelete({ show: false, type: '', id: null, name: '' });
+    };
+
+    const cancelDelete = () => {
+        setConfirmDelete({ show: false, type: '', id: null, name: '' });
+    };
+
+    const toggleCategory = (label) => {
+        setExpandedCategories(prev => ({
+            ...prev,
+            [label]: !prev[label]
+        }));
+    };
+
+    const tabs = [
+        { id: 'highlights', label: '📌 Highlights', count: highlights.length },
+        { id: 'notes', label: '📝 Notes', count: notes.length },
+        { id: 'studies', label: '📚 Studies', count: studies.length },
+        { id: 'wordStudies', label: '📜 Word Studies', count: wordStudies.length },
+        { id: 'downloads', label: '📥 Downloads', count: downloadedVersions.length },
+    ];
+
+    // Download handlers
+    const handleDownload = async (versionId) => {
+        setDownloadProgress(prev => ({ ...prev, [versionId]: 0 }));
+
+        const result = await downloadVersion(versionId, (progress) => {
+            setDownloadProgress(prev => ({ ...prev, [versionId]: progress }));
+        });
+
+        if (result.success) {
+            const downloaded = await getDownloadedVersions();
+            setDownloadedVersions(downloaded);
+            const usage = await getStorageUsage();
+            setStorageUsage(usage.formatted);
+        }
+
+        setDownloadProgress(prev => {
+            const updated = { ...prev };
+            delete updated[versionId];
+            return updated;
+        });
+    };
+
+    const handleDeleteDownload = async (versionId) => {
+        await deleteOfflineVersion(versionId);
+        const downloaded = await getDownloadedVersions();
+        setDownloadedVersions(downloaded);
+        const usage = await getStorageUsage();
+        setStorageUsage(usage.formatted);
+    };
+
+    const isDownloaded = (versionId) => {
+        return downloadedVersions.some(v => v.version_id === versionId);
+    };
+
+    const getDownloadInfo = (versionId) => {
+        return downloadedVersions.find(v => v.version_id === versionId);
+    };
+
+    return (
+        <div className="profile-page">
+            {/* Header with profile picture */}
+            <div className="profile-header">
+                <div className="profile-pic-container">
+                    <label className="profile-pic-upload">
+                        {profilePic ? (
+                            <img src={profilePic} alt="Profile" className="profile-pic" />
+                        ) : (
+                            <div className="profile-pic-placeholder">👤</div>
+                        )}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            hidden
+                        />
+                        <span className="edit-pic-overlay">📷</span>
+                    </label>
+                </div>
+
+                {editingName ? (
+                    <div className="name-edit-row">
+                        <input
+                            type="text"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            className="name-input"
+                            autoFocus
+                        />
+                        <button className="save-name-btn" onClick={saveDisplayName}>✓</button>
+                    </div>
+                ) : (
+                    <h1 className="profile-name" onClick={() => setEditingName(true)}>
+                        {displayName}
+                        <span className="edit-icon">✏️</span>
+                    </h1>
+                )}
+
+                <div className="settings-row">
+                    <div className="language-selector">
+                        <span className="lang-label">{settings.language === 'af' ? 'Vir Jou Inhoud in Afr / Eng' : 'For You Content in Afr / Eng'}</span>
+                        <div className="lang-toggle-container">
+                            <button
+                                className={`lang-btn ${settings.language === 'en' ? 'active' : ''}`}
+                                onClick={() => updateSettings({ language: 'en' })}
+                            >
+                                English
+                            </button>
+                            <button
+                                className={`lang-btn ${settings.language === 'af' ? 'active' : ''}`}
+                                onClick={() => updateSettings({ language: 'af' })}
+                            >
+                                Afrikaans
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="theme-selector">
+                        <span className="lang-label">{settings.language === 'af' ? 'Tema Modus' : 'Theme Mode'}</span>
+                        <div className="lang-toggle-container">
+                            <button
+                                className={`lang-btn ${settings.themeMode === 'dark' ? 'active' : ''}`}
+                                onClick={() => updateSettings({ themeMode: 'dark' })}
+                            >
+                                {settings.language === 'af' ? 'Donker' : 'Dark'}
+                            </button>
+                            <button
+                                className={`lang-btn ${settings.themeMode === 'light' ? 'active' : ''}`}
+                                onClick={() => updateSettings({ themeMode: 'light' })}
+                            >
+                                {settings.language === 'af' ? 'Lig' : 'Light'}
+                            </button>
+                        </div>
+                    </div>
+
+
+                </div>
+
+
+                <div className="auth-status-container">
+                    {user ? (
+                        <div className="logged-in-info">
+                            <span className="user-email">✉️ {user.email}</span>
+                            <div className="auth-actions">
+                                <button className="logout-btn" onClick={handleLogout}>Logout</button>
+                                {showSyncBtn && (
+                                    <button
+                                        className="sync-btn"
+                                        onClick={handleManualSync}
+                                        disabled={syncing}
+                                    >
+                                        {syncing ? '⌛ Syncing...' : '🔄 Sync Local Data'}
+                                    </button>
+                                )}
+                            </div>
+                            {showSyncBtn && (
+                                <p className="sync-tip">
+                                    Found un-synced notes on this browser. Click "Sync" to move them to your account.
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <button className="login-btn-link" onClick={() => navigate('/auth')}>
+                            🔐 Login / Sign Up to sync across devices
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="profile-tabs">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        className={`profile-tab ${activeTab === tab.id ? 'active' : ''}`}
+                        onClick={() => {
+                            setActiveTab(tab.id);
+                            if (tab.id !== 'notes') setSelectedStudyId(null); // Clear filter when leaving notes context (optional, but good UX)
+                        }}
+                    >
+                        {tab.label} <span className="tab-count">{tab.count}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Content */}
+            <div className="profile-content">
+                {loading ? (
+                    <div className="loading-state">Loading...</div>
+                ) : (
+                    <>
+                        {/* Highlights Tab */}
+                        {activeTab === 'highlights' && (
+                            <div className="highlights-grouped-container">
+                                {highlights.length === 0 ? (
+                                    <div className="empty-state">
+                                        <p>No highlights yet</p>
+                                        <p className="empty-hint">Tap on a verse while reading to add highlights</p>
+                                    </div>
+                                ) : (
+                                    // Group highlights by category label
+                                    Object.entries(
+                                        highlights.reduce((acc, h) => {
+                                            const labelString = String(categories[h.color] || 'Other Highlights');
+                                            // Split by ANY kind of comma, semicolon, slash, amp, or plus (and trim)
+                                            const labels = labelString.split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l);
+                                            const verseText = (h.text || '').toLowerCase(); // Use enriched text for filtering
+
+                                            // Logic: If multiple labels exist (e.g. "Glo, Bely"), try to filter by verse text.
+                                            // If verse contains "glo", assign to Glo. If "bely", assign to Bely.
+                                            // If it contains neither (or assuming the user used abstract labels), fallback to assigning to ALL.
+
+                                            if (labels.length > 1) {
+                                                let assigned = false;
+                                                labels.forEach(label => {
+                                                    // Check if label appears in text (case-insensitive)
+                                                    if (verseText.includes(label.toLowerCase())) {
+                                                        if (!acc[label]) acc[label] = [];
+                                                        acc[label].push(h);
+                                                        assigned = true;
+                                                    }
+                                                });
+
+                                                if (!assigned) {
+                                                    // Fallback: Assign to all labels to prevent data loss or if no keywords match
+                                                    labels.forEach(label => {
+                                                        if (!acc[label]) acc[label] = [];
+                                                        acc[label].push(h);
+                                                    });
+                                                }
+                                            } else {
+                                                // Single label: Just assign normally
+                                                labels.forEach(label => {
+                                                    if (!acc[label]) acc[label] = [];
+                                                    acc[label].push(h);
+                                                });
+                                            }
+
+                                            // Fallback if split resulted in nothing (shouldn't happen with default)
+                                            if (labels.length === 0) {
+                                                if (!acc['Other Highlights']) acc['Other Highlights'] = [];
+                                                acc['Other Highlights'].push(h);
+                                            }
+
+                                            return acc;
+                                        }, {})
+                                    ).map(([label, group]) => {
+                                        const isExpanded = expandedCategories[label];
+                                        return (
+                                            <div key={label} className={`highlight-category-group ${isExpanded ? 'is-expanded' : ''}`}>
+                                                <div className="category-header-wrapper">
+                                                    <button
+                                                        className="category-header"
+                                                        onClick={() => toggleCategory(label)}
+                                                        aria-expanded={isExpanded}
+                                                    >
+                                                        <span className="category-title">{label}</span>
+                                                        <span className="category-count">({group.length})</span>
+                                                        <span className="category-chevron">{isExpanded ? '▼' : '▶'}</span>
+                                                    </button>
+
+                                                    <button
+                                                        className="delete-category-btn"
+                                                        onClick={(e) => openDeleteConfirm('category', label, label, e)}
+                                                        title={settings.language === 'af' ? 'Vee kategorie uit' : 'Delete category'}
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <div className="highlights-list">
+                                                        {group.map(h => (
+                                                            <div
+                                                                key={h.id}
+                                                                className="highlight-item"
+                                                                onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}
+                                                            >
+                                                                <div
+                                                                    className="highlight-color-dot"
+                                                                    style={{ backgroundColor: h.color }}
+                                                                />
+                                                                <div className="highlight-info">
+                                                                    <span className="highlight-ref">
+                                                                        {getBookName(h.book_id)} {h.chapter}:{h.verse}
+                                                                    </span>
+                                                                    <span className="highlight-version">{h.version}</span>
+                                                                </div>
+                                                                <button
+                                                                    className="delete-btn"
+                                                                    onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:{h.verse}`, e)}
+                                                                >
+                                                                    🗑️
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        )}
+
+                        {/* Notes Tab */}
+                        {activeTab === 'notes' && (
+                            <div className="notes-list">
+                                {selectedStudyId && (
+                                    <div className="filter-banner">
+                                        <span>
+                                            Filtering by study: <strong>{studies.find(s => s.id === selectedStudyId)?.name}</strong>
+                                        </span>
+                                        <button onClick={() => setSelectedStudyId(null)}>Clear Filter</button>
+                                    </div>
+                                )}
+                                {(selectedStudyId ? notes.filter(n => n.study_id === selectedStudyId) : notes).length === 0 ? (
+                                    <div className="empty-state">
+                                        <p>No notes yet</p>
+                                        <p className="empty-hint">Add notes to verses for personal study</p>
+                                    </div>
+                                ) : (
+                                    (selectedStudyId ? notes.filter(n => n.study_id === selectedStudyId) : notes).map(note => (
+                                        <div
+                                            key={note.id}
+                                            className="note-item"
+                                            onClick={() => navigateToVerse(note.book_id, note.chapter, note.verse)}
+                                        >
+                                            <div className="note-ref">
+                                                {getBookName(note.book_id)} {note.chapter}:{note.verse}
+                                            </div>
+                                            <p className="note-text-preview">{note.note_text}</p>
+                                            <div className="note-footer">
+                                                {note.study_collections && (
+                                                    <span
+                                                        className="note-study-badge"
+                                                        style={{ backgroundColor: note.study_collections.color }}
+                                                    >
+                                                        {note.study_collections.name}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    className="delete-btn"
+                                                    onClick={(e) => openDeleteConfirm('note', note.id, `${getBookName(note.book_id)} ${note.chapter}:${note.verse}`, e)}
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+
+                        {/* Studies Tab */}
+                        {activeTab === 'studies' && (
+                            <div className="studies-list">
+                                {studies.length === 0 ? (
+                                    <div className="empty-state">
+                                        <p>No study collections yet</p>
+                                        <p className="empty-hint">Create a study when adding notes to group related scriptures</p>
+                                    </div>
+                                ) : (
+                                    studies.map(study => {
+                                        const studyNotes = notes.filter(n => n.study_id === study.id);
+                                        return (
+                                            <div
+                                                key={study.id}
+                                                className="study-item"
+                                                onClick={() => {
+                                                    setSelectedStudyId(study.id);
+                                                    setActiveTab('notes');
+                                                }}
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                <div
+                                                    className="study-color-bar"
+                                                    style={{ backgroundColor: study.color }}
+                                                />
+                                                <div className="study-info">
+                                                    <h3>{study.name}</h3>
+                                                    {study.description && <p>{study.description}</p>}
+                                                    <span className="study-count">{studyNotes.length} notes</span>
+                                                </div>
+                                                <button
+                                                    className="delete-btn"
+                                                    onClick={(e) => openDeleteConfirm('study', study.id, study.name, e)}
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        )}
+
+                        {/* Word Studies Tab */}
+                        {activeTab === 'wordStudies' && (
+                            <div className="word-studies-list">
+                                {wordStudies.length === 0 ? (
+                                    <div className="empty-state">
+                                        <p>No word studies yet</p>
+                                        <p className="empty-hint">Use "Word Study" while reading and tap the ★ icon to save</p>
+                                    </div>
+                                ) : (
+                                    wordStudies.map(ws => (
+                                        <div
+                                            key={ws.id}
+                                            className="word-study-item"
+                                            onClick={() => setSelectedWordStudy(ws)}
+                                        >
+                                            <div className="ws-item-header">
+                                                <div className="ws-item-word">
+                                                    <span className="ws-translation-word">{ws.word}</span>
+                                                    <span className="ws-lemma-word">({ws.lemma})</span>
+                                                </div>
+                                                <div className="ws-item-ref">{ws.verse_ref}</div>
+                                            </div>
+                                            <div className="ws-item-summary">
+                                                {ws.analysis.word?.transliteration} • {ws.analysis.word?.contextualMeaning?.substring(0, 60)}...
+                                            </div>
+                                            <button
+                                                className="delete-btn"
+                                                onClick={(e) => openDeleteConfirm('word study', ws.id, `${ws.word} (${ws.verse_ref})`, e)}
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+
+                        {/* Downloads Tab */}
+                        {activeTab === 'downloads' && (
+                            <div className="downloads-list">
+                                <div className="debug-section" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#3f1a1a', borderRadius: '8px', border: '1px solid #ef4444' }}>
+                                    <h3 style={{ color: '#ef4444', marginTop: 0 }}>Troubleshooting</h3>
+                                    <p style={{ fontSize: '0.9rem', color: '#ccc' }}>
+                                        If you are seeing old data or weird characters (like "Â k"), tap this button to reset the app cache completely.
+                                    </p>
+                                    <button
+                                        className="reset-app-btn"
+                                        style={{
+                                            backgroundColor: '#ef4444',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '10px 20px',
+                                            borderRadius: '6px',
+                                            marginTop: '10px',
+                                            cursor: 'pointer',
+                                            width: '100%',
+                                            fontWeight: 'bold'
+                                        }}
+                                        onClick={async () => {
+                                            if (window.confirm("This will clear all offline data and refresh the app. Continue?")) {
+                                                // 1. Unregister Service Workers
+                                                if ('serviceWorker' in navigator) {
+                                                    const registrations = await navigator.serviceWorker.getRegistrations();
+                                                    for (let registration of registrations) {
+                                                        await registration.unregister();
+                                                    }
+                                                }
+                                                // 2. Clear Cache Storage
+                                                if ('caches' in window) {
+                                                    const keys = await caches.keys();
+                                                    for (let key of keys) {
+                                                        await caches.delete(key);
+                                                    }
+                                                }
+                                                // 3. Clear Local Storage (Optional, but safe for verse data)
+                                                // We preserve 'user_settings' if needed, but for 'corrupt verse data' total wipe is safer.
+                                                // localStorage.clear(); 
+                                                // Let's NOT clear localStorage entirely to keep highlights/notes unless user wants to.
+                                                // Just reload.
+                                                window.location.reload(true);
+                                            }
+                                        }}
+                                    >
+                                        ⚠️ Hard Reset App Data
+                                    </button>
+                                </div>
+
+                                <div className="storage-info" style={{ marginTop: '20px' }}>
+                                    <span>💾 Storage used: {storageUsage}</span>
+                                </div>
+
+                                {versions.map(version => {
+                                    const downloaded = isDownloaded(version.id);
+                                    const info = getDownloadInfo(version.id);
+                                    const progress = downloadProgress[version.id];
+                                    const isDownloading = progress !== undefined;
+
+                                    return (
+                                        <div key={version.id} className="download-item">
+                                            <div className="download-status">
+                                                {downloaded ? '✅' : '⬜'}
+                                            </div>
+                                            <div className="download-info">
+                                                <span className="download-name">{version.name}</span>
+                                                <span className="download-abbrev">{version.abbreviation}</span>
+                                                {downloaded && info && (
+                                                    <span className="download-size">
+                                                        {formatBytes(info.size_bytes)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="download-actions">
+                                                {isDownloading ? (
+                                                    <div className="download-progress">
+                                                        <div
+                                                            className="progress-bar"
+                                                            style={{ width: `${progress}%` }}
+                                                        />
+                                                        <span className="progress-text">{progress}%</span>
+                                                    </div>
+                                                ) : downloaded ? (
+                                                    <button
+                                                        className="delete-download-btn"
+                                                        onClick={() => handleDeleteDownload(version.id)}
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        className="download-btn"
+                                                        onClick={() => handleDownload(version.id)}
+                                                    >
+                                                        ⬇️ Download
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                <p className="download-hint">
+                                    Downloaded versions are available offline
+                                </p>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+
+            {/* Confirm Delete Modal */}
+            {confirmDelete.show && (
+                <div className="confirm-modal-overlay" onClick={cancelDelete}>
+                    <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+                        <h3>{settings.language === 'af' ? `Vee ${confirmDelete.type === 'category' ? 'kategorie' : confirmDelete.type} uit?` : `Delete ${confirmDelete.type}?`}</h3>
+                        <p>{settings.language === 'af'
+                            ? (confirmDelete.type === 'category'
+                                ? `Is jy seker jy wil hierdie hele kategorie verwyder? Alle verligte verse onder hierdie naam sal ook onthark word.`
+                                : `Is jy seker jy wil hierdie ${confirmDelete.name} verwyder?`)
+                            : (confirmDelete.type === 'category'
+                                ? `Are you sure you want to delete this entire category? All highlighted verses under this name will also be un-highlighted.`
+                                : `Are you sure you want to delete this ${confirmDelete.type}?`)}
+                        </p>
+                        <p className="confirm-item-name">"{confirmDelete.name}"</p>
+                        <div className="confirm-buttons">
+                            <button className="cancel-btn" onClick={cancelDelete}>Cancel</button>
+                            <button className="delete-confirm-btn" onClick={handleConfirmDelete}>Delete</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Word Study Modal View */}
+            {selectedWordStudy && (
+                <WordStudyModal
+                    verse={{
+                        book_id: selectedWordStudy.book_id,
+                        chapter: selectedWordStudy.chapter,
+                        verse: selectedWordStudy.verse
+                    }}
+                    verseText={selectedWordStudy.analysis.verseText || ''}
+                    verseRef={selectedWordStudy.verse_ref}
+                    originalText={selectedWordStudy.original_word} // This is actually handled internally by the modal's currentVerse logic if we pass enough props
+                    initialSelectedWord={selectedWordStudy.word}
+                    initialStudyData={selectedWordStudy.analysis}
+                    onClose={() => setSelectedWordStudy(null)}
+                />
+            )}
+            {/* Final spacer for mobile scroll clearance */}
+            <div className="bottom-spacer" />
+        </div>
+    );
+}
+
+export default Profile;
