@@ -33,6 +33,8 @@ function Blog() {
     const [cooldownMessage, setCooldownMessage] = useState(null);
     const [searchKeywords, setSearchKeywords] = useState([]);
     const [isEditMode, setIsEditMode] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState({ show: false, word: '' });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const translations = {
         en: {
@@ -212,16 +214,30 @@ function Blog() {
         await toggleKeywordHighlight(userId, word, newStatus);
     };
 
-    const handleKeywordDelete = async (word) => {
-        if (!window.confirm(`Delete "${word}"?`)) return;
+    const handleKeywordDelete = (word) => {
+        setConfirmDelete({ show: true, word });
+    };
 
-        const userId = await getUserId();
+    const confirmKeywordDelete = async () => {
+        const { word } = confirmDelete;
+        if (!word) return;
 
-        // Optimistic delete
-        setSearchKeywords(prev => prev.filter(k => k.word !== word));
-
-        // Persist
-        await hideSearchKeyword(userId, word);
+        setIsDeleting(true);
+        console.log('[DEBUG] Deleting keyword:', word);
+        try {
+            const userId = await getUserId();
+            // Optimistic delete
+            setSearchKeywords(prev => prev.filter(k => k.word !== word));
+            // Persist
+            await hideSearchKeyword(userId, word);
+            console.log('[DEBUG] Keyword deleted successfully:', word);
+            setConfirmDelete({ show: false, word: '' });
+        } catch (err) {
+            console.error('[DEBUG] Error deleting keyword:', err);
+            alert(`Error deleting keyword: ${err.message}`);
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const formatContent = (content) => {
@@ -646,6 +662,67 @@ function Blog() {
                                     <span key={idx} className="topic-chip">{topic}</span>
                                 ))}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Keyword Delete Confirmation Modal */}
+            {confirmDelete.show && (
+                <div className="article-modal-overlay" onClick={() => setConfirmDelete({ show: false, word: '' })}>
+                    <div className="confirm-modal" onClick={(e) => e.stopPropagation()} style={{
+                        background: 'var(--bg-secondary)',
+                        padding: '30px',
+                        borderRadius: '20px',
+                        textAlign: 'center',
+                        maxWidth: '350px',
+                        width: '90%',
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                        border: '1px solid var(--border-subtle)',
+                        position: 'relative',
+                        zIndex: 10002
+                    }}>
+                        <h3 style={{ margin: '0 0 15px', color: 'var(--text-primary)' }}>
+                            {settings.language === 'af' ? 'Verwyder Sleutelwoord' : 'Delete Keyword'}
+                        </h3>
+                        <p style={{ margin: '0 0 25px', color: 'var(--text-secondary)' }}>
+                            {settings.language === 'af'
+                                ? `Is jy seker jy wil "${confirmDelete.word}" permanent verwyder?`
+                                : `Are you sure you want to delete "${confirmDelete.word}" permanently?`}
+                        </p>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <button
+                                onClick={() => setConfirmDelete({ show: false, word: '' })}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px',
+                                    borderRadius: '12px',
+                                    border: '1px solid var(--border-color)',
+                                    background: 'transparent',
+                                    color: 'var(--text-primary)',
+                                    cursor: 'pointer'
+                                }}
+                                disabled={isDeleting}
+                            >
+                                {settings.language === 'af' ? 'Kanselleer' : 'Cancel'}
+                            </button>
+                            <button
+                                onClick={confirmKeywordDelete}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px',
+                                    borderRadius: '12px',
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    fontWeight: '600',
+                                    cursor: 'pointer'
+                                }}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting
+                                    ? (settings.language === 'af' ? 'Besig...' : 'Deleting...')
+                                    : (settings.language === 'af' ? 'Verwyder' : 'Delete')}
+                            </button>
                         </div>
                     </div>
                 </div>

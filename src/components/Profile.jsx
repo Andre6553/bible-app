@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory, getHighlightsByColors, deleteHighlightsByIds, fetchHighlightTexts } from '../services/highlightService';
+import { getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory, getHighlightsByColors, deleteHighlightsByIds, fetchHighlightTexts, getHighlightCount } from '../services/highlightService';
 import { getBooks, getVersions, logActivity } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
@@ -20,6 +20,7 @@ function Profile() {
     const { settings, updateSettings } = useSettings();
     const [activeTab, setActiveTab] = useState('highlights');
     const [highlights, setHighlights] = useState([]);
+    const [totalHighlightCount, setTotalHighlightCount] = useState(0);
     const [notes, setNotes] = useState([]);
     const [studies, setStudies] = useState([]);
     const [wordStudies, setWordStudies] = useState([]);
@@ -49,6 +50,7 @@ function Profile() {
     const [selectedStudyId, setSelectedStudyId] = useState(null);
     const [expandedCategories, setExpandedCategories] = useState({}); // { label: boolean }
     const [loadedColors, setLoadedColors] = useState(new Set()); // Track which colors have been loaded
+    const [loadingSpecificCategory, setLoadingSpecificCategory] = useState({}); // { label: boolean } used for RPC loading items like "Other Highlights"
 
     useEffect(() => {
         loadData();
@@ -117,13 +119,14 @@ function Profile() {
         setLoading(true);
         // Optimization: Removed getAllHighlights() from initial load.
         // Highlights are now loaded on-demand when expanding categories.
-        const [noteRes, studyRes, wordStudyRes, labelRes, bookRes, categoryRes] = await Promise.all([
+        const [noteRes, studyRes, wordStudyRes, labelRes, bookRes, categoryRes, countRes] = await Promise.all([
             getAllNotes(),
             getStudyCollections(),
             getSavedWordStudies(),
             getLabels(),
             getBooks(),
-            getHighlightCategories()
+            getHighlightCategories(),
+            getHighlightCount()
         ]);
 
         if (noteRes.success) setNotes(noteRes.notes);
@@ -132,6 +135,7 @@ function Profile() {
         if (labelRes.success) setLabels(labelRes.labels);
         if (bookRes.success) setBooks(bookRes.data.all || []);
         if (categoryRes.success) setCategories(categoryRes.categories);
+        if (countRes.success) setTotalHighlightCount(countRes.count);
 
         // Load versions and download status
         const versionsRes = await getVersions();
@@ -212,6 +216,25 @@ function Profile() {
         return found?.name || 'custom';
     };
 
+    // Calculate unique labels and identify unused colors
+    const usedColors = new Set();
+    Object.keys(categories).forEach(c => usedColors.add(c));
+
+    // Fix: We need unusedColors for the 'Other Highlights' toggle logic. 
+    // We can base it on HIGHLIGHT_COLORS for now, or better yet, we should just allow ANY color 
+    // when 'Other Highlights' is clicked, but the logic in toggleCategory relies on this array.
+    const unusedColors = HIGHLIGHT_COLORS.map(c => c.color).filter(c => !usedColors.has(c));
+
+    let uniqueLabels = [...new Set(Object.values(categories).flatMap(label => String(label).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l)))].sort();
+
+    // [CRITICAL FIX] Ensure "Other Highlights" is ALWAYS added.
+    // We remove the count check to debug visibility.
+    if (!uniqueLabels.includes('Other Highlights')) {
+        uniqueLabels.push('Other Highlights');
+    }
+
+    uniqueLabels = [...new Set(uniqueLabels)]; // Dedupe again just in case
+
     const navigateToVerse = (bookId, chapter, verse) => {
         navigate('/bible', {
             state: {
@@ -221,17 +244,6 @@ function Profile() {
             }
         });
     };
-
-    // Calculate unique labels from categories map for rendering the list
-    const usedColors = Object.keys(categories);
-    const unusedColors = HIGHLIGHT_COLORS.map(c => c.color).filter(c => !usedColors.includes(c));
-
-    let uniqueLabels = [...new Set(Object.values(categories).flatMap(label => String(label).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l)))].sort();
-
-    // Always add 'Other Highlights' if there are colors not assigned to a category
-    if (unusedColors.length > 0) {
-        uniqueLabels.push('Other Highlights');
-    }
 
     // Delete handlers
     const openDeleteConfirm = (type, id, name, e) => {
@@ -307,12 +319,25 @@ function Profile() {
                             .filter(h => {
                                 // [NEW] If explicit label exists, only delete if it matches the target
                                 if (h.label) {
-                                    // EXCEPTION: If we are deleting 'Other Highlights', we delete EVERYTHING in it, regardless of label/tag.
+                                    // EXCEPTION 1: If we are deleting 'Other Highlights', we delete EVERYTHING in it, regardless of label/tag.
                                     if (label === 'Other Highlights') return true;
+
+                                    // EXCEPTION 2: If this category is "Simple" (exclusive color), we force delete everything of this color.
+                                    // Because the Display logic shows them regardless of label mismatch if it's an exclusive color.
+                                    const catLabel = categories[h.color];
+                                    if (catLabel) {
+                                        const allLabels = String(catLabel).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l);
+                                        // If it's a simple 1:1 mapping, this color belongs 100% to this category.
+                                        // So we delete it, even if h.label says something else (e.g. from search text).
+                                        if (allLabels.length === 1) return true;
+                                    }
 
                                     return h.label === label;
                                 }
-                                return true; // If no label (and not multi-label), assume safe to delete
+                                // [CRITICAL FIX] If no explicit label, it means the highlight belongs to the category via color.
+                                // It should be safe to delete because we already filtered by color in step 1 & 2.
+                                // And 'needsTextCheck' handles multi-label colors (e.g. split categories).
+                                return true;
                             })
                             .map(h => h.id);
 
@@ -417,8 +442,21 @@ function Profile() {
             let colorsToLoad = [];
 
             if (label === 'Other Highlights') {
-                // Load all colors that are NOT in the categories map
-                colorsToLoad = unusedColors.filter(c => !loadedColors.has(c));
+                setLoadingSpecificCategory(prev => ({ ...prev, [label]: true }));
+
+                // [OPTIMIZED FIX] Use dedicated RPC to fetch only orphans
+                const { getOrphanedHighlights } = await import('../services/highlightService');
+                const res = await getOrphanedHighlights();
+
+                if (res.success) {
+                    setHighlights(prev => {
+                        const existingIds = new Set(prev.map(p => p.id));
+                        const uniqueNew = res.highlights.filter(h => !existingIds.has(h.id));
+                        return [...prev, ...uniqueNew];
+                    });
+                }
+                setLoadingSpecificCategory(prev => ({ ...prev, [label]: false }));
+                colorsToLoad = []; // Skip standard loader
             } else {
                 // 1. Identify which colors map to this label
                 const relevantColors = Object.entries(categories)
@@ -495,7 +533,7 @@ function Profile() {
     };
 
     const tabs = [
-        { id: 'highlights', label: '📌 Highlights', count: Object.keys(categories).length },
+        { id: 'highlights', label: 'Highlights', icon: '🖍️', count: totalHighlightCount },
         { id: 'notes', label: '📝 Notes', count: notes.length },
         { id: 'studies', label: '📚 Studies', count: studies.length },
         { id: 'wordStudies', label: '📜 Word Studies', count: wordStudies.length },
@@ -691,8 +729,9 @@ function Profile() {
 
                                             // Handle Other Highlights
                                             if (label === 'Other Highlights') {
-                                                if (!catLabel) return true; // It's uncategorized/unused color
-                                                // Check unused colors logic
+                                                // Show if the highlight's color is NOT assigned to any known category
+                                                // This handles uncategorized colors, custom hexes, etc.
+                                                if (!categories[h.color]) return true;
                                                 return false;
                                             }
 
@@ -723,13 +762,17 @@ function Profile() {
 
                                         // Calculate if we are still loading data for this category
                                         const categoryColors = label === 'Other Highlights'
-                                            ? unusedColors
+                                            ? [] // Managed by loadingSpecificCategory state
                                             : Object.keys(categories).filter(c => {
                                                 const l = categories[c];
                                                 return String(l).split(/[,，、;|/&+]/).map(s => s.trim()).includes(label);
                                             });
 
-                                        const isFullyLoaded = categoryColors.every(c => loadedColors.has(c));
+                                        // For "Other Highlights", we check the RPC loading state.
+                                        // For others, we check if all relevant colors are loaded.
+                                        const isFullyLoaded = label === 'Other Highlights'
+                                            ? !loadingSpecificCategory[label]
+                                            : categoryColors.every(c => loadedColors.has(c));
 
                                         return (
                                             <div key={label} className={`highlight-category-group ${isExpanded ? 'is-expanded' : ''}`}>
@@ -750,7 +793,11 @@ function Profile() {
                                                     <button
                                                         className="delete-category-btn"
                                                         onClick={(e) => openDeleteConfirm('category', label, label, e)}
-                                                        title={settings.language === 'af' ? 'Vee kategorie uit' : 'Delete category'}
+                                                        title={
+                                                            label === 'Other Highlights'
+                                                                ? (settings.language === 'af' ? 'Vee alle hoogtepunte hier uit' : 'Delete all highlights in this group')
+                                                                : (settings.language === 'af' ? 'Vee kategorie uit' : 'Delete category')
+                                                        }
                                                     >
                                                         🗑️
                                                     </button>
@@ -796,6 +843,8 @@ function Profile() {
                                         );
                                     })
                                 )}
+                                {/* Physical Spacer to force scroll */}
+                                <div style={{ height: '300px', width: '100%', flexShrink: 0 }}></div>
                             </div>
                         )}
 
@@ -848,6 +897,8 @@ function Profile() {
                                         </div>
                                     ))
                                 )}
+                                {/* Physical Spacer to force scroll */}
+                                <div style={{ height: '300px', width: '100%', flexShrink: 0 }}></div>
                             </div>
                         )}
 
@@ -891,6 +942,8 @@ function Profile() {
                                         );
                                     })
                                 )}
+                                {/* Physical Spacer to force scroll */}
+                                <div style={{ height: '300px', width: '100%', flexShrink: 0 }}></div>
                             </div>
                         )}
 
@@ -928,6 +981,8 @@ function Profile() {
                                         </div>
                                     ))
                                 )}
+                                {/* Physical Spacer to force scroll */}
+                                <div style={{ height: '300px', width: '100%', flexShrink: 0 }}></div>
                             </div>
                         )}
 

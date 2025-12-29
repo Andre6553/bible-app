@@ -1070,23 +1070,6 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     <div className="nav-zone edge-right" onClick={handleNextChapter} title="Next Chapter">
                         <span className="nav-handle">›</span>
                     </div>
-                    <div className="nav-zone edge-top" onClick={() => setShowReaderControls(!showReaderControls)} title="Toggle Menu">
-                        <span className="top-handle" aria-hidden="true"></span>
-                    </div>
-
-                    {showReaderControls && (
-                        <>
-                            <button className="reader-exit-btn" onClick={() => setIsReaderMode(false)}>
-                                <span>🔙 Exit Reader Mode</span>
-                            </button>
-                            <div className="reader-nav-hint">
-                                <span>← Edge to page</span>
-                                <span>Center to select</span>
-                                <span>Top to toggle menu</span>
-                                <span>Edge to page →</span>
-                            </div>
-                        </>
-                    )}
                 </div>
             )}
 

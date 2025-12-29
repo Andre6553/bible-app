@@ -289,17 +289,32 @@ export const getVerseReference = (verse) => {
     return `${verse.books.name_full} ${verse.chapter}:${verse.verse}`;
 };
 
+// Simple memory cache
+let cachedUserId = null;
+
+// Clear cache on auth change
+supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+        cachedUserId = null;
+    } else if (session?.user) {
+        cachedUserId = session.user.id;
+    }
+});
+
 /**
  * Get current User ID (Auth user if logged in, otherwise anonymous local ID)
  */
 export const getUserId = async () => {
+    if (cachedUserId) return cachedUserId;
+
     try {
         // First check: get session
         let { data: { session } } = await supabase.auth.getSession();
 
-        // If no session, wait just a tiny bit and try one more time 
-        // (helps with fast page loads where session isn't quite ready)
-        if (!session) {
+        // [OPTIMIZATION] Only wait for retry if we really suspect a race condition (e.g. on very first load)
+        // For general calls, we trust the first result to avoid 150ms penalty on every click
+        if (!session && !localStorage.getItem('bible_user_id')) {
+            // Only wait if we have NO local ID and NO session, possibly initialization phase
             await new Promise(r => setTimeout(r, 150));
             const retry = await supabase.auth.getSession();
             session = retry.data.session;
@@ -331,6 +346,7 @@ export const getUserId = async () => {
             initializeNewUser(uid).catch(err => console.warn('Auth user init failed', err));
             if (email) initializeNewUser(email).catch(err => console.warn('Auth email init failed', err));
 
+            cachedUserId = uid; // [OPTIMIZATION] Cache it
             return uid;
         }
     } catch (e) {
@@ -338,15 +354,22 @@ export const getUserId = async () => {
     }
 
     let userId = localStorage.getItem('bible_user_id');
+    if (userId) {
+        cachedUserId = userId; // [OPTIMIZATION] Cache local ID
+        return userId;
+    }
+
     if (!userId) {
         // Generate random ID
         userId = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
         localStorage.setItem('bible_user_id', userId);
-
-        // Initialize new user (check for auto-super-user)
-        initializeNewUser(userId).catch(err => console.error('User initialization failed:', err));
+        cachedUserId = userId; // [OPTIMIZATION] Cache new ID
     }
 
+    return userId;
+
+    // Initialize new user (check for auto-super-user)
+    initializeNewUser(userId).catch(err => console.error('User initialization failed:', err));
     // [NEW] Always sync profile to user_profiles for anonymous users too
     // This ensures they appear in Stats dashboard even if history is cleared
     supabase.from('user_profiles').upsert({

@@ -12,6 +12,8 @@ function Study() {
     const [studies, setStudies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [confirmDelete, setConfirmDelete] = useState({ show: false, id: null, title: '' });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Prevent double logging in strict mode
     const loggingRef = useRef(false);
@@ -35,13 +37,35 @@ function Study() {
         setLoading(false);
     };
 
-    const handleDelete = async (e, id) => {
+    const openDeleteConfirm = (e, study) => {
         e.stopPropagation();
-        if (window.confirm('Are you sure you want to delete this study?')) {
+        e.preventDefault();
+        const title = study.title || `${getLocalizedBookName(study.book_name || 'Book', settings.language)} ${study.chapter}:${study.verse_start}`;
+        setConfirmDelete({ show: true, id: study.id, title });
+    };
+
+    const cancelDelete = () => {
+        setConfirmDelete({ show: false, id: null, title: '' });
+    };
+
+    const handleConfirmDelete = async () => {
+        const { id } = confirmDelete;
+        if (!id) return;
+
+        setIsDeleting(true);
+        try {
             const result = await deleteInductiveStudy(id);
+
             if (result.success) {
-                setStudies(studies.filter(s => s.id !== id));
+                setStudies(prev => prev.filter(s => s.id !== id));
+                setConfirmDelete({ show: false, id: null, title: '' });
+            } else {
+                alert(`Failed to delete: ${result.error}`);
             }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -117,7 +141,7 @@ function Study() {
                                     <h3>{study.title || `${getLocalizedBookName(study.book_name || 'Book', settings.language)} ${study.chapter}:${study.verse_start}`}</h3>
                                     <button
                                         className="delete-study-btn"
-                                        onClick={(e) => handleDelete(e, study.id)}
+                                        onClick={(e) => openDeleteConfirm(e, study)}
                                     >✕</button>
                                 </div>
                                 <div className="study-card-meta">
@@ -142,6 +166,26 @@ function Study() {
                     </div>
                 )}
             </div>
+
+            {/* Confirm Delete Modal */}
+            {confirmDelete.show && (
+                <div className="confirm-modal-overlay" onClick={cancelDelete}>
+                    <div className="modal-content confirm-modal" onClick={e => e.stopPropagation()}>
+                        <h3>Confirm Delete</h3>
+                        <p>Are you sure you want to delete <strong>{confirmDelete.title}</strong>?</p>
+                        <div className="modal-actions">
+                            <button className="cancel-btn" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                            <button
+                                className="confirm-delete-btn"
+                                onClick={handleConfirmDelete}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

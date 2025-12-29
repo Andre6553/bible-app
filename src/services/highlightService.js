@@ -252,6 +252,23 @@ export const getAllHighlights = async () => {
 };
 
 /**
+ * Get orphaned highlights (uncategorized) using efficient RPC
+ */
+export const getOrphanedHighlights = async () => {
+    const userId = await getUserId();
+    try {
+        const { data, error } = await supabase
+            .rpc('get_orphaned_highlights', { p_user_id: userId });
+
+        if (error) throw error;
+        return { success: true, highlights: data || [] };
+    } catch (err) {
+        console.error('Error fetching orphaned highlights:', err);
+        return { success: false, highlights: [] };
+    }
+};
+
+/**
  * Get highlights for specific colors (On-Demand Loading)
  * @param {Array<string>} colors - List of hex color codes
  */
@@ -282,9 +299,36 @@ export const fetchHighlightTexts = async (highlights) => {
     if (!highlights || highlights.length === 0) return [];
 
     try {
-        // 1. Group by book/chapter/version
+        // 1. Try Optimized RPC call first (if available)
+        // This fetches all texts in ONE db request instead of 10-20
+        const rpcPayload = highlights.map(h => ({
+            bookId: h.book_id,
+            chapter: h.chapter,
+            verse: h.verse,
+            version: h.version || 'AFR53'
+        }));
+
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_verse_texts', { requests: rpcPayload });
+
+        if (!rpcError && rpcData) {
+            // Success! Map perfectly
+            console.log('⚡ Used RPC for highlight texts');
+            const textMap = {};
+            rpcData.forEach(v => {
+                textMap[`${v.book_id}-${v.chapter}-${v.version}-${v.verse}`] = v.text;
+            });
+            return highlights.map(h => ({
+                ...h,
+                text: textMap[`${h.book_id}-${h.chapter}-${h.version}-${h.verse}`] || ''
+            }));
+        }
+
+        console.warn('RPC failed or not found, falling back to batching:', rpcError?.message);
+
+        // 2. Fallback: Group by book/chapter/version
         const groups = {};
         highlights.forEach(h => {
+            // ... existing grouping code ...
             const key = `${h.book_id}-${h.chapter}-${h.version}`;
             if (!groups[key]) {
                 groups[key] = { bookId: h.book_id, chapter: h.chapter, version: h.version, verses: [] };
@@ -292,8 +336,7 @@ export const fetchHighlightTexts = async (highlights) => {
             groups[key].verses.push(h.verse);
         });
 
-        // 2. Fetch concurrently (batched)
-        // Optimization: Process groups in chunks of 10 to avoid browser connection limits
+        // 3. Fetch concurrently (batched)
         const groupValues = Object.values(groups);
         const results = [];
         const CHUNK_SIZE = 10;
@@ -379,6 +422,25 @@ export const saveHighlightCategory = async (color, label) => {
     } catch (err) {
         console.error('Error saving highlight category:', err);
         return { success: false, error: err.message };
+    }
+};
+
+/**
+ * Get total count of highlighted verses for a user
+ */
+export const getHighlightCount = async () => {
+    const userId = await getUserId();
+    try {
+        const { count, error } = await supabase
+            .from('verse_highlights')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
+
+        if (error) throw error;
+        return { success: true, count: count || 0 };
+    } catch (err) {
+        console.error('Error fetching highlight count:', err);
+        return { success: false, count: 0 };
     }
 };
 
