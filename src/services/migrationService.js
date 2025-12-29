@@ -55,10 +55,49 @@ export const migrateAnonymousData = async (newUserId) => {
 
     for (const table of TABLES_TO_MIGRATE) {
         try {
-            const { count, error } = await supabase
+            console.log(`[Migration] Processing table: ${table}`);
+            let { count, error } = await supabase
                 .from(table)
                 .update({ user_id: newUserId })
                 .eq('user_id', oldUserId);
+
+            // Handle unique constraint conflicts (409 or 23505)
+            // This happens if the user has overlapping data (e.g. Daily Inspiration for same date/theme)
+            if (error && (error.status === 409 || error.code === '23505')) {
+                console.log(`[Migration] 🧩 Table ${table} has record conflicts. Merging individually...`);
+
+                const { data: guestRecords, error: fetchError } = await supabase
+                    .from(table)
+                    .select('*')
+                    .eq('user_id', oldUserId);
+
+                if (!fetchError && guestRecords) {
+                    let migratedCount = 0;
+                    for (const record of guestRecords) {
+                        try {
+                            const { id, created_at, ...dataToMove } = record;
+                            // Attempt to move this specific record
+                            const { error: singleError } = await supabase
+                                .from(table)
+                                .update({ user_id: newUserId })
+                                .eq('id', id);
+
+                            if (singleError && (singleError.status === 409 || singleError.code === '23505')) {
+                                // It's a duplicate of data they already have in the new account
+                                // We can safely delete it from the guest session as the account already has it
+                                await supabase.from(table).delete().eq('id', id);
+                            } else if (!singleError) {
+                                migratedCount++;
+                            }
+                        } catch (e) {
+                            // Skip individual record errors
+                        }
+                    }
+                    console.log(`[Migration] ✅ Table ${table}: Merged ${migratedCount} unique records individually.`);
+                    results.push({ table, success: true, count: migratedCount });
+                    continue;
+                }
+            }
 
             if (error) {
                 console.warn(`[Migration] ⚠️ Failed for table ${table}:`, error.message, error.details);
