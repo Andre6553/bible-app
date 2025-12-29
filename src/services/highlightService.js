@@ -217,13 +217,27 @@ export const deleteHighlightsByIds = async (ids) => {
     const userId = await getUserId();
 
     try {
-        const { error } = await supabase
-            .from('verse_highlights')
-            .delete()
-            .eq('user_id', userId)
-            .in('id', ids);
+        // Batch deletion to avoid URL overflow (400 Bad Request)
+        const CHUNK_SIZE = 20;
+        const promises = [];
 
-        if (error) throw error;
+        for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+            const chunk = ids.slice(i, i + CHUNK_SIZE);
+            const p = supabase
+                .from('verse_highlights')
+                .delete()
+                .eq('user_id', userId)
+                .in('id', chunk);
+            promises.push(p);
+        }
+
+        const results = await Promise.all(promises);
+
+        // Check for any errors
+        const failure = results.find(r => r.error);
+        if (failure) throw failure.error;
+
+        console.log(`✅ Bulk deleted ${ids.length} highlights in ${promises.length} batches.`);
         return { success: true };
     } catch (err) {
         console.error('Error bulk deleting highlights by ID:', err);
