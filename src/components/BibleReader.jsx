@@ -675,10 +675,35 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         }
     };
 
+    // --- Audio Player Logic ---
+    const [showAudioPlayer, setShowAudioPlayer] = useState(false);
+    // Lazy load the player to avoid loading speech API if unused
+    const [AudioPlayerComp, setAudioPlayerComp] = useState(null);
+
+    useEffect(() => {
+        if (showAudioPlayer && !AudioPlayerComp) {
+            import('./AudioPlayer').then(module => {
+                setAudioPlayerComp(() => module.default);
+            });
+        }
+    }, [showAudioPlayer, AudioPlayerComp]);
+
     const handleNextChapter = () => {
         if (selectedChapter < chapterCount) {
             setSelectedChapter(selectedChapter + 1);
-            setTargetVerse(1); // Scroll to top
+            setTargetVerse(1);
+        } else {
+            // Try next book (Auto-advance Logic)
+            const currentBookIndex = books.all.findIndex(b => b.id === selectedBook.id);
+            if (currentBookIndex !== -1 && currentBookIndex < books.all.length - 1) {
+                console.log('📖 Auto-advancing to next book...');
+                const nextBook = books.all[currentBookIndex + 1];
+                setSelectedBook(nextBook);
+                setSelectedChapter(1);
+                setTargetVerse(1);
+            } else {
+                console.log('End of Bible reached');
+            }
         }
     };
 
@@ -728,6 +753,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         </h1>
                     </div>
                     <div className="header-right">
+                        <button
+                            className={`info-btn icon-btn audio-toggle-btn ${showAudioPlayer ? 'active' : ''}`}
+                            onClick={() => setShowAudioPlayer(!showAudioPlayer)}
+                            title="Audio Bible"
+                            style={{ fontSize: '1.2rem', marginRight: '4px' }}
+                        >
+                            {showAudioPlayer ? '🎧' : '🔈'}
+                        </button>
                         <button
                             className={`info-btn icon-btn expand-toggle ${isReaderMode ? 'active' : ''}`}
                             onClick={() => setIsReaderMode(!isReaderMode)}
@@ -1242,6 +1275,20 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     />
                 )
             }
+
+            {/* Audio Player Overlay */}
+            {showAudioPlayer && AudioPlayerComp && (
+                <AudioPlayerComp
+                    verses={verses}
+                    currentChapter={selectedChapter}
+                    bookName={selectedBook?.name_full}
+                    onNextChapter={handleNextChapter}
+                    onHighlightVerse={(verseNum) => {
+                        scrollToVerse(verseNum);
+                    }}
+                    onClose={() => setShowAudioPlayer(false)}
+                />
+            )}
         </div >
     );
 }

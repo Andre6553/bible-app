@@ -1,0 +1,255 @@
+/* AudioPlayer.css */
+
+.audio-player-container {
+    position: fixed;
+    bottom: 80px;
+    /* Above BottomNav */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 500px;
+    background: rgba(23, 23, 23, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.audio-player-container.minimized {
+    width: auto;
+    bottom: 90px;
+    padding: 8px 16px;
+    border-radius: 30px;
+}
+
+/* Controls Row */
+.audio-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+/* Info Section */
+.track-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    /* Text truncation */
+    margin-right: 12px;
+}
+
+.audio-book-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.audio-verse-num {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+/* Transport Buttons */
+.transport-buttons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.transport-btn {
+    background: none;
+    border: none;
+    color: #e2e8f0;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.transport-btn.play-pause-btn {
+    font-size: 1.5rem;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.transport-btn.secondary {
+    font-size: 1.2rem;
+    opacity: 0.8;
+}
+
+.transport-btn:active {
+    transform: scale(0.95);
+}
+
+/* Extra Actions */
+.extra-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-toggle,
+.minimize-btn,
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    color: #64748b;
+    padding: 6px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.settings-toggle.active {
+    color: #3b82f6;
+    animation: spin 0.5s ease-out;
+}
+
+.settings-toggle:hover,
+.close-btn:hover {
+    color: #f8fafc;
+}
+
+/* Minimized State */
+.mini-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.audio-pulse-icon {
+    font-size: 1.2rem;
+    animation: pulse 2s infinite;
+}
+
+.mini-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+/* Settings Drawer */
+.audio-settings-drawer {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.setting-row {
+    margin-bottom: 12px;
+}
+
+.setting-row:last-child {
+    margin-bottom: 0;
+}
+
+.setting-row label {
+    display: block;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.voice-select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.voice-select option {
+    background: #1e1e1e;
+    color: #fff;
+}
+
+.speed-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.speed-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid transparent;
+    color: #94a3b8;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.speed-btn.active {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.5);
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(90deg);
+    }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+    .audio-player-container {
+        width: 95%;
+    }
+
+    .track-info {
+        display: none;
+        /* Hide title on tiny screens to save space */
+    }
+}
