@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../config/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { migrateAnonymousData } from '../services/migrationService';
+import { sendWelcomeEmail, notifyAdminOfNewUser } from '../services/emailService';
 import './Auth.css';
 
 function Auth() {
@@ -36,10 +37,18 @@ function Auth() {
             // If success and session exists, migrate data
             if (result.data?.user) {
                 console.log('Auth success, starting migration...');
+                // If it was a signup, trigger welcome email
+                if (isSignUp) {
+                    sendWelcomeEmail(email);
+                    notifyAdminOfNewUser(result.data.user.id, email);
+                }
+
                 await migrateAnonymousData(result.data.user.id);
                 navigate('/profile');
             } else if (isSignUp) {
                 // If signup success but needs email confirmation
+                sendWelcomeEmail(email);
+                notifyAdminOfNewUser('Pending', email);
                 alert('Success! Please check your email for the confirmation link.');
                 setIsSignUp(false);
             }

@@ -13,8 +13,46 @@ import {
     toggleSuperUserAuto,
     getSuperUsers
 } from '../services/blogService';
+import {
+    getEmailNotificationSettings,
+    toggleEmailNotification,
+    getEmailTemplates,
+    updateEmailTemplate
+} from '../services/adminService';
+import { checkForNewJoinsAndNotify, notifyAdminOfNewUser, sendWelcomeEmail } from '../services/emailService';
 import './Stats.css';
 import './StatsChart.css';
+
+const DEFAULT_WELCOME = `Dear New Member,
+
+Welcome to Omni Bible! We are thrilled to have you join our community. Omni Bible is designed to be more than just a reader; it's a comprehensive tool to help you dive deeper into God's Word every day.
+
+Here are some of the powerful features you can now explore:
+• Read across 8+ versions (including AFR53, AFR83, KJV, NLT, and more).
+• Parallel Reading: Compare versions side-by-side for deeper understanding.
+• Personal Studies: Create Inductive Bible Studies and Word Studies with AI assistance.
+• Highlights & Notes: Color-code your favorite verses and keep personal journals.
+• Daily Inspiration: Get fresh, AI-generated devotionals tailored to your interests.
+• Fully Responsive: Access your studies seamlessly on both PC and mobile.
+
+We hope Omni Bible becomes a valuable companion in your walk of faith. If you have any questions or feedback, feel free to reach out.
+
+Blessings,
+The Omni Bible Team`.trim();
+
+const DEFAULT_ADMIN = `Hello Andre,
+
+A new user has just joined Omni Bible!
+
+Details:
+• User ID: {{userId}}
+• Email: {{userEmail}}
+• Time: {{time}}
+
+You can view more details and user analytics on the Stats Dashboard.
+
+Best regards,
+Omni Bible System`.trim();
 
 function Stats() {
     const [logs, setLogs] = useState([]);
@@ -57,6 +95,17 @@ function Stats() {
     const [allSuperUsers, setAllSuperUsers] = useState([]);
     const [showClearErrorConfirm, setShowClearErrorConfirm] = useState(false);
 
+    // Email Notification Settings
+    const [emailAdminNotify, setEmailAdminNotify] = useState(false);
+    const [emailUserWelcome, setEmailUserWelcome] = useState(false);
+    const [emailSettingsLoading, setEmailSettingsLoading] = useState(false);
+    const [emailTestLoading, setEmailTestLoading] = useState(false);
+    const [emailTestFeedback, setEmailTestFeedback] = useState('');
+    const [emailTemplates, setEmailTemplates] = useState({ welcome: '', admin: '' });
+    const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(false);
+    const [emailTemplatesSaving, setEmailTemplatesSaving] = useState(false);
+    const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+
     useEffect(() => {
         // Only fetch if authenticated
         if (isAuthenticated) {
@@ -67,6 +116,8 @@ function Stats() {
             fetchRateLimitSetting();
             fetchSuperAutoSetting();
             fetchErrorLogs();
+            fetchEmailSettings();
+            fetchEmailTemplates();
         }
     }, [isAuthenticated]);
 
@@ -104,6 +155,93 @@ function Stats() {
             alert('Failed to update setting: ' + result.error);
         }
         setSuperAutoLoading(false);
+    };
+
+    const fetchEmailSettings = async () => {
+        const result = await getEmailNotificationSettings();
+        if (result.success) {
+            setEmailAdminNotify(result.data.adminNotify);
+            setEmailUserWelcome(result.data.userWelcome);
+        }
+    };
+
+    const handleToggleEmailAdmin = async () => {
+        setEmailSettingsLoading(true);
+        const nextValue = !emailAdminNotify;
+        const result = await toggleEmailNotification('admin_new_user_email_enabled', nextValue);
+        if (result.success) setEmailAdminNotify(nextValue);
+        setEmailSettingsLoading(false);
+    };
+
+    const handleToggleEmailWelcome = async () => {
+        setEmailSettingsLoading(true);
+        const nextValue = !emailUserWelcome;
+        const result = await toggleEmailNotification('user_welcome_email_enabled', nextValue);
+        if (result.success) setEmailUserWelcome(nextValue);
+        setEmailSettingsLoading(false);
+    };
+
+    const fetchEmailTemplates = async () => {
+        setEmailTemplatesLoading(true);
+        const result = await getEmailTemplates();
+        if (result.success) {
+            // Pre-populate with defaults if DB is empty
+            const templates = {
+                welcome: result.data.welcome || DEFAULT_WELCOME,
+                admin: result.data.admin || DEFAULT_ADMIN
+            };
+            setEmailTemplates(templates);
+        }
+        setEmailTemplatesLoading(false);
+    };
+
+    const handleResetTemplate = (key) => {
+        if (window.confirm(`Reset the ${key} template to the professional default?`)) {
+            setEmailTemplates(prev => ({
+                ...prev,
+                [key]: key === 'welcome' ? DEFAULT_WELCOME : DEFAULT_ADMIN
+            }));
+        }
+    };
+
+    const handleUpdateTemplate = async (key, value) => {
+        setEmailTemplatesSaving(true);
+        const dbKey = key === 'welcome' ? 'email_template_welcome_body' : 'email_template_admin_body';
+        const result = await updateEmailTemplate(dbKey, value);
+        if (result.success) {
+            setEmailTemplates(prev => ({ ...prev, [key]: value }));
+            setEmailTestFeedback(`✅ ${key === 'welcome' ? 'Welcome' : 'Admin'} template saved!`);
+            setTimeout(() => setEmailTestFeedback(''), 3000);
+        } else {
+            alert('Failed to save template: ' + result.error);
+        }
+        setEmailTemplatesSaving(false);
+    };
+
+    const handleSendTestEmail = async (type) => {
+        setEmailTestLoading(true);
+        setEmailTestFeedback('');
+        try {
+            // Simulated delay for feedback
+            await new Promise(r => setTimeout(r, 800));
+
+            if (type === 'admin') {
+                // Pass true to bypass toggle check for test
+                await notifyAdminOfNewUser('TEST_ID', 'andre.ecprint@gmail.com', true);
+                setEmailTestFeedback('✅ Admin Alert sent to console!');
+            } else {
+                // Pass true to bypass toggle check for test
+                await sendWelcomeEmail('andre.ecprint@gmail.com', true);
+                setEmailTestFeedback('✅ Welcome Email sent to console!');
+            }
+
+            // Clear feedback after 3s
+            setTimeout(() => setEmailTestFeedback(''), 3000);
+        } catch (err) {
+            setEmailTestFeedback('❌ Test failed (check console)');
+        } finally {
+            setEmailTestLoading(false);
+        }
     };
 
     const fetchReadingLogs = async () => {
@@ -260,6 +398,13 @@ function Stats() {
         // Cleanup interval on component unmount
         return () => clearInterval(interval);
     }, []);
+
+    // Also check for new joins when userStats changes (passive admin notification)
+    useEffect(() => {
+        if (userStats.totalUsers > 0 && isAuthenticated) {
+            checkForNewJoinsAndNotify(userStats.totalUsers);
+        }
+    }, [userStats.totalUsers, isAuthenticated]);
 
     const handleRefreshData = async () => {
         if (!selectedUser) return;
@@ -904,6 +1049,151 @@ function Stats() {
                             <input type="checkbox" checked={superAutoEnabled} onChange={handleToggleSuperAuto} />
                             <span className="slider"></span>
                         </label>
+                    </div>
+
+                    <div className="setting-divider" style={{ margin: '15px 0', borderTop: '1px solid var(--border-subtle)', opacity: 0.3 }}></div>
+
+                    <h3>📧 Email Notifications</h3>
+                    <div className="setting-row">
+                        <p>Notify Admin on new Join: <strong>{emailAdminNotify ? 'ON' : 'OFF'}</strong></p>
+                        <label className="switch">
+                            <input type="checkbox" checked={emailAdminNotify} onChange={handleToggleEmailAdmin} disabled={emailSettingsLoading} />
+                            <span className="slider"></span>
+                        </label>
+                    </div>
+                    <div className="setting-row">
+                        <p>Send Welcome Email to Users: <strong>{emailUserWelcome ? 'ON' : 'OFF'}</strong></p>
+                        <label className="switch">
+                            <input type="checkbox" checked={emailUserWelcome} onChange={handleToggleEmailWelcome} disabled={emailSettingsLoading} />
+                            <span className="slider"></span>
+                        </label>
+                    </div>
+
+                    <div className="test-system-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                className="test-btn secondary-action-btn"
+                                style={{ flex: 1, fontSize: '0.8rem', padding: '8px' }}
+                                onClick={() => handleSendTestEmail('admin')}
+                                disabled={emailTestLoading}
+                            >
+                                🧪 Test Admin Alert
+                            </button>
+                            <button
+                                className="test-btn secondary-action-btn"
+                                style={{ flex: 1, fontSize: '0.8rem', padding: '8px' }}
+                                onClick={() => handleSendTestEmail('welcome')}
+                                disabled={emailTestLoading}
+                            >
+                                🧪 Test Welcome Email
+                            </button>
+                        </div>
+                        {emailTestFeedback && (
+                            <p style={{ margin: '5px 0 0', fontSize: '0.8rem', color: emailTestFeedback.includes('✅') ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+                                {emailTestFeedback}
+                            </p>
+                        )}
+                        <p style={{ margin: '5px 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                            * Tests bypass the toggle check and output to the browser console.
+                        </p>
+                    </div>
+
+                    <div className="template-editor-section" style={{ marginTop: '25px', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                            <h3 style={{ margin: 0 }}>📝 Edit Email Content</h3>
+                            <button
+                                className="secondary-action-btn"
+                                style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                                onClick={() => setShowTemplateEditor(!showTemplateEditor)}
+                            >
+                                {showTemplateEditor ? '🔼 Hide Editor' : '🔽 Manage Templates'}
+                            </button>
+                        </div>
+
+                        {showTemplateEditor && (
+                            <div className="template-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div className="template-field">
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                        Welcome Email Body
+                                    </label>
+                                    <textarea
+                                        style={{
+                                            width: '100%',
+                                            minHeight: '200px',
+                                            padding: '12px',
+                                            borderRadius: '8px',
+                                            backgroundColor: 'rgba(255,255,255,0.05)',
+                                            color: 'var(--text-primary)',
+                                            border: '1px solid var(--border-subtle)',
+                                            fontFamily: 'inherit',
+                                            fontSize: '0.85rem',
+                                            lineHeight: '1.5',
+                                            resize: 'vertical'
+                                        }}
+                                        value={emailTemplates.welcome}
+                                        onChange={(e) => setEmailTemplates(prev => ({ ...prev, welcome: e.target.value }))}
+                                        placeholder="Enter the welcome message for new members..."
+                                    />
+                                    <button
+                                        className="primary-action-btn"
+                                        style={{ marginTop: '8px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem' }}
+                                        onClick={() => handleUpdateTemplate('welcome', emailTemplates.welcome)}
+                                        disabled={emailTemplatesSaving}
+                                    >
+                                        {emailTemplatesSaving ? 'Saving...' : '💾 Save Welcome Template'}
+                                    </button>
+                                    <button
+                                        className="secondary-action-btn"
+                                        style={{ marginTop: '8px', marginLeft: '10px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem', border: '1px dashed var(--border-subtle)' }}
+                                        onClick={() => handleResetTemplate('welcome')}
+                                    >
+                                        🔄 Reset to Default
+                                    </button>
+                                </div>
+
+                                <div className="template-field">
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                        Admin Notification Body
+                                    </label>
+                                    <div style={{ marginBottom: '8px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                        Placeholders: <code>{`{{userId}}`}</code>, <code>{`{{userEmail}}`}</code>, <code>{`{{time}}`}</code>
+                                    </div>
+                                    <textarea
+                                        style={{
+                                            width: '100%',
+                                            minHeight: '150px',
+                                            padding: '12px',
+                                            borderRadius: '8px',
+                                            backgroundColor: 'rgba(255,255,255,0.05)',
+                                            color: 'var(--text-primary)',
+                                            border: '1px solid var(--border-subtle)',
+                                            fontFamily: 'inherit',
+                                            fontSize: '0.85rem',
+                                            lineHeight: '1.5',
+                                            resize: 'vertical'
+                                        }}
+                                        value={emailTemplates.admin}
+                                        onChange={(e) => setEmailTemplates(prev => ({ ...prev, admin: e.target.value }))}
+                                        placeholder="Enter the alert message for yourself..."
+                                    />
+                                    <button
+                                        className="primary-action-btn"
+                                        style={{ marginTop: '8px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem' }}
+                                        onClick={() => handleUpdateTemplate('admin', emailTemplates.admin)}
+                                        disabled={emailTemplatesSaving}
+                                    >
+                                        {emailTemplatesSaving ? 'Saving...' : '💾 Save Admin Template'}
+                                    </button>
+                                    <button
+                                        className="secondary-action-btn"
+                                        style={{ marginTop: '8px', marginLeft: '10px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem', border: '1px dashed var(--border-subtle)' }}
+                                        onClick={() => handleResetTemplate('admin')}
+                                    >
+                                        🔄 Reset to Default
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

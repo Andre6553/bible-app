@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabaseClient';
 import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
+import { notifyAdminOfNewUser } from './emailService';
 
 /**
  * Bible Service - Handles all Bible data operations with Supabase
@@ -390,6 +391,9 @@ export const getUserId = async () => {
 const initializeNewUser = async (userId) => {
     try {
         console.log('[InitUser] 🆕 Initializing new user:', userId);
+
+        // Notify admin about the new guest joining
+        notifyAdminOfNewUser(userId).catch(e => console.warn('[InitUser] Admin notify failed:', e));
 
         // 1. Check if Auto-SuperUser is enabled
         const { data: setting, error } = await supabase
