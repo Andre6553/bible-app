@@ -1235,3 +1235,46 @@ body.reader-mode-active .verses-content {
         padding: 20px 15px !important;
     }
 }
+
+/* --- Hover Effects for Desktop --- */
+.book-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+    /* Lighter background */
+    color: #fff;
+    /* Brighter text */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+}
+
+.number-item {
+    /* Ensure base style exists if missing */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.number-item:hover {
+    background: var(--accent-primary);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.number-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    gap: 12px;
+    padding: 16px;
+}

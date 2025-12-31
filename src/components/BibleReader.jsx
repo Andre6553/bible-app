@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import ShareImageModal from './ShareImageModal';
 import WordStudyModal from './WordStudyModal';
 import {
     getChapter,
@@ -111,6 +112,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [showWordStudyModal, setShowWordStudyModal] = useState(false);
     const [wordStudyData, setWordStudyData] = useState(null);
     const [showChapterSummary, setShowChapterSummary] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+
+    const handleShareVerse = () => {
+        setShowShareModal(true);
+        setShowActionSheet(false); // Close the bottom sheet
+    };
 
     // Parallel Reading (Split View) State
     const [isSplitView, setIsSplitView] = useState(false);
@@ -753,14 +760,17 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         </h1>
                     </div>
                     <div className="header-right">
-                        <button
-                            className={`info-btn icon-btn audio-toggle-btn ${showAudioPlayer ? 'active' : ''}`}
-                            onClick={() => setShowAudioPlayer(!showAudioPlayer)}
-                            title="Audio Bible"
-                            style={{ fontSize: '1.2rem', marginRight: '4px' }}
-                        >
-                            {showAudioPlayer ? '🎧' : '🔈'}
-                        </button>
+                        {/* Audio Toggle - Hidden for Afrikaans/Xhosa due to missing TTS support on some devices */}
+                        {(!['af', 'xh'].includes(currentVersion?.language)) && (
+                            <button
+                                className={`info-btn icon-btn audio-toggle-btn ${showAudioPlayer ? 'active' : ''}`}
+                                onClick={() => setShowAudioPlayer(!showAudioPlayer)}
+                                title="Audio Bible"
+                                style={{ fontSize: '1.2rem', marginRight: '4px' }}
+                            >
+                                {showAudioPlayer ? '🎧' : '🔈'}
+                            </button>
+                        )}
                         <button
                             className={`info-btn icon-btn expand-toggle ${isReaderMode ? 'active' : ''}`}
                             onClick={() => setIsReaderMode(!isReaderMode)}
@@ -915,7 +925,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             {books.oldTestament?.map(book => (
                                                 <div
                                                     key={book.id}
-                                                    className={`book - item ${selectedBook?.id === book.id ? 'active' : ''} `}
+                                                    className={`book-item ${selectedBook?.id === book.id ? 'active' : ''} `}
                                                     onClick={() => handleBookClick(book)}
                                                 >
                                                     {getLocalizedBookName(book.name_full, currentVersion?.id)}
@@ -929,7 +939,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             {books.newTestament?.map(book => (
                                                 <div
                                                     key={book.id}
-                                                    className={`book - item ${selectedBook?.id === book.id ? 'active' : ''} `}
+                                                    className={`book-item ${selectedBook?.id === book.id ? 'active' : ''} `}
                                                     onClick={() => handleBookClick(book)}
                                                 >
                                                     {getLocalizedBookName(book.name_full, currentVersion?.id)}
@@ -1236,6 +1246,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         onWordStudy={handleWordStudy}
                         onStudy={handleStartStudy}
                         onCopy={() => { }}
+                        onShare={handleShareVerse}
                         onClose={handleCloseActionSheet}
                     />
                 )
@@ -1275,6 +1286,17 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     />
                 )
             }
+
+            {/* Share Image Modal */}
+            {showShareModal && selectedVerses.length > 0 && (
+                <ShareImageModal
+                    verses={selectedVerses}
+                    bookName={selectedBook?.name_full}
+                    chapter={selectedChapter}
+                    language={settings.language}
+                    onClose={() => setShowShareModal(false)}
+                />
+            )}
 
             {/* Audio Player Overlay */}
             {showAudioPlayer && AudioPlayerComp && (

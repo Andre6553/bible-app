@@ -20,6 +20,7 @@ function VerseActionSheet({
     onStudy,
     onWordStudy,
     onCopy,
+    onShare,
     onClose
 }) {
     const { settings } = useSettings();
@@ -213,9 +214,13 @@ function VerseActionSheet({
                         <span className="action-icon">📖</span>
                         <span className="action-label">{t.study}</span>
                     </button>
-                    <button className="action-btn" onClick={handleCopy}>
+                    <button className="action-btn" onClick={onCopy}>
                         <span className="action-icon">{copied ? '✓' : '📋'}</span>
                         <span className="action-label">{copied ? t.copied : t.copy}</span>
+                    </button>
+                    <button className="action-btn" onClick={onShare}>
+                        <span className="action-icon">🖼️</span>
+                        <span className="action-label">{isAfrikaans ? 'Deel' : 'Share'}</span>
                     </button>
                 </div>
             </div>

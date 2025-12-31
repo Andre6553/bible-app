@@ -7,14 +7,14 @@ import { notifyAdminOfNewUser } from './emailService';
  */
 
 export const SUPPORTED_VERSIONS = [
-    { id: 'AFR53', name: 'Afrikaans 1953', abbreviation: 'AFR53' },
-    { id: 'KJV', name: 'King James Version', abbreviation: 'KJV' },
-    { id: 'NKJV', name: 'New King James Version', abbreviation: 'NKJV' },
-    { id: 'NLT', name: 'New Living Translation', abbreviation: 'NLT' },
-    { id: 'AMP', name: 'Amplified Bible', abbreviation: 'AMP' },
-    { id: 'AFR83', name: 'Afrikaans 1983', abbreviation: 'AFR83' },
-    { id: 'AFRNLV', name: 'Afrikaanse Nuwe Lewe', abbreviation: 'AFR NLV' },
-    { id: 'XHO22', name: 'Xhosa 2022', abbreviation: 'XHO22' },
+    { id: 'AFR53', name: 'Afrikaans 1953', abbreviation: 'AFR53', language: 'af' },
+    { id: 'KJV', name: 'King James Version', abbreviation: 'KJV', language: 'en' },
+    { id: 'NKJV', name: 'New King James Version', abbreviation: 'NKJV', language: 'en' },
+    { id: 'NLT', name: 'New Living Translation', abbreviation: 'NLT', language: 'en' },
+    { id: 'AMP', name: 'Amplified Bible', abbreviation: 'AMP', language: 'en' },
+    { id: 'AFR83', name: 'Afrikaans 1983', abbreviation: 'AFR83', language: 'af' },
+    { id: 'AFRNLV', name: 'Afrikaanse Nuwe Lewe', abbreviation: 'AFR NLV', language: 'af' },
+    { id: 'XHO22', name: 'Xhosa 2022', abbreviation: 'XHO22', language: 'xh' },
 ];
 
 /**
