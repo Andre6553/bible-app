@@ -329,3 +329,11 @@
         }
     }
 }
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+    .action-sheet {
+        padding-bottom: 250px;
+        /* Huge safe area for mobile */
+    }
+}
