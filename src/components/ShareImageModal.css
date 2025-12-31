@@ -296,6 +296,8 @@ input[type=range] {
 }
 
 @media (max-width: 480px) {
+
+    /* ... existing mobile styles ... */
     .share-modal-content {
         width: 100%;
         height: 100%;
@@ -307,33 +309,132 @@ input[type=range] {
         padding: 16px;
         flex: 1;
         min-height: 0;
-        /* Allow shrinking */
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
-        /* Prevent spillover */
     }
 
     .share-card {
-        /* On mobile, constrain by height so it doesn't overlap UI */
         width: auto;
         height: auto;
         max-width: 100%;
         max-height: 100%;
-        /* aspect-ratio handled by classes */
     }
 
     .share-controls {
         padding-bottom: 300px;
-        /* Requested safe area */
     }
 
     .share-tabs {
         z-index: 100;
-        /* Ensure tabs stay on top */
         position: relative;
         background: var(--bg-elevated);
-        /* Opaque background to hide potential under-lap */
+    }
+}
+
+/* Desktop Pro Layout */
+@media (min-width: 769px) {
+    .share-modal-content {
+        max-width: 900px;
+        height: 700px;
+        /* Fixed height for workspace feel */
+        max-height: 90vh;
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        /* Preview | Sidebar */
+        grid-template-rows: auto auto 1fr;
+        /* Header | Tabs | Controls */
+        grid-template-areas:
+            "header header"
+            "preview tabs"
+            "preview controls";
+        gap: 0;
+    }
+
+    .share-modal-header {
+        grid-area: header;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .share-preview-container {
+        grid-area: preview;
+        height: 100%;
+        background: #0f0f0f;
+        /* Darker workspace bg */
+        border-right: 1px solid var(--border-subtle);
+        padding: 40px;
+    }
+
+    .share-tabs {
+        grid-area: tabs;
+        background: var(--bg-secondary);
+        z-index: 10;
+        /* Ensure tabs are above scroll content if needed */
+    }
+
+    .share-controls {
+        grid-area: controls;
+        height: 100%;
+        max-height: none;
+        /* Override global 40vh limit */
+        overflow: hidden;
+        /* Main container doesn't scroll */
+        background: var(--bg-elevated);
+        padding: 0;
+        /* Padding moved inside */
+        display: flex;
+        flex-direction: column;
+    }
+
+    .control-scroll-content {
+        flex: 1 1 auto;
+        /* Grow, shrink, basis auto */
+        min-height: 0;
+        /* Critical for scrolling flex child */
+        overflow-y: auto;
+        padding: 24px;
+        /* Custom scrollbar styling */
+        scrollbar-width: thin;
+        scrollbar-color: var(--text-muted) transparent;
+    }
+
+    .share-actions-row {
+        flex-shrink: 0;
+        margin-top: auto;
+        /* Push to bottom naturally if flex fails */
+        padding: 20px;
+        width: 100%;
+        background: var(--bg-elevated);
+        border-top: 1px solid var(--border-subtle);
+        z-index: 5;
+        box-sizing: border-box;
+    }
+
+    .theme-grid {
+        /* Bundle themes tightly */
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)) !important;
+        gap: 8px;
+        align-content: start;
+    }
+
+    .theme-btn {
+        width: 100% !important;
+        /* Override mobile fixed width forcefully */
+        aspect-ratio: 1 / 1;
+        height: auto !important;
+        background-color: #2a2a2a;
+        border: 2px solid transparent;
+    }
+
+    .theme-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .share-card {
+        max-width: 500px;
+        max-height: 100%;
+        margin: auto;
     }
 }

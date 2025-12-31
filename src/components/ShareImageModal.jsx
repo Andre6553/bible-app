@@ -3,19 +3,19 @@ import { toPng } from 'html-to-image';
 import './ShareImageModal.css';
 
 const THEMES = [
-    { id: 'ocean', name: 'Ocean', bg: 'url("https://images.unsplash.com/photo-1505118380757-91f5f5632de0?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'sunset', name: 'Sunset', bg: 'url("https://images.unsplash.com/photo-1472120435266-531128438474?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'nature', name: 'Forest', bg: 'url("https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'mountain', name: 'Peak', bg: 'url("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'stars', name: 'Stars', bg: 'url("https://images.unsplash.com/photo-1519681393798-3828fb4090bb?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'clouds', name: 'Clouds', bg: 'url("https://images.unsplash.com/photo-1534088568595-a066f410bcda?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'desert', name: 'Desert', bg: 'url("https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'flowers', name: 'Flora', bg: 'url("https://images.unsplash.com/photo-1490750967868-58cb75062ed0?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'rain', name: 'Rain', bg: 'url("https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'wheat', name: 'Harvest', bg: 'url("https://images.unsplash.com/photo-1438962136829-452260720431?q=80&w=800&auto=format&fit=crop")' },
-    { id: 'bible', name: 'Bible', bg: 'url("https://images.unsplash.com/photo-1499572620708-2508170d769c?q=80&w=800&auto=format&fit=crop")' },
+    { id: 'ocean', name: 'Ocean', bg: 'url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80")' }, // Reliable Beach
+    { id: 'sunset', name: 'Sunset', bg: 'url("https://images.unsplash.com/photo-1506157788151-aade1cd79f39?w=800&q=80")' }, // Reliable Sunset
+    { id: 'nature', name: 'Forest', bg: 'url("https://images.unsplash.com/photo-1448375240586-dfd8d395ea6c?w=800&q=80")' }, // Reliable Forest
+    { id: 'mountain', name: 'Peak', bg: 'url("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80")' }, // Reliable Mountain
+    { id: 'stars', name: 'Stars', bg: 'url("https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&q=80")' }, // Reliable Stars (Changed)
+    { id: 'clouds', name: 'Clouds', bg: 'url("https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&q=80")' },
+    { id: 'desert', name: 'Desert', bg: 'url("https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800&q=80")' }, // Reliable Desert
+    { id: 'flowers', name: 'Flora', bg: 'url("https://images.unsplash.com/photo-1490750967868-58cb75062ed0?w=800&q=80")' },
+    { id: 'rain', name: 'Rain', bg: 'url("https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=800&q=80")' },
+    { id: 'hiking', name: 'Path', bg: 'url("https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&q=80")' }, // Replaced Wheat with Hiking Path
+    { id: 'city', name: 'City', bg: 'url("https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80")' }, // Replaced Bible with City
     { id: 'dark', name: 'Dark', bg: 'linear-gradient(135deg, #232526 0%, #414345 100%)' },
-    { id: 'light', name: 'Clean', bg: '#f5f5f5' } // Replaced pure white with off-white for better visibility
+    { id: 'light', name: 'Clean', bg: '#f5f5f5' }
 ];
 
 const TEXT_COLORS = [
@@ -159,79 +159,81 @@ function ShareImageModal({ verses, bookName, chapter, onClose, language = 'en' }
                 </div>
 
                 <div className="share-controls">
-                    {activeTab === 'theme' ? (
-                        <div className="animate-fade-in">
-                            <div className="theme-grid">
-                                {THEMES.map(theme => (
-                                    <button
-                                        key={theme.id}
-                                        className={`theme-btn ${selectedTheme.id === theme.id ? 'active' : ''}`}
-                                        style={{ background: theme.bg }}
-                                        onClick={() => setSelectedTheme(theme)}
-                                        title={theme.name}
+                    <div className="control-scroll-content">
+                        {activeTab === 'theme' ? (
+                            <div className="animate-fade-in">
+                                <div className="theme-grid">
+                                    {THEMES.map(theme => (
+                                        <button
+                                            key={theme.id}
+                                            className={`theme-btn ${selectedTheme.id === theme.id ? 'active' : ''}`}
+                                            style={{ background: theme.bg }}
+                                            onClick={() => setSelectedTheme(theme)}
+                                            title={theme.name}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="animate-fade-in style-controls">
+                                {/* Blur Slider */}
+                                <div className="control-group">
+                                    <label>Blur</label>
+                                    <input
+                                        type="range" min="0" max="8" step="0.5"
+                                        value={blurLevel} onChange={e => setBlurLevel(e.target.value)}
                                     />
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="animate-fade-in style-controls">
-                            {/* Blur Slider */}
-                            <div className="control-group">
-                                <label>Blur</label>
-                                <input
-                                    type="range" min="0" max="8" step="0.5"
-                                    value={blurLevel} onChange={e => setBlurLevel(e.target.value)}
-                                />
-                            </div>
+                                </div>
 
-                            {/* Size Slider */}
-                            <div className="control-group">
-                                <label>Size</label>
-                                <input
-                                    type="range" min="0.8" max="2.2" step="0.1"
-                                    value={textSize} onChange={e => setTextSize(e.target.value)}
-                                />
-                            </div>
+                                {/* Size Slider */}
+                                <div className="control-group">
+                                    <label>Size</label>
+                                    <input
+                                        type="range" min="0.8" max="2.2" step="0.1"
+                                        value={textSize} onChange={e => setTextSize(e.target.value)}
+                                    />
+                                </div>
 
-                            {/* Font Toggle */}
-                            <div className="control-group">
-                                <label>Font</label>
-                                <div className="button-group">
-                                    <button className={font === 'modern' ? 'active' : ''} onClick={() => setFont('modern')}>Modern</button>
-                                    <button className={font === 'classic' ? 'active' : ''} onClick={() => setFont('classic')}>Classic</button>
+                                {/* Font Toggle */}
+                                <div className="control-group">
+                                    <label>Font</label>
+                                    <div className="button-group">
+                                        <button className={font === 'modern' ? 'active' : ''} onClick={() => setFont('modern')}>Modern</button>
+                                        <button className={font === 'classic' ? 'active' : ''} onClick={() => setFont('classic')}>Classic</button>
+                                    </div>
+                                </div>
+
+                                {/* Color Pickers */}
+                                <div className="control-group">
+                                    <label>Color</label>
+                                    <div className="color-dots">
+                                        {TEXT_COLORS.map(c => (
+                                            <button
+                                                key={c.name}
+                                                className={`color-dot ${textColor === c.value ? 'active' : ''}`}
+                                                style={{ background: c.value }}
+                                                onClick={() => setTextColor(c.value)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="control-group">
+                                    <label>Outline</label>
+                                    <div className="color-dots">
+                                        {STROKE_COLORS.map(c => (
+                                            <button
+                                                key={c.name}
+                                                className={`color-dot stroke-dot ${strokeColor === c.value ? 'active' : ''}`}
+                                                style={{ background: c.value === 'transparent' ? '#ccc' : c.value }}
+                                                onClick={() => setStrokeColor(c.value)}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-
-                            {/* Color Pickers */}
-                            <div className="control-group">
-                                <label>Color</label>
-                                <div className="color-dots">
-                                    {TEXT_COLORS.map(c => (
-                                        <button
-                                            key={c.name}
-                                            className={`color-dot ${textColor === c.value ? 'active' : ''}`}
-                                            style={{ background: c.value }}
-                                            onClick={() => setTextColor(c.value)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="control-group">
-                                <label>Outline</label>
-                                <div className="color-dots">
-                                    {STROKE_COLORS.map(c => (
-                                        <button
-                                            key={c.name}
-                                            className={`color-dot stroke-dot ${strokeColor === c.value ? 'active' : ''}`}
-                                            style={{ background: c.value === 'transparent' ? '#ccc' : c.value }}
-                                            onClick={() => setStrokeColor(c.value)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className="share-actions-row">
                         <button
