@@ -56,7 +56,8 @@
 
 .share-card {
     width: 100%;
-    /* Default to square, but overridden by ratio classes */
+    aspect-ratio: 1 / 1;
+    /* Enforce Square */
     position: relative;
     /* Context for absolute children */
     overflow: hidden;

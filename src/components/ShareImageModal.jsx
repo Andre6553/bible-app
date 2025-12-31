@@ -3,18 +3,18 @@ import { toPng } from 'html-to-image';
 import './ShareImageModal.css';
 
 const THEMES = [
-    { id: 'ocean', name: 'Ocean', bg: 'url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80")' }, // Reliable Beach
-    { id: 'sunset', name: 'Sunset', bg: 'url("https://images.unsplash.com/photo-1506157788151-aade1cd79f39?w=800&q=80")' }, // Reliable Sunset
-    { id: 'nature', name: 'Forest', bg: 'url("https://images.unsplash.com/photo-1448375240586-dfd8d395ea6c?w=800&q=80")' }, // Reliable Forest
-    { id: 'mountain', name: 'Peak', bg: 'url("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80")' }, // Reliable Mountain
-    { id: 'stars', name: 'Stars', bg: 'url("https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&q=80")' }, // Reliable Stars (Changed)
-    { id: 'clouds', name: 'Clouds', bg: 'url("https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&q=80")' },
-    { id: 'desert', name: 'Desert', bg: 'url("https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800&q=80")' }, // Reliable Desert
-    { id: 'flowers', name: 'Flora', bg: 'url("https://images.unsplash.com/photo-1490750967868-58cb75062ed0?w=800&q=80")' },
-    { id: 'rain', name: 'Rain', bg: 'url("https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=800&q=80")' },
-    { id: 'hiking', name: 'Path', bg: 'url("https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&q=80")' }, // Replaced Wheat with Hiking Path
-    { id: 'city', name: 'City', bg: 'url("https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80")' }, // Replaced Bible with City
-    { id: 'dark', name: 'Dark', bg: 'linear-gradient(135deg, #232526 0%, #414345 100%)' },
+    { id: 'ocean', name: 'Ocean', bg: 'url("/themes/1.jpg")' },
+    { id: 'sunset', name: 'Sunset', bg: 'url("/themes/2.jpg")' },
+    { id: 'nature', name: 'Forest', bg: 'url("/themes/3.jpg")' },
+    { id: 'mountain', name: 'Peak', bg: 'url("/themes/4.jpg")' },
+    { id: 'stars', name: 'Stars', bg: 'url("/themes/5.jpg")' },
+    { id: 'clouds', name: 'Clouds', bg: 'url("/themes/6.jpg")' },
+    { id: 'desert', name: 'Desert', bg: 'url("/themes/7.jpg")' },
+    { id: 'flowers', name: 'Flora', bg: 'url("/themes/8.jpg")' },
+    { id: 'rain', name: 'Rain', bg: 'url("/themes/9.jpg")' },
+    { id: 'hiking', name: 'Path', bg: 'url("/themes/10.jpg")' },
+    { id: 'city', name: 'City', bg: 'url("/themes/11.jpg")' },
+    { id: 'dark', name: 'Dark', bg: 'linear-gradient(135deg, #434343 0%, #000000 100%)' },
     { id: 'light', name: 'Clean', bg: '#f5f5f5' }
 ];
 
@@ -64,27 +64,50 @@ function ShareImageModal({ verses, bookName, chapter, onClose, language = 'en' }
         try {
             const dataUrl = await toPng(cardRef.current, {
                 cacheBust: true,
-                pixelRatio: 2, // High res
-                useCORS: true,
-                proxy: "https://cors-anywhere.herokuapp.com/"
+                pixelRatio: 2,
+                useCORS: true
             });
 
-            // Blob conversion
-            const response = await fetch(dataUrl);
-            const blob = await response.blob();
-            const file = new File([blob], `verse_image.png`, { type: 'image/png' });
+            // Mobile-Only Share (Native Sheet)
+            const isMobile = /mobile|android|iphone/i.test(navigator.userAgent);
 
-            if (navigator.share) {
-                await navigator.share({
-                    files: [file],
-                    title: 'Bibelvers',
-                    text: `${bookName} ${chapter}`
-                });
-            } else {
-                const link = document.createElement('a');
-                link.download = `omnibible_${bookName}_${chapter}.png`;
-                link.href = dataUrl;
-                link.click();
+            if (navigator.share && isMobile) {
+                const blob = await (await fetch(dataUrl)).blob();
+                const file = new File([blob], `verse.png`, { type: 'image/png' });
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Bibelvers',
+                        text: `${bookName} ${chapter}`
+                    });
+                } catch (err) {
+                    console.log('Share cancelled', err);
+                }
+            }
+            // Desktop: Save As Dialog
+            else if (window.showSaveFilePicker) {
+                try {
+                    const blob = await (await fetch(dataUrl)).blob();
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: `omnibible_${bookName}_${chapter}.png`,
+                        types: [{
+                            description: 'PNG Image',
+                            accept: { 'image/png': ['.png'] },
+                        }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        // Fallback
+                        downloadImage(dataUrl);
+                    }
+                }
+            }
+            // Fallback
+            else {
+                downloadImage(dataUrl);
             }
             onClose();
         } catch (error) {
@@ -93,6 +116,13 @@ function ShareImageModal({ verses, bookName, chapter, onClose, language = 'en' }
         } finally {
             setLoading(false);
         }
+    };
+
+    const downloadImage = (url) => {
+        const link = document.createElement('a');
+        link.download = `omnibible_${bookName}_${chapter}.png`;
+        link.href = url;
+        link.click();
     };
 
     return (
