@@ -2,8 +2,8 @@
 
 .audio-player-container {
     position: fixed;
-    bottom: 80px;
-    /* Above BottomNav */
+    bottom: 150px;
+    /* Lifted up as requested */
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
@@ -24,7 +24,7 @@
 
 .audio-player-container.minimized {
     width: auto;
-    bottom: 90px;
+    bottom: 160px;
     padding: 8px 16px;
     border-radius: 30px;
 }
