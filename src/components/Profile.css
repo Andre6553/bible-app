@@ -758,6 +758,8 @@ body.light-mode .category-header,
     display: flex;
     flex-direction: column;
     gap: 12px;
+    padding-bottom: 200px;
+    /* User requested extra scroll space */
 }
 
 .storage-info {
