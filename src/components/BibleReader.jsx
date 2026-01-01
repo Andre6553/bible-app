@@ -1111,7 +1111,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             <p>Loading {currentVersion?.abbreviation}...</p>
                         </div>
                     ) : (
-                        <div className="verses-container" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}>
+                        <div
+                            className="verses-container"
+                            style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}
+                            ref={primaryScrollRef}
+                            onScroll={() => handleScroll(primaryScrollRef, secondaryScrollRef)}
+                        >
                             {!isSplitView && (
                                 <h1 className="chapter-title">
                                     {getLocalizedBookName(selectedBook?.name_full, currentVersion?.id)} {selectedChapter}
@@ -1162,7 +1167,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 <div className="loading-spinner"></div>
                             </div>
                         ) : (
-                            <div className="verses-container secondary-verses" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}>
+                            <div
+                                className="verses-container secondary-verses"
+                                style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}
+                                ref={secondaryScrollRef}
+                                onScroll={() => handleScroll(secondaryScrollRef, primaryScrollRef)}
+                            >
                                 <div className="column-title">{secondVersion.abbreviation}</div>
                                 <div className="verses-list">
                                     {Array.from(new Set(secondVerses.map(v => v.verse))).map(verseNum => {
