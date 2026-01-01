@@ -22,7 +22,8 @@ const SearchHelpModal = ({ onClose, language }) => {
             searchTips: [
                 "**Direct Verse:** Typing 'John 3:16' (or 'Johannes 3:16' in Afrikaans) will take you directly to the verse regardless of mode.",
                 "**Multi-Word:** In Exact Match, use commas to find verses containing ANY of the words. Example: 'grace, mercy'.",
-                "**Phrases:** Type a full phrase naturally, e.g., 'kingdom of God' to find exact occurrences."
+                "**Parallel View:** Use the split-view icon in the reader to compare two versions (e.g., KJV and NLT) side-by-side.",
+                "**Smart Sync:** Your reading progress is automatically saved to your profile and synced across all your devices."
             ],
             aiTitle: "🤖 AI Research Lab",
             aiDesc: "Use the 'Ask AI' button or type these lightning shortcuts for deep biblical study:",
@@ -53,7 +54,8 @@ const SearchHelpModal = ({ onClose, language }) => {
             searchTips: [
                 "**Direkte Vers:** Tik 'Johannes 3:16' om direk na die vers te gaan ongeag die metode.",
                 "**Veelvuldige Woorde:** In Presiese Soektog, gebruik kommas om verse te vind wat ENIGE van die woorde bevat. Bv: 'vader, seun'.",
-                "**Frases:** Tik 'n volledige frase natuurlik, bv., 'koninkryk van God'."
+                "**Parallelle Lees:** Gebruik die verdeelde-skerm ikoon om twee weergawes langs mekaar te vergelyk.",
+                "**Slim Sinchronisasie:** Jou leespunt word outomaties op jou profiel gestoor en met al jou toestelle gesinchroniseer."
             ],
             aiTitle: "🤖 AI Navorsing Laboratorium",
             aiDesc: "Gebruik die 'Vra AI' knoppie of tik hierdie kortpaaie vir diep bybelstudie:",
@@ -73,12 +75,19 @@ const SearchHelpModal = ({ onClose, language }) => {
     return (
         <div className="book-selector-modal" onClick={onClose}>
             <div className="book-selector-content info-modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>{text.title}</h2>
-                    <button className="close-btn" onClick={onClose}>×</button>
+                <div className="modal-header" style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    background: 'var(--bg-secondary)',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    padding: '16px 20px'
+                }}>
+                    <h2 style={{ margin: 0 }}>{text.title}</h2>
+                    <button className="close-btn" onClick={onClose} style={{ top: '16px' }}>×</button>
                 </div>
 
-                <div className="modal-body info-modal-body">
+                <div className="modal-body info-modal-body" style={{ paddingBottom: '200px' }}>
                     <section className="info-section">
                         <h3>{text.searchTitle}</h3>
                         <p>{text.searchDesc}</p>
@@ -95,10 +104,10 @@ const SearchHelpModal = ({ onClose, language }) => {
                         <h4>{text.searchTipsTitle}</h4>
                         <ul className="info-list">
                             {text.searchTips.map((tip, i) => {
-                                const [bold, rest] = tip.split('**:', 2);
+                                const parts = tip.split('**');
                                 return (
                                     <li key={i}>
-                                        {rest ? <strong>{bold.replace('**', '')}:</strong> : tip} {rest}
+                                        {parts.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}
                                     </li>
                                 );
                             })}
@@ -121,8 +130,17 @@ const SearchHelpModal = ({ onClose, language }) => {
                     </section>
                 </div>
 
-                <div className="modal-footer">
-                    <button className="action-btn" onClick={onClose}>{text.close}</button>
+                <div className="modal-footer" style={{
+                    position: 'sticky',
+                    bottom: 0,
+                    zIndex: 10,
+                    background: 'var(--bg-secondary)',
+                    borderTop: '1px solid var(--border-subtle)',
+                    padding: '16px 20px',
+                    display: 'flex',
+                    justifyContent: 'center'
+                }}>
+                    <button className="action-btn" onClick={onClose} style={{ width: '100%', maxWidth: '200px' }}>{text.close}</button>
                 </div>
             </div>
         </div>

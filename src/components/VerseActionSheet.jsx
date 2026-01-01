@@ -124,6 +124,11 @@ function VerseActionSheet({
                 {/* Handle bar */}
                 <div className="action-sheet-handle" />
 
+                {/* Exit button */}
+                <button className="action-sheet-close" onClick={onClose} aria-label="Close">
+                    ✕
+                </button>
+
                 {/* Verse reference */}
                 <div className="action-sheet-ref">{verseRef}</div>
 

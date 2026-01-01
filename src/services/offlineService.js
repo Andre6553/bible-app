@@ -54,6 +54,7 @@ export const getDownloadedVersions = async () => {
 
 /**
  * Download a Bible version for offline use
+ * Handles large datasets by fetching in batches (Supabase 1000 row limit)
  * @param {string} versionId - Version ID (e.g., 'AFR53', 'KJV')
  * @param {function} onProgress - Progress callback (0-100)
  */
@@ -61,7 +62,7 @@ export const downloadVersion = async (versionId, onProgress) => {
     try {
         onProgress?.(0);
 
-        // Fetch all books
+        // 1. Fetch all books meta
         const { data: books, error: booksError } = await supabase
             .from('books')
             .select('*')
@@ -70,21 +71,47 @@ export const downloadVersion = async (versionId, onProgress) => {
         if (booksError) throw booksError;
         onProgress?.(5);
 
-        // Fetch all verses for this version
-        const { data: verses, error: versesError } = await supabase
-            .from('verses')
-            .select('*')
-            .eq('version', versionId)
-            .order('book_id')
-            .order('chapter')
-            .order('verse');
+        // 2. Fetch all verses for this version in BATHCES
+        // A full Bible is ~31,102 verses. Default Supabase limit is 1000.
+        console.log(`📥 Starting full download for ${versionId}...`);
+        let allVerses = [];
+        let offset = 0;
+        const BATCH_SIZE = 1000;
+        let hasMore = true;
 
-        if (versesError) throw versesError;
-        onProgress?.(70);
+        while (hasMore) {
+            const { data: batch, error: versesError } = await supabase
+                .from('verses')
+                .select('id, book_id, chapter, verse, text')
+                .eq('version', versionId)
+                .order('id') // Order by ID for stable pagination
+                .range(offset, offset + BATCH_SIZE - 1);
 
-        // Organize verses by book and chapter
+            if (versesError) throw versesError;
+
+            if (batch && batch.length > 0) {
+                allVerses = [...allVerses, ...batch];
+                offset += BATCH_SIZE;
+
+                // Update progress (estimate 32 batches for 31k verses)
+                // We'll map 5% -> 85% range
+                const progress = Math.min(85, 5 + Math.round((allVerses.length / 31102) * 80));
+                onProgress?.(progress);
+                console.log(`📡 Downloaded ${allVerses.length} verses...`);
+
+                if (batch.length < BATCH_SIZE) {
+                    hasMore = false;
+                }
+            } else {
+                hasMore = false;
+            }
+        }
+
+        onProgress?.(85);
+
+        // 3. Organize verses by book and chapter
         const booksData = books.map(book => {
-            const bookVerses = verses.filter(v => v.book_id === book.id);
+            const bookVerses = allVerses.filter(v => v.book_id === book.id);
             const chapters = {};
 
             bookVerses.forEach(v => {
@@ -104,13 +131,13 @@ export const downloadVersion = async (versionId, onProgress) => {
             };
         });
 
-        onProgress?.(85);
+        onProgress?.(95);
 
-        // Calculate storage size (rough estimate)
+        // 4. Calculate storage size
         const jsonString = JSON.stringify(booksData);
         const sizeBytes = new Blob([jsonString]).size;
 
-        // Store in IndexedDB
+        // 5. Store in IndexedDB
         const db = await initDB();
         await db.put(STORE_NAME, {
             version_id: versionId,
@@ -120,9 +147,9 @@ export const downloadVersion = async (versionId, onProgress) => {
         });
 
         onProgress?.(100);
-        console.log(`✅ Downloaded ${versionId} (${(sizeBytes / 1024 / 1024).toFixed(2)} MB)`);
+        console.log(`✅ Fully Downloaded ${versionId} (${allVerses.length} verses, ${(sizeBytes / 1024 / 1024).toFixed(2)} MB)`);
 
-        return { success: true, sizeBytes };
+        return { success: true, sizeBytes, verseCount: allVerses.length };
     } catch (err) {
         console.error('Error downloading version:', err);
         return { success: false, error: err.message };

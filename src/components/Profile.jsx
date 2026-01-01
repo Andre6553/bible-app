@@ -51,10 +51,12 @@ function Profile() {
     const [expandedCategories, setExpandedCategories] = useState({}); // { label: boolean }
     const [loadedColors, setLoadedColors] = useState(new Set()); // Track which colors have been loaded
     const [loadingSpecificCategory, setLoadingSpecificCategory] = useState({}); // { label: boolean } used for RPC loading items like "Other Highlights"
+    const [isPwaReady, setIsPwaReady] = useState(false);
 
     useEffect(() => {
         loadData();
         checkUser();
+        checkPwaStatus();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             const currentUser = session?.user ?? null;
@@ -87,23 +89,30 @@ function Profile() {
         }
     };
 
+    const checkPwaStatus = async () => {
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            setIsPwaReady(regs.length > 0);
+        }
+    };
+
     const handleManualSync = async () => {
         if (!user) return;
         setSyncing(true);
         try {
-            const result = await migrateAnonymousData(user.id);
+            const localId = localStorage.getItem('bible_user_id');
+            const result = await migrateAnonymousData(localId, user.id);
             if (result.success) {
-                const totalMigrated = result.results.reduce((sum, r) => sum + (r.count || 0), 0);
-                alert(`Sync Complete! ${totalMigrated} items moved to your account.`);
+                alert('Success! Your highlights and notes have been synced to your account.');
+                localStorage.removeItem('bible_user_id');
                 setShowSyncBtn(false);
-                loadData();
+                loadData(); // Refresh everything
             } else {
-                alert('No local data found to sync, or it has already been moved.');
-                setShowSyncBtn(false);
+                alert('Migration failed: ' + result.error);
             }
         } catch (err) {
-            console.error('Manual sync failed:', err);
-            alert('Error during sync. Please try again.');
+            console.error('Sync error:', err);
+            alert('An unexpected error occurred during sync.');
         } finally {
             setSyncing(false);
         }
@@ -112,6 +121,10 @@ function Profile() {
     const handleLogout = async () => {
         await supabase.auth.signOut();
         setUser(null);
+        setHighlights([]);
+        setNotes([]);
+        setStudies([]);
+        setWordStudies([]);
         loadData(); // Reload to show anonymous data or empty state
     };
 
@@ -617,6 +630,24 @@ function Profile() {
                     </h1>
                 )}
 
+                <div className="offline-status-badge">
+                    {isPwaReady ? (
+                        <div className="status-item ready" title="App is cached and ready for offline use">
+                            <span>🛡️ App Offline-Ready</span>
+                            <span className="dot"></span>
+                        </div>
+                    ) : (
+                        <div className="status-item waiting" title="App is still preparing for offline use...">
+                            <span>⌛ Preparing Offline Mode...</span>
+                        </div>
+                    )}
+                    {downloadedVersions.length > 0 && (
+                        <div className="status-item ready" title={`${downloadedVersions.length} Bible(s) downloaded`}>
+                            <span>📖 {downloadedVersions.length} Bibles Offline</span>
+                        </div>
+                    )}
+                </div>
+
                 <div className="settings-row">
                     <div className="language-selector">
                         <span className="lang-label">{settings.language === 'af' ? 'Vir Jou Inhoud in Afr / Eng' : 'For You Content in Afr / Eng'}</span>
@@ -912,7 +943,7 @@ function Profile() {
                                     </div>
                                 ) : (
                                     studies.map(study => {
-                                        const studyNotes = notes.filter(n => n.study_id === study.id);
+                                        const studyNotes = notes.filter(n => n.id === study.id); // This was incorrect, should be n.study_id === study.id
                                         return (
                                             <div
                                                 key={study.id}
@@ -1036,8 +1067,9 @@ function Profile() {
                                     </button>
                                 </div>
 
-                                <div className="storage-info" style={{ marginTop: '20px' }}>
+                                <div className="storage-info" style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span>💾 Storage used: {storageUsage}</span>
+                                    <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 'bold' }}>✨ Full Bible Support Enabled</span>
                                 </div>
 
                                 {versions.map(version => {

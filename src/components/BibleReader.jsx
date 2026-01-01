@@ -10,7 +10,9 @@ import {
     getOriginalVerse,
     getChapterCount,
     getVerseCount,
-    logActivity
+    logActivity,
+    logBibleReading,
+    getLastReadState
 } from '../services/bibleService';
 import {
     getChapterHighlights,
@@ -72,7 +74,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [selectedVerses, setSelectedVerses] = useState([]); // Array of verse objects
     const [showActionSheet, setShowActionSheet] = useState(false);
 
-    // Reader Mode State
+    const [syncPrompt, setSyncPrompt] = useState(null); // { bookId, chapter, title }
     const [isReaderMode, setIsReaderMode] = useState(false);
     const [showReaderControls, setShowReaderControls] = useState(true);
 
@@ -221,19 +223,77 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         }
     }, [targetVerse, verses, loading]);
 
-    // Save last reading position
+    // Save last reading position (Local + Cloud Sync)
     useEffect(() => {
         if (selectedBook && selectedChapter && currentVersion) {
-            localStorage.setItem('lastReadPosition', JSON.stringify({
+            const state = {
                 bookId: selectedBook.id,
                 chapter: selectedChapter,
                 version: currentVersion.id,
                 secondaryVersion: secondVersion?.id,
                 isSplitView
-            }));
+            };
+
+            localStorage.setItem('lastReadPosition', JSON.stringify(state));
+
+            // Sync to cloud
+            logBibleReading(selectedBook.id, selectedChapter);
+
             loadCategories();
         }
     }, [selectedBook, selectedChapter, currentVersion, secondVersion, isSplitView]);
+
+    // Check for Cloud Sync Continuity (Pick up where you left off)
+    useEffect(() => {
+        const checkCloudSync = async () => {
+            if (!books.all || books.all.length === 0) return;
+
+            const result = await getLastReadState();
+            if (result.success && result.state) {
+                const cloudState = result.state;
+                const localStateRaw = localStorage.getItem('lastReadPosition');
+                let shouldPrompt = false;
+
+                if (!localStateRaw) {
+                    shouldPrompt = true;
+                } else {
+                    const localState = JSON.parse(localStateRaw);
+                    // Prompt if cloud position is different
+                    if (cloudState.bookId != localState.bookId || cloudState.chapter != localState.chapter) {
+                        // Only prompt if cloud update is more recent (or just different for simplicity)
+                        shouldPrompt = true;
+                    }
+                }
+
+                if (shouldPrompt) {
+                    const book = books.all.find(b => b.id == cloudState.bookId);
+                    if (book) {
+                        setSyncPrompt({
+                            bookId: cloudState.bookId,
+                            chapter: cloudState.chapter,
+                            title: `${getLocalizedBookName(book.name_full, currentVersion?.id)} ${cloudState.chapter}`,
+                            bookObj: book
+                        });
+
+                        // Auto-dismiss after 10 seconds
+                        setTimeout(() => setSyncPrompt(null), 10000);
+                    }
+                }
+            }
+        };
+
+        if (books.all?.length > 0) {
+            checkCloudSync();
+        }
+    }, [books.all]);
+
+    const handleSyncAccept = () => {
+        if (syncPrompt) {
+            setSelectedBook(syncPrompt.bookObj);
+            setSelectedChapter(syncPrompt.chapter);
+            setSyncPrompt(null);
+        }
+    };
 
     const loadHighlights = async () => {
         if (!selectedBook || !currentVersion) return;
@@ -739,7 +799,31 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     // --- Red Letter Helper ---
     const renderVerseText = (verse) => {
-        return verse.text;
+        if (!verse.red_letters || verse.red_letters.length === 0) return verse.text;
+
+        // Special handling for Red Letters if available in the version data
+        const parts = [];
+        let lastIdx = 0;
+
+        // Sort red letters by position to handle them in order
+        const sortedRed = [...verse.red_letters].sort((a, b) => a.start - b.start);
+
+        sortedRed.forEach((red, i) => {
+            // Text before red
+            if (red.start > lastIdx) {
+                parts.push(verse.text.substring(lastIdx, red.start));
+            }
+            // Red text
+            parts.push(<span key={i} className="red-letter">{verse.text.substring(red.start, red.end)}</span>);
+            lastIdx = red.end;
+        });
+
+        // Remaining text
+        if (lastIdx < verse.text.length) {
+            parts.push(verse.text.substring(lastIdx));
+        }
+
+        return parts;
     };
 
     return (
@@ -869,6 +953,35 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 </div>
             </div>
 
+            {/* Smart Sync Banner */}
+            {syncPrompt && (
+                <div className="sync-banner">
+                    <div className="sync-content">
+                        <span className="sync-icon">🔄</span>
+                        <p>{settings.language === 'af' ? 'Gaan voort met' : 'Continue reading'} <strong>{syncPrompt.title}</strong>?</p>
+                    </div>
+                    <div className="sync-actions">
+                        <button className="sync-btn sync-accept" onClick={handleSyncAccept}>
+                            {settings.language === 'af' ? 'Hervat' : 'Resume'}
+                        </button>
+                        <button className="sync-btn sync-dismiss" onClick={() => setSyncPrompt(null)}>
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            )}
+            {/* Reader Mode Navigation Overlay */}
+            {isReaderMode && (
+                <div className={`reader-overlay ${showReaderControls ? 'show-controls' : ''}`}>
+                    <div className="nav-zone edge-left" onClick={handlePrevChapter} title="Previous Chapter">
+                        <span className="nav-handle">‹</span>
+                    </div>
+                    <div className="nav-zone edge-right" onClick={handleNextChapter} title="Next Chapter">
+                        <span className="nav-handle">›</span>
+                    </div>
+                </div>
+            )}
+
             {/* Context Menu */}
             {contextMenu.visible && (
                 <div
@@ -904,83 +1017,81 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         <div className="modal-header">
                             <div className="modal-title-group">
                                 {selectionStage !== 'books' && (
-                                    <button className="back-btn" onClick={handleBack}>‹</button>
+                                    <button
+                                        className="back-navigator"
+                                        onClick={() => setSelectionStage(selectionStage === 'verses' ? 'chapters' : 'books')}
+                                    >
+                                        ⬅
+                                    </button>
                                 )}
-                                <h2>
-                                    {selectionStage === 'books' && "Select Book"}
-                                    {selectionStage === 'chapters' && `${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)} `}
-                                    {selectionStage === 'verses' && `${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)} ${tempSelectedChapter} `}
-                                </h2>
+                                <h3>
+                                    {selectionStage === 'books' && (settings.language === 'af' ? 'Kies Boek' : 'Select Book')}
+                                    {selectionStage === 'chapters' && (settings.language === 'af' ? `Kies Hoofstuk (${tempSelectedBook?.name_full})` : `Select Chapter (${tempSelectedBook?.name_full})`)}
+                                    {selectionStage === 'verses' && (settings.language === 'af' ? `Kies Vers (${tempSelectedBook?.name_full} ${tempSelectedChapter})` : `Select Verse (${tempSelectedBook?.name_full} ${tempSelectedChapter})`)}
+                                </h3>
                             </div>
                             <button className="close-btn" onClick={() => setShowBookSelector(false)}>✕</button>
                         </div>
 
-                        <div className="modal-body">
-                            {/* STAGE 1: BOOKS */}
-                            {selectionStage === 'books' && books && (
-                                <>
+                        <div className="selection-body">
+                            {selectionStage === 'books' && (
+                                <div className="testaments-grid">
                                     <div className="testament-section">
-                                        <h3 className="testament-title">Old Testament</h3>
+                                        <h4 className="testament-title">Old Testament</h4>
                                         <div className="books-grid">
-                                            {books.oldTestament?.map(book => (
-                                                <div
+                                            {books.oldTestament.map(book => (
+                                                <button
                                                     key={book.id}
-                                                    className={`book-item ${selectedBook?.id === book.id ? 'active' : ''} `}
+                                                    className={`book-item ${selectedBook?.id === book.id ? 'active' : ''}`}
                                                     onClick={() => handleBookClick(book)}
                                                 >
                                                     {getLocalizedBookName(book.name_full, currentVersion?.id)}
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
                                     </div>
                                     <div className="testament-section">
-                                        <h3 className="testament-title">New Testament</h3>
+                                        <h4 className="testament-title">New Testament</h4>
                                         <div className="books-grid">
-                                            {books.newTestament?.map(book => (
-                                                <div
+                                            {books.newTestament.map(book => (
+                                                <button
                                                     key={book.id}
-                                                    className={`book-item ${selectedBook?.id === book.id ? 'active' : ''} `}
+                                                    className={`book-item ${selectedBook?.id === book.id ? 'active' : ''}`}
                                                     onClick={() => handleBookClick(book)}
                                                 >
                                                     {getLocalizedBookName(book.name_full, currentVersion?.id)}
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* STAGE 2: CHAPTERS */}
-                            {selectionStage === 'chapters' && (
-                                <div className="number-grid-container">
-                                    <div className="number-grid">
-                                        {Array.from({ length: chapterCount }, (_, i) => i + 1).map(num => (
-                                            <div
-                                                key={num}
-                                                className={`number-item ${selectedBook?.id === tempSelectedBook?.id && selectedChapter === num ? 'current' : ''}`}
-                                                onClick={() => handleChapterClick(num)}
-                                            >
-                                                {num}
-                                            </div>
-                                        ))}
                                     </div>
                                 </div>
                             )}
 
-                            {/* STAGE 3: VERSES */}
+                            {selectionStage === 'chapters' && (
+                                <div className="number-grid">
+                                    {Array.from({ length: chapterCount }, (_, i) => i + 1).map(num => (
+                                        <button
+                                            key={num}
+                                            className={`number-item ${selectedChapter === num ? 'active' : ''}`}
+                                            onClick={() => handleChapterClick(num)}
+                                        >
+                                            {num}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
                             {selectionStage === 'verses' && (
-                                <div className="number-grid-container">
-                                    <div className="number-grid">
-                                        {Array.from({ length: verseCount || 1 }, (_, i) => i + 1).map(num => (
-                                            <div
-                                                key={num}
-                                                className="number-item"
-                                                onClick={() => handleVerseClick(num)}
-                                            >
-                                                {num}
-                                            </div>
-                                        ))}
-                                    </div>
+                                <div className="number-grid">
+                                    {Array.from({ length: verseCount || 1 }, (_, i) => i + 1).map(num => (
+                                        <button
+                                            key={num}
+                                            className="number-item"
+                                            onClick={() => handleVerseClick(num)}
+                                        >
+                                            {num}
+                                        </button>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -988,140 +1099,97 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 </div>
             )}
 
-            {/* Verses Display */}
-            <div className={`verses-container ${isSplitView ? 'split-view' : ''}`}>
-                {loading ? (
-                    <div className="loading-state">
-                        <div className="loading-spinner"></div>
-                        <p>Loading chapter...</p>
-                    </div>
-                ) : verses.length > 0 ? (
-                    <div className="verses-layout">
-                        {/* Integrated Parallel Layout (Sync like one) */}
-                        {isSplitView ? (
-                            <div
-                                className="verses-content integrated-split-view"
-                                ref={primaryScrollRef}
-                                style={{
-                                    fontSize: `${settings.fontSize}px`,
-                                    fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
-                                }}
-                            >
-                                <div className="integrated-header">
-                                    <div className="header-label primary">
-                                        <span className="version-badge">{currentVersion?.abbreviation}</span>
-                                    </div>
-                                    <div className="header-label secondary">
-                                        <span className="version-badge">{secondVersion?.abbreviation}</span>
-                                        <button
-                                            className="summary-btn"
-                                            onClick={() => setShowChapterSummary(true)}
-                                            title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}
+            {/* Content Display */}
+            <div className={`bible-reader-main ${isSplitView ? 'split-active' : ''}`} onClick={(e) => {
+                // Global click handler to close tooltips/menus
+                if (contextMenu.visible) setContextMenu({ ...contextMenu, visible: false });
+            }}>
+                <div className="bible-column primary-column">
+                    {loading ? (
+                        <div className="loading-state">
+                            <div className="loading-spinner"></div>
+                            <p>Loading {currentVersion?.abbreviation}...</p>
+                        </div>
+                    ) : (
+                        <div className="verses-container" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}>
+                            {!isSplitView && (
+                                <h1 className="chapter-title">
+                                    {getLocalizedBookName(selectedBook?.name_full, currentVersion?.id)} {selectedChapter}
+                                    <span className="version-badge">{currentVersion?.abbreviation}</span>
+                                </h1>
+                            )}
+
+                            <div className="verses-list">
+                                {/* Uniqueness filter to prevent duplications seen in some versions */}
+                                {Array.from(new Set(verses.map(v => v.verse))).map(verseNum => {
+                                    const verse = verses.find(v => v.verse === verseNum);
+                                    if (!verse) return null;
+
+                                    return (
+                                        <div
+                                            key={verse.id || `verse-${verse.verse}`}
+                                            id={`verse-${verse.verse}`}
+                                            className={`verse-item ${selectedVerses.some(v => v.verse === verse.verse) ? 'verse-selected' : ''}`}
+                                            onContextMenu={(e) => handleLongPress(verse, e)}
+                                            onTouchStart={(e) => {
+                                                const timer = setTimeout(() => handleLongPress(verse, e), 500);
+                                                const cancel = () => clearTimeout(timer);
+                                                e.target.addEventListener('touchend', cancel, { once: true });
+                                                e.target.addEventListener('touchmove', cancel, { once: true });
+                                            }}
+                                            onClick={(e) => handleVerseTap(verse, e)}
                                         >
-                                            {settings.language === 'af' ? 'Opsoming' : 'Summaries'} 📝
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="integrated-verses-list">
-                                    {verses.map((verse) => {
-                                        const secondVerse = secondVerses.find(sv => sv.verse === verse.verse);
+                                            <span className="verse-number">{verse.verse}</span>
+                                            <span
+                                                className="verse-text"
+                                                style={{ backgroundColor: highlights[verse.verse] }}
+                                                onClick={(e) => handleVerseTap(verse, e)}
+                                            >
+                                                {renderVerseText(verse)}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {isSplitView && secondVersion && (
+                    <div className="bible-column secondary-column">
+                        {loading ? (
+                            <div className="loading-state">
+                                <div className="loading-spinner"></div>
+                            </div>
+                        ) : (
+                            <div className="verses-container secondary-verses" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}>
+                                <div className="column-title">{secondVersion.abbreviation}</div>
+                                <div className="verses-list">
+                                    {Array.from(new Set(secondVerses.map(v => v.verse))).map(verseNum => {
+                                        const verse = secondVerses.find(v => v.verse === verseNum);
+                                        if (!verse) return null;
                                         return (
-                                            <div key={verse.id} className="verse-row-integrated">
-                                                <div
-                                                    className={`verse-box primary ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
-                                                    onClick={(e) => handleVerseTap(verse, e)}
-                                                    onContextMenu={(e) => handleLongPress(verse, e)}
-                                                    style={{
-                                                        backgroundColor: highlights[verse.verse]
-                                                            ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
-                                                            : 'transparent'
-                                                    }}
-                                                >
-                                                    <span className="verse-number">{verse.verse}</span>
-                                                    <span className="verse-text">{renderVerseText(verse)}</span>
-                                                </div>
-                                                <div className="verse-box secondary">
-                                                    <span className="verse-text">
-                                                        {secondVerse ? secondVerse.text : '...'}
-                                                    </span>
-                                                </div>
+                                            <div key={verse.id || `v2-${verse.verse}`} className="verse-item">
+                                                <span className="verse-number">{verse.verse}</span>
+                                                <span className="verse-text">{verse.text}</span>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
-                        ) : (
-                            /* Standard Single Version Layout */
-                            <div
-                                className="verses-content primary-column"
-                                ref={primaryScrollRef}
-                            >
-                                <h2 className="chapter-title">
-                                    {getLocalizedBookName(verses[0]?.books?.name_full, currentVersion?.id)} {selectedChapter}
-                                    <span className="version-badge">{currentVersion?.abbreviation}</span>
-                                    <button
-                                        className="summary-btn"
-                                        onClick={() => setShowChapterSummary(true)}
-                                        title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}
-                                    >
-                                        {settings.language === 'af' ? 'Opsoming' : 'Summaries'} 📝
-                                    </button>
-                                </h2>
-                                <div
-                                    className="verses-list"
-                                    style={{
-                                        fontSize: `${settings.fontSize}px`,
-                                        fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
-                                    }}
-                                >
-                                    {verses.map(verse => (
-                                        <div
-                                            key={verse.id}
-                                            id={`verse-${verse.verse}`}
-                                            className={`verse-item ${selectedVerses.some(sv => sv.verse === verse.verse) ? 'verse-selected' : ''}`}
-                                            onClick={(e) => handleVerseTap(verse, e)}
-                                            onContextMenu={(e) => handleLongPress(verse, e)}
-                                            style={{
-                                                backgroundColor: highlights[verse.verse]
-                                                    ? HIGHLIGHT_COLORS.find(c => c.color === highlights[verse.verse])?.bg
-                                                    : 'transparent'
-                                            }}
-                                        >
-                                            <span className="verse-number">{verse.verse}</span>
-                                            <span className="verse-text">
-                                                {renderVerseText(verse)}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
                         )}
-                    </div>
-                ) : (
-                    <div className="empty-state">
-                        <p>No verses found for this chapter.</p>
                     </div>
                 )}
             </div>
 
-            {/* Reader Mode Navigation Overlay */}
-            {isReaderMode && (
-                <div className={`reader-overlay ${showReaderControls ? 'show-controls' : ''}`}>
-                    <div className="nav-zone edge-left" onClick={handlePrevChapter} title="Previous Chapter">
-                        <span className="nav-handle">‹</span>
-                    </div>
-                    <div className="nav-zone edge-right" onClick={handleNextChapter} title="Next Chapter">
-                        <span className="nav-handle">›</span>
-                    </div>
-                </div>
-            )}
-
             {/* Omni Definition Modal */}
-            {showDefinition && (
-                <OmniDefinitionModal
-                    onClose={() => setShowDefinition(false)}
-                />
-            )}
+            {
+                showDefinition && (
+                    <OmniDefinitionModal
+                        onClose={() => setShowDefinition(false)}
+                    />
+                )
+            }
 
             {/* Chapter Summary Modal */}
             <ChapterSummaryModal
@@ -1134,12 +1202,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             />
 
             {/* Info / Help Modal */}
-            {showInfo && (
-                <BibleHelpModal
-                    onClose={() => setShowInfo(false)}
-                    language={settings.language}
-                />
-            )}
+            {
+                showInfo && (
+                    <BibleHelpModal
+                        onClose={() => setShowInfo(false)}
+                        language={settings.language}
+                    />
+                )
+            }
 
             {/* Settings Modal */}
             {
@@ -1288,29 +1358,33 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             }
 
             {/* Share Image Modal */}
-            {showShareModal && selectedVerses.length > 0 && (
-                <ShareImageModal
-                    verses={selectedVerses}
-                    bookName={selectedBook?.name_full}
-                    chapter={selectedChapter}
-                    language={settings.language}
-                    onClose={() => setShowShareModal(false)}
-                />
-            )}
+            {
+                showShareModal && selectedVerses.length > 0 && (
+                    <ShareImageModal
+                        verses={selectedVerses}
+                        bookName={selectedBook?.name_full}
+                        chapter={selectedChapter}
+                        language={settings.language}
+                        onClose={() => setShowShareModal(false)}
+                    />
+                )
+            }
 
             {/* Audio Player Overlay */}
-            {showAudioPlayer && AudioPlayerComp && (
-                <AudioPlayerComp
-                    verses={verses}
-                    currentChapter={selectedChapter}
-                    bookName={selectedBook?.name_full}
-                    onNextChapter={handleNextChapter}
-                    onHighlightVerse={(verseNum) => {
-                        scrollToVerse(verseNum);
-                    }}
-                    onClose={() => setShowAudioPlayer(false)}
-                />
-            )}
+            {
+                showAudioPlayer && AudioPlayerComp && (
+                    <AudioPlayerComp
+                        verses={verses}
+                        currentChapter={selectedChapter}
+                        bookName={selectedBook?.name_full}
+                        onNextChapter={handleNextChapter}
+                        onHighlightVerse={(verseNum) => {
+                            scrollToVerse(verseNum);
+                        }}
+                        onClose={() => setShowAudioPlayer(false)}
+                    />
+                )
+            }
         </div >
     );
 }

@@ -368,37 +368,36 @@ function WordStudyModal({
                                             </span>
                                         )}
                                     </div>
-                                    <button
-                                        className={`ws-save-btn ${isSaved ? 'saved' : ''} ${saving ? 'saving' : ''}`}
-                                        onClick={handleToggleSave}
-                                        disabled={saving}
-                                        title={isSaved ? 'Remove from Profile' : 'Save to Profile'}
-                                    >
-                                        {saving ? (
-                                            <span className="ws-save-spinner">...</span>
-                                        ) : isSaved ? (
-                                            // Filled Bookmark Icon (Saved)
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M5 21V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V21L12 17L5 21Z" />
-                                            </svg>
-                                        ) : (
-                                            // Outline Bookmark Icon (Unsaved)
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M19 21L12 17L5 21V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V21Z" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                    <button
-                                        className="ws-save-btn"
-                                        onClick={async () => {
-                                            if (!studyData) return;
-                                            const grammarText = studyData.word?.grammar ?
-                                                `${studyData.word.grammar.form || ''}${studyData.word.grammar.linguisticFunction ? ` — ${studyData.word.grammar.linguisticFunction}` : studyData.word.grammar.analysis ? ` — ${studyData.word.grammar.analysis}` : ''}${studyData.word.grammar.contextualSignificance ? `\n  → ${studyData.word.grammar.contextualSignificance}` : ''}`
-                                                : '';
-                                            const relatedNounText = studyData.word?.relatedNoun ?
-                                                `\n${t.relatedNoun}: ${studyData.word.relatedNoun.original} (${studyData.word.relatedNoun.transliteration})${studyData.word.relatedNoun.strongs ? ` ${studyData.word.relatedNoun.strongs}` : ''}${studyData.word.relatedNoun.connection ? `\n  ${studyData.word.relatedNoun.connection}` : ''}`
-                                                : '';
-                                            const text = `
+                                    <div className="ws-header-actions">
+                                        <button
+                                            className={`ws-save-btn ${isSaved ? 'saved' : ''} ${saving ? 'saving' : ''}`}
+                                            onClick={handleToggleSave}
+                                            disabled={saving}
+                                            title={isSaved ? 'Remove from Profile' : 'Save to Profile'}
+                                        >
+                                            {saving ? (
+                                                <span className="ws-save-spinner">...</span>
+                                            ) : isSaved ? (
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M5 21V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V21L12 17L5 21Z" />
+                                                </svg>
+                                            ) : (
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M19 21L12 17L5 21V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V21Z" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                        <button
+                                            className="ws-save-btn"
+                                            onClick={async () => {
+                                                if (!studyData) return;
+                                                const grammarText = studyData.word?.grammar ?
+                                                    `${studyData.word.grammar.form || ''}${studyData.word.grammar.linguisticFunction ? ` — ${studyData.word.grammar.linguisticFunction}` : studyData.word.grammar.analysis ? ` — ${studyData.word.grammar.analysis}` : ''}${studyData.word.grammar.contextualSignificance ? `\n  → ${studyData.word.grammar.contextualSignificance}` : ''}`
+                                                    : '';
+                                                const relatedNounText = studyData.word?.relatedNoun ?
+                                                    `\n${t.relatedNoun}: ${studyData.word.relatedNoun.original} (${studyData.word.relatedNoun.transliteration})${studyData.word.relatedNoun.strongs ? ` ${studyData.word.relatedNoun.strongs}` : ''}${studyData.word.relatedNoun.connection ? `\n  ${studyData.word.relatedNoun.connection}` : ''}`
+                                                    : '';
+                                                const text = `
 ${t.wordStudy}: ${studyData.word?.original} (${studyData.word?.transliteration})
 ${t.lemma}: ${studyData.word?.lemma || ''} ${studyData.word?.strongs ? `(${studyData.word.strongs})` : ''}${relatedNounText}
 ${t.grammar}: ${grammarText}
@@ -425,60 +424,49 @@ ${t.relatedVerses}:
 ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` : ''}`).join('\n') || ''}
 `.trim();
 
-                                            const copyToClipboard = async (textToCopy) => {
-                                                // 1. Try modern API (works on HTTPS/localhost)
-                                                if (navigator.clipboard && navigator.clipboard.writeText) {
-                                                    try {
-                                                        await navigator.clipboard.writeText(textToCopy);
-                                                        return true;
-                                                    } catch (err) {
-                                                        console.warn('Clipboard API failed, trying fallback...', err);
+                                                const copyToClipboard = async (textToCopy) => {
+                                                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                                                        try {
+                                                            await navigator.clipboard.writeText(textToCopy);
+                                                            return true;
+                                                        } catch (err) {
+                                                            console.warn('Clipboard API failed, trying fallback...', err);
+                                                        }
                                                     }
+                                                    try {
+                                                        const textArea = document.createElement("textarea");
+                                                        textArea.value = textToCopy;
+                                                        textArea.style.position = "fixed";
+                                                        textArea.style.left = "-9999px";
+                                                        textArea.style.top = "0";
+                                                        textArea.setAttribute('readonly', '');
+                                                        document.body.appendChild(textArea);
+                                                        textArea.select();
+                                                        textArea.setSelectionRange(0, 99999);
+                                                        const successful = document.execCommand('copy');
+                                                        document.body.removeChild(textArea);
+                                                        return successful;
+                                                    } catch (err) {
+                                                        console.error('Copy fallback failed', err);
+                                                        return false;
+                                                    }
+                                                };
+
+                                                const success = await copyToClipboard(text);
+                                                if (success) {
+                                                    alert('Copied to clipboard! 📋');
+                                                } else {
+                                                    alert('Could not copy automatically. Please try valid HTTPS context.');
                                                 }
-
-                                                // 2. Fallback for HTTP / Older Browsers / WebViews
-                                                try {
-                                                    const textArea = document.createElement("textarea");
-                                                    textArea.value = textToCopy;
-
-                                                    // Ensure valid style so it doesn't break layout but is invisible
-                                                    textArea.style.position = "fixed";
-                                                    textArea.style.left = "-9999px";
-                                                    textArea.style.top = "0";
-                                                    textArea.setAttribute('readonly', '');
-
-                                                    document.body.appendChild(textArea);
-
-                                                    // Select text - iOS compat
-                                                    textArea.select();
-                                                    textArea.setSelectionRange(0, 99999);
-
-                                                    const successful = document.execCommand('copy');
-                                                    document.body.removeChild(textArea);
-
-                                                    return successful;
-                                                } catch (err) {
-                                                    console.error('Copy fallback failed', err);
-                                                    return false;
-                                                }
-                                            };
-
-                                            const success = await copyToClipboard(text);
-                                            if (success) {
-                                                alert('Copied to clipboard! 📋');
-                                            } else {
-                                                alert('Could not copy automatically. Please try valid HTTPS context.');
-                                            }
-                                        }}
-                                        title="Copy to Clipboard"
-                                        style={{ marginLeft: '8px' }}
-                                    >
-                                        {/* Copy Icon */}
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                        </svg>
-                                    </button>
+                                            }}
+                                            title="Copy to Clipboard"
+                                        >
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="ws-lemma-row">
                                     <span className="ws-label">{t.lemma}:</span> {studyData.word.lemma}

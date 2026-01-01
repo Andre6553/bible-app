@@ -1,11 +1,28 @@
 .bible-reader {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    /* Fill available space */
-    height: 100%;
-    overflow: hidden;
+    height: 100vh;
     width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.bible-reader-main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    /* Important: prevents parent from expanding beyond viewport */
+    width: 100%;
+    position: relative;
+}
+
+.bible-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-width: 0;
+    overflow: hidden;
 }
 
 /* Header Styling */
@@ -214,7 +231,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 99999;
     padding: var(--spacing-lg);
     animation: fadeIn var(--transition-base);
 }
@@ -323,6 +340,8 @@
 
 .book-item:hover {
     background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
 }
@@ -337,12 +356,12 @@
 /* Verses Container */
 .verses-container {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: auto !important;
     padding: var(--spacing-lg);
     padding-bottom: calc(120px + var(--safe-bottom));
-    /* Increased padding for bottom nav */
     box-sizing: border-box;
     scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
 .verses-container.split-view {
@@ -378,7 +397,9 @@
 .secondary-column {
     flex: 1;
     min-width: 0;
-    /* Prevent overflow */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .verses-container.split-view .primary-column,
@@ -591,7 +612,6 @@
 
 .verse-text {
     color: var(--text-primary);
-    /* font-size removed to inherit from parent */
     line-height: 1.8;
 }
 
@@ -1237,44 +1257,176 @@ body.reader-mode-active .verses-content {
 }
 
 /* --- Hover Effects for Desktop --- */
-.book-item:hover {
-    background: rgba(255, 255, 255, 0.15);
-    /* Lighter background */
-    color: #fff;
-    /* Brighter text */
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    border-color: rgba(255, 255, 255, 0.3);
-    cursor: pointer;
+
+.number-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)) !important;
+    gap: 12px !important;
+    padding: 20px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 .number-item {
-    /* Ensure base style exists if missing */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 50px;
-    height: 50px;
-    background: var(--bg-tertiary);
-    border-radius: 8px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid transparent;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    aspect-ratio: 1 / 1 !important;
+    background: var(--bg-tertiary) !important;
+    border-radius: 8px !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    cursor: pointer !important;
+    border: 1px solid var(--border-subtle) !important;
+    transition: all 0.2s !important;
 }
 
 .number-item:hover {
-    background: var(--accent-primary);
-    color: white;
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: var(--bg-elevated) !important;
+    border-color: var(--accent-primary) !important;
+    transform: scale(1.05) !important;
 }
 
-.number-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
-    gap: 12px;
-    padding: 16px;
+.number-item.active {
+    background: var(--accent-primary) !important;
+    color: white !important;
+    border-color: var(--accent-secondary) !important;
+}
+
+/* Loading & State Utilities */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    height: 100%;
+    width: 100%;
+    gap: 15px;
+    color: var(--text-secondary);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--accent-primary);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.column-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--accent-primary);
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 15px;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    z-index: 5;
+}
+
+/* --- Smart Sync Banner --- */
+.sync-banner {
+    background: linear-gradient(135deg, #6366f1, #a855f7) !important;
+    backdrop-filter: blur(10px) !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2) !important;
+    padding: 12px 20px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    position: sticky !important;
+    top: 60px !important;
+    z-index: 1001 !important;
+    gap: 15px !important;
+    animation: slideDownSync 0.4s ease-out !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+    color: white !important;
+}
+
+@keyframes slideDownSync {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.sync-content {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+}
+
+.sync-content p {
+    margin: 0 !important;
+    font-size: 0.95rem !important;
+    color: white !important;
+}
+
+.sync-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.sync-btn {
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.sync-accept {
+    background: white !important;
+    color: #6366f1 !important;
+}
+
+.sync-dismiss {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 50% !important;
+    display: grid !important;
+    place-items: center !important;
+}
+
+@media (max-width: 600px) {
+    .sync-banner {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        padding: 16px !important;
+        top: 0 !important;
+        /* Force to top on mobile */
+        position: relative !important;
+        /* Move with content on small screens if sticky is weird */
+    }
+
+    .sync-actions {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    .sync-accept {
+        flex: 1 !important;
+        text-align: center !important;
+    }
 }
