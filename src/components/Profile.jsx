@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllNotes, getStudyCollections, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory, getHighlightsByColors, deleteHighlightsByIds, fetchHighlightTexts, getHighlightCount } from '../services/highlightService';
+import { getAllNotes, getStudyCollections, createStudyCollection, getLabels, removeHighlight, deleteNote, deleteStudyCollection, HIGHLIGHT_COLORS, getHighlightCategories, deleteCategory, getHighlightsByColors, deleteHighlightsByIds, fetchHighlightTexts, getHighlightCount } from '../services/highlightService';
 import { getBooks, getVersions, logActivity } from '../services/bibleService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { isVersionDownloaded, getDownloadedVersions, downloadVersion, deleteOfflineVersion, getStorageUsage, formatBytes } from '../services/offlineService';
@@ -936,14 +936,50 @@ function Profile() {
                         {/* Studies Tab */}
                         {activeTab === 'studies' && (
                             <div className="studies-list">
+                                <div style={{ padding: '0 var(--spacing-md) var(--spacing-md)' }}>
+                                    <button
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            backgroundColor: 'var(--accent-color)',
+                                            color: '#fff',
+                                            border: 'none',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '8px'
+                                        }}
+                                        onClick={async () => {
+                                            const name = prompt(settings.language === 'af' ? "Gee 'n naam vir jou nuwe studie:" : "Enter a name for your new study collection:");
+                                            if (name && name.trim()) {
+                                                const res = await createStudyCollection(name.trim());
+                                                if (res.success) {
+                                                    setStudies([res.collection, ...studies]);
+                                                } else {
+                                                    alert("Failed to create study");
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <span>➕</span> {settings.language === 'af' ? 'Skep Nuwe Studie' : 'Create New Study'}
+                                    </button>
+                                </div>
+
                                 {studies.length === 0 ? (
                                     <div className="empty-state">
-                                        <p>No study collections yet</p>
-                                        <p className="empty-hint">Create a study when adding notes to group related scriptures</p>
+                                        <p>{settings.language === 'af' ? 'Nog geen studies nie' : 'No study collections yet'}</p>
+                                        <p className="empty-hint">
+                                            {settings.language === 'af'
+                                                ? 'Skep \'n studie om verwante notas en skrifgedeeltes saam te groepeer'
+                                                : 'Create a study to group related notes and scriptures together'}
+                                        </p>
                                     </div>
                                 ) : (
                                     studies.map(study => {
-                                        const studyNotes = notes.filter(n => n.id === study.id); // This was incorrect, should be n.study_id === study.id
+                                        const studyNotes = notes.filter(n => n.study_id === study.id);
                                         return (
                                             <div
                                                 key={study.id}
