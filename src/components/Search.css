@@ -1224,6 +1224,24 @@
     /* Remove border in full screen for cleaner look */
     border-radius: 0;
     -webkit-overflow-scrolling: touch;
+    /* Force Scrollbar Visibility */
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary) transparent;
+}
+
+.ai-response.expanded .ai-answer::-webkit-scrollbar {
+    width: 6px;
+    /* Visible width */
+    display: block;
+}
+
+.ai-response.expanded .ai-answer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ai-response.expanded .ai-answer::-webkit-scrollbar-thumb {
+    background-color: var(--accent-primary);
+    border-radius: 3px;
 }
 
 /* Navigation buttons in expanded mode */
