@@ -1430,3 +1430,28 @@ body.reader-mode-active .verses-content {
         text-align: center !important;
     }
 }
+
+/* FIX: Mobile Parallel Reading (Stack Layout) */
+@media (max-width: 768px) {
+    .bible-reader-main.split-active {
+        flex-direction: column !important;
+    }
+
+    .bible-reader-main.split-active .bible-column {
+        width: 100% !important;
+        height: 50% !important;
+        flex: 1 1 50% !important;
+        overflow: hidden;
+        /* Ensure inner scroll works */
+    }
+
+    .bible-reader-main.split-active .primary-column {
+        border-bottom: 2px solid var(--border-subtle);
+    }
+
+    .bible-reader-main.split-active .secondary-column {
+        border-left: none !important;
+        border-top: none;
+        /* Handled by primary border-bottom */
+    }
+}
