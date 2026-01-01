@@ -394,8 +394,13 @@ const initializeNewUser = async (userId) => {
     try {
         console.log('[InitUser] 🆕 Initializing new user:', userId);
 
-        // Notify admin about the new guest joining (non-blocking)
-        notifyAdminOfNewUser(userId).catch(e => console.warn('[InitUser] Admin notify failed:', e));
+        // Notify admin (ONE-TIME CHECK via localStorage)
+        const hasNotified = localStorage.getItem(`admin_notified_${userId}`);
+        if (!hasNotified) {
+            notifyAdminOfNewUser(userId)
+                .then(() => localStorage.setItem(`admin_notified_${userId}`, 'true'))
+                .catch(e => console.warn('[InitUser] Admin notify failed:', e));
+        }
 
         // 1. Fetch relevant settings for auto-promotion
         const { data: settings, error } = await supabase
