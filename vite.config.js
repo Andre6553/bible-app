@@ -31,12 +31,15 @@ export default defineConfig({
             },
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+                skipWaiting: true,
+                clientsClaim: true,
+                cleanupOutdatedCaches: true,
                 runtimeCaching: [
                     {
                         urlPattern: /^https:\/\/fikjnvkzhemamtlwsrin\.supabase\.co\/.*/i,
                         handler: 'NetworkFirst',
                         options: {
-                            cacheName: 'bible-api-cache-v2', // Bump version to force refresh
+                            cacheName: 'bible-api-cache-v3', // Bump to v3 to force update
                             expiration: {
                                 maxEntries: 100,
                                 maxAgeSeconds: 60 * 60 * 24 // 24 hours
