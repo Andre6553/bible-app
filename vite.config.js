@@ -9,6 +9,7 @@ export default defineConfig({
             registerType: 'autoUpdate',
             includeAssets: ['bible-icon.svg', 'icon-192.png', 'icon-512.png'],
             manifest: {
+                id: '/',
                 name: 'Bible Study App',
                 short_name: 'Bible',
                 description: 'Read and study multiple Bible versions',
@@ -20,12 +21,30 @@ export default defineConfig({
                     {
                         src: 'icon-192.png',
                         sizes: '192x192',
-                        type: 'image/png'
+                        type: 'image/png',
+                        purpose: 'any maskable'
                     },
                     {
                         src: 'icon-512.png',
                         sizes: '512x512',
-                        type: 'image/png'
+                        type: 'image/png',
+                        purpose: 'any maskable'
+                    }
+                ],
+                screenshots: [
+                    {
+                        src: 'icon-512.png', // Temporary: Replace with actual screenshot of your app
+                        sizes: '512x512',
+                        type: 'image/png',
+                        form_factor: 'wide',
+                        label: 'Desktop View'
+                    },
+                    {
+                        src: 'icon-512.png', // Temporary: Replace with actual screenshot of your app
+                        sizes: '512x512',
+                        type: 'image/png',
+                        form_factor: 'narrow',
+                        label: 'Mobile View'
                     }
                 ]
             },
