@@ -593,17 +593,6 @@ function Profile() {
 
     return (
         <div className="profile-page">
-            <div style={{
-                textAlign: 'center',
-                color: 'white',
-                padding: '10px',
-                background: '#ef4444',
-                fontWeight: 'bold',
-                marginBottom: '10px',
-                borderRadius: '8px'
-            }}>
-                ⚠️ Testing Deployment Automation ⚠️
-            </div>
             {/* Header with profile picture */}
             <div className="profile-header">
                 <div className="profile-pic-container">
