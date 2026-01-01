@@ -129,13 +129,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     // Scroll Synchronization Refs
     const primaryScrollRef = useRef(null);
     const secondaryScrollRef = useRef(null);
-    const isSyncingScroll = useRef(false);
+    const scrollDriver = useRef(null); // 'primary' or 'secondary'
+    const scrollTimeout = useRef(null);
 
-    const handleScroll = (source, target) => {
-        if (!isSplitView || isSyncingScroll.current) return;
+    const handleScroll = (sourceName, source, target) => {
+        if (!isSplitView) return;
         if (!source.current || !target.current) return;
 
-        isSyncingScroll.current = true;
+        // If the other column is currently driving, ignore this event (prevent feedback loop)
+        if (scrollDriver.current && scrollDriver.current !== sourceName) return;
+
+        // Set us as the driver
+        scrollDriver.current = sourceName;
+
+        // Clear existing release timer
+        if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
 
         // Calculate the percentage scrolled in the source
         const sourceScrollTop = source.current.scrollTop;
@@ -146,10 +154,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         const targetScrollHeight = target.current.scrollHeight - target.current.clientHeight;
         target.current.scrollTop = scrollPercentage * targetScrollHeight;
 
-        // Reset the flag after a short timeout to prevent feedback loops
-        setTimeout(() => {
-            isSyncingScroll.current = false;
-        }, 50);
+        // Release the driver lock shortly after scrolling stops
+        scrollTimeout.current = setTimeout(() => {
+            scrollDriver.current = null;
+        }, 100);
     };
 
     // Listen for global event to exit reader mode (e.g. from BottomNav click)
@@ -1115,7 +1123,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             className="verses-container"
                             style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}
                             ref={primaryScrollRef}
-                            onScroll={() => handleScroll(primaryScrollRef, secondaryScrollRef)}
+                            onScroll={() => handleScroll('primary', primaryScrollRef, secondaryScrollRef)}
                         >
                             {!isSplitView && (
                                 <h1 className="chapter-title">
@@ -1171,9 +1179,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 className="verses-container secondary-verses"
                                 style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}
                                 ref={secondaryScrollRef}
-                                onScroll={() => handleScroll(secondaryScrollRef, primaryScrollRef)}
+                                onScroll={() => handleScroll('secondary', secondaryScrollRef, primaryScrollRef)}
                             >
-                                <div className="column-title">{secondVersion.abbreviation}</div>
                                 <div className="verses-list">
                                     {Array.from(new Set(secondVerses.map(v => v.verse))).map(verseNum => {
                                         const verse = secondVerses.find(v => v.verse === verseNum);

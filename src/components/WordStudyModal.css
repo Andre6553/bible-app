@@ -244,9 +244,9 @@
 }
 
 .ws-data {
-    display: grid !important;
-    grid-template-columns: 100% !important;
-    row-gap: 24px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px !important;
     width: 100% !important;
     position: relative !important;
 }
@@ -257,8 +257,10 @@
     display: block !important;
     width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
+    height: auto !important;
+    /* Ensure height scales with content */
+    flex-shrink: 0 !important;
+    /* Prevent shrinking overlap */
 }
 
 @keyframes ws-fade-in {
