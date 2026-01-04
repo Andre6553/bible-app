@@ -1,230 +1,196 @@
-# Bible Study Application
+# 📖 Omni Bible
 
-A comprehensive Bible study web application built with React and Supabase, featuring multiple Bible versions, intuitive reading experience, and powerful search capabilities.
+<div align="center">
 
-## Features
+![Omni Bible](https://img.shields.io/badge/Omni-Bible-blue?style=for-the-badge)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=flat-square&logo=supabase)
+![PWA](https://img.shields.io/badge/PWA-Ready-purple?style=flat-square)
+![Gemini AI](https://img.shields.io/badge/Gemini-AI%20Powered-4285F4?style=flat-square&logo=google)
 
-- 📖 **Multiple Bible Versions**: AFR83, NLT, AFR53 (Upgraded), KJV, and AMP
-- 🔍 **AI Concept Search**: Find verses by meaning, theme, or feeling, not just keywords
-- 🤖 **AI Chapter Summaries**: Get scholarly summaries and outlines for any chapter
-- ⚖️ **Parallel Reading**: side-by-side split view for comparing translations
-- 📱 **Responsive Design**: Works seamlessly on mobile and desktop devices
-- ⚡ **Progressive Web App**: Install on your device for native-like experience
-- 🎨 **Modern UI**: YouVersion-inspired interface with smooth animations
-- 🌙 **Dark Theme**: Easy on the eyes for extended reading sessions
-- 📚 **Easy Navigation**: Quick book and chapter selection
-- 💾 **Offline Support**: Service worker caching for improved performance
+**The AI-Powered Bible Study App for South Africa**
 
-## Prerequisites
+*Read. Study. Prepare. Preach.*
 
-- Node.js (version 16 or higher)
-- npm or yarn package manager
-- Supabase account with Bible database configured
+[Live Demo](https://bible-app-chi-mauve.vercel.app) · [Features](#-features) · [Comparison](#-competitor-comparison)
 
-## Database Schema
+</div>
 
-Your Supabase database should have the following tables:
+---
 
-### `versions` table
-```sql
-- id: integer (primary key)
-- abbreviation: text (e.g., "KJV", "NLT")
-- name: text (e.g., "King James Version")
-```
+## 🚀 What Makes Omni Bible Different?
 
-### `books` table
-```sql
-- id: integer (primary key)
-- name: text (e.g., "Genesis", "Matthew")
-- testament: text ("OT" or "NT")
-- book_order: integer (1-66)
-```
+Omni Bible is not just another Bible reading app. It's a **complete Bible study and sermon preparation platform** with AI capabilities that no other app offers.
 
-### `verses` table
-```sql
-- id: integer (primary key)
-- book_id: integer (foreign key to books)
-- chapter: integer
-- verse: integer
-- text: text
-- version_id: integer (foreign key to versions)
-```
+| What We Do | What Others Don't |
+|------------|-------------------|
+| 🤖 AI Sermon Builder | Build full sermons with AI assistance |
+| 📚 3 Afrikaans Translations | AFR53, AFR83, AFR NLV |
+| 🇿🇦 ZAR Pricing | Affordable for South Africans |
+| 📖 AI Word Study | Greek/Hebrew analysis on any word |
+| 💬 AI Bible Q&A | Ask questions, get scripture-backed answers |
 
-## Installation
+---
 
-1. **Clone or download this project**
+## ✨ Features
 
-2. **Install dependencies**
-```bash
-npm install
-```
+### 📖 Bible Reading
+| Feature | Description |
+|---------|-------------|
+| **6 Translations** | AFR53, AFR83, AFR NLV, KJV, NLT, AMP |
+| **Split View** | Compare two translations side-by-side |
+| **Red Letter** | Words of Jesus highlighted in red |
+| **Offline Reading** | Download translations for offline use |
+| **Verse Highlighting** | 20+ colors with custom categories |
+| **Personal Notes** | Add notes to any verse |
+| **Cloud Sync** | Sync highlights and notes across devices |
 
-3. **Configure Supabase**
-   - The Supabase URL and API key are already configured in `src/config/supabaseClient.js`
-   - Ensure your Supabase database has the required tables and data
+### 🔍 Search & Discovery
+| Feature | Description |
+|---------|-------------|
+| **Exact Search** | Find verses containing specific words |
+| **Semantic Search** | AI-powered concept-based search |
+| **AI Q&A** | Ask any Bible question in natural language |
+| **Search History** | Quick access to recent searches |
+| **Bulk Highlight** | Highlight multiple search results at once |
+| **Cross-Reference** | Navigate between related verses |
 
-4. **Run the development server**
-```bash
-npm run dev
-```
+### 📝 Study Tools
+| Feature | Description |
+|---------|-------------|
+| **Word Study** | Greek/Hebrew analysis with AI |
+| **Inductive Study** | Observation → Interpretation → Application |
+| **Chapter Summary** | AI-generated chapter overviews |
+| **Study Notes** | Organize your personal studies |
+| **Share Verses** | Create beautiful shareable images |
 
-The application will open automatically at `http://localhost:3000`
+### ⛪ Sermon Preparation Suite
+| Feature | Description |
+|---------|-------------|
+| **AI Skeleton** | Auto-generate sermon structure from scripture |
+| **AI Content** | Generate full spoken notes for each point |
+| **Sermon Audit** | AI review with improvement suggestions |
+| **PDF Export** | Print-ready formatted sermons |
+| **Duration Control** | Target specific time budgets |
+| **Tone Selection** | High Energy, Compassionate, Teaching, etc. |
+| **Research Tools** | Word Study, History, Commentary, Illustrations |
 
-## Build for Production
+### 📰 Daily Content
+| Feature | Description |
+|---------|-------------|
+| **AI Devotional** | Fresh daily inspiration based on your interests |
+| **Recommended Reading** | Personalized articles from your search history |
+| **Seasonal Awareness** | Content relevant to holidays and seasons |
+| **Keyword Tracking** | Highlight topics you care about |
 
-```bash
-npm run build
-```
+### ⚙️ Platform Features
+| Feature | Description |
+|---------|-------------|
+| **PWA** | Install on any device like a native app |
+| **Dark/Light Theme** | Automatic or manual theme switching |
+| **Bilingual UI** | Full English and Afrikaans interface |
+| **Profile System** | Profile picture, display name, cloud backup |
+| **Admin Dashboard** | Analytics, user management, error logging |
 
-## Preview Production Build
+---
 
-```bash
-npm run preview
-```
+## 🏆 Competitor Comparison
 
-## Deployment
+### Feature-by-Feature Analysis
 
-### Deploy to Netlify
+| Feature | **Omni Bible** | YouVersion | Logos | Olive Tree | Blue Letter |
+|---------|---------------|------------|-------|------------|-------------|
+| **Free Tier** | ✅ Yes | ✅ Yes | ⚠️ Limited | ⚠️ Limited | ✅ Yes |
+| **Afrikaans Bibles** | ✅ 3 versions | ✅ 2 versions | ⚠️ Paid | ⚠️ Paid | ❌ No |
+| **AI Sermon Builder** | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ |
+| **AI Bible Q&A** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **AI Word Study** | ✅ | ❌ | ⚠️ Manual | ⚠️ Manual | ⚠️ Manual |
+| **Semantic Search** | ✅ AI-powered | ❌ | ⚠️ Paid | ❌ | ❌ |
+| **AI Devotionals** | ✅ Personalized | ✅ Pre-written | ❌ | ❌ | ❌ |
+| **Offline Bible** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Split View** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Highlighting** | ✅ 20+ colors | ✅ 5 colors | ✅ | ✅ | ⚠️ Limited |
+| **Notes** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **PDF Export** | ✅ Formatted | ❌ | ✅ | ✅ | ❌ |
+| **Reading Plans** | ❌ Coming | ✅ | ✅ | ✅ | ✅ |
+| **Social Features** | ❌ Coming | ✅ | ⚠️ | ❌ | ❌ |
+| **Price** | 🆓 Free / R99/mo | 🆓 Free / $$ | 💰 $149+ | 💰 $30+ | 🆓 Free / $$ |
 
-1. Push your code to a Git repository
-2. Connect your repository to Netlify
-3. Set build command: `npm run build`
-4. Set publish directory: `dist`
+### Our Unique Advantages
 
-### Deploy to Vercel
+1. **🤖 AI Sermon Builder** - No competitor has this. Generate full sermon outlines and content with AI assistance.
 
-1. Install Vercel CLI: `npm i -g vercel`
-2. Run: `vercel`
-3. Follow the prompts
+2. **🇿🇦 South African Focus** - 3 Afrikaans translations, ZAR pricing, local relevance.
 
-### Deploy to GitHub Pages
+3. **💬 Natural Language Bible Q&A** - Ask questions in plain language, get scripture-backed answers.
 
-1. Install gh-pages: `npm install --save-dev gh-pages`
-2. Add to package.json scripts:
-   ```json
-   "predeploy": "npm run build",
-   "deploy": "gh-pages -d dist"
-   ```
-3. Run: `npm run deploy`
+4. **📖 AI Word Study** - Instant Greek/Hebrew analysis on any selected word.
 
-## Project Structure
+5. **🔍 Semantic Search** - Search by concept, not just keywords.
 
-```
-bible-study-app/
-├── public/
-│   └── manifest.json          # PWA manifest
-├── src/
-│   ├── components/
-│   │   ├── BibleReader.jsx    # Main Bible reading component
-│   │   ├── BibleReader.css
-│   │   ├── Search.jsx         # Search component
-│   │   ├── Search.css
-│   │   ├── BottomNav.jsx      # Navigation component
-│   │   └── BottomNav.css
-│   ├── config/
-│   │   └── supabaseClient.js  # Supabase configuration
-│   ├── services/
-│   │   └── bibleService.js    # Bible data API methods
-│   ├── App.jsx                # Main app component
-│   ├── App.css                # Global styles
-│   ├── main.jsx               # Entry point
-│   └── index.css              # CSS reset
-├── index.html
-├── package.json
-└── vite.config.js             # Vite & PWA configuration
-```
+6. **📰 Personalized Devotionals** - AI generates fresh content based on YOUR interests.
 
-## 📱 User Manual & Features
+---
 
-### 📖 Bible Reader
-- **Version Selection**: Tap the version badge in the top right to switch between **AFR83, NLT, AFR53, KJV, AMP**.
-- **Parallel Reading (Split-View) ⚖️**: Tap the 📖 icon to compare two versions side-by-side. 
-    - **PC**: Displays two synchronized columns.
-    - **Mobile**: Uses an integrated interleaved view for easy comparison.
-- **AI Chapter Summaries 📝**: Click the document icon next to the chapter title for a scholarly summary and outline of the text (in English or Afrikaans).
-- **Navigation**: Tap the **Book Name** (e.g., "John 3") for the quick selector, or use the arrow keys to flip chapters.
+## 📊 Ratings
 
-### 🔍 Search & AI
-- **Concept Search (AI) 🤖**: Ask questions like "how to deal with anxiety" or "God's promises". The AI understands meaning, not just keywords.
-- **Exact Match 🔍**: Standard search for specific phrases like "love your neighbor".
-- **AI Research Lab**: Use shortcuts directly in the search bar:
-    - `/story [topic]` - Get the full biblical narrative.
-    - `/mean [word]` - Biblical definition.
-    - `/explain [topic]` - Theological explanation.
-    - `/who [person]` - Biography.
-- **History Management 🕒**: Access your last 30 searches. Toggle "Manage" mode to delete specific history items.
+| Category | Score | Notes |
+|----------|-------|-------|
+| Bible Reading | 8.5/10 | Full-featured with offline support |
+| Search | 9/10 | AI semantic search is unique |
+| Study Tools | 9/10 | AI Word Study, Inductive Study |
+| Sermon Prep | 9.5/10 | Best-in-class, no competition |
+| AI Features | 9.5/10 | Innovative and functional |
+| Mobile Experience | 8/10 | PWA works well, native planned |
+| Design/UX | 8/10 | Modern, clean, theme-aware |
+| Value for Money | 9.5/10 | Exceptional for the price |
 
-### ✍️ Daily Inspiration (Blog)
-- **Daily Devotional**: A fresh, AI-generated devotional greets you every day based on diverse themes.
-- **Recommended Reading**: Personalized articles based on your interests.
-- **Language Toggle**: 
-    - Go to **Profile** page.
-    - Switch between **English** and **Afrikaans**.
-    - This localizes all blog content, headers, and even scripture references (using correct AFR53/83 texts).
-    - **Note**: The **AFR53** text has been fully upgraded to a high-quality, clean digital version.
-- **"New" (Nuut) Button**:
-    - Don't like today's content? Tap **"New"** (or **"Nuut"**) to generate fresh content immediately.
-    - **Note**: Regular users can refresh once per hour (or day, depending on settings). **Super Users** have unlimited refreshes.
+### **Overall: 8.9/10** ⭐⭐⭐⭐½
 
-### 👤 Profile & Settings
-- **Personalize**: Set your display name.
-- **Stats**: View your reading streaks and highlights.
+### **For South African Market: 9.5/10** ⭐⭐⭐⭐⭐
 
-### 🛠️ Admin & Shortcuts
-There is a hidden **Diagnostics & Shortcuts Menu** for power users and admins (to view error logs, system health, and test crashes).
+---
 
-- **How to Access**: 
-    1. Go to the app.
-    2. Tap the **Profile (User Icon)** in the bottom navigation bar **5 times quickly**.
-    3. You will be taken to the hidden `/stats` page.
-- **Features**:
-    - View System Health.
-    - View/Clear Error Logs.
-    - Test System Stability.
+## 🛠️ Tech Stack
 
-## Technologies Used
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19, Vite, CSS3 |
+| **Backend** | Supabase (PostgreSQL + Auth) |
+| **AI** | Google Gemini 2.0 Flash |
+| **Hosting** | Vercel |
+| **PWA** | Vite PWA Plugin |
+| **Analytics** | Vercel Analytics |
 
-- **React** - UI framework
-- **Vite** - Build tool and dev server
-- **React Router** - Client-side routing
-- **Supabase** - Backend and database
-- **Vite PWA Plugin** - Progressive Web App functionality
-- **Workbox** - Service worker and caching
+---
 
-## Browser Support
+## 📱 Screenshots
 
-- Chrome/Edge (latest)
-- Firefox (latest)
-- Safari (latest)
-- Mobile browsers (iOS Safari, Chrome Mobile)
+*Coming soon*
 
-## Performance Features
+---
 
-- Service worker caching for API responses
-- Lazy loading of components
-- Optimized bundle size
-- Fast initial load with Vite
+## 🗺️ Roadmap
 
-## 🔑 Project Credentials & Backend
+- [ ] Reading Plans
+- [ ] Social/Community Features
+- [ ] Audio Bible
+- [ ] Native Mobile Apps (iOS/Android)
+- [ ] More Translations
+- [ ] Church Group Features
 
-For administrative purposes, here are the key connections and credentials used by this app:
+---
 
-- **GitHub Repository**: [Andre6553/bible-app](https://github.com/Andre6553/bible-app)
-- **Google Gemini API**: Used for AI devotionals and research.
-    - **Endpoint**: `https://generativelanguage.googleapis.com`
-    - **Key**: Managed via `VITE_GEMINI_API_KEY` in `.env`
-- **Supabase Backend**: Core database and authentication.
-    - **URL**: `https://fikjnvkzhemamtlwsrin.supabase.co`
-    - **Keys**: Managed in `src/config/supabaseClient.js`
-- **Vercel Deployment**: [bible-app-phi-one.vercel.app](https://bible-app-phi-one.vercel.app)
+## 📄 License
 
-> [!NOTE]
-> You can also view these live in the **Admin Stats** page (under "Project Credentials & Backend") after unlocking with the admin PIN.
+Proprietary. All rights reserved.
 
-## License
+---
 
-This project is open source and available under the MIT License.
+<div align="center">
 
-## Support
+**Built with ❤️ for South African Christians**
 
-For issues or questions, please open an issue in the project repository.
+*"Your word is a lamp for my feet, a light on my path." - Psalm 119:105*
+
+</div>

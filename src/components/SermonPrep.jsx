@@ -275,6 +275,389 @@ const SermonPrep = () => {
         setCurrentSermon({ ...currentSermon, full_text: assembled });
     };
 
+    const handlePreachMode = async () => {
+        // 1. Build the HTML content (similar to PDF but optimized for screens)
+        const sermonTitle = currentSermon.title || (isAf ? 'Preek Konsep' : 'Sermon Draft');
+
+        // Ensure we have text to display, otherwise show a friendly message
+        const textToFormat = currentSermon.full_text || (isAf ? 'Geen preek inhoud gevind nie. Gaan terug en genereer eers jou preek.' : 'No sermon content found. Go back and generate your sermon first.');
+        // Helper to format text as HTML string (not JSX)
+        const formatSermonHtml = (text) => {
+            if (!text) return '';
+
+            // Split by newlines to handle paragraphs
+            const lines = text.split(/\n+/);
+
+            return lines.map(line => {
+                if (!line.trim()) return '';
+
+                // Process internal formatting for each line
+                const parts = line.split(/(\(.*?\)|"[^"]*"|(?:\*\*|\*)?\s*Objective:.*?(?:\n|$)|(?:\*\*.*?\*\*))/gi);
+
+                const formattedLine = parts.map(part => {
+                    if (!part) return '';
+                    if (part.startsWith('(') && part.endsWith(')')) {
+                        return `<span class="instruction-text">${part}</span>`;
+                    }
+                    if (part.startsWith('"') && part.endsWith('"')) {
+                        return `<span class="scripture-text">${part}</span>`;
+                    }
+                    if (part.startsWith('**Objective:')) {
+                        return `<span class="objective-text">${part.replace(/\*\*/g, '')}</span>`;
+                    }
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                        return `<span class="highlight-text">${part.replace(/\*\*/g, '')}</span>`;
+                    }
+                    return part;
+                }).join('');
+
+                return `<p class="preach-line">${formattedLine}</p>`;
+            }).join('');
+        };
+
+        const formattedHtml = formatSermonHtml(textToFormat);
+
+        // 2. Open new window
+        const preachWindow = window.open('', '_blank');
+        if (!preachWindow) {
+            alert(isAf ? 'Laat asseblief opspring-vensters toe.' : 'Please allow popups.');
+            return;
+        }
+
+        // 3. Inject Preach Mode App
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="${isAf ? 'af' : 'en'}">
+            <head>
+                <meta charset="UTF-8">
+                <link rel="icon" href="data:,">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <title>🗣️ ${sermonTitle} - Preach Mode</title>
+                <style>
+                    :root {
+                        --bg-color: #ffffff;
+                        --text-color: #121212;
+                        --highlight-color: #fef9c3;
+                        --accent-color: #7c3aed;
+                        --font-size: 22px;
+                    }
+                    @media (prefers-color-scheme: dark) {
+                        :root {
+                            --bg-color: #121212;
+                            --text-color: #e5e5e5;
+                            --highlight-color: #3f2e00;
+                            --accent-color: #a78bfa;
+                        }
+                    }
+                    body {
+                        font-family: sans-serif;
+                        line-height: 1.6;
+                        color: var(--text-color);
+                        background: var(--bg-color);
+                        margin: 0;
+                        padding: 20px 20px 100px 20px; /* Bottom padding for controls */
+                        font-size: var(--font-size);
+                        font-weight: bold;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        transition: font-size 0.2s;
+                    }
+                    h1 { font-size: 1.8em; margin-bottom: 0.5em; text-align: center; color: var(--accent-color); }
+                    h2 { font-size: 1.4em; margin-top: 1.5em; border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; }
+                    /* Use specific preach-line class for paragraphs */
+                    .preach-line, li {
+                        padding: 12px;
+                        border-radius: 8px;
+                        margin-bottom: 8px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        user-select: none; /* Prevent text selection for Long Press */
+                        -webkit-user-select: none;
+                        -webkit-touch-callout: none; /* Prevent iOS Magnifier/Menu */
+                        touch-action: manipulation; /* Optimize touch events */
+                    }
+                    .preach-line:active, li:active { transform: scale(0.99); }
+                    .reading-active {
+                        background: var(--highlight-color);
+                        box-shadow: -4px 0 0 0 var(--accent-color);
+                        padding-left: 16px;
+                    }
+                    .highlight-text { color: #ef4444; font-weight: 800; }
+                    .objective-text { color: #dc2626; font-style: italic; border-left: 3px solid #dc2626; padding-left: 10px; opacity: 0.8; font-size: 0.9em; }
+                    .scripture-text { color: #2563eb; font-weight: bold; }
+                    .instruction-text { color: #ef4444; font-weight: bold; }
+                    
+                    /* Hide scrollbar for cleaner reading experience */
+                    ::-webkit-scrollbar {
+                        width: 8px;
+                        background: transparent;
+                    }
+                    ::-webkit-scrollbar-thumb {
+                        background: rgba(124, 58, 237, 0.3);
+                        border-radius: 4px;
+                    }
+                    
+                    /* Controls Bar */
+                    .controls-bar {
+                        position: fixed;
+                        bottom: 20px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: rgba(30, 30, 30, 0.9);
+                        backdrop-filter: blur(10px);
+                        padding: 10px 20px;
+                        border-radius: 50px;
+                        display: flex;
+                        gap: 20px;
+                        align-items: center;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                        z-index: 1000;
+                    }
+                    .control-btn {
+                        background: transparent;
+                        border: 1px solid rgba(255,255,255,0.2);
+                        color: white;
+                        width: 44px;
+                        height: 44px;
+                        border-radius: 50%;
+                        font-size: 20px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .close-btn { background: #ef4444; border-color: #ef4444; }
+                    .control-btn:active { background: rgba(255,255,255,0.2); }
+                    .timer-display {
+                        color: white;
+                        font-variant-numeric: tabular-nums;
+                        font-weight: bold;
+                        font-size: 18px;
+                        min-width: 60px;
+                        text-align: center;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>${sermonTitle}</h1>
+                <div id="content" class="sermon-content">
+                    ${currentSermon.blocks.map(block => `
+                        <h2>${block.title}</h2>
+                        <div class="block-content">
+                            ${formatSermonHtml(block.notes || '')}
+                        </div>
+                    `).join('')}
+                    
+                    ${currentSermon.full_text && !currentSermon.blocks.length ? formatSermonHtml(currentSermon.full_text) : ''}
+                </div>
+
+                <div class="controls-bar">
+                    <button class="control-btn" onclick="adjustFont(-2)">A-</button>
+                    <div class="timer-display" id="timer">00:00</div>
+                    <button class="control-btn" onclick="adjustFont(2)">A+</button>
+                    <button class="control-btn" onclick="toggleTheme()" id="themeBtn">☀️</button>
+                    <button class="control-btn" onclick="toggleWakeLock()" id="wakeLockBtn" style="color: #6b7280">🔓</button>
+                    <button class="control-btn close-btn" onclick="window.close()">❌</button>
+                </div>
+
+                <script>
+                    const STORAGE_KEY = 'preach_progress_${currentSermon.id}';
+                    const THEME_KEY = 'preach_theme_preference';
+
+                    // 0. Theme Logic
+                    let isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    const savedTheme = localStorage.getItem(THEME_KEY);
+                    if (savedTheme) {
+                        isDark = savedTheme === 'dark';
+                    }
+                    
+                    function applyTheme() {
+                        const root = document.documentElement;
+                        const btn = document.getElementById('themeBtn');
+                        if (isDark) {
+                            root.style.setProperty('--bg-color', '#121212');
+                            root.style.setProperty('--text-color', '#e5e5e5');
+                            root.style.setProperty('--highlight-color', '#3f2e00');
+                            root.style.setProperty('--accent-color', '#a78bfa');
+                            btn.innerText = '🌙';
+                        } else {
+                            root.style.setProperty('--bg-color', '#ffffff');
+                            root.style.setProperty('--text-color', '#121212');
+                            root.style.setProperty('--highlight-color', '#fef9c3');
+                            root.style.setProperty('--accent-color', '#7c3aed');
+                            btn.innerText = '☀️';
+                        }
+                    }
+                    
+                    function toggleTheme() {
+                        isDark = !isDark;
+                        localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+                        applyTheme();
+                    }
+                    
+                    // Apply initially
+                    applyTheme();
+
+                    // Main Initialization
+                    window.addEventListener('load', () => {
+                        initPreachMode();
+                    });
+
+                    function initPreachMode(retryCount = 0) {
+                        const lines = document.querySelectorAll('.preach-line, li');
+                        
+                        if (lines.length === 0) {
+                            if (retryCount < 10) {
+                                setTimeout(() => initPreachMode(retryCount + 1), 500);
+                            }
+                            return;
+                        }
+                        
+                        lines.forEach((el, index) => {
+                            el.id = 'line-' + index;
+                            
+                            el.addEventListener('contextmenu', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return false;
+                            });
+
+                            let pressTimer;
+                            let lastTapTime = 0;
+                            const LONG_PRESS_DURATION = 800; 
+                            const DOUBLE_TAP_DELAY = 300;
+                            let isPointerDown = false;
+
+                            // Activate Logic
+                            const activateLine = (element) => {
+                                document.querySelectorAll('.reading-active').forEach(active => {
+                                    if (active !== element) active.classList.remove('reading-active');
+                                });
+                                if (!element.classList.contains('reading-active')) {
+                                    element.classList.add('reading-active');
+                                    if (navigator.vibrate) navigator.vibrate(50);
+                                    localStorage.setItem(STORAGE_KEY, element.id);
+                                }
+                                element.style.transform = 'scale(1)';
+                                element.style.opacity = '1';
+                            };
+
+                            // Deactivate Logic
+                            const deactivateLine = (element) => {
+                                if (element.classList.contains('reading-active')) {
+                                    element.classList.remove('reading-active');
+                                    localStorage.removeItem(STORAGE_KEY);
+                                }
+                            };
+
+                            // POINTER DOWN
+                            el.addEventListener('pointerdown', (e) => {
+                                if (e.button !== 0) return;
+                                
+                                isPointerDown = true;
+                                el.style.transition = 'transform 0.2s, opacity 0.2s';
+                                el.style.transform = 'scale(0.98)';
+                                el.style.opacity = '0.7';
+
+                                pressTimer = setTimeout(() => {
+                                    if (isPointerDown) {
+                                        activateLine(el);
+                                        isPointerDown = false; 
+                                    }
+                                }, LONG_PRESS_DURATION);
+                            });
+
+                            // POINTER UP / LEAVE / CANCEL
+                            const handlePointerEnd = (e) => {
+                                if (isPointerDown) {
+                                    el.style.transform = 'scale(1)';
+                                    el.style.opacity = '1';
+                                    clearTimeout(pressTimer);
+                                    isPointerDown = false;
+                                    
+                                    const currentTime = new Date().getTime();
+                                    const tapLength = currentTime - lastTapTime;
+                                    
+                                    if (tapLength < DOUBLE_TAP_DELAY && tapLength > 0) {
+                                        deactivateLine(el);
+                                        e.preventDefault();
+                                    }
+                                    lastTapTime = currentTime;
+                                }
+                            };
+
+                            el.addEventListener('pointerup', handlePointerEnd);
+                            el.addEventListener('pointercancel', handlePointerEnd);
+                            el.addEventListener('pointerleave', handlePointerEnd);
+                        });
+
+                        // Restore Progress
+                        const savedId = localStorage.getItem(STORAGE_KEY);
+                        if (savedId) {
+                            setTimeout(() => {
+                                const savedEl = document.getElementById(savedId);
+                                if (savedEl) {
+                                    savedEl.classList.add('reading-active');
+                                    savedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }, 300);
+                        }
+                    }
+
+                    // 2. Font Size Logic
+                    let currentSize = 22;
+                    function adjustFont(delta) {
+                        currentSize = Math.max(16, Math.min(42, currentSize + delta));
+                        document.documentElement.style.setProperty('--font-size', currentSize + 'px');
+                    }
+
+                    // 3. Timer Logic
+                    let seconds = 0;
+                    setInterval(() => {
+                        seconds++;
+                        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                        const s = (seconds % 60).toString().padStart(2, '0');
+                        document.getElementById('timer').innerText = \`\${m}:\${s}\`;
+                    }, 1000);
+
+                    // 4. Wake Lock Logic
+                    let wakeLock = null;
+                    async function toggleWakeLock() {
+                        const btn = document.getElementById('wakeLockBtn');
+                        if (!wakeLock) {
+                            // Check support silently
+                            if ('wakeLock' in navigator) {
+                                try {
+                                    wakeLock = await navigator.wakeLock.request('screen');
+                                    btn.innerText = '🔒';
+                                    btn.style.color = '#4ade80'; // Green
+                                } catch (err) {
+                                    console.log('Wake Lock request failed:', err);
+                                    // Fail silently on UI, maybe just keep icon unlocked
+                                }
+                            } else {
+                                console.log('Wake Lock API not supported.');
+                            }
+                        } else {
+                            wakeLock.release();
+                            wakeLock = null;
+                            btn.innerText = '🔓';
+                            btn.style.color = '#6b7280'; // Gray
+                        }
+                    }
+                    
+                    // Auto-request with no alert
+                    toggleWakeLock();
+                </script>
+            </body>
+            </html>
+        `;
+
+        preachWindow.document.write(htmlContent);
+        preachWindow.document.close();
+    };
+
+
     const handleExportPDF = () => {
         if (!currentSermon) return;
 
@@ -1440,6 +1823,9 @@ const SermonPrep = () => {
                     </button>
                     <button className="action-btn secondary pdf-btn" onClick={handleExportPDF}>
                         📄 {isAf ? 'PDF' : 'PDF'}
+                    </button>
+                    <button className="action-btn secondary pdf-btn" onClick={handlePreachMode} style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}>
+                        🗣️ {isAf ? 'Preek Modus' : 'Preach Mode'}
                     </button>
                     <button className="action-btn primary done-btn" onClick={() => handleSaveContent(true)}>
                         ✅ {isAf ? 'Klaar' : 'Done'}
