@@ -119,7 +119,7 @@ const SubscriptionPage = () => {
                 merchant_id: '11945617',
                 merchant_key: '9anvup217hdck',
                 passPhrase: 'OmniBibleApp',
-                baseUrl: 'https://payment.payfast.io/eng/process'
+                baseUrl: 'https://www.payfast.co.za/eng/process'
             };
             // -----------------------------
 
