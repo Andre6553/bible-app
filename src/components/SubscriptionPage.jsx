@@ -26,17 +26,42 @@ const SubscriptionPage = () => {
             .catch(err => console.error('Error fetching exchange rate:', err));
 
         // Check for Payment Return
-        const params = new URLSearchParams(window.location.search);
-        const paymentStatus = params.get('payment');
+        const checkPaymentStatus = async () => {
+            const params = new URLSearchParams(window.location.search);
+            const paymentStatus = params.get('payment');
+            const pfPaymentId = params.get('pf_payment_id'); // PayFast transaction ID
 
-        if (paymentStatus === 'success') {
-            alert(isAf ? 'Betaling Suksesvol! Dankie vir jou ondersteuning.' : 'Payment Successful! Thank you for your support.');
-            // Ideally, here we would verify with backend.
-            // For checking purposes, we can reload profile or navigate away.
-            navigate('/sermon-prep');
-        } else if (paymentStatus === 'cancelled') {
-            alert(isAf ? 'Betaling Gekanselleer.' : 'Payment Cancelled.');
-        }
+            if (paymentStatus === 'success') {
+                console.log('Payment Success detected. Upgrading user...');
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        // Client-Side Update (Temporary Fix)
+                        const { error } = await supabase
+                            .from('user_profiles')
+                            .update({
+                                subscription_override: 'premium',
+                                // renewal_date: new Date().toISOString() // optional tracking
+                            })
+                            .eq('user_id', user.id);
+
+                        if (error) {
+                            console.error('Error upgrading profile:', error);
+                            alert('Payment successful, but profile update failed. Please contact support.');
+                        } else {
+                            alert(isAf ? 'Betaling Suksesvol! Welkom by Premium.' : 'Payment Successful! Welcome to Premium.');
+                            navigate('/sermon-prep');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error in payment success flow:', err);
+                }
+            } else if (paymentStatus === 'cancelled') {
+                alert(isAf ? 'Betaling Gekanselleer.' : 'Payment Cancelled.');
+            }
+        };
+
+        checkPaymentStatus();
 
     }, [navigate, isAf]);
 
@@ -106,10 +131,17 @@ const SubscriptionPage = () => {
             }
 
             // --- PAYFAST CONFIGURATION ---
-            // Switching to "Simple Pay Now" mode to match user snippet
-            // This bypasses the complex Signature/Passphrase requirements that were causing the 500 error.
-            const baseUrl = 'https://payment.payfast.io/eng/process';
-            const receiver = '11945617'; // User's Merchant ID
+            // Toggle this to switch between Sandbox and Live
+            const USE_SANDBOX = true;
+
+            // Config logic
+            const baseUrl = USE_SANDBOX
+                ? 'https://sandbox.payfast.co.za/eng/process'
+                : 'https://payment.payfast.io/eng/process';
+
+            const receiver = USE_SANDBOX
+                ? '10000100'        // Generic Sandbox Merchant ID
+                : '11945617';       // Your Real Merchant ID
             // -----------------------------
 
             const amount = '85.00';
