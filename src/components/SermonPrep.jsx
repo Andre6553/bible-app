@@ -1901,27 +1901,55 @@ const SermonPrep = () => {
                 <div className="loading-spinner"></div>
             ) : (
                 <div className="sermon-grid">
-                    {sermons.map(sermon => (
-                        <div key={sermon.id} className="sermon-card" onClick={() => handleResumeSermon(sermon)}>
-                            <div className="sermon-card-header">
-                                <h3>{sermon.title}</h3>
-                                <button className="delete-icon-btn" onClick={(e) => handleDeleteSermon(e, sermon.id)}>🗑️</button>
+                    {sermons.map((sermon, index) => {
+                        // Check Premium Status
+                        const isPremium = profile?.subscription_override === 'premium' ||
+                            profile?.subscription_override === 'admin' ||
+                            profile?.subscription_override === 'tester' ||
+                            (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
+
+                        const isLocked = !isPremium && index >= 3;
+
+                        return (
+                            <div
+                                key={sermon.id}
+                                className={`sermon-card ${isLocked ? 'locked' : ''}`}
+                                onClick={() => !isLocked && handleResumeSermon(sermon)}
+                                style={isLocked ? { opacity: 0.6, cursor: 'not-allowed', position: 'relative' } : {}}
+                            >
+                                {isLocked && (
+                                    <div className="lock-overlay" style={{
+                                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                        background: 'rgba(0,0,0,0.5)', borderRadius: '12px', zIndex: 10
+                                    }}>
+                                        <div style={{ fontSize: '2rem' }}>🔒</div>
+                                        <div style={{ color: 'white', fontWeight: 'bold', marginTop: '8px' }}>
+                                            {isAf ? 'Gradeer Op' : 'Upgrade'}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="sermon-card-header">
+                                    <h3>{sermon.title}</h3>
+                                    <button className="delete-icon-btn" onClick={(e) => handleDeleteSermon(e, sermon.id)}>🗑️</button>
+                                </div>
+                                <div className="sermon-meta">
+                                    <span>📖 {sermon.main_scripture}</span>
+                                    <span>📅 {new Date(sermon.updated_at).toLocaleDateString()}</span>
+                                </div>
+                                <div className="progress-bar">
+                                    <div
+                                        className="progress-fill"
+                                        style={{
+                                            width: sermon.step === 'laboratory' ? '80%' :
+                                                sermon.step === 'skeleton' ? '40%' : '10%'
+                                        }}
+                                    ></div>
+                                </div>
                             </div>
-                            <div className="sermon-meta">
-                                <span>📖 {sermon.main_scripture}</span>
-                                <span>📅 {new Date(sermon.updated_at).toLocaleDateString()}</span>
-                            </div>
-                            <div className="progress-bar">
-                                <div
-                                    className="progress-fill"
-                                    style={{
-                                        width: sermon.step === 'laboratory' ? '80%' :
-                                            sermon.step === 'skeleton' ? '40%' : '10%'
-                                    }}
-                                ></div>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>

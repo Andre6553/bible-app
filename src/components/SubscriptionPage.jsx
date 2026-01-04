@@ -36,12 +36,18 @@ const SubscriptionPage = () => {
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (user) {
+                        // Calculate 30 Days from now
+                        const expiryDate = new Date();
+                        expiryDate.setDate(expiryDate.getDate() + 30);
+                        const expiryISO = expiryDate.toISOString();
+
                         // Client-Side Update (Temporary Fix)
                         const { error } = await supabase
                             .from('user_profiles')
                             .update({
                                 subscription_override: 'premium',
-                                // renewal_date: new Date().toISOString() // optional tracking
+                                subscription_expiry: expiryISO,
+                                last_renewal_month: new Date().toISOString().slice(0, 7)
                             })
                             .eq('user_id', user.id);
 
@@ -127,6 +133,29 @@ const SubscriptionPage = () => {
             if (!user) {
                 alert(isAf ? 'Teken asseblief eers in.' : 'Please log in first.');
                 navigate('/auth');
+                return;
+            }
+
+            // Check if already subscribed
+            const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('subscription_override, subscription_expiry')
+                .eq('user_id', user.id)
+                .single();
+
+            const isPremium = profile?.subscription_override === 'premium' ||
+                profile?.subscription_override === 'admin' ||
+                profile?.subscription_override === 'tester';
+
+            const hasValidExpiry = profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date();
+
+            if (isPremium || hasValidExpiry) {
+                const expiry = profile?.subscription_expiry ? new Date(profile.subscription_expiry).toLocaleDateString() : 'Lifetime/Admin';
+                alert(isAf
+                    ? `U is reeds ingeteken totdat: ${expiry}. Geen betaling nodig nie.`
+                    : `You are already subscribed until: ${expiry}. No payment needed.`
+                );
+                setLoading(false);
                 return;
             }
 
