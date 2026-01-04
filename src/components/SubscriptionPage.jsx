@@ -146,7 +146,8 @@ const SubscriptionPage = () => {
 
             const amount = '85.00';
             const item_name = 'Omni Bible Subscription';
-            const return_url = `${window.location.origin}/sermon-prep?payment=success`;
+            // FIX: Point back to THIS page so the useEffect above can run and upgrade the user!
+            const return_url = `${window.location.origin}/subscription?payment=success`;
             const cancel_url = `${window.location.origin}/subscription?payment=cancelled`;
             const custom_str1 = user.id;
 
