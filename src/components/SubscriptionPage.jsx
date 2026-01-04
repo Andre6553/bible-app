@@ -152,7 +152,8 @@ const SubscriptionPage = () => {
                 custom_str1
             };
 
-            // 3. Generate Signature (STRICT ORDERING)
+            // 3. Generate Signature
+            // PayFast requires specific encoding for the signature string.
             const orderedKeys = [
                 'merchant_id',
                 'merchant_key',
@@ -167,8 +168,7 @@ const SubscriptionPage = () => {
                 'custom_str1'
             ];
 
-            // Helper to match PHP urlencode (used by PayFast)
-            // encodeURIComponent doesn't encode !'()* but PHP does.
+            // Helper to match PHP urlencode (used by PayFast SIGNATURE generation only)
             const phpUrlEncode = (str) => {
                 return encodeURIComponent(str)
                     .replace(/%20/g, '+')
@@ -187,10 +187,7 @@ const SubscriptionPage = () => {
 
             let getString = pfOutput.slice(0, -1); // Remove last &
 
-            // ONLY generate signature if Passphrase is set (Production) or forces it.
-            // For Generic Sandbox, we can often skip it to avoid mismatch headaches.
             let signature = null;
-
             if (config.passPhrase) {
                 getString += `&passphrase=${phpUrlEncode(config.passPhrase.trim())}`;
                 signature = md5(getString).toString();
@@ -198,13 +195,36 @@ const SubscriptionPage = () => {
 
             console.log('Signature Base String:', getString);
 
-            // 4. Redirect
-            let finalUrl = `${config.baseUrl}?${pfOutput}`;
-            if (signature) {
-                finalUrl += `signature=${signature}`;
+            // 4. Submit via POST (Hidden Form)
+            // This avoids 500 errors often caused by long GET URLs
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = config.baseUrl;
+            form.style.display = 'none';
+
+            // Add Data Fields
+            for (const key in data) {
+                if (data.hasOwnProperty(key) && data[key] !== '') {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = data[key].trim();
+                    form.appendChild(input);
+                }
             }
 
-            window.location.href = finalUrl;
+            // Add Signature
+            if (signature) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'signature';
+                input.value = signature;
+                form.appendChild(input);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
 
         } catch (error) {
             console.error('Payment Error:', error);
