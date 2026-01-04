@@ -98,6 +98,15 @@ const SubscriptionPage = () => {
                     ai_usage_count: 0
                 };
                 message = isAf ? 'Toets toegang toegestaan! (10 Preke / 500 AI)' : 'Tester access granted! (10 Sermons / 500 AI)';
+            } else if (code === 'ExpireMe') {
+                // Testing Tool: Force Expiry
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                updates = {
+                    subscription_override: null,
+                    subscription_expiry: yesterday.toISOString()
+                };
+                message = isAf ? 'Afgradeer na Gratis (Verval)' : 'Downgraded to Free (Expired)';
             } else {
                 alert(isAf ? 'Ongeldige kode.' : 'Invalid code.');
                 setLoading(false);

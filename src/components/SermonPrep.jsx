@@ -70,16 +70,18 @@ const SermonPrep = () => {
     };
 
     const handleStartNew = () => {
-        // Enforce Limit Check BEFORE resetting state
-        const remaining = profile?.subscription_tier === 'free' ? 3 - (profile.sermon_trial_count || 0) : 999;
+        // Enforce Limit Check using unified "Premium" logic
+        const isPremium = profile?.subscription_override === 'premium' ||
+            profile?.subscription_override === 'admin' ||
+            profile?.subscription_override === 'tester' ||
+            (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
 
-        // Actually, we should check logic based on existing sermons count if we want to be strict about "holding" 3 slots.
-        // User request: "create 3 sermons on free account... database will only be able to save on free account 3 sermons"
-        // If current count is >= 3, BLOCK.
-
-        // However, the backend is the source of truth. We can try optimistically.
-        if (profile?.subscription_tier === 'free' && (profile.sermon_trial_count >= 3 && sermons.length >= 3)) {
-            alert(isAf ? 'U het u limiet van 3 gratis preke bereik. Gradeer asseblief op.' : 'You have reached your limit of 3 free sermons. Please upgrade to continue.');
+        // If NOT Premium and already has 3 or more sermons, BLOCK.
+        if (!isPremium && sermons.length >= 3) {
+            alert(isAf
+                ? 'U het u limiet van 3 gratis preke bereik. Gradeer asseblief op.'
+                : 'You have reached your limit of 3 free sermons. Please upgrade to continue.'
+            );
             navigate('/subscription');
             return;
         }
