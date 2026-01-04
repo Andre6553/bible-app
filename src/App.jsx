@@ -18,7 +18,9 @@ const InductiveEditor = lazy(() => import('./components/InductiveEditor'));
 const Profile = lazy(() => import('./components/Profile'));
 const Admin = lazy(() => import('./components/Admin'));
 const Auth = lazy(() => import('./components/Auth'));
+const SermonPrep = lazy(() => import('./components/SermonPrep'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
+const SubscriptionPage = lazy(() => import('./components/SubscriptionPage'));
 
 function App() {
     const [currentVersion, setCurrentVersion] = useState(null);
@@ -121,8 +123,16 @@ function App() {
                                         element={<Admin />}
                                     />
                                     <Route
+                                        path="/sermon-prep"
+                                        element={<SermonPrep />}
+                                    />
+                                    <Route
                                         path="/auth"
                                         element={<Auth />}
+                                    />
+                                    <Route
+                                        path="/subscription"
+                                        element={<SubscriptionPage />}
                                     />
                                     <Route path="/" element={<Navigate to="/bible" replace />} />
                                 </Routes>

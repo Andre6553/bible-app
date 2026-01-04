@@ -733,6 +733,14 @@ function Profile() {
                         {tab.label} <span className="tab-count">{tab.count}</span>
                     </button>
                 ))}
+
+                {/* Sermon Prep Button */}
+                <button
+                    className="profile-tab sermon-prep-btn"
+                    onClick={() => navigate('/sermon-prep')}
+                >
+                    ⛪ {settings.language === 'af' ? 'Preek Voorbereiding' : 'Sermon Preparation'}
+                </button>
             </div>
 
             {/* Content */}

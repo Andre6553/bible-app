@@ -113,8 +113,34 @@ export const SettingsProvider = ({ children }) => {
         });
     };
 
+    // 5. Fetch Profile Metadata (Subscription, Trials, etc.)
+    const [profile, setProfile] = useState(null);
+
+    useEffect(() => {
+        if (user) {
+            fetchProfile(user.id);
+        } else {
+            setProfile(null);
+        }
+    }, [user]);
+
+    const fetchProfile = async (userId) => {
+        try {
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error;
+            setProfile(data);
+        } catch (err) {
+            console.error("[Settings] ❌ Profile fetch error:", err.message);
+        }
+    };
+
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings }}>
+        <SettingsContext.Provider value={{ settings, updateSettings, user, profile, fetchProfile }}>
             {children}
         </SettingsContext.Provider>
     );

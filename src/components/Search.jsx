@@ -43,6 +43,7 @@ function Search({ currentVersion, versions }) {
     const [semanticSummary, setSemanticSummary] = useState(''); // AI biblical reflection
     const [currentUserId, setCurrentUserId] = useState(null);
     const [showMobileResults, setShowMobileResults] = useState(false);
+    const [isVerseShortcutResponse, setIsVerseShortcutResponse] = useState(false); // Track if current AI response is from /Bible Verse
 
     // Bulk Highlight State
     const [selectedVerses, setSelectedVerses] = useState(new Set());
@@ -137,6 +138,7 @@ function Search({ currentVersion, versions }) {
         { cmd: '/why', desc: settings.language === 'af' ? 'Waarom het...' : 'Why did...', icon: '🤔' },
         { cmd: '/teach', desc: settings.language === 'af' ? 'Wat leer die Bybel oor...' : 'What does the Bible teach...', icon: '🎓' },
         { cmd: '/compare', desc: settings.language === 'af' ? 'Vergelyk in die Bybel...' : 'Compare in the Bible...', icon: '⚖️' },
+        { cmd: '/Bible Verse', desc: settings.language === 'af' ? 'Vind en kopieer verse...' : 'Find and copy verses...', icon: '📋' },
         { cmd: '/help', desc: settings.language === 'af' ? 'Wys alle kortpaaie' : 'Show all shortcuts', icon: 'ℹ️' },
     ];
 
@@ -606,7 +608,8 @@ function Search({ currentVersion, versions }) {
             '/what': 'What was',
             '/why': 'Why did',
             '/compare': 'Compare and contrast in the Bible:',
-            '/teach': 'What does the Bible teach about'
+            '/teach': 'What does the Bible teach about',
+            '/bible verse': 'Find 5 Bible verses that address the following request and return ONLY the verse references enclosed in double brackets and separated by commas (e.g. [[John 3:16]], [[Romans 5:8]]). Use modern citations. Request:'
         };
 
         // Handle /help command - show shortcuts without calling AI
@@ -643,9 +646,14 @@ Here are the available shortcuts to quickly ask questions:
 • **/verse [reference]** - What does the Bible say in...
   Example: \`/verse John 3:16\`
 
+• **/Bible Verse [topic]** - Find and copy 5 verses for a topic.
+  Example: \`/Bible Verse God Love\` or \`/Bible Verse 5 verses describe God Love for Us in new Testament\`
+
 💡 **Tip:** Just type the shortcut followed by your topic and press Ask!`);
             return;
         }
+
+        const isVerseShortcut = processedQuestion.toLowerCase().startsWith('/bible verse ');
 
         for (const [shortcut, expansion] of Object.entries(shortcuts)) {
             if (processedQuestion.toLowerCase().startsWith(shortcut + ' ')) {
@@ -694,7 +702,24 @@ Here are the available shortcuts to quickly ask questions:
 
         if (result.success) {
             setAiResponse(result.answer);
+            setIsVerseShortcutResponse(isVerseShortcut); // Store for manual copy button
             setIsAnswerExpanded(true); // Auto-expand for better readability
+
+            // Auto-copy for /Bible Verse shortcut
+            if (isVerseShortcut) {
+                // Improved extraction: Get everything inside [[ ]] and join with commas
+                const matches = result.answer.match(/\[\[(.*?)\]\]/g) || [];
+                // Deduplicate references using a Set
+                const uniqueRefs = [...new Set(matches.map(m => m.replace(/\[\[|\]\]/g, '').trim()))];
+                const cleanRefs = uniqueRefs.join(', ');
+
+                if (cleanRefs && navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(cleanRefs).then(() => {
+                        setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
+                        setTimeout(() => setCopyStatus('Copy'), 3000);
+                    }).catch(err => console.warn("Auto-copy blocked", err));
+                }
+            }
 
             // Save to AI history
             const newEntry = {
@@ -716,14 +741,41 @@ Here are the available shortcuts to quickly ask questions:
     const copyToClipboard = () => {
         if (!aiResponse) return;
 
-        // Clean text: Remove [[ and ]] delimiters
-        const cleanText = aiResponse.replace(/\[\[/g, '').replace(/\]\]/g, '');
+        let textToCopy = "";
 
-        navigator.clipboard.writeText(cleanText).then(() => {
-            setCopyStatus('Copied!');
+        if (isVerseShortcutResponse) {
+            // Specialized extraction for verse lists: get only the content inside [[ ]]
+            const matches = aiResponse.match(/\[\[(.*?)\]\]/g) || [];
+            if (matches.length > 0) {
+                // Deduplicate references using a Set
+                const uniqueRefs = [...new Set(matches.map(m => m.replace(/\[\[|\]\]/g, '').trim()))];
+                textToCopy = uniqueRefs.join(', ');
+            } else {
+                // Fallback if no brackets found (unlikely)
+                textToCopy = aiResponse.replace(/\[\[/g, '').replace(/\]\]/g, '');
+            }
+        } else {
+            // Standard behavior: full text with delimiters removed
+            textToCopy = aiResponse.replace(/\[\[/g, '').replace(/\]\]/g, '');
+        }
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
             setTimeout(() => setCopyStatus('Copy'), 2000);
         }).catch(err => {
             console.error('Could not copy text: ', err);
+            // Fallback for legacy browsers/environments
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                setCopyStatus('Copied!');
+            } catch (e) {
+                alert("Please manually copy the text.");
+            }
+            document.body.removeChild(textArea);
         });
     };
 

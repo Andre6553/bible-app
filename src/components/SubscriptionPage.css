@@ -1,0 +1,155 @@
+.subscription-page {
+    padding: 20px;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #111827 0%, #000000 100%);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+}
+
+.sub-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 40px;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-right: 20px;
+}
+
+.sub-header h1 {
+    font-size: 1.8rem;
+    background: linear-gradient(to right, #fbbf24, #f59e0b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+}
+
+.pricing-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.pricing-card {
+    background: #1f2937;
+    border-radius: 16px;
+    padding: 30px;
+    flex: 1;
+    min-width: 300px;
+    max-width: 400px;
+    position: relative;
+    border: 1px solid #374151;
+    display: flex;
+    flex-direction: column;
+}
+
+.pricing-card.free {
+    border-top: 4px solid #9ca3af;
+}
+
+.pricing-card.premium {
+    background: linear-gradient(145deg, #1f2937 0%, #171717 100%);
+    border: 1px solid #f59e0b;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+    transform: scale(1.02);
+    /* Slight pop */
+}
+
+.card-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.card-header h2 {
+    font-size: 1.5rem;
+    margin: 0 0 10px 0;
+}
+
+.price {
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.price span {
+    font-size: 1rem;
+    color: #9ca3af;
+    font-weight: 400;
+}
+
+.features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 30px 0;
+    flex-grow: 1;
+}
+
+.features-list li {
+    padding: 12px 0;
+    border-bottom: 1px solid #374151;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.features-list li:last-child {
+    border-bottom: none;
+}
+
+.check {
+    color: #10b981;
+    /* Green check */
+}
+
+.premium .check {
+    color: #f59e0b;
+    /* Gold check for premium */
+}
+
+.current-plan-badge {
+    text-align: center;
+    background: #374151;
+    color: #9ca3af;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.upgrade-btn {
+    background: linear-gradient(to right, #f59e0b, #d97706);
+    color: #fff;
+    border: none;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: 100%;
+}
+
+.upgrade-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(245, 158, 11, 0.3);
+}
+
+.best-value {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f59e0b;
+    color: #000;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
