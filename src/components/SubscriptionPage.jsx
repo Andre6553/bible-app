@@ -105,24 +105,39 @@ const SubscriptionPage = () => {
                 return;
             }
 
-            // 1. Details
-            const merchant_id = '10044737';
-            const merchant_key = 'dd6eil3he0c8i';
-            const passPhrase = 'OmniBibleApp'; // Provided by User
+            // --- PAYFAST CONFIGURATION ---
+            const USE_SANDBOX = false; // Set to FALSE to go live (Real Money)
+
+            const config = USE_SANDBOX ? {
+                // SANDBOX (Test)
+                merchant_id: '10000100',
+                merchant_key: '46f0cd694581a',
+                passPhrase: '',
+                baseUrl: 'https://sandbox.payfast.co.za/eng/process'
+            } : {
+                // PRODUCTION (Real)
+                merchant_id: '11945617',
+                merchant_key: '9anvup217hdck',
+                passPhrase: 'OmniBibleApp',
+                baseUrl: 'https://payment.payfast.io/eng/process'
+            };
+            // -----------------------------
+
+            const merchant_id = config.merchant_id;
+            const merchant_key = config.merchant_key;
 
             const name_first = user.user_metadata?.full_name || localStorage.getItem('display_name') || 'Valued';
             const name_last = 'User';
             const email_address = user.email;
-            const m_payment_id = `sub_${user.id.slice(0, 5)}_` + Date.now();
+            const m_payment_id = `sub_${user.id.slice(0, 5)}_${Date.now()}`;
             const amount = '85.00';
-            const item_name = 'Sermon Subscription';
+            const item_name = 'Omni Bible Subscription';
 
             const return_url = `${window.location.origin}/sermon-prep?payment=success`;
             const cancel_url = `${window.location.origin}/subscription?payment=cancelled`;
             const custom_str1 = user.id;
 
-            // 2. Build Data Object (Order matters for some gateways, but mostly key-sort)
-            // PayFast "signature" requires specific URL encoding of specific fields.
+            // 2. Build Data Object
             const data = {
                 merchant_id,
                 merchant_key,
@@ -137,36 +152,59 @@ const SubscriptionPage = () => {
                 custom_str1
             };
 
-            // 3. Generate Signature
-            // Logic: 
-            // a. Create string "key=value&key=value..." 
-            // b. Append "&passphrase=SALT"
-            // c. MD5 Hash params string
+            // 3. Generate Signature (STRICT ORDERING)
+            const orderedKeys = [
+                'merchant_id',
+                'merchant_key',
+                'return_url',
+                'cancel_url',
+                'name_first',
+                'name_last',
+                'email_address',
+                'm_payment_id',
+                'amount',
+                'item_name',
+                'custom_str1'
+            ];
 
-            // Build param string (excluding signature)
+            // Helper to match PHP urlencode (used by PayFast)
+            // encodeURIComponent doesn't encode !'()* but PHP does.
+            const phpUrlEncode = (str) => {
+                return encodeURIComponent(str)
+                    .replace(/%20/g, '+')
+                    .replace(/[!'()*]/g, function (c) {
+                        return '%' + c.charCodeAt(0).toString(16).toUpperCase();
+                    });
+            };
+
             let pfOutput = '';
-            for (let key in data) {
-                if (data.hasOwnProperty(key)) {
-                    if (data[key] !== '') {
-                        pfOutput += `${key}=${encodeURIComponent(data[key].trim()).replace(/%20/g, '+')}&`
-                    }
+
+            orderedKeys.forEach(key => {
+                if (data[key] !== undefined && data[key] !== '') {
+                    pfOutput += `${key}=${phpUrlEncode(data[key].trim())}&`;
                 }
+            });
+
+            let getString = pfOutput.slice(0, -1); // Remove last &
+
+            // ONLY generate signature if Passphrase is set (Production) or forces it.
+            // For Generic Sandbox, we can often skip it to avoid mismatch headaches.
+            let signature = null;
+
+            if (config.passPhrase) {
+                getString += `&passphrase=${phpUrlEncode(config.passPhrase.trim())}`;
+                signature = md5(getString).toString();
             }
 
-            // Remove last ampersand
-            let getString = pfOutput.slice(0, -1);
-
-            console.log('Pre-Sign String:', getString);
-
-            if (passPhrase) {
-                getString += `&passphrase=${encodeURIComponent(passPhrase.trim()).replace(/%20/g, '+')}`;
-            }
-
-            const signature = md5(getString).toString();
+            console.log('Signature Base String:', getString);
 
             // 4. Redirect
-            const baseUrl = 'https://www.payfast.co.za/eng/process';
-            window.location.href = `${baseUrl}?${pfOutput}signature=${signature}`;
+            let finalUrl = `${config.baseUrl}?${pfOutput}`;
+            if (signature) {
+                finalUrl += `signature=${signature}`;
+            }
+
+            window.location.href = finalUrl;
 
         } catch (error) {
             console.error('Payment Error:', error);
