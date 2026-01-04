@@ -106,100 +106,39 @@ const SubscriptionPage = () => {
             }
 
             // --- PAYFAST CONFIGURATION ---
-            const USE_SANDBOX = false; // Set to FALSE to go live (Real Money)
-
-            const config = USE_SANDBOX ? {
-                // SANDBOX (Test)
-                merchant_id: '10000100',
-                merchant_key: '46f0cd694581a',
-                passPhrase: '',
-                baseUrl: 'https://sandbox.payfast.co.za/eng/process'
-            } : {
-                // PRODUCTION (Real)
-                merchant_id: '11945617',
-                merchant_key: '9anvup217hdck',
-                passPhrase: 'OmniBibleApp',
-                baseUrl: 'https://payment.payfast.io/eng/process'
-            };
+            // Switching to "Simple Pay Now" mode to match user snippet
+            // This bypasses the complex Signature/Passphrase requirements that were causing the 500 error.
+            const baseUrl = 'https://payment.payfast.io/eng/process';
+            const receiver = '11945617'; // User's Merchant ID
             // -----------------------------
 
-            const merchant_id = config.merchant_id;
-            const merchant_key = config.merchant_key;
-
-            const name_first = user.user_metadata?.full_name || localStorage.getItem('display_name') || 'Valued';
-            const name_last = 'User';
-            const email_address = user.email;
-            const m_payment_id = `sub_${user.id.slice(0, 5)}_${Date.now()}`;
             const amount = '85.00';
             const item_name = 'Omni Bible Subscription';
-
             const return_url = `${window.location.origin}/sermon-prep?payment=success`;
             const cancel_url = `${window.location.origin}/subscription?payment=cancelled`;
             const custom_str1 = user.id;
 
-            // 2. Build Data Object
+            // 2. Build Data Object (Simple Pay Now structure)
             const data = {
-                merchant_id,
-                merchant_key,
-                return_url,
-                cancel_url,
-                name_first,
-                name_last,
-                email_address,
-                m_payment_id,
-                amount,
-                item_name,
-                custom_str1
+                cmd: '_paynow',
+                receiver: receiver,
+                item_name: item_name,
+                amount: amount,
+                return_url: return_url,
+                cancel_url: cancel_url,
+                // adding custom_str1 to track user ID on return if supported, otherwise extra fields are allowed
+                custom_str1: custom_str1
             };
 
-            // 3. Generate Signature
-            // PayFast requires specific encoding for the signature string.
-            const orderedKeys = [
-                'merchant_id',
-                'merchant_key',
-                'return_url',
-                'cancel_url',
-                'name_first',
-                'name_last',
-                'email_address',
-                'm_payment_id',
-                'amount',
-                'item_name',
-                'custom_str1'
-            ];
+            // 3. No Signature Generation needed for "_paynow" command unless explicitly enforced on account.
+            // The user's snippet did NOT have a signature, so we skip it to retrieve the working flow.
 
-            // Helper to match PHP urlencode (used by PayFast SIGNATURE generation only)
-            const phpUrlEncode = (str) => {
-                return encodeURIComponent(str)
-                    .replace(/%20/g, '+')
-                    .replace(/[!'()*]/g, function (c) {
-                        return '%' + c.charCodeAt(0).toString(16).toUpperCase();
-                    });
-            };
-
-            let pfOutput = '';
-
-            orderedKeys.forEach(key => {
-                if (data[key] !== undefined && data[key] !== '') {
-                    pfOutput += `${key}=${phpUrlEncode(data[key].trim())}&`;
-                }
-            });
-
-            let getString = pfOutput.slice(0, -1); // Remove last &
-
-            let signature = null;
-            if (config.passPhrase) {
-                getString += `&passphrase=${phpUrlEncode(config.passPhrase.trim())}`;
-                signature = md5(getString).toString();
-            }
-
-            console.log('Signature Base String:', getString);
+            console.log('Starting Simple Payment...');
 
             // 4. Submit via POST (Hidden Form)
-            // This avoids 500 errors often caused by long GET URLs
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = config.baseUrl;
+            form.action = baseUrl;
             form.style.display = 'none';
 
             // Add Data Fields
@@ -211,15 +150,6 @@ const SubscriptionPage = () => {
                     input.value = data[key].trim();
                     form.appendChild(input);
                 }
-            }
-
-            // Add Signature
-            if (signature) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'signature';
-                input.value = signature;
-                form.appendChild(input);
             }
 
             document.body.appendChild(form);
