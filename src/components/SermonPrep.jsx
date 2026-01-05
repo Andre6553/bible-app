@@ -2136,8 +2136,15 @@ const SermonPrep = () => {
                         type="number"
                         min="5"
                         max="240"
-                        value={plannedDuration}
-                        onChange={(e) => setPlannedDuration(parseInt(e.target.value) || 0)}
+                        value={plannedDuration === 0 ? '' : plannedDuration}
+                        onFocus={(e) => {
+                            if (plannedDuration === 0 || plannedDuration === 90) e.target.select();
+                        }}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') setPlannedDuration(0);
+                            else setPlannedDuration(parseInt(val) || 0);
+                        }}
                     />
                     <p className="helper-text">
                         {isAf ? 'Kies die totale teiken tyd vir jou preek.' : 'Choose the total target duration for your sermon.'}
