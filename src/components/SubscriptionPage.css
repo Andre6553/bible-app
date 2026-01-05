@@ -160,3 +160,9 @@
         padding-bottom: 150px !important;
     }
 }
+
+@media (min-width: 821px) {
+    .mobile-only-spacer {
+        display: none !important;
+    }
+}

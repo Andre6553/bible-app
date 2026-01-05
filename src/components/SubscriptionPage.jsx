@@ -352,6 +352,8 @@ const SubscriptionPage = () => {
                     </button>
                 </div>
             </div>
+            {/* Mobile Spacer to ensure button visibility */}
+            <div style={{ height: '150px', width: '100%', display: 'block' }} className="mobile-only-spacer" />
         </div>
     );
 };
