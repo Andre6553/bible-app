@@ -7,23 +7,42 @@ import './SubscriptionPage.css';
 
 const SubscriptionPage = () => {
     const navigate = useNavigate();
-    const { settings } = useSettings();
+    const { settings, fetchProfile } = useSettings();
     const isAf = settings.language === 'af';
 
     const [secretCode, setSecretCode] = React.useState('');
     const [loading, setLoading] = React.useState(false);
     const [randPrice, setRandPrice] = React.useState(null);
+    const [basePriceUsd, setBasePriceUsd] = React.useState(5);
 
     React.useEffect(() => {
-        // Fetch Exchange Rate
-        fetch('https://api.exchangerate-api.com/v4/latest/USD')
-            .then(res => res.json())
-            .then(data => {
+        const fetchPricing = async () => {
+            try {
+                // 1. Fetch Base Price from Supabase
+                const { data: config } = await supabase
+                    .from('app_config')
+                    .select('value')
+                    .eq('key', 'base_subscription_price_usd')
+                    .single();
+
+                const base = config ? parseFloat(config.value) : 5;
+                setBasePriceUsd(base);
+
+                // 2. Fetch Exchange Rate
+                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                const data = await res.json();
                 const rate = data.rates.ZAR;
-                const rands = (5 * rate).toFixed(0);
+
+                // 3. Calculate ZAR
+                const rands = (base * rate).toFixed(0);
                 setRandPrice(rands);
-            })
-            .catch(err => console.error('Error fetching exchange rate:', err));
+            } catch (err) {
+                console.error('Error fetching pricing:', err);
+                setRandPrice('85'); // Fallback
+            }
+        };
+
+        fetchPricing();
 
         // Check for Payment Return
         const checkPaymentStatus = async () => {
@@ -55,6 +74,7 @@ const SubscriptionPage = () => {
                             console.error('Error upgrading profile:', error);
                             alert('Payment successful, but profile update failed. Please contact support.');
                         } else {
+                            await fetchProfile(user.id);
                             alert(isAf ? 'Betaling Suksesvol! Welkom by Premium.' : 'Payment Successful! Welcome to Premium.');
                             navigate('/sermon-prep');
                         }
@@ -124,6 +144,8 @@ const SubscriptionPage = () => {
             localStorage.removeItem('subscription_override');
             localStorage.removeItem('tester_last_renewal_month');
 
+            await fetchProfile(user.id);
+
             alert(message);
             navigate('/sermon-prep');
 
@@ -159,7 +181,9 @@ const SubscriptionPage = () => {
             const hasValidExpiry = profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date();
 
             if (isPremium || hasValidExpiry) {
-                const expiry = profile?.subscription_expiry ? new Date(profile.subscription_expiry).toLocaleDateString() : 'Lifetime/Admin';
+                const expiry = profile?.subscription_expiry
+                    ? new Date(profile.subscription_expiry).toLocaleDateString(undefined, { dateStyle: 'long' })
+                    : 'Lifetime/Admin';
                 alert(isAf
                     ? `U is reeds ingeteken totdat: ${expiry}. Geen betaling nodig nie.`
                     : `You are already subscribed until: ${expiry}. No payment needed.`
@@ -170,19 +194,23 @@ const SubscriptionPage = () => {
 
             // --- PAYFAST CONFIGURATION ---
             // Toggle this to switch between Sandbox and Live
-            const USE_SANDBOX = true;
+            const USE_SANDBOX = false;
 
             // Config logic
             const baseUrl = USE_SANDBOX
                 ? 'https://sandbox.payfast.co.za/eng/process'
-                : 'https://payment.payfast.io/eng/process';
+                : 'https://www.payfast.co.za/eng/process';
 
             const receiver = USE_SANDBOX
                 ? '10000100'        // Generic Sandbox Merchant ID
                 : '11945617';       // Your Real Merchant ID
+
+            const merchantKey = USE_SANDBOX
+                ? '46f0cd694581a'   // Generic Sandbox Merchant Key
+                : '9anvup217hdck';  // Your Real Merchant Key
             // -----------------------------
 
-            const amount = '85.00';
+            const amount = randPrice ? `${randPrice}.00` : '20.00';
             const item_name = 'Omni Bible Subscription';
             // FIX: Point back to THIS page so the useEffect above can run and upgrade the user!
             const return_url = `${window.location.origin}/subscription?payment=success`;
@@ -192,40 +220,29 @@ const SubscriptionPage = () => {
             // 2. Build Data Object (Simple Pay Now structure)
             const data = {
                 cmd: '_paynow',
-                receiver: receiver,
+                merchant_id: receiver, // Using standard merchant_id instead of receiver
                 item_name: item_name,
                 amount: amount,
                 return_url: return_url,
                 cancel_url: cancel_url,
                 // adding custom_str1 to track user ID on return if supported, otherwise extra fields are allowed
-                custom_str1: custom_str1
+                custom_str1: custom_str1,
+                merchant_key: merchantKey
             };
 
             // 3. No Signature Generation needed for "_paynow" command unless explicitly enforced on account.
-            // The user's snippet did NOT have a signature, so we skip it to retrieve the working flow.
 
-            console.log('Starting Simple Payment...');
+            console.log('Starting Simple Payment via GET Redirect...');
 
-            // 4. Submit via POST (Hidden Form)
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = baseUrl;
-            form.style.display = 'none';
-
-            // Add Data Fields
+            // 4. Submit via GET (Redirect) to bypass WAF/CloudFront 403 on POST
+            const params = new URLSearchParams();
             for (const key in data) {
                 if (data.hasOwnProperty(key) && data[key] !== '') {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = data[key].trim();
-                    form.appendChild(input);
+                    params.append(key, data[key].trim());
                 }
             }
 
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
+            window.location.href = `${baseUrl}?${params.toString()}`;
 
         } catch (error) {
             console.error('Payment Error:', error);
@@ -306,7 +323,10 @@ const SubscriptionPage = () => {
                         <div className="best-value">{isAf ? 'Beste Waarde' : 'Best Value'}</div>
                         <h2>{isAf ? 'Premium' : 'Premium'}</h2>
                         <div className="price">
-                            R85<span>/mo</span>
+                            {randPrice ? `R${randPrice}` : <span style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>...</span>}<span>/mo</span>
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '5px' }}>
+                            (${basePriceUsd} USD)
                         </div>
                     </div>
                     <ul className="features-list">

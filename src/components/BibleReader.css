@@ -613,6 +613,11 @@
 .verse-text {
     color: var(--text-primary);
     line-height: 1.8;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding: 2px 0;
+    /* Slight vertical padding for breathing room */
+    border-radius: 4px;
 }
 
 .red-letter {

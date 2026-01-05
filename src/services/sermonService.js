@@ -214,13 +214,25 @@ const checkAndIncrementAiUsage = async () => {
     const currentUsage = resetHappened ? 0 : (profile?.ai_usage_count || 0);
 
     const override = profile?.subscription_override;
+    const expiry = profile?.subscription_expiry;
+    const isPremium = override === 'premium' ||
+        override === 'admin' ||
+        override === 'tester' ||
+        (expiry && new Date(expiry) > new Date());
 
     // 2. Enforce Limit
     let limit = 50;
-    if (override === 'tester') limit = 500;
-    if (override === 'admin') limit = 999999;
+    if (isPremium) limit = 999999; // Premium/Admin/Tester/Valid Subscription
+    if (override === 'tester') limit = 500; // Specific tester limit if needed, but isPremium covers it. keeping logic simple.
 
-    if (tier === 'free' && override !== 'admin') {
+    // Refined Logic:
+    // If Admin -> Unlimited (covered by isPremium)
+    // If Tester -> 500 (covered by isPremium setting high, or specific check)
+    // If Premium Sub -> Unlimited
+    // If Free/Expired -> 50
+
+    if (override === 'tester') limit = 500; // Explicit tester limit constraint
+    if (!isPremium && override !== 'admin') {
         if (currentUsage >= limit) {
             throw new Error('AI_LIMIT_EXCEEDED');
         }

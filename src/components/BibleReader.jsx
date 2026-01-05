@@ -40,6 +40,23 @@ const THEME_COLORS = [
     '#78716c', '#d97706'
 ];
 
+const hexToRgba = (hex, alpha) => {
+    if (!hex) return 'transparent';
+    if (hex.startsWith('rgb')) return hex; // Already rgb/rgba
+    let r = 0, g = 0, b = 0;
+    // Handle short hex like #fff
+    if (hex.length === 4) {
+        r = parseInt(hex[1] + hex[1], 16);
+        g = parseInt(hex[2] + hex[2], 16);
+        b = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length === 7) {
+        r = parseInt(hex.slice(1, 3), 16);
+        g = parseInt(hex.slice(3, 5), 16);
+        b = parseInt(hex.slice(5, 7), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const navigate = useNavigate();
     const location = useLocation();
@@ -1155,7 +1172,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             <span className="verse-number">{verse.verse}</span>
                                             <span
                                                 className="verse-text"
-                                                style={{ backgroundColor: highlights[verse.verse] }}
+                                                style={{
+                                                    backgroundColor: hexToRgba(highlights[verse.verse], 0.7),
+                                                    boxShadow: highlights[verse.verse] ? `0 0 10px 4px ${hexToRgba(highlights[verse.verse], 0.7)}` : 'none'
+                                                }}
                                                 onClick={(e) => handleVerseTap(verse, e)}
                                             >
                                                 {renderVerseText(verse)}

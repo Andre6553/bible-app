@@ -1884,7 +1884,18 @@ const SermonPrep = () => {
         <div className="dashboard-view">
             <div className="dashboard-header-row">
                 <div>
-                    <h2>{isAf ? 'My Preke' : 'My Sermons'}</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <h2>{isAf ? 'My Preke' : 'My Sermons'}</h2>
+                        {profile && profile.subscription_tier === 'free' && (
+                            <button
+                                className="new-sermon-btn"
+                                style={{ padding: '6px 14px', fontSize: '0.9rem', opacity: 0.9 }}
+                                onClick={() => navigate('/subscription')}
+                            >
+                                {isAf ? 'Word \'n Intekenaar' : 'Become a Subscriber'}
+                            </button>
+                        )}
+                    </div>
                     {profile && profile.subscription_tier === 'free' && (
                         <div className="trial-counter">
                             {isAf ? 'Gratis Preke oor:' : 'Free Trials left:'}
@@ -1944,8 +1955,9 @@ const SermonPrep = () => {
                                     <div
                                         className="progress-fill"
                                         style={{
-                                            width: sermon.step === 'laboratory' ? '80%' :
-                                                sermon.step === 'skeleton' ? '40%' : '10%'
+                                            width: sermon.step === 'laboratory' ? '100%' :
+                                                sermon.step === 'skeleton' ? '50%' : '15%',
+                                            background: sermon.step === 'laboratory' ? '#10b981' : undefined // Green if complete
                                         }}
                                     ></div>
                                 </div>

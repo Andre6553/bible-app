@@ -17,7 +17,7 @@ import './Profile.css';
 
 function Profile() {
     const navigate = useNavigate();
-    const { settings, updateSettings } = useSettings();
+    const { settings, updateSettings, profile, fetchProfile } = useSettings();
     const [activeTab, setActiveTab] = useState('highlights');
     const [highlights, setHighlights] = useState([]);
     const [totalHighlightCount, setTotalHighlightCount] = useState(0);
@@ -64,6 +64,7 @@ function Profile() {
             if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
                 loadData();
                 checkUser();
+                if (currentUser) fetchProfile(currentUser.id);
             }
         });
 
@@ -630,6 +631,42 @@ function Profile() {
                     </h1>
                 )}
 
+                {/* Subscription Badge */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 12px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '20px',
+                    margin: '8px 0',
+                    fontSize: '0.9rem',
+                    border: '1px solid var(--border-color)'
+                }}>
+                    {(() => {
+                        const isPremium = profile?.subscription_override === 'premium' ||
+                            profile?.subscription_override === 'admin' ||
+                            profile?.subscription_override === 'tester' ||
+                            (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
+
+                        return isPremium ? (
+                            <>
+                                <span style={{ fontSize: '1.2rem' }}>⭐</span>
+                                <span style={{ color: '#FFD700', fontWeight: 'bold' }}>
+                                    {settings.language === 'af' ? 'Premium Intekenaar' : 'Premium Subscriber'}
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <span style={{ fontSize: '1.2rem', filter: 'grayscale(1)' }}>⭐</span>
+                                <span style={{ color: 'var(--text-secondary)' }}>
+                                    {settings.language === 'af' ? 'Gewone Gebruiker' : 'Regular User'}
+                                </span>
+                            </>
+                        );
+                    })()}
+                </div>
+
                 <div className="offline-status-badge">
                     {isPwaReady ? (
                         <div className="status-item ready" title="App is cached and ready for offline use">
@@ -1172,40 +1209,44 @@ function Profile() {
             </div>
 
             {/* Modals */}
-            {selectedWordStudy && (
-                <WordStudyModal
-                    verse={{
-                        book_id: selectedWordStudy.book_id,
-                        chapter: selectedWordStudy.chapter,
-                        verse: selectedWordStudy.verse
-                    }}
-                    verseRef={selectedWordStudy.verse_ref}
-                    initialSelectedWord={selectedWordStudy.word}
-                    initialStudyData={selectedWordStudy.analysis}
-                    onClose={() => setSelectedWordStudy(null)}
-                />
-            )}
+            {
+                selectedWordStudy && (
+                    <WordStudyModal
+                        verse={{
+                            book_id: selectedWordStudy.book_id,
+                            chapter: selectedWordStudy.chapter,
+                            verse: selectedWordStudy.verse
+                        }}
+                        verseRef={selectedWordStudy.verse_ref}
+                        initialSelectedWord={selectedWordStudy.word}
+                        initialStudyData={selectedWordStudy.analysis}
+                        onClose={() => setSelectedWordStudy(null)}
+                    />
+                )
+            }
 
             {/* Confirm Delete Modal */}
-            {confirmDelete.show && (
-                <div className="confirm-modal-overlay" onClick={cancelDelete}>
-                    <div className="modal-content confirm-modal" onClick={e => e.stopPropagation()}>
-                        <h3>Confirm Delete</h3>
-                        <p>Are you sure you want to delete {confirmDelete.name}?</p>
-                        <div className="modal-actions">
-                            <button className="cancel-btn" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
-                            <button
-                                className="confirm-delete-btn"
-                                onClick={handleConfirmDelete}
-                                disabled={isDeleting}
-                            >
-                                {isDeleting ? 'Deleting...' : 'Delete'}
-                            </button>
+            {
+                confirmDelete.show && (
+                    <div className="confirm-modal-overlay" onClick={cancelDelete}>
+                        <div className="modal-content confirm-modal" onClick={e => e.stopPropagation()}>
+                            <h3>Confirm Delete</h3>
+                            <p>Are you sure you want to delete {confirmDelete.name}?</p>
+                            <div className="modal-actions">
+                                <button className="cancel-btn" onClick={cancelDelete} disabled={isDeleting}>Cancel</button>
+                                <button
+                                    className="confirm-delete-btn"
+                                    onClick={handleConfirmDelete}
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? 'Deleting...' : 'Delete'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 

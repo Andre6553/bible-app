@@ -106,6 +106,10 @@ function Stats() {
     const [emailTemplatesSaving, setEmailTemplatesSaving] = useState(false);
     const [showTemplateEditor, setShowTemplateEditor] = useState(false);
 
+    // Subscription Settings (Dynamic Pricing)
+    const [subscriptionPrice, setSubscriptionPrice] = useState('');
+    const [priceLoading, setPriceLoading] = useState(false);
+
     useEffect(() => {
         // Only fetch if authenticated
         if (isAuthenticated) {
@@ -118,8 +122,47 @@ function Stats() {
             fetchErrorLogs();
             fetchEmailSettings();
             fetchEmailTemplates();
+            fetchSubscriptionPrice();
         }
     }, [isAuthenticated]);
+
+    const fetchSubscriptionPrice = async () => {
+        setPriceLoading(true);
+        const { data, error } = await supabase
+            .from('app_config')
+            .select('value')
+            .eq('key', 'base_subscription_price_usd')
+            .single();
+
+        if (data) {
+            setSubscriptionPrice(data.value);
+        } else if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching price:', error);
+        }
+        setPriceLoading(false);
+    };
+
+    const handleUpdatePrice = async () => {
+        if (!subscriptionPrice || isNaN(subscriptionPrice)) {
+            alert('Please enter a valid number');
+            return;
+        }
+        setPriceLoading(true);
+        const { error } = await supabase
+            .from('app_config')
+            .upsert({
+                key: 'base_subscription_price_usd',
+                value: subscriptionPrice,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) {
+            alert('Failed to update price: ' + error.message);
+        } else {
+            alert('Price updated! The subscription page will now reflect this change.');
+        }
+        setPriceLoading(false);
+    };
 
     const fetchRateLimitSetting = async () => {
         const enabled = await isRateLimitEnabled();
@@ -1049,6 +1092,36 @@ function Stats() {
                             <input type="checkbox" checked={superAutoEnabled} onChange={handleToggleSuperAuto} />
                             <span className="slider"></span>
                         </label>
+                    </div>
+
+
+                    {/* Dynamic Pricing Setting */}
+                    <div className="settings-card" style={{ marginTop: '15px' }}>
+                        <h3>💲 Base Subscription Price (USD)</h3>
+                        <div className="toggle-row" style={{ alignItems: 'center' }}>
+                            <span className="setting-label">Current Base Price ($)</span>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <input
+                                    type="number"
+                                    value={subscriptionPrice}
+                                    onChange={(e) => setSubscriptionPrice(e.target.value)}
+                                    placeholder="5.00"
+                                    className="price-input"
+                                    style={{ padding: '8px', borderRadius: '8px', border: '1px solid #ccc', width: '100px', fontSize: '1rem', color: '#000' }}
+                                />
+                                <button
+                                    onClick={handleUpdatePrice}
+                                    disabled={priceLoading}
+                                    className="action-btn"
+                                    style={{ padding: '8px 16px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                                >
+                                    {priceLoading ? 'Saving...' : 'Save Price'}
+                                </button>
+                            </div>
+                        </div>
+                        <p className="setting-desc" style={{ marginTop: '5px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            Set the base monthly price in USD. The app will automatically convert this to ZAR based on the daily exchange rate.
+                        </p>
                     </div>
 
                     <div className="setting-divider" style={{ margin: '15px 0', borderTop: '1px solid var(--border-subtle)', opacity: 0.3 }}></div>
