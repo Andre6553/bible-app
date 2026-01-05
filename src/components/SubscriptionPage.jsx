@@ -210,7 +210,7 @@ const SubscriptionPage = () => {
                 : '9anvup217hdck';  // Your Real Merchant Key
             // -----------------------------
 
-            const amount = randPrice ? `${randPrice}.00` : '20.00';
+            const amount = randPrice ? `${randPrice}.00` : '85.00';
             const item_name = 'Omni Bible Subscription';
             // FIX: Point back to THIS page so the useEffect above can run and upgrade the user!
             const return_url = `${window.location.origin}/subscription?payment=success`;
