@@ -220,7 +220,7 @@ const SubscriptionPage = () => {
             // 2. Build Data Object (Simple Pay Now structure)
             const data = {
                 cmd: '_paynow',
-                merchant_id: receiver, // Using standard merchant_id instead of receiver
+                receiver: receiver, // Reverted back to receiver as required by PayFast
                 item_name: item_name,
                 amount: amount,
                 return_url: return_url,
