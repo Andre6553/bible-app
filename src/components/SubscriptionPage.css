@@ -154,3 +154,9 @@
     font-size: 0.8rem;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
+
+@media (max-width: 768px) {
+    .subscription-page {
+        padding-bottom: 150px;
+    }
+}
