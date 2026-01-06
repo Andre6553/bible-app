@@ -949,6 +949,7 @@ const SermonPrep = () => {
                 </div>
 
                 <div class="floating-actions">
+                    <button class="btn" onclick="window.clearAppCache()" style="background: #ef4444; color: white;">🔄 Update App (v12.2)</button>
                     <select id="voiceSelect" class="voice-selector">
                         <option value="">${L.voices}</option>
                     </select>
@@ -1113,28 +1114,74 @@ const SermonPrep = () => {
                         const status = document.getElementById('overlayStatus');
                         overlay.style.display = 'flex';
                         
-                        // v12 uses the /tts-proxy to avoid CORS
-                        const chunks = text.match(/[\\s\\S]{1,160}/g) || [];
-                        let blobs = [];
+                        // v12.2: Advanced Chunking & Cache Busting
+                        console.log('TTS Engine: v12.2 Active');
+                        function segmentText(str, max) {
+                            const chunks = [];
+                            let current = "";
+                            const words = str.split(' ');
+                            for (let w of words) {
+                                if ((current + w).length > max) {
+                                    if (current) chunks.push(current.trim());
+                                    current = w + " ";
+                                } else {
+                                    current += w + " ";
+                                }
+                            }
+                            if (current) chunks.push(current.trim());
+                            return chunks;
+                        }
+
+                        const chunks = segmentText(text, 160);
+                        let totalBufferLength = 0;
+                        const buffers = [];
                         
                         for (let i = 0; i < chunks.length; i++) {
-                            status.innerText = '${L.joining} ' + partNum + ' (' + (i+1) + '/' + chunks.length + ')';
+                            status.innerText = 'v12.2 Joining Segment ' + (i+1) + '/' + chunks.length;
                             try {
                                 const url = '/tts-proxy/translate_tts?ie=UTF-8&tl=${isAfSermon ? 'af' : 'en'}&client=tw-ob&q=' + 
-                                            encodeURIComponent(chunks[i]);
+                                            encodeURIComponent(chunks[i]) + '&v=' + Date.now();
                                 const res = await fetch(url);
-                                if (!res.ok) throw new Error('Proxy/CORS Error');
-                                const b = await res.blob();
-                                blobs.push(b);
-                                await new Promise(r => setTimeout(r, 200)); // Small delay to play nice
+                                if (!res.ok) throw new Error('Network error: ' + res.status);
+                                
+                                const arrayBuffer = await res.arrayBuffer();
+                                
+                                // MPEG Check: First byte should be 0xFF (Sync word start)
+                                const firstByte = new Uint8Array(arrayBuffer)[0];
+                                if (firstByte !== 255 && arrayBuffer.byteLength > 0) {
+                                    console.error('Invalid MPEG frame detected at chunk ' + i, firstByte);
+                                    // If we get an error page or non-mpeg, skip it rather than corrupting the file
+                                    continue;
+                                }
+
+                                if (arrayBuffer.byteLength > 0) {
+                                    buffers.push(arrayBuffer);
+                                    totalBufferLength += arrayBuffer.byteLength;
+                                }
+                                
+                                await new Promise(r => setTimeout(r, 300)); 
                             } catch (e) {
+                                console.error('Join failed at chunk ' + i, e);
                                 overlay.style.display = 'none';
-                                alert('v12: Proxy error. Please check if your dev server restarted. Part ' + partNum);
+                                alert('v12.2 Error: ' + e.message);
                                 return;
                             }
                         }
 
-                        const mergedBlob = new Blob(blobs, { type: 'audio/mpeg' });
+                        if (totalBufferLength === 0) {
+                            overlay.style.display = 'none';
+                            alert('v12.2: No audio data was collected. Please check your internet/proxy.');
+                            return;
+                        }
+
+                        const combinedArray = new Uint8Array(totalBufferLength);
+                        let offset = 0;
+                        for (const buffer of buffers) {
+                            combinedArray.set(new Uint8Array(buffer), offset);
+                            offset += buffer.byteLength;
+                        }
+
+                        const mergedBlob = new Blob([combinedArray], { type: 'audio/mpeg' });
                         const finalUrl = URL.createObjectURL(mergedBlob);
                         const a = document.createElement('a');
                         a.href = finalUrl;
@@ -1143,6 +1190,17 @@ const SermonPrep = () => {
                         a.click();
                         document.body.removeChild(a);
                         overlay.style.display = 'none';
+                    }
+
+                    window.clearAppCache = async function() {
+                        if (!confirm('This will clear the app cache and force a restart. Continue?')) return;
+                        if ('serviceWorker' in navigator) {
+                            const regs = await navigator.serviceWorker.getRegistrations();
+                            for(let reg of regs) await reg.unregister();
+                        }
+                        const cacheKeys = await caches.keys();
+                        for(let key of cacheKeys) await caches.delete(key);
+                        window.location.reload(true);
                     }
 
                     window.downloadAllLinks = async function() {
