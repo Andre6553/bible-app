@@ -20,6 +20,7 @@ const AudioPlayer = ({
     const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
     const [voices, setVoices] = useState([]);
     const [selectedVoice, setSelectedVoice] = useState(null);
+    const [selectedLang, setSelectedLang] = useState(localStorage.getItem('audio_lang') || (isAf ? 'af-ZA' : 'en-US'));
     const [rate, setRate] = useState(1.0);
     const [showSettings, setShowSettings] = useState(false);
     const [isMinimize, setIsMinimize] = useState(false);
@@ -83,7 +84,10 @@ const AudioPlayer = ({
             if (!voice) voice = availableVoices[0];
         }
 
-        if (voice) setSelectedVoice(voice);
+        if (voice) {
+            setSelectedVoice(voice);
+            setSelectedLang(voice.lang);
+        }
     };
 
     useEffect(() => {
@@ -159,7 +163,13 @@ const AudioPlayer = ({
         // Build Utterance
         const utterance = new SpeechSynthesisUtterance(text);
 
-        if (selectedVoice) utterance.voice = selectedVoice;
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        } else {
+            // FALLBACK: If no voices listed, set the language code directly.
+            // On Android/Mobile browsers, this often forces the system to use the correct voice pack.
+            utterance.lang = selectedLang;
+        }
         utterance.rate = rate;
         utterance.pitch = 1.0;
 
@@ -282,9 +292,21 @@ const AudioPlayer = ({
         const uri = e.target.value;
         const voice = voices.find(v => v.voiceURI === uri);
         setSelectedVoice(voice);
+        if (voice) setSelectedLang(voice.lang);
         localStorage.setItem('audio_voice_uri', uri);
 
         // If playing, we need a direct restart to satisfy gesture rules in some browsers
+        if (isPlaying) {
+            playVerse(currentVerseIndex);
+        }
+    };
+
+    const handleLangChange = (e) => {
+        const lang = e.target.value;
+        setSelectedLang(lang);
+        localStorage.setItem('audio_lang', lang);
+
+        // If playing, restart to apply language change
         if (isPlaying) {
             playVerse(currentVerseIndex);
         }
@@ -388,30 +410,40 @@ const AudioPlayer = ({
                 <div className="audio-settings-drawer">
                     <div className="setting-row">
                         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
-                            <label>Voice</label>
-                            <span style={{ fontSize: '10px', color: '#888' }}>
-                                Found: {voices.length}
+                            <label>{voices.length > 0 ? 'Voice' : 'Language'}</label>
+                            {voices.length === 0 && (
                                 <button
                                     onClick={forceLoadVoices}
-                                    style={{ marginLeft: '8px', background: 'none', border: '1px solid #444', color: '#aaa', padding: '1px 4px', fontSize: '9px', borderRadius: '3px' }}
-                                    title="Run Deep Diagnostic Scan"
+                                    style={{ background: 'none', border: '1px solid #444', color: '#888', padding: '1px 4px', fontSize: '9px', borderRadius: '3px' }}
                                 >
-                                    Deep Scan
+                                    Diagnose
                                 </button>
-                            </span>
+                            )}
                         </div>
-                        <select
-                            value={selectedVoice?.voiceURI || ''}
-                            onChange={handleVoiceChange}
-                            className="voice-select"
-                        >
-                            {voices.length === 0 && <option>Default System Voice</option>}
-                            {voices.map(v => (
-                                <option key={v.voiceURI} value={v.voiceURI}>
-                                    {v.name} ({v.lang})
-                                </option>
-                            ))}
-                        </select>
+
+                        {voices.length > 0 ? (
+                            <select
+                                value={selectedVoice?.voiceURI || ''}
+                                onChange={handleVoiceChange}
+                                className="voice-select"
+                            >
+                                {voices.map(v => (
+                                    <option key={v.voiceURI} value={v.voiceURI}>
+                                        {v.name} ({v.lang})
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <select
+                                value={selectedLang}
+                                onChange={handleLangChange}
+                                className="voice-select"
+                            >
+                                <option value="af-ZA">Afrikaans (System Default)</option>
+                                <option value="en-US">English (US Default)</option>
+                                <option value="en-GB">English (UK Default)</option>
+                            </select>
+                        )}
                     </div>
 
                     <div className="setting-row">
