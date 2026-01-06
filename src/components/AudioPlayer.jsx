@@ -23,6 +23,15 @@ const AudioPlayer = ({
     const [rate, setRate] = useState(1.0);
     const [showSettings, setShowSettings] = useState(false);
     const [isMinimize, setIsMinimize] = useState(false);
+    const [debugInfo, setDebugInfo] = useState({
+        state: 'init',
+        error: null,
+        voicesCount: 0,
+        secure: typeof window !== 'undefined' ? window.isSecureContext : '?'
+    });
+    const [showDebug, setShowDebug] = useState(false);
+
+    const isAf = navigator.language?.startsWith('af');
 
     // Refs
     const synth = window.speechSynthesis;
@@ -31,8 +40,16 @@ const AudioPlayer = ({
     // --- 1. Initialization & Voice Loading ---
 
     useEffect(() => {
+        if (!synth) {
+            setDebugInfo(prev => ({ ...prev, state: 'N/A', error: 'Speech API Not Found' }));
+            return;
+        }
+
         const loadVoices = () => {
             let available = synth.getVoices();
+            console.log(`[Audio] Loaded ${available.length} voices`);
+            setDebugInfo(prev => ({ ...prev, voicesCount: available.length, state: 'Voices Loaded' }));
+
             if (available.length > 0) {
                 setVoices(available);
                 restoreSettings(available);
@@ -46,11 +63,20 @@ const AudioPlayer = ({
             synth.onvoiceschanged = loadVoices;
         }
 
+        // Interval fallback for persistent voice loading issues
+        const timer = setInterval(() => {
+            if (synth.getVoices().length > 0 && voices.length === 0) {
+                loadVoices();
+                clearInterval(timer);
+            }
+        }, 1000);
+
         // Restore speed
         const savedRate = localStorage.getItem('audio_rate');
         if (savedRate) setRate(parseFloat(savedRate));
 
         return () => {
+            clearInterval(timer);
             cancelSpeech();
         };
     }, []);
@@ -116,7 +142,10 @@ const AudioPlayer = ({
         utterance.rate = rate;
         utterance.pitch = 1.0;
 
-        // Events
+        utterance.onstart = () => {
+            setDebugInfo(prev => ({ ...prev, state: 'Speaking...' }));
+        };
+
         utterance.onend = () => {
             // Move to next verse automatically
             if (isPlaying) {
@@ -126,12 +155,17 @@ const AudioPlayer = ({
 
         utterance.onerror = (e) => {
             console.error('Audio Error:', e);
+            setDebugInfo(prev => ({ ...prev, error: e.error, state: 'Error' }));
             if (e.error !== 'interrupted') {
                 setIsPlaying(false);
             }
         };
 
         utteranceRef.current = utterance;
+
+        // Final check: some browsers pause the synth if idle
+        if (synth.paused) synth.resume();
+
         synth.speak(utterance);
 
         // Update UI & External State
@@ -140,8 +174,9 @@ const AudioPlayer = ({
     };
 
     const cancelSpeech = () => {
-        if (synth.speaking || synth.pending) {
+        if (synth && (synth.speaking || synth.pending)) {
             synth.cancel();
+            setDebugInfo(prev => ({ ...prev, state: 'Idle' }));
         }
     };
 
@@ -236,15 +271,45 @@ const AudioPlayer = ({
         localStorage.setItem('audio_rate', newRate);
     };
 
-    if (voices.length === 0) return null; // Don't render if TTS not supported
+    // Aggressive Force-Load for Mobile Browsers
+    const forceLoadVoices = () => {
+        if (!synth) return;
+
+        // 1. Try standard load
+        const v = synth.getVoices();
+        if (v.length > 0) {
+            setVoices(v);
+            restoreSettings(v);
+            setDebugInfo(prev => ({ ...prev, voicesCount: v.length, state: 'Force Loaded' }));
+            return;
+        }
+
+        // 2. Play a "silent" utterance. 
+        // This is a known hack to "wake up" the speech engine on Mobile Edge/Safari
+        setDebugInfo(prev => ({ ...prev, state: 'Probing...' }));
+        const probe = new SpeechSynthesisUtterance(' ');
+        probe.volume = 0;
+
+        probe.onend = () => {
+            const v2 = synth.getVoices();
+            if (v2.length > 0) {
+                setVoices(v2);
+                restoreSettings(v2);
+                setDebugInfo(prev => ({ ...prev, voicesCount: v2.length, state: 'Probed OK' }));
+            } else {
+                setDebugInfo(prev => ({ ...prev, state: 'Probe Final Fail' }));
+            }
+        };
+
+        synth.speak(probe);
+    };
+
+    if (!synth) return null;
 
     return (
         <div className={`audio-player-container ${isMinimize ? 'minimized' : ''}`}>
-
-            {/* Main Player Bar */}
+            {/* Always show controls if synth exists, even if 0 voices (default might work) */}
             <div className="audio-controls">
-
-                {/* Minimized View: Just Icon & verse */}
                 {isMinimize && (
                     <div className="mini-info" onClick={() => setIsMinimize(false)}>
                         <span className="audio-pulse-icon">{isPlaying ? '🔊' : '🔈'}</span>
@@ -252,12 +317,14 @@ const AudioPlayer = ({
                     </div>
                 )}
 
-                {/* Expanded View */}
                 {!isMinimize && (
                     <>
                         <div className="track-info">
                             <span className="audio-book-title">{bookName} {currentChapter}</span>
-                            <span className="audio-verse-num">v.{verses[currentVerseIndex]?.verse}</span>
+                            <span className="audio-verse-num">
+                                v.{verses[currentVerseIndex]?.verse}
+                                {voices.length === 0 && <span style={{ fontSize: '10px', color: '#ffaa00' }}> (No voices listed)</span>}
+                            </span>
                         </div>
 
                         <div className="transport-buttons">
@@ -269,10 +336,19 @@ const AudioPlayer = ({
                         </div>
 
                         <div className="extra-actions">
+                            {voices.length === 0 && (
+                                <button
+                                    onClick={forceLoadVoices}
+                                    style={{ background: 'none', border: '1px solid #555', color: '#aaa', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', marginRight: '5px' }}
+                                >
+                                    Force Load
+                                </button>
+                            )}
                             <button
                                 className={`settings-toggle ${showSettings ? 'active' : ''}`}
                                 onClick={() => setShowSettings(!showSettings)}
                                 title="Audio Settings"
+                                disabled={voices.length === 0}
                             >
                                 ⚙️
                             </button>
