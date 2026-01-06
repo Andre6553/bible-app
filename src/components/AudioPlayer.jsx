@@ -38,7 +38,6 @@ const AudioPlayer = ({
     const utteranceRef = useRef(null);
 
     // --- 1. Initialization & Voice Loading ---
-
     useEffect(() => {
         if (!synth) {
             setDebugInfo(prev => ({ ...prev, state: 'N/A', error: 'Speech API Not Found' }));
@@ -46,32 +45,67 @@ const AudioPlayer = ({
         }
 
         const loadVoices = () => {
-            let available = synth.getVoices();
-            console.log(`[Audio] Loaded ${available.length} voices`);
-            setDebugInfo(prev => ({ ...prev, voicesCount: available.length, state: 'Voices Loaded' }));
+            // Get all voices
+            let allVoices = synth.getVoices();
 
-            if (available.length > 0) {
-                setVoices(available);
-                restoreSettings(available);
+            // Deduplicate by voiceURI and name (some browsers return duplicates)
+            const uniqueVoices = [];
+            const seenURIs = new Set();
+            for (const v of allVoices) {
+                if (!seenURIs.has(v.voiceURI)) {
+                    uniqueVoices.push(v);
+                    seenURIs.add(v.voiceURI);
+                }
+            }
+
+            console.log(`[Audio] Loaded ${uniqueVoices.length} unique voices`);
+            setDebugInfo(prev => ({
+                ...prev,
+                voicesCount: uniqueVoices.length,
+                state: uniqueVoices.length > 0 ? 'Voices Ready' : 'Probing...'
+            }));
+
+            if (uniqueVoices.length > 0) {
+                setVoices(uniqueVoices);
+                restoreSettings(uniqueVoices);
             }
         };
 
+        // Initial load
         loadVoices();
 
-        // Chrome loads voices asynchronously
+        // Browser event for voice list updates
         if (synth.onvoiceschanged !== undefined) {
             synth.onvoiceschanged = loadVoices;
         }
 
-        // Interval fallback for persistent voice loading issues
+        // AGGRESSIVE POLLING: 
+        // Mobile Edge/Safari often need multiple attempts or a user gesture
+        let pollCount = 0;
         const timer = setInterval(() => {
-            if (synth.getVoices().length > 0 && voices.length === 0) {
-                loadVoices();
+            pollCount++;
+            loadVoices();
+
+            // After 5 attempts (5sec), stop if we have voices
+            if (synth.getVoices().length > 1 || pollCount >= 10) {
                 clearInterval(timer);
+                console.log("[Audio] Polling finished.");
             }
         }, 1000);
 
-        // Restore speed
+        // SILENT PROBE:
+        // Some browsers only populate the list after the FIRST speak call.
+        // We do a silent probe on mount to attempt to "wake up" the engine.
+        setTimeout(() => {
+            if (synth.getVoices().length <= 1) {
+                console.log("[Audio] Attempting silent probe to wake voices...");
+                const probe = new SpeechSynthesisUtterance(' ');
+                probe.volume = 0;
+                synth.speak(probe);
+            }
+        }, 500);
+
+        // Restore speed preference
         const savedRate = localStorage.getItem('audio_rate');
         if (savedRate) setRate(parseFloat(savedRate));
 
