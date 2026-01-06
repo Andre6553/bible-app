@@ -15,6 +15,8 @@ const AudioPlayer = ({
     onClose,
     onPlayStateChange // To notify parent if playing
 }) => {
+    const isAf = navigator.language?.startsWith('af');
+
     // State
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
@@ -31,8 +33,6 @@ const AudioPlayer = ({
         secure: typeof window !== 'undefined' ? window.isSecureContext : '?'
     });
     const [showDebug, setShowDebug] = useState(false);
-
-    const isAf = navigator.language?.startsWith('af');
 
     // Refs
     const synth = window.speechSynthesis;
