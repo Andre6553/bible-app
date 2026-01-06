@@ -159,7 +159,17 @@ const AudioPlayer = ({
     // Effect: Handle Verse Change or Play/Pause
     useEffect(() => {
         if (isPlaying && verses.length > 0) {
-            // Note: On mobile, this auto-play only works if the context was unlocked by a user click
+            // Guard: Only skip if we are actually currently speaking/pending the RIGHT text
+            // AND we didn't just come from a paused state.
+            const isAlreadyActive = synth.speaking || synth.pending;
+            const isSameText = utteranceRef.current?.text === verses[currentVerseIndex]?.text;
+
+            if (isAlreadyActive && isSameText) {
+                // If it's the same and active, but synth is paused (common on some mobile/PCs), resume
+                if (synth.paused) synth.resume();
+                return;
+            }
+
             playVerse(currentVerseIndex);
         } else if (!isPlaying) {
             cancelSpeech();
@@ -212,11 +222,12 @@ const AudioPlayer = ({
         };
 
         utterance.onerror = (e) => {
+            // ignore interrupted as it's often a normal part of switching verses
+            if (e.error === 'interrupted') return;
+
             console.error('Audio Error:', e);
             setDebugInfo(prev => ({ ...prev, error: e.error, state: 'Error' }));
-            if (e.error !== 'interrupted') {
-                setIsPlaying(false);
-            }
+            setIsPlaying(false);
         };
 
         utteranceRef.current = utterance;
@@ -293,8 +304,9 @@ const AudioPlayer = ({
                 synth.speak(prime);
             }
 
-            // 2. Start the actual verse immediately to ensure the click context is used
-            playVerse(currentVerseIndex);
+            // 2. We do NOT call playVerse here anymore.
+            // Setting isPlaying = true will trigger the useEffect,
+            // but the prime call above ensures the context is unlocked for mobile.
         }
 
         setIsPlaying(nextState);
