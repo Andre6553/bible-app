@@ -10,6 +10,7 @@ const SermonPrep = () => {
     const { settings, user, profile, fetchProfile } = useSettings();
     const navigate = useNavigate();
     const isAf = settings.language === 'af';
+    const isAdmin = profile?.subscription_override === 'admin';
 
     // Workflow State
     const [step, setStep] = useState('dashboard'); // dashboard, foundation, skeleton, laboratory
@@ -667,8 +668,35 @@ const SermonPrep = () => {
     const handleTTSView = async () => {
         if (!currentSermon) return;
 
-        const sermonTitle = (currentSermon.title || (isAf ? 'Preek' : 'Sermon')) + " - TTS";
+        const safe = (str) => (str || '').replace(/[`$]/g, '');
         const isAfSermon = settings.language === 'af';
+        const isWindows = typeof window !== 'undefined' && window.navigator.userAgent.indexOf("Win") !== -1;
+        const isAdmin = profile?.subscription_override === 'admin';
+        const sermonTitle = safe(currentSermon.title || (isAf ? 'Preek' : 'Sermon')) + " - TTS";
+
+        // Localized Strings for v9
+        const L = {
+            converting: isAfSermon ? 'Besig met omskakeling...' : 'Converting Audio...',
+            preparing: isAfSermon ? 'Berei voor...' : 'Preparing content...',
+            downloads: isAfSermon ? 'Kontroleer asseblief u "Downloads" gids na voltooiing.' : 'Please check your "Downloads" folder after completion.',
+            genLinks: isAfSermon ? 'v12: Berei 4 dele voor...' : 'v12: Preparing 4 parts...',
+            audioParts: isAfSermon ? 'Klank Dele (4)' : 'Audio Parts (4)',
+            downloadAll: isAfSermon ? 'Laai Alles Af' : 'Download All Parts',
+            openSave: isAfSermon ? 'Deel' : 'Part',
+            ready: isAfSermon ? 'v12: 4 klank dele is gereed.' : 'v12: 4 audio parts are ready.',
+            confirmPrefix: isAfSermon ? 'Dit sal ' : 'This will open ',
+            confirmSuffix: isAfSermon ? ' dele begin aflaai. Voortgaan?' : ' parts for download. Continue?',
+            finished: isAfSermon ? 'Alle dele is afgehandel.' : 'All parts have been processed.',
+            play: isAfSermon ? 'Speel' : 'Play',
+            resume: isAfSermon ? 'Hervat' : 'Resume',
+            pause: isAfSermon ? 'Pause' : 'Pause',
+            copy: isAfSermon ? 'Kopieer' : 'Copy',
+            copied: isAfSermon ? 'Gekopieer!' : 'Copied!',
+            voices: isAfSermon ? 'Laai stemme...' : 'Loading voices...',
+            noVoices: isAfSermon ? 'Geen stemme gevind' : 'No voices found',
+            joining: isAfSermon ? 'Kombineer deel...' : 'Joining part...',
+            downloadNow: isAfSermon ? 'Laai Deel Af' : 'Download Part'
+        };
 
         // 1. Scrubbing Logic
         const scrubText = (text, blockTitle) => {
@@ -698,8 +726,8 @@ const SermonPrep = () => {
                 // Remove standalone colons or residue punctuation lines
                 if (l === ':' || l === '.' || l === '):') return null;
 
-                // Remove any remaining markdown markers
-                l = l.replace(/[#*_-]/g, '').trim();
+                // Remove any remaining markdown markers (including backticks and dollars that break template literals)
+                l = l.replace(/[#*_-`$]/g, '').trim();
                 if (!l) return null;
 
                 // Deduplicate if this line is just the title again
@@ -726,7 +754,7 @@ const SermonPrep = () => {
 
                 return `
                     <div class="block-section">
-                        ${!skipHeader ? `<h2 class="tts-header">${block.title} ...</h2>` : ''}
+                        ${!skipHeader ? `<h2 class="tts-header">${safe(block.title)} ...</h2>` : ''}
                         <div class="tts-text">${scrubText(block.notes || '', block.title)}</div>
                     </div>
                 `;
@@ -746,12 +774,14 @@ const SermonPrep = () => {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-                <title>🎙️ TTS - ${sermonTitle}</title>
+                <meta name="referrer" content="no-referrer">
+                <title>🎙️ TTS v12 - ${sermonTitle}</title>
                 <style>
                     :root {
                         --bg-color: #0f172a;
                         --text-color: #f8fafc;
                         --accent-color: #38bdf8;
+                        --secondary-btn: #64748b;
                         --card-bg: #1e293b;
                         --font-size: 24px;
                     }
@@ -761,7 +791,7 @@ const SermonPrep = () => {
                         color: var(--text-color);
                         background: var(--bg-color);
                         margin: 0;
-                        padding: 20px 20px 120px 20px;
+                        padding: 20px 20px 140px 20px;
                         font-size: var(--font-size);
                         max-width: 900px;
                         margin: 0 auto;
@@ -785,83 +815,349 @@ const SermonPrep = () => {
                         left: 50%;
                         transform: translateX(-50%);
                         display: flex;
-                        gap: 15px;
+                        gap: 12px;
                         background: rgba(15, 23, 42, 0.9);
                         backdrop-filter: blur(12px);
-                        padding: 12px 25px;
+                        padding: 15px 25px;
                         border-radius: 50px;
                         border: 1px solid rgba(255,255,255,0.1);
-                        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
                         z-index: 1000;
+                        flex-wrap: wrap;
+                        justify-content: center;
+                        width: max-content;
+                        max-width: 95vw;
                     }
                     .btn {
                         background: var(--accent-color);
                         color: #000;
                         border: none;
-                        padding: 12px 24px;
+                        padding: 10px 20px;
                         border-radius: 25px;
                         font-weight: 700;
-                        font-size: 16px;
+                        font-size: 15px;
                         cursor: pointer;
                         display: flex;
                         align-items: center;
                         gap: 8px;
                         transition: all 0.2s;
+                        white-space: nowrap;
                     }
                     .btn:active { transform: scale(0.95); }
-                    .btn.secondary { background: #64748b; color: white; }
+                    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+                    .btn.secondary { background: var(--secondary-btn); color: white; }
                     .btn.copy-btn { background: #10b981; color: white; }
+                    .btn.audio-btn { background: #f59e0b; color: white; }
+                    .btn.download-btn { background: #6366f1; color: white; }
+                    
+                    .voice-selector {
+                        background: #334155;
+                        color: white;
+                        border: 1px solid #475569;
+                        border-radius: 12px;
+                        padding: 8px 12px;
+                        font-size: 14px;
+                        outline: none;
+                        max-width: 150px;
+                    }
+
+                    .overlay {
+                        display: none;
+                        position: fixed;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(0,0,0,0.85);
+                        z-index: 2000;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        text-align: center;
+                        padding: 40px;
+                    }
+                    .progress-container {
+                        width: 300px;
+                        height: 10px;
+                        background: #334155;
+                        border-radius: 5px;
+                        margin: 20px 0;
+                        overflow: hidden;
+                    }
+                    .progress-bar {
+                        width: 0%;
+                        height: 100%;
+                        background: var(--accent-color);
+                        transition: width 0.3s;
+                    }
+
+                    .download-list {
+                        display: none;
+                        margin-top: 30px;
+                        background: var(--card-bg);
+                        padding: 20px;
+                        border-radius: 16px;
+                        border: 1px solid rgba(255,255,255,0.1);
+                    }
+                    .download-list h3 { margin-top: 0; color: var(--accent-color); font-size: 1.2em; }
+                    .download-item {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 12px;
+                        border-bottom: 1px solid rgba(255,255,255,0.05);
+                        font-size: 16px;
+                    }
+                    .download-item:last-child { border-bottom: none; }
+                    .part-link {
+                        color: var(--accent-color);
+                        text-decoration: none;
+                        background: rgba(56, 189, 248, 0.1);
+                        padding: 4px 12px;
+                        border-radius: 8px;
+                        transition: all 0.2s;
+                    }
+                    .part-link:hover { background: var(--accent-color); color: #000; }
 
                     @media print {
-                        .floating-actions { display: none; }
+                        .floating-actions, .overlay, .download-list { display: none !important; }
                         body { background: white; color: black; padding: 0; }
                         .tts-text { background: transparent; border: none; color: black; box-shadow: none; padding: 0; }
                     }
                 </style>
             </head>
             <body>
+                <div class="overlay" id="conversionOverlay">
+                    <h2 id="overlayTitle">🎙️ ${L.converting}</h2>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <p id="overlayStatus" style="font-size: 18px; color: #94a3b8;">${L.preparing}</p>
+                    <p style="font-size: 14px; color: #64748b; margin-top:20px;">${L.downloads}</p>
+                </div>
+
                 <div id="tts-content">
                     <div class="block-section">
-                        <h1 style="color: var(--accent-color); text-align: center; font-size: 1.5em; margin-bottom: 30px; border-bottom: 2px solid var(--accent-color); padding-bottom: 15px;">
-                            ${currentSermon.title} ...
-                        </h1>
+                        <h1>${sermonTitle.replace(' - TTS', '')}</h1>
                     </div>
                     ${ttsBody}
                 </div>
 
+                <div id="downloadList" class="download-list">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin:0;">📂 ${L.audioParts}</h3>
+                        <button class="btn audio-btn" onclick="downloadAllLinks()" id="downloadAllBtn">📥 ${L.downloadAll}</button>
+                    </div>
+                    <div id="linksContainer"></div>
+                </div>
+
                 <div class="floating-actions">
-                    <button class="btn copy-btn" onclick="copyAll()">📋 ${isAfSermon ? 'Kopieer Alles' : 'Copy All'}</button>
-                    <button class="btn" onclick="window.print()">🖨️ ${isAfSermon ? 'Stoor as PDF' : 'Save as PDF'}</button>
+                    <select id="voiceSelect" class="voice-selector">
+                        <option value="">${L.voices}</option>
+                    </select>
+                    
+                    <button class="btn audio-btn" id="playBtn" onclick="togglePlay()">▶️ ${L.play}</button>
+                    <button class="btn secondary" id="stopBtn" onclick="stopAudio()" disabled style="opacity:0.5">⏹️</button>
+                    
+                    <button class="btn copy-btn" onclick="copyAll()">📋 ${L.copy}</button>
+                    ${isWindows ? `<button class="btn download-btn" onclick="downloadAudio()">📥 Audio</button>` : ''}
+                    ${isAdmin ? `<button class="btn" onclick="window.print()">🖨️ PDF</button>` : ''}
                     <button class="btn secondary" onclick="window.close()">✕</button>
                 </div>
 
                 <script>
-                    async function copyAll() {
-                        const content = document.getElementById('tts-content');
-                        // Use textContent to get clean text without HTML
-                        const text = content.textContent.trim().replace(/\\n{3,}/g, '\\n\\n'); 
+                    const synth = window.speechSynthesis;
+                    let utterance = null;
+                    let isPaused = false;
+                    let voices = [];
+
+                    function loadVoices() {
+                        voices = synth.getVoices();
+                        const voiceSelect = document.getElementById('voiceSelect');
+                        voiceSelect.innerHTML = '';
                         
-                        try {
-                            if (navigator.clipboard && navigator.clipboard.writeText) {
-                                await navigator.clipboard.writeText(text);
-                                alert('${isAfSermon ? 'Gekopieer na knipbord!' : 'Copied to clipboard!'}');
-                            } else {
-                                // Fallback
-                                const area = document.createElement('textarea');
-                                area.value = text;
-                                document.body.appendChild(area);
-                                area.select();
-                                document.execCommand('copy');
-                                document.body.removeChild(area);
-                                alert('${isAfSermon ? 'Gekopieer na knipbord!' : 'Copied to clipboard!'}');
-                            }
-                        } catch (err) {
-                            alert('Copy failed. Please select text manually.');
+                        const langPref = '${isAfSermon ? 'af' : 'en'}';
+                        const filtered = voices.filter(v => v.lang.startsWith(langPref));
+                        const displayVoices = filtered.length > 0 ? filtered : voices;
+
+                        displayVoices.forEach((voice, i) => {
+                            const option = document.createElement('option');
+                            option.value = i;
+                            option.textContent = voice.name + ' (' + voice.lang + ')';
+                            if (voice.default) option.selected = true;
+                            voiceSelect.appendChild(option);
+                        });
+                        
+                        if (displayVoices.length === 0) {
+                            const option = document.createElement('option');
+                            option.textContent = '${L.noVoices}';
+                            voiceSelect.appendChild(option);
                         }
                     }
+
+                    if (synth.onvoiceschanged !== undefined) {
+                        synth.onvoiceschanged = loadVoices;
+                    }
+                    loadVoices();
+
+                    function togglePlay() {
+                        const playBtn = document.getElementById('playBtn');
+                        const stopBtn = document.getElementById('stopBtn');
+
+                        if (synth.speaking && !isPaused) {
+                            synth.pause();
+                            isPaused = true;
+                            playBtn.innerHTML = '▶️ ${L.resume}';
+                        } else if (isPaused) {
+                            synth.resume();
+                            isPaused = false;
+                            playBtn.innerHTML = '⏸️ ${L.pause}';
+                        } else {
+                            startNewPlayback();
+                        }
+                    }
+
+                    function startNewPlayback() {
+                        const content = document.getElementById('tts-content').innerText;
+                        utterance = new SpeechSynthesisUtterance(content);
+                        
+                        const voiceSelect = document.getElementById('voiceSelect');
+                        const selectedVoice = voices.filter(v => v.lang.startsWith('${isAfSermon ? 'af' : 'en'}'))[voiceSelect.value] || voices[voiceSelect.value];
+                        if (selectedVoice) utterance.voice = selectedVoice;
+                        
+                        utterance.rate = 0.95;
+                        utterance.pitch = 1.0;
+
+                        utterance.onstart = () => {
+                            document.getElementById('playBtn').innerHTML = '⏸️ ${L.pause}';
+                            document.getElementById('stopBtn').disabled = false;
+                            document.getElementById('stopBtn').style.opacity = '1';
+                        };
+
+                        utterance.onend = () => {
+                            stopAudio();
+                        };
+
+                        synth.speak(utterance);
+                    }
+
+                    function stopAudio() {
+                        synth.cancel();
+                        isPaused = false;
+                        utterance = null;
+                        document.getElementById('playBtn').innerHTML = '▶️ ${L.play}';
+                        document.getElementById('stopBtn').disabled = true;
+                        document.getElementById('stopBtn').style.opacity = '0.5';
+                    }
+
+                    async function copyAll() {
+                        const content = document.getElementById('tts-content');
+                        const text = content.innerText.trim();
+                        try {
+                            if (navigator.clipboard) {
+                                await navigator.clipboard.writeText(text);
+                                alert('${L.copied}');
+                            }
+                        } catch (err) {}
+                    }
+
+                    // v12 Logic: 4 Major Parts with Proxy
+                    window.downloadAudio = async function() {
+                        const overlay = document.getElementById('conversionOverlay');
+                        const status = document.getElementById('overlayStatus');
+                        const list = document.getElementById('downloadList');
+                        const container = document.getElementById('linksContainer');
+                        
+                        overlay.style.display = 'flex';
+                        status.innerText = 'v12: Split into 4 segments...';
+
+                        try {
+                            const fullText = document.getElementById('tts-content').innerText;
+                            const totalLen = fullText.length;
+                            const segmentSize = Math.ceil(totalLen / 4);
+                            
+                            container.innerHTML = '';
+                            
+                            for (let p = 0; p < 4; p++) {
+                                const start = p * segmentSize;
+                                const end = (p + 1) * segmentSize;
+                                const segmentText = fullText.substring(start, end);
+                                if (!segmentText.trim()) continue;
+
+                                const div = document.createElement('div');
+                                div.className = 'download-item';
+                                
+                                const span = document.createElement('span');
+                                span.textContent = '${L.openSave} ' + (p + 1) + ' (' + Math.round((segmentText.length/totalLen)*100) + '%)';
+                                
+                                const btn = document.createElement('button');
+                                btn.className = 'part-link';
+                                btn.textContent = '📥 Build & Download';
+                                btn.onclick = () => downloadSegment(segmentText, p + 1);
+                                
+                                div.appendChild(span);
+                                div.appendChild(btn);
+                                container.appendChild(div);
+                            }
+
+                            overlay.style.display = 'none';
+                            list.style.display = 'block';
+                            list.scrollIntoView({ behavior: 'smooth' });
+                            
+                            alert('${L.ready}');
+                        } catch (err) {
+                            console.error(err);
+                            overlay.style.display = 'none';
+                        }
+                    }
+
+                    async function downloadSegment(text, partNum) {
+                        const overlay = document.getElementById('conversionOverlay');
+                        const status = document.getElementById('overlayStatus');
+                        overlay.style.display = 'flex';
+                        
+                        // v12 uses the /tts-proxy to avoid CORS
+                        const chunks = text.match(/[\\s\\S]{1,160}/g) || [];
+                        let blobs = [];
+                        
+                        for (let i = 0; i < chunks.length; i++) {
+                            status.innerText = '${L.joining} ' + partNum + ' (' + (i+1) + '/' + chunks.length + ')';
+                            try {
+                                const url = '/tts-proxy/translate_tts?ie=UTF-8&tl=${isAfSermon ? 'af' : 'en'}&client=tw-ob&q=' + 
+                                            encodeURIComponent(chunks[i]);
+                                const res = await fetch(url);
+                                if (!res.ok) throw new Error('Proxy/CORS Error');
+                                const b = await res.blob();
+                                blobs.push(b);
+                                await new Promise(r => setTimeout(r, 200)); // Small delay to play nice
+                            } catch (e) {
+                                overlay.style.display = 'none';
+                                alert('v12: Proxy error. Please check if your dev server restarted. Part ' + partNum);
+                                return;
+                            }
+                        }
+
+                        const mergedBlob = new Blob(blobs, { type: 'audio/mpeg' });
+                        const finalUrl = URL.createObjectURL(mergedBlob);
+                        const a = document.createElement('a');
+                        a.href = finalUrl;
+                        a.download = '${sermonTitle.replace(/ /g, '_')}_Part_' + partNum + '.mp3';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        overlay.style.display = 'none';
+                    }
+
+                    window.downloadAllLinks = async function() {
+                        const btns = document.querySelectorAll('.download-item .part-link');
+                        if (!confirm('${L.confirmPrefix}' + btns.length + '${L.confirmSuffix}')) return;
+                        for (let btn of btns) {
+                            btn.click();
+                            await new Promise(r => setTimeout(r, 5000)); // Longer delay for joint processing
+                        }
+                    }
+
+                    window.onbeforeunload = () => synth.cancel();
                 </script>
-            </body>
-            </html>
+        </body>
+        </html>
         `;
 
         ttsWindow.document.write(htmlContent);
@@ -2046,9 +2342,11 @@ const SermonPrep = () => {
                     <button className="action-btn secondary pdf-btn" onClick={handlePreachMode} style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}>
                         🗣️ {isAf ? 'Preek Modus' : 'Preach Mode'}
                     </button>
-                    <button className="action-btn secondary tts-btn" onClick={handleTTSView} style={{ borderColor: '#38bdf8', color: '#38bdf8' }}>
-                        🎙️ {isAf ? 'TTS PDF' : 'TTS PDF'}
-                    </button>
+                    {isAdmin && (
+                        <button className="action-btn secondary tts-btn" onClick={handleTTSView} style={{ borderColor: '#38bdf8', color: '#38bdf8' }}>
+                            🎙️ {isAf ? 'TTS PDF' : 'TTS PDF'}
+                        </button>
+                    )}
                 </div>
             </div>
         );

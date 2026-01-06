@@ -314,10 +314,8 @@ export const getUserId = async () => {
     let userId = cachedUserId;
 
     try {
-        // First check: get session
         let { data: { session } } = await supabase.auth.getSession();
 
-        // [OPTIMIZATION] Only wait for retry if we really suspect a race condition (e.g. on very first load)
         if (!session && !localStorage.getItem('bible_user_id') && !cachedUserId) {
             await new Promise(r => setTimeout(r, 150));
             const retry = await supabase.auth.getSession();
@@ -328,22 +326,10 @@ export const getUserId = async () => {
             userId = session.user.id;
             const email = session.user.email;
 
-            // Sync email to user_profiles for stats grouping
-            if (email) {
-                supabase.from('user_profiles').upsert({
-                    user_id: userId,
-                    email: email,
-                    last_seen: new Date().toISOString()
-                }).then(({ error }) => {
-                    if (error) console.warn('[ProfileSync] Error syncing profile:', error.message);
-                });
-            }
-
-            // If logged in, we definitely don't want a guest ID sticking around
+            // Sync email to user_profiles for stats grouping (Debounced via session init below)
             if (localStorage.getItem('bible_user_id')) {
                 localStorage.removeItem('bible_user_id');
             }
-
             cachedUserId = userId;
         }
     } catch (e) {
@@ -355,29 +341,36 @@ export const getUserId = async () => {
     }
 
     if (!userId) {
-        // Generate random ID
         userId = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
         localStorage.setItem('bible_user_id', userId);
-        console.log('[Auth] 🆕 New guest user created:', userId);
     }
 
     cachedUserId = userId;
 
     // PERFORM ONCE-PER-SESSION INITIALIZATION
     if (!isSessionInitialized) {
-        console.log('[Auth] ⚡ Running session initialization for:', userId);
-        isSessionInitialized = true; // Mark early to prevent concurrent triggers
+        isSessionInitialized = true;
 
-        // 1. Initialize user status (Auto-SuperUser upgrade)
         initializeNewUser(userId).catch(err => console.error('User initialization failed:', err));
 
-        // 2. Ensure profile exists in user_profiles
-        supabase.from('user_profiles').upsert({
-            user_id: userId,
-            last_seen: new Date().toISOString()
-        }, { onConflict: 'user_id' }).then(({ error }) => {
-            if (error) console.warn('[ProfileSync] Error syncing profile:', error.message);
-        });
+        // Sync profile metadata with 24-hour debounce to save database writes
+        const lastSync = localStorage.getItem(`profile_sync_${userId}`);
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000;
+
+        if (!lastSync || (now - parseInt(lastSync) > oneDay)) {
+            const { data: { session } } = await supabase.auth.getSession();
+            const email = session?.user?.email || null;
+
+            supabase.from('user_profiles').upsert({
+                user_id: userId,
+                email: email,
+                last_seen: new Date().toISOString()
+            }, { onConflict: 'user_id' }).then(({ error }) => {
+                if (error) console.warn('[ProfileSync] Error syncing profile:', error.message);
+                else localStorage.setItem(`profile_sync_${userId}`, now.toString());
+            });
+        }
     }
 
     return userId;
@@ -386,73 +379,34 @@ export const getUserId = async () => {
 /**
  * Initialize a new user (Internal Logic)
  * Checks if 'super_users_auto' is enabled and adds user if true.
- * Implemented directly here to avoid circular dependency with blogService.
  */
 const initializeNewUser = async (userId) => {
     if (!userId) return;
 
     try {
-        console.log('[InitUser] 🆕 Initializing new user:', userId);
-
-        // Notify admin (ONE-TIME CHECK via localStorage)
-        const hasNotified = localStorage.getItem(`admin_notified_${userId}`);
-        if (!hasNotified) {
-            notifyAdminOfNewUser(userId)
-                .then(() => localStorage.setItem(`admin_notified_${userId}`, 'true'))
-                .catch(e => console.warn('[InitUser] Admin notify failed:', e));
-        }
-
-        // 1. Fetch relevant settings for auto-promotion
         const { data: settings, error } = await supabase
             .from('app_settings')
             .select('key, value')
             .in('key', ['super_users_auto', 'blog_rate_limit_enabled', 'super_users']);
 
-        if (error) {
-            console.error('[InitUser] ⚠️ Error fetching settings:', error);
-            return;
-        }
+        if (error) return;
 
         const autoSuperOn = settings.find(s => s.key === 'super_users_auto')?.value === 'true';
-        const rateLimitOff = settings.find(s => s.key === 'blog_rate_limit_enabled')?.value === 'false';
         const currentListData = settings.find(s => s.key === 'super_users');
 
-        console.log('[InitUser] ⚙️ Settings check:', { autoSuperOn, rateLimitOff });
+        if (!autoSuperOn) return;
 
-        // BULLETPROOF PLAN: Upgrade if autoSuper is on AND rateLimit is off
-        // Or just if autoSuper is on (to keep existing behavior as well)
-        const shouldPromote = autoSuperOn && rateLimitOff;
-
-        // Note: If the user explicitly wants ONLY the AND condition, we use the above.
-        // If they want EITHER, we would use ||. 
-        // Based on "if blog rate limit is off and auto super user is on", I will use the AND condition
-        // but I'll also check if autoSuperOn is independently enough if that was the intention.
-        // Actually, let's stick to exactly what was requested for the "bulletproof" part.
-
-        if (!shouldPromote && !autoSuperOn) {
-            console.log('[InitUser] ⏭️ Skipping promotion (Conditions not met)');
-            return;
-        }
-
-        console.log('✨ Auto-Promotion triggered: Promoting user', userId);
-
-        // 2. Parse current list
         let currentUsers = [];
         if (currentListData?.value) {
             try {
                 currentUsers = JSON.parse(currentListData.value);
-            } catch (e) {
-                console.warn('Failed to parse super_users JSON', e);
-            }
+            } catch (e) { }
         }
 
-        // Avoid duplicates
-        if (currentUsers.includes(userId)) {
-            console.log('[InitUser] 🔄 User already in super_users list');
-            return;
-        }
+        if (currentUsers.includes(userId)) return;
 
-        // 3. Add user and save
+        console.log('✨ Auto-Promotion triggered: Promoting user', userId);
+
         const newList = [...currentUsers, userId];
         const { error: upsertError } = await supabase
             .from('app_settings')
@@ -462,14 +416,10 @@ const initializeNewUser = async (userId) => {
                 updated_at: new Date().toISOString()
             });
 
-        if (upsertError) {
-            console.error('[InitUser] ❌ Failed to save new super_users list:', upsertError);
-        } else {
+        if (!upsertError) {
             console.log('✅ New user successfully auto-promoted to Super User');
         }
-    } catch (err) {
-        console.error('Error in initializeNewUser:', err);
-    }
+    } catch (err) { }
 };
 
 /**

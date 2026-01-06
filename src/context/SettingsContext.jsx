@@ -1,5 +1,4 @@
-
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../config/supabaseClient';
 
 const SettingsContext = createContext();
@@ -18,7 +17,7 @@ export const SettingsProvider = ({ children }) => {
         language: 'en'
     });
     const [user, setUser] = useState(null);
-    const syncTimeoutRef = useRef(null);
+    const lastFetchedUserId = useRef(null);
 
     // 1. Initial Load from localStorage & Auth Listeners
     useEffect(() => {
@@ -32,20 +31,16 @@ export const SettingsProvider = ({ children }) => {
             }
         }
 
-        // Listen for Auth changes
+        // Single Auth Source
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             const currentUser = session?.user ?? null;
             setUser(currentUser);
-            if (currentUser) {
-                fetchRemoteSettings(currentUser.id);
-            }
-        });
 
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
-            if (currentUser) fetchRemoteSettings(currentUser.id);
+            if (currentUser && currentUser.id !== lastFetchedUserId.current) {
+                fetchRemoteSettings(currentUser.id);
+            } else if (!currentUser) {
+                lastFetchedUserId.current = null;
+            }
         });
 
         return () => subscription.unsubscribe();
@@ -53,6 +48,9 @@ export const SettingsProvider = ({ children }) => {
 
     // 2. Fetch from Supabase
     const fetchRemoteSettings = async (userId) => {
+        if (!userId || userId === lastFetchedUserId.current) return;
+        lastFetchedUserId.current = userId;
+
         try {
             const { data, error } = await supabase
                 .from('user_settings')
@@ -60,14 +58,13 @@ export const SettingsProvider = ({ children }) => {
                 .eq('user_id', userId)
                 .single();
 
-            if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "No rows found"
+            if (error && error.code !== 'PGRST116') throw error;
 
             if (data?.settings) {
                 console.log("[Settings] ☁️ Synced from Cloud");
                 setSettings(prev => ({ ...prev, ...data.settings }));
                 localStorage.setItem('bible_app_settings', JSON.stringify(data.settings));
             } else {
-                // First time user? Push local settings to cloud
                 pushSettingsToCloud(userId, settings);
             }
         } catch (err) {
@@ -93,29 +90,23 @@ export const SettingsProvider = ({ children }) => {
         }
     };
 
-    // 4. Update Function (Local + Cloud Sync)
+    const syncTimeoutRef = useRef(null);
     const updateSettings = (newSettings) => {
         setSettings(prev => {
             const updated = { ...prev, ...newSettings };
-
-            // Local Save
             localStorage.setItem('bible_app_settings', JSON.stringify(updated));
 
-            // Cloud Save (Debounced)
             if (user) {
                 if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
                 syncTimeoutRef.current = setTimeout(() => {
                     pushSettingsToCloud(user.id, updated);
-                }, 2000); // 2 second debounce
+                }, 2000);
             }
-
             return updated;
         });
     };
 
-    // 5. Fetch Profile Metadata (Subscription, Trials, etc.)
     const [profile, setProfile] = useState(null);
-
     useEffect(() => {
         if (user) {
             fetchProfile(user.id);
@@ -139,8 +130,16 @@ export const SettingsProvider = ({ children }) => {
         }
     };
 
+    const contextValue = useMemo(() => ({
+        settings,
+        updateSettings,
+        user,
+        profile,
+        fetchProfile
+    }), [settings, user, profile]);
+
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings, user, profile, fetchProfile }}>
+        <SettingsContext.Provider value={contextValue}>
             {children}
         </SettingsContext.Provider>
     );
