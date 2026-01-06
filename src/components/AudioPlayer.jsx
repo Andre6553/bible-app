@@ -299,18 +299,26 @@ const AudioPlayer = ({
     const forceLoadVoices = () => {
         if (!synth) return;
 
+        const rawVoices = synth.getVoices();
+        const diagnosticInfo = [
+            `Raw count: ${rawVoices.length}`,
+            `Synth State: ${synth.speaking ? 'Speaking' : 'Idle'}`,
+            `Pending: ${synth.pending}`,
+            `Paused: ${synth.paused}`,
+            `Secure: ${window.isSecureContext}`
+        ].join('\n');
+
+        console.log('[Audio] Deep Scan Info:', diagnosticInfo);
+
         // 1. Try standard load
-        const v = synth.getVoices();
-        if (v.length > 0) {
-            setVoices(v);
-            restoreSettings(v);
-            setDebugInfo(prev => ({ ...prev, voicesCount: v.length, state: 'Force Loaded' }));
+        if (rawVoices.length > 0) {
+            setVoices(rawVoices);
+            restoreSettings(rawVoices);
+            alert(`Voices Found!\n${diagnosticInfo}\nFirst: ${rawVoices[0].name}`);
             return;
         }
 
-        // 2. Play a "silent" utterance. 
-        // This is a known hack to "wake up" the speech engine on Mobile Edge/Safari
-        setDebugInfo(prev => ({ ...prev, state: 'Probing...' }));
+        // 2. Play a "silent" utterance to wake up engine
         const probe = new SpeechSynthesisUtterance(' ');
         probe.volume = 0;
 
@@ -319,9 +327,9 @@ const AudioPlayer = ({
             if (v2.length > 0) {
                 setVoices(v2);
                 restoreSettings(v2);
-                setDebugInfo(prev => ({ ...prev, voicesCount: v2.length, state: 'Probed OK' }));
+                alert(`Probe Success!\n${diagnosticInfo}\nNew Count: ${v2.length}`);
             } else {
-                setDebugInfo(prev => ({ ...prev, state: 'Probe Final Fail' }));
+                alert(`Deep Scan Fail.\n${diagnosticInfo}\nStill 0 voices.`);
             }
         };
 
@@ -384,10 +392,11 @@ const AudioPlayer = ({
                             <span style={{ fontSize: '10px', color: '#888' }}>
                                 Found: {voices.length}
                                 <button
-                                    onClick={() => { loadVoices(); alert(`Scan complete! Found ${synth.getVoices().length} voices.`); }}
+                                    onClick={forceLoadVoices}
                                     style={{ marginLeft: '8px', background: 'none', border: '1px solid #444', color: '#aaa', padding: '1px 4px', fontSize: '9px', borderRadius: '3px' }}
+                                    title="Run Deep Diagnostic Scan"
                                 >
-                                    Scan
+                                    Deep Scan
                                 </button>
                             </span>
                         </div>
