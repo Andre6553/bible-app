@@ -62,8 +62,12 @@ const AudioPlayer = ({
         }));
 
         if (uniqueVoices.length > 0) {
-            setVoices(uniqueVoices);
-            restoreSettings(uniqueVoices);
+            // Only update if count has changed or we were previously empty
+            // This prevents the "Interrupted" loop on PC
+            if (voices.length !== uniqueVoices.length) {
+                setVoices(uniqueVoices);
+                restoreSettings(uniqueVoices);
+            }
         }
     };
 
@@ -108,8 +112,13 @@ const AudioPlayer = ({
         let pollCount = 0;
         const timer = setInterval(() => {
             pollCount++;
-            loadVoices();
-            if (synth.getVoices().length > 1 || pollCount >= 10) {
+            const currentVoices = synth.getVoices();
+            if (currentVoices.length > 0) {
+                loadVoices();
+                clearInterval(timer);
+                return;
+            }
+            if (pollCount >= 10) {
                 clearInterval(timer);
             }
         }, 1000);
@@ -175,9 +184,12 @@ const AudioPlayer = ({
 
         utterance.onstart = () => {
             setDebugInfo(prev => ({ ...prev, state: 'Speaking...' }));
-            // DEEP PROBE: Some mobile browsers only reveal voices AFTER speech hardware starts
-            setTimeout(loadVoices, 100);
-            setTimeout(loadVoices, 1000);
+            // DEEP PROBE: Only run on mobile/restricted browsers (voices === 0)
+            // This prevents the "Interrupted" error on PC/Mac
+            if (voices.length === 0) {
+                setTimeout(loadVoices, 100);
+                setTimeout(loadVoices, 1000);
+            }
         };
 
         utterance.onend = () => {
