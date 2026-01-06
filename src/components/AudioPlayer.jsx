@@ -37,6 +37,8 @@ const AudioPlayer = ({
     // Refs
     const synth = window.speechSynthesis;
     const utteranceRef = useRef(null);
+    const voicesCountRef = useRef(0);
+    const selectedVoiceURIRef = useRef(localStorage.getItem('audio_voice_uri') || null);
 
     // --- 1. Initialization & Voice Loading ---
     const loadVoices = () => {
@@ -54,43 +56,53 @@ const AudioPlayer = ({
             }
         }
 
-        console.log(`[Audio] Loaded ${uniqueVoices.length} unique voices`);
-        setDebugInfo(prev => ({
-            ...prev,
-            voicesCount: uniqueVoices.length,
-            state: uniqueVoices.length > 0 ? 'Voices Ready' : 'Probing...'
-        }));
+        console.log(`[Audio] Found ${uniqueVoices.length} unique voices (Current: ${voicesCountRef.current})`);
 
-        if (uniqueVoices.length > 0) {
-            // Only update if count has changed or we were previously empty
-            // This prevents the "Interrupted" loop on PC
-            if (voices.length !== uniqueVoices.length) {
-                setVoices(uniqueVoices);
-                restoreSettings(uniqueVoices);
-            }
+        // Only update state if the number of unique voices has changed OR we are currently empty
+        if (uniqueVoices.length > 0 && (uniqueVoices.length !== voicesCountRef.current || voices.length === 0)) {
+            voicesCountRef.current = uniqueVoices.length;
+            setVoices(uniqueVoices);
+            restoreSettings(uniqueVoices);
+
+            setDebugInfo(prev => ({
+                ...prev,
+                voicesCount: uniqueVoices.length,
+                state: 'Voices Ready'
+            }));
+        } else if (uniqueVoices.length === 0) {
+            setDebugInfo(prev => ({
+                ...prev,
+                state: 'Probing...'
+            }));
         }
     };
 
     const restoreSettings = (availableVoices) => {
-        const savedVoiceURI = localStorage.getItem('audio_voice_uri');
+        const savedURI = localStorage.getItem('audio_voice_uri') || selectedVoiceURIRef.current;
         let voice;
 
-        // A. User Preference
-        if (savedVoiceURI) {
-            voice = availableVoices.find(v => v.voiceURI === savedVoiceURI);
+        // 1. Try to find the saved preference OR the one we currently have in Ref
+        if (savedURI) {
+            voice = availableVoices.find(v => v.voiceURI === savedURI);
         }
 
-        // B. Smart Fallback
+        // 2. If nothing found, use smart fallbacks
         if (!voice) {
-            voice = availableVoices.find(v => v.lang.startsWith('af'));
-            if (!voice) voice = availableVoices.find(v => v.lang.startsWith('nl'));
-            if (!voice) voice = availableVoices.find(v => v.lang.startsWith('en'));
-            if (!voice) voice = availableVoices[0];
+            voice = availableVoices.find(v => v.lang.startsWith('af')) ||
+                availableVoices.find(v => v.lang.startsWith('nl')) ||
+                availableVoices.find(v => v.lang.startsWith('en')) ||
+                availableVoices[0];
         }
 
         if (voice) {
-            setSelectedVoice(voice);
-            setSelectedLang(voice.lang);
+            // Logic: Update state if state is currently null OR if the URI is actually different
+            const currentURI = selectedVoiceURIRef.current;
+            if (!selectedVoice || voice.voiceURI !== currentURI) {
+                console.log(`[Audio] Setting voice: ${voice.name}`);
+                selectedVoiceURIRef.current = voice.voiceURI;
+                setSelectedVoice(voice);
+                setSelectedLang(voice.lang);
+            }
         }
     };
 
@@ -152,7 +164,7 @@ const AudioPlayer = ({
         } else if (!isPlaying) {
             cancelSpeech();
         }
-    }, [isPlaying, currentVerseIndex, selectedVoice, rate]);
+    }, [isPlaying, currentVerseIndex, selectedVoice?.voiceURI, rate]);
 
     const playVerse = (index) => {
         // Stop any current speech
@@ -303,9 +315,12 @@ const AudioPlayer = ({
     const handleVoiceChange = (e) => {
         const uri = e.target.value;
         const voice = voices.find(v => v.voiceURI === uri);
-        setSelectedVoice(voice);
-        if (voice) setSelectedLang(voice.lang);
-        localStorage.setItem('audio_voice_uri', uri);
+        if (voice) {
+            selectedVoiceURIRef.current = voice.voiceURI;
+            setSelectedVoice(voice);
+            setSelectedLang(voice.lang);
+            localStorage.setItem('audio_voice_uri', uri);
+        }
 
         // If playing, we need a direct restart to satisfy gesture rules in some browsers
         if (isPlaying) {
