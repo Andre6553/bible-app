@@ -87,11 +87,12 @@ const AudioPlayer = ({
     // Effect: Handle Verse Change or Play/Pause
     useEffect(() => {
         if (isPlaying && verses.length > 0) {
+            // Note: On mobile, this auto-play only works if the context was unlocked by a user click
             playVerse(currentVerseIndex);
-        } else {
+        } else if (!isPlaying) {
             cancelSpeech();
         }
-    }, [isPlaying, currentVerseIndex, selectedVoice, rate, verses]); // Re-run if these change
+    }, [isPlaying, currentVerseIndex, selectedVoice, rate]);
 
     const playVerse = (index) => {
         // Stop any current speech
@@ -129,9 +130,6 @@ const AudioPlayer = ({
                 setIsPlaying(false);
             }
         };
-
-        // boundary for word highlighting? (future)
-        // utterance.onboundary = ...
 
         utteranceRef.current = utterance;
         synth.speak(utterance);
@@ -179,8 +177,8 @@ const AudioPlayer = ({
             });
 
             // Handlers
-            navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
-            navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false));
+            navigator.mediaSession.setActionHandler('play', () => togglePlay());
+            navigator.mediaSession.setActionHandler('pause', () => togglePlay());
             navigator.mediaSession.setActionHandler('previoustrack', handlePrev);
             navigator.mediaSession.setActionHandler('nexttrack', handleNext);
         }
@@ -189,16 +187,36 @@ const AudioPlayer = ({
     // --- 5. Handlers ---
 
     const togglePlay = () => {
-        setIsPlaying(!isPlaying);
-        onPlayStateChange && onPlayStateChange(!isPlaying);
+        const nextState = !isPlaying;
+
+        // --- MOBILE COMPATIBILITY: PRIME THE ENGINE ---
+        // Some mobile browsers (Edge, Safari) require a speak() call directly inside 
+        // the click event to "unlock" the audio context.
+        if (nextState) {
+            // 1. Prime with a tiny bit of silence/empty text if engine is idle
+            if (!synth.speaking) {
+                const prime = new SpeechSynthesisUtterance(' ');
+                prime.volume = 0;
+                synth.speak(prime);
+            }
+
+            // 2. Start the actual verse immediately to ensure the click context is used
+            playVerse(currentVerseIndex);
+        }
+
+        setIsPlaying(nextState);
+        onPlayStateChange && onPlayStateChange(nextState);
     };
 
     const handleNext = () => {
-        setCurrentVerseIndex(prev => prev + 1); // Logic will handle end of chapter
+        const nextIndex = currentVerseIndex + 1;
+        setCurrentVerseIndex(nextIndex);
+        // If we were playing, playVerse will be triggered by useEffect
     };
 
     const handlePrev = () => {
-        setCurrentVerseIndex(prev => (prev > 0 ? prev - 1 : 0));
+        const nextIndex = currentVerseIndex > 0 ? currentVerseIndex - 1 : 0;
+        setCurrentVerseIndex(nextIndex);
     };
 
     const handleVoiceChange = (e) => {
@@ -207,11 +225,9 @@ const AudioPlayer = ({
         setSelectedVoice(voice);
         localStorage.setItem('audio_voice_uri', uri);
 
-        // Restart if playing to apply voice
+        // If playing, we need a direct restart to satisfy gesture rules in some browsers
         if (isPlaying) {
-            cancelSpeech();
-            // Trigger effect re-run
-            // The effect dependency [selectedVoice] will restart it
+            playVerse(currentVerseIndex);
         }
     };
 
