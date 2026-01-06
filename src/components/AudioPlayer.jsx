@@ -379,7 +379,18 @@ const AudioPlayer = ({
             {showSettings && !isMinimize && (
                 <div className="audio-settings-drawer">
                     <div className="setting-row">
-                        <label>Voice</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
+                            <label>Voice</label>
+                            <span style={{ fontSize: '10px', color: '#888' }}>
+                                Found: {voices.length}
+                                <button
+                                    onClick={() => { loadVoices(); alert(`Scan complete! Found ${synth.getVoices().length} voices.`); }}
+                                    style={{ marginLeft: '8px', background: 'none', border: '1px solid #444', color: '#aaa', padding: '1px 4px', fontSize: '9px', borderRadius: '3px' }}
+                                >
+                                    Scan
+                                </button>
+                            </span>
+                        </div>
                         <select
                             value={selectedVoice?.voiceURI || ''}
                             onChange={handleVoiceChange}
