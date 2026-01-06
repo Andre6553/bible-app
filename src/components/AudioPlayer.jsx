@@ -39,6 +39,7 @@ const AudioPlayer = ({
     const utteranceRef = useRef(null);
     const voicesCountRef = useRef(0);
     const selectedVoiceURIRef = useRef(localStorage.getItem('audio_voice_uri') || null);
+    const isManuallyTriggeredRef = useRef(false);
 
     // --- 1. Initialization & Voice Loading ---
     const loadVoices = () => {
@@ -159,14 +160,10 @@ const AudioPlayer = ({
     // Effect: Handle Verse Change or Play/Pause
     useEffect(() => {
         if (isPlaying && verses.length > 0) {
-            // Guard: Only skip if we are actually currently speaking/pending the RIGHT text
-            // AND we didn't just come from a paused state.
-            const isAlreadyActive = synth.speaking || synth.pending;
-            const isSameText = utteranceRef.current?.text === verses[currentVerseIndex]?.text;
-
-            if (isAlreadyActive && isSameText) {
-                // If it's the same and active, but synth is paused (common on some mobile/PCs), resume
-                if (synth.paused) synth.resume();
+            // Bypass the effect's playVerse if togglePlay already triggered it manually.
+            // This prevents double-play/interrupted error on start.
+            if (isManuallyTriggeredRef.current) {
+                isManuallyTriggeredRef.current = false;
                 return;
             }
 
@@ -292,25 +289,16 @@ const AudioPlayer = ({
 
     const togglePlay = () => {
         const nextState = !isPlaying;
-
-        // --- MOBILE COMPATIBILITY: PRIME THE ENGINE ---
-        // Some mobile browsers (Edge, Safari) require a speak() call directly inside 
-        // the click event to "unlock" the audio context.
-        if (nextState) {
-            // 1. Prime with a tiny bit of silence/empty text if engine is idle
-            if (!synth.speaking) {
-                const prime = new SpeechSynthesisUtterance(' ');
-                prime.volume = 0;
-                synth.speak(prime);
-            }
-
-            // 2. We do NOT call playVerse here anymore.
-            // Setting isPlaying = true will trigger the useEffect,
-            // but the prime call above ensures the context is unlocked for mobile.
-        }
-
         setIsPlaying(nextState);
         onPlayStateChange && onPlayStateChange(nextState);
+
+        if (nextState) {
+            // --- MOBILE & PC STABILITY ---
+            // Trigger playVerse directly within the click gesture handler.
+            // This satisfies browser security rules and ensures immediate response.
+            isManuallyTriggeredRef.current = true;
+            playVerse(currentVerseIndex);
+        }
     };
 
     const handleNext = () => {
