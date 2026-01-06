@@ -27,7 +27,7 @@ const checkTesterRenewal = async (userId, profile) => {
             sermon_trial_count: 0,
             ai_usage_count: 0,
             last_renewal_month: currentRef,
-            updated_at: new Date().toISOString()
+            last_seen: new Date().toISOString()
         }).eq('user_id', userId);
 
         return true; // Reset happened
@@ -140,8 +140,8 @@ export const createSermon = async (sermonData, fingerprint) => {
                 user_id: userId,
                 sermon_trial_count: trials + 1,
                 device_fingerprint: fingerprint,
-                updated_at: new Date().toISOString()
-            }).then(({ error: uError }) => {
+                last_seen: new Date().toISOString()
+            }, { onConflict: 'user_id' }).then(({ error: uError }) => {
                 if (uError) console.error('Error updating trial count:', uError);
             });
         }
@@ -241,7 +241,7 @@ const checkAndIncrementAiUsage = async () => {
     // 3. Increment Count
     await supabase.from('user_profiles').update({
         ai_usage_count: currentUsage + 1,
-        updated_at: new Date().toISOString()
+        last_seen: new Date().toISOString()
     }).eq('user_id', userId);
 
     return true;
@@ -451,12 +451,14 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 2. Remove redundant greetings (keep greetings ONLY in the introduction).
                 3. Ensure every point has at least one Bible verse quoted in full.
                 4. Enhance the "MODERN APPLICATION" section to ensure it's practical for today's living.
+                5. Ensure that all changes and suggestions are Biblically correct and aligned with scriptural truth.
                 
                 Sermon Outline & Notes:
                 ${query}
                 
                 Return a JSON object with this EXACT structure:
                 {
+                    "rating": 85, // A numerical rating of the current sermon quality (0-100)
                     "analysis": "Brief overall critique (1-2 sentences).",
                     "suggestions": [
                         {
@@ -471,17 +473,17 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 1. YOUR ENTIRE RESPONSE MUST BE A VALID JSON OBJECT.
                 2. ESCAPE ALL INTERNAL DOUBLE QUOTES with a backslash. Example: if the text is 'He said "Hello"', it must be written in the JSON as "He said \"Hello\"".
                 3. DO NOT USE LITERAL NEWLINES within string values; use \\n instead.
-                4. CONCISENESS: If the sermon is very long, focus on the most impactful suggestions to ensure the response stays within technical limits.
+                4. CONCISENESS: If the sermon is very long, focus on the most impactful suggestions.
                 5. START YOUR RESPONSE WITH '{' AND END WITH '}'.
-                6. ZERO TOLERANCE: Any unescaped double quotes inside a string value will cause a system failure. Ensure all internal punctuation is escaped correctly. 
-                2. AVOID LITERAL QUOTES FOR EMPHASIS: Use single quotes (') or asterisks (*) for emphasis inside the text instead of double quotes whenever possible.
-                3. CRITICAL JSON RULE: DO NOT escape single quotes. Write "God's", NOT "God\'s". Standard JSON forbids escaping single quotes.
-                4. PRESERVE LENGTH: Do NOT summarize. The goal is to polish the spoken flow, NOT to reduce the word count.
-                   - If the input is SHORTER than the target (~${(context.match(/TARGET WORD COUNT: ~(\d+)/)?.[1] || 0)} words) or Duration (${(context.match(/TIME BUDGET: (\d+)/)?.[1] || 0)} mins), you MUST EXPAND the content using detailed examples, transitions, and theological depth.
-                   - If the input is LONGER, only trim strictly redundant repetition. Do NOT cut valuable content.
-                   - ERROR on the side of detailing the points rather than brevity.
+                6. ZERO TOLERANCE: Any unescaped double quotes inside a string value will cause a system failure.
+                7. WORD COUNT CONSTRAINT: The total word count of the "suggested" text for each point must NOT differ from the original text by more than 8%. AI MUST count the words and ensure they are within the ±8% range. DO NOT SHORTEN THE SERMON.
+                8. FORMATTING PRESERVATION: 
+                   - KEEP ALL INSTRUCTIONAL TEXT in parentheses (e.g., "(Pause for effect)") EXACTLY as they are. These are rendered in RED.
+                   - KEEP ALL SCRIPTURE QUOTES in double quotes (e.g., "For God so loved the world...") EXACTLY as they are. These are rendered in BLUE.
+                   - Do NOT change the punctuation or structure of these elements.
+                9. CRITICAL JSON RULE: DO NOT escape single quotes. Write "God's", NOT "God\'s".
                 
-                The goal is to refine the sermon based on the analysis.
+                The goal is to refine the sermon while maintaining its original length and special formatting.
                 ${langInstruction}`;
                 break;
             default:

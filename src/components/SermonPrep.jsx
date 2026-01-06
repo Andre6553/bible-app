@@ -99,7 +99,14 @@ const SermonPrep = () => {
     const handleResumeSermon = (sermon) => {
         setCurrentSermon(sermon);
         setPlannedDuration(sermon.planned_duration || 90);
-        setStep(sermon.step || 'skeleton'); // Resume where they left off
+
+        // Safety: Ensure step is valid, fallback to laboratory if it's already progressed
+        const validSteps = ['foundation', 'skeleton', 'block-editor', 'laboratory', 'sermon-audit'];
+        let step = sermon.step || 'skeleton';
+        if (!validSteps.includes(step)) {
+            step = sermon.blocks?.length > 0 ? 'laboratory' : 'skeleton';
+        }
+        setStep(step);
     };
 
     const handleDeleteSermon = async (e, id) => {
@@ -166,11 +173,10 @@ const SermonPrep = () => {
         setCurrentSermon({ ...currentSermon, blocks: newBlocks });
     };
 
-    const saveCurrentSermon = async (targetStep = null) => {
+    const saveCurrentSermon = async (targetStep = null, updatedBlocks = null) => {
         if (!currentSermon) return { success: false };
         const result = await updateSermon(currentSermon.id, {
-            blocks: currentSermon.blocks,
-            full_text: currentSermon.full_text || '',
+            blocks: updatedBlocks || currentSermon.blocks,
             planned_duration: plannedDuration,
             step: targetStep || currentSermon.step || 'laboratory'
         });
@@ -1345,18 +1351,27 @@ const SermonPrep = () => {
                             throw new Error('Audit data received but suggestions list is missing');
                         }
 
+                        // Auto-apply logic
+                        let updatedBlocks = [...currentSermon.blocks];
+                        auditData.suggestions.forEach(s => {
+                            if (updatedBlocks[s.index]) {
+                                updatedBlocks[s.index] = { ...updatedBlocks[s.index], notes: s.suggested };
+                            }
+                        });
+
+                        setCurrentSermon({ ...currentSermon, blocks: updatedBlocks });
+                        await saveCurrentSermon('laboratory', updatedBlocks);
+
                         setAuditReview({
                             analysis: auditData.analysis || '',
-                            suggestions: auditData.suggestions.map(s => ({
-                                ...s,
-                                original: currentSermon.blocks[s.index]?.notes || '',
-                                title: currentSermon.blocks[s.index]?.title || `Point ${s.index + 1}`
-                            })),
-                            currentIndex: 0
+                            rating: auditData.rating || 0,
+                            suggestions: auditData.suggestions,
+                            isApplied: true
                         });
 
                         setStep('sermon-audit');
                         setIsAiPanelOpen(false);
+                        alert(isAf ? `Preek gepoleer! Graad: ${auditData.rating || 0}/100` : `Sermon polished! Rating: ${auditData.rating || 0}/100`);
                     } catch (err) {
                         console.error('Audit JSON Parse Error:', err, result.data);
                         const snippet = result.data ? result.data.substring(0, 100) : 'EMPTY';
@@ -1972,100 +1987,72 @@ const SermonPrep = () => {
 
     const renderSermonAudit = () => {
         if (!auditReview || !currentSermon) return null;
-        const currentSuggestion = auditReview.suggestions[auditReview.currentIndex];
-
-        // Safety check: Ensure the index is valid
-        if (!currentSuggestion) return null;
 
         return (
             <div className="sermon-audit-page">
                 <div className="audit-header">
                     <div className="audit-header-content">
-                        <h2>⚖️ {isAf ? 'Preek Oudit & Polering' : 'Sermon Audit & Polish'}</h2>
+                        <h2>⚖️ {isAf ? 'Preek Oudit Opsomming' : 'Sermon Audit Summary'}</h2>
                         <p className="sermon-title-sub">{currentSermon.title}</p>
                     </div>
-                    <button className="exit-audit-btn" onClick={async () => {
-                        await saveCurrentSermon();
+                    <button className="exit-audit-btn" onClick={() => {
                         setAuditReview(null);
                         setStep('laboratory');
                     }}>
-                        ✕ {isAf ? 'Sluit Oudit' : 'Close Audit'}
+                        ✕ {isAf ? 'Sluit' : 'Close'}
                     </button>
-                </div>
-
-                <div className="audit-stepper">
-                    {auditReview.suggestions.map((_, idx) => (
-                        <div key={idx} className={`audit-step-dot ${idx === auditReview.currentIndex ? 'active' : ''} ${idx < auditReview.currentIndex ? 'completed' : ''}`}></div>
-                    ))}
                 </div>
 
                 <div className="audit-content-layout">
                     <div className="audit-main-area">
-                        {auditReview.currentIndex === 0 && (
-                            <div className="audit-info-card">
-                                <div className="analysis-summary">
-                                    <h3>{isAf ? 'Oudit Analise' : 'Audit Analysis'}</h3>
-                                    <p>{auditReview.analysis}</p>
+                        <div className="audit-score-card">
+                            <div className="score-circle">
+                                <span className="score-value">{auditReview.rating}</span>
+                                <span className="score-label">/ 100</span>
+                            </div>
+                            <div className="score-text">
+                                <h3>{isAf ? 'Preek Graad' : 'Sermon Rating'}</h3>
+                                <p>{isAf ? 'Hierdie graad is gebaseer op homiletiese vloei, skriftuurlike akkuraatheid en praktiese toepassing.' : 'This rating is based on homiletical flow, scriptural accuracy, and practical application.'}</p>
+                                <div className="verdict-pill">
+                                    {auditReview.rating >= 80 ? (isAf ? '✅ Uitstekend' : '✅ Excellent') :
+                                        auditReview.rating >= 60 ? (isAf ? '⚠️ Goed' : '⚠️ Good') :
+                                            (isAf ? '❌ Benodig Aandag' : '❌ Needs Attention')}
                                 </div>
                             </div>
-                        )}
+                        </div>
 
-                        <div className="suggestion-container active">
-                            <div className="suggestion-meta">
-                                <span className="point-badge">{isAf ? 'Punt' : 'Point'} {currentSuggestion.index + 1}</span>
-                                <h3 className="point-title">{currentSuggestion.title}</h3>
+                        <div className="audit-info-card">
+                            <div className="analysis-summary">
+                                <h3>{isAf ? 'Oudit Analise' : 'Audit Analysis'}</h3>
+                                <p>{auditReview.analysis}</p>
+                                <p className="formatting-note">
+                                    <small>✨ {isAf ? 'Instruksies (Rooi) en Skrif (Blou) is behou.' : 'Instructions (Red) and Scripture (Blue) were preserved.'}</small>
+                                </p>
                             </div>
+                        </div>
 
-                            <div className="reason-banner">
-                                <span className="reason-icon">💡</span>
-                                <div className="reason-text">
-                                    <strong>{isAf ? 'Hoekom hierdie verandering?' : 'Why this change?'}</strong>
-                                    <p>{currentSuggestion.reason}</p>
-                                </div>
+                        <div className="applied-changes-list">
+                            <h3>✅ {isAf ? 'Outomatiese Veranderinge' : 'Automatic Changes Applied'}</h3>
+                            <p className="changes-intro">{isAf ? 'Die volgende aspekte van jou preek is geoptimaliseer terwyl die styl en skrifgedeeltes behou is:' : 'The following aspects of your sermon have been optimized while preserving style and scriptures:'}</p>
+                            <div className="changes-grid">
+                                {auditReview.suggestions.map((s, idx) => (
+                                    <div key={idx} className="applied-change-item">
+                                        <div className="change-header">
+                                            <span className="point-badge">{isAf ? 'Punt' : 'Point'} {s.index + 1}</span>
+                                        </div>
+                                        <p className="change-reason">{s.reason}</p>
+                                    </div>
+                                ))}
                             </div>
+                        </div>
 
-                            <div className="comparison-grid">
-                                <div className="comparison-card original">
-                                    <div className="card-label">{isAf ? 'HUIDIGE TEKS' : 'CURRENT TEXT'}</div>
-                                    <div className="card-body">{currentSuggestion.original}</div>
-                                </div>
-                                <div className="comparison-card suggested">
-                                    <div className="card-label">{isAf ? 'VOORGESTELDE TEKS' : 'SUGGESTED TEXT'}</div>
-                                    <div className="card-body">{currentSuggestion.suggested}</div>
-                                </div>
-                            </div>
-
-                            <div className="audit-nav-actions">
-                                <button
-                                    className="audit-btn reject"
-                                    onClick={() => {
-                                        if (auditReview.currentIndex + 1 >= auditReview.suggestions.length) {
-                                            setAuditReview(null);
-                                            setStep('laboratory');
-                                        } else {
-                                            setAuditReview({ ...auditReview, currentIndex: auditReview.currentIndex + 1 });
-                                        }
-                                    }}
-                                >
-                                    ❌ {isAf ? 'Ignoreer & Volgende' : 'Ignore & Next'}
-                                </button>
-                                <button
-                                    className="audit-btn accept"
-                                    onClick={async () => {
-                                        handleUpdateBlock(currentSuggestion.index, 'notes', currentSuggestion.suggested);
-                                        if (auditReview.currentIndex + 1 >= auditReview.suggestions.length) {
-                                            await saveCurrentSermon();
-                                            setAuditReview(null);
-                                            setStep('laboratory');
-                                            alert(isAf ? 'Alle veranderinge voltooi en gestoor!' : 'All changes applied and saved!');
-                                        } else {
-                                            setAuditReview({ ...auditReview, currentIndex: auditReview.currentIndex + 1 });
-                                        }
-                                    }}
-                                >
-                                    ✅ {isAf ? 'Pas Toe & Volgende' : 'Apply & Next'}
-                                </button>
-                            </div>
+                        <div className="audit-footer-actions">
+                            <button className="primary-btn" onClick={() => {
+                                setAuditReview(null);
+                                setStep('laboratory');
+                            }}>
+                                {isAf ? 'Klaar' : 'Done'}
+                            </button>
                         </div>
                     </div>
                 </div>
