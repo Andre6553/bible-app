@@ -345,10 +345,7 @@ const AudioPlayer = ({
                     <>
                         <div className="track-info">
                             <span className="audio-book-title">{bookName} {currentChapter}</span>
-                            <span className="audio-verse-num">
-                                v.{verses[currentVerseIndex]?.verse}
-                                {voices.length === 0 && <span style={{ fontSize: '10px', color: '#ffaa00' }}> (No voices listed)</span>}
-                            </span>
+                            <span className="audio-verse-num">v.{verses[currentVerseIndex]?.verse}</span>
                         </div>
 
                         <div className="transport-buttons">
@@ -360,19 +357,10 @@ const AudioPlayer = ({
                         </div>
 
                         <div className="extra-actions">
-                            {voices.length === 0 && (
-                                <button
-                                    onClick={forceLoadVoices}
-                                    style={{ background: 'none', border: '1px solid #555', color: '#aaa', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', marginRight: '5px' }}
-                                >
-                                    Force Load
-                                </button>
-                            )}
                             <button
                                 className={`settings-toggle ${showSettings ? 'active' : ''}`}
                                 onClick={() => setShowSettings(!showSettings)}
                                 title="Audio Settings"
-                                disabled={voices.length === 0}
                             >
                                 ⚙️
                             </button>
@@ -390,24 +378,12 @@ const AudioPlayer = ({
             {/* Settings Drawer */}
             {showSettings && !isMinimize && (
                 <div className="audio-settings-drawer">
-                    <div className="setting-row" style={{ borderBottom: '1px solid #333', paddingBottom: '8px', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                            <label>Voice</label>
-                            <span style={{ fontSize: '10px', color: '#888' }}>
-                                Found: {voices.length}
-                                <button
-                                    onClick={forceLoadVoices}
-                                    style={{ marginLeft: '8px', background: 'none', border: '1px solid #444', color: '#aaa', padding: '1px 4px', fontSize: '9px', borderRadius: '3px' }}
-                                >
-                                    Scan
-                                </button>
-                            </span>
-                        </div>
+                    <div className="setting-row">
+                        <label>Voice</label>
                         <select
                             value={selectedVoice?.voiceURI || ''}
                             onChange={handleVoiceChange}
                             className="voice-select"
-                            disabled={voices.length === 0}
                         >
                             {voices.length === 0 && <option>Default System Voice</option>}
                             {voices.map(v => (
