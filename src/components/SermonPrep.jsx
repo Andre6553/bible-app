@@ -660,11 +660,213 @@ const SermonPrep = () => {
             </body>
             </html>
         `;
-
         preachWindow.document.write(htmlContent);
         preachWindow.document.close();
     };
 
+    const handleTTSView = async () => {
+        if (!currentSermon) return;
+
+        const sermonTitle = (currentSermon.title || (isAf ? 'Preek' : 'Sermon')) + " - TTS";
+        const isAfSermon = settings.language === 'af';
+
+        // 1. Scrubbing Logic
+        const scrubText = (text, blockTitle) => {
+            if (!text) return '';
+            // Match (Instructions), Objective: ..., and **Highlights**
+            const redTextRegex = /(\(.*?\)|(?:\*\*|\*)?\s*Objective:.*?(?:\n|$)|(?:\*\*.*?\*\*))/gi;
+
+            let scrubbed = text.replace(redTextRegex, '');
+
+            // Clean title for comparison (remove "Point X:", "Punt X:", and punctuation)
+            const getComparisonText = (t) => t.toLowerCase()
+                .replace(/^(?:point|punt)\s*\d+\s*[:\)]\s*/gi, '')
+                .replace(/[^\w\s]/g, '')
+                .trim();
+            const cleanTitle = getComparisonText(blockTitle || '');
+
+            // 2. TTS Optimization (Pauses)
+            const lines = scrubbed.split('\n');
+            let resultLines = lines.map(line => {
+                let l = line.trim();
+                if (!l) return null;
+
+                // Remove redundant Point labels (e.g. "Point 1:", "Point 2):", "1.")
+                l = l.replace(/^(?:Point|Punt)\s*\d+\s*[:\)]\s*/gi, '');
+                l = l.replace(/^\d+\.\s*/, '');
+
+                // Remove standalone colons or residue punctuation lines
+                if (l === ':' || l === '.' || l === '):') return null;
+
+                // Remove any remaining markdown markers
+                l = l.replace(/[#*_-]/g, '').trim();
+                if (!l) return null;
+
+                // Deduplicate if this line is just the title again
+                if (cleanTitle && getComparisonText(l) === cleanTitle) return null;
+
+                // Add emotional/pause markers for MAJOR punctuation only
+                // Handle trailing quotes/brackets: . ... or ." ... or .) ...
+                let processed = l.replace(/([.?!;])(["'”’)]?)(?:\s+|$)/g, '$1$2 ... ');
+
+                // Final cleanup: remove redundant dots/pauses like "... ." or "... . ..."
+                return processed.replace(/\.\.\.\s*\.\s*(\.\.\.)?/g, '... ')
+                    .replace(/\.\s+\.\.\./g, ' ...')
+                    .trim();
+            }).filter(l => l !== null);
+
+            return resultLines.join('\n\n');
+        };
+
+        const ttsBody = currentSermon.blocks && currentSermon.blocks.length > 0
+            ? currentSermon.blocks.map(block => {
+                const titleLower = (block.title || '').trim().toLowerCase();
+                // Skip headers for Introduction to avoid redundancy as requested
+                const skipHeader = titleLower.startsWith('introduction') || titleLower.startsWith('inleiding');
+
+                return `
+                    <div class="block-section">
+                        ${!skipHeader ? `<h2 class="tts-header">${block.title} ...</h2>` : ''}
+                        <div class="tts-text">${scrubText(block.notes || '', block.title)}</div>
+                    </div>
+                `;
+            }).join('')
+            : `<div class="tts-text">${scrubText(currentSermon.full_text || '', currentSermon.title)}</div>`;
+
+        // 3. Open Window
+        const ttsWindow = window.open('', '_blank');
+        if (!ttsWindow) {
+            alert(isAf ? 'Laat asseblief opspring-vensters toe.' : 'Please allow popups.');
+            return;
+        }
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="${isAfSermon ? 'af' : 'en'}">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <title>🎙️ TTS - ${sermonTitle}</title>
+                <style>
+                    :root {
+                        --bg-color: #0f172a;
+                        --text-color: #f8fafc;
+                        --accent-color: #38bdf8;
+                        --card-bg: #1e293b;
+                        --font-size: 24px;
+                    }
+                    body {
+                        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                        line-height: 1.8;
+                        color: var(--text-color);
+                        background: var(--bg-color);
+                        margin: 0;
+                        padding: 20px 20px 120px 20px;
+                        font-size: var(--font-size);
+                        max-width: 900px;
+                        margin: 0 auto;
+                    }
+                    h1 { color: var(--accent-color); text-align: center; font-size: 1.5em; margin-bottom: 30px; border-bottom: 2px solid var(--accent-color); padding-bottom: 15px; }
+                    .tts-header { font-size: 1.1em; color: #94a3b8; margin-top: 40px; text-transform: uppercase; letter-spacing: 1px; }
+                    .tts-text { 
+                        background: var(--card-bg); 
+                        padding: 30px; 
+                        border-radius: 16px; 
+                        margin-bottom: 20px; 
+                        white-space: pre-wrap;
+                        border-left: 4px solid var(--accent-color);
+                        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                    }
+                    
+                    /* Controls */
+                    .floating-actions {
+                        position: fixed;
+                        bottom: 30px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        display: flex;
+                        gap: 15px;
+                        background: rgba(15, 23, 42, 0.9);
+                        backdrop-filter: blur(12px);
+                        padding: 12px 25px;
+                        border-radius: 50px;
+                        border: 1px solid rgba(255,255,255,0.1);
+                        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+                        z-index: 1000;
+                    }
+                    .btn {
+                        background: var(--accent-color);
+                        color: #000;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 25px;
+                        font-weight: 700;
+                        font-size: 16px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        transition: all 0.2s;
+                    }
+                    .btn:active { transform: scale(0.95); }
+                    .btn.secondary { background: #64748b; color: white; }
+                    .btn.copy-btn { background: #10b981; color: white; }
+
+                    @media print {
+                        .floating-actions { display: none; }
+                        body { background: white; color: black; padding: 0; }
+                        .tts-text { background: transparent; border: none; color: black; box-shadow: none; padding: 0; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div id="tts-content">
+                    <div class="block-section">
+                        <h1 style="color: var(--accent-color); text-align: center; font-size: 1.5em; margin-bottom: 30px; border-bottom: 2px solid var(--accent-color); padding-bottom: 15px;">
+                            ${currentSermon.title} ...
+                        </h1>
+                    </div>
+                    ${ttsBody}
+                </div>
+
+                <div class="floating-actions">
+                    <button class="btn copy-btn" onclick="copyAll()">📋 ${isAfSermon ? 'Kopieer Alles' : 'Copy All'}</button>
+                    <button class="btn" onclick="window.print()">🖨️ ${isAfSermon ? 'Stoor as PDF' : 'Save as PDF'}</button>
+                    <button class="btn secondary" onclick="window.close()">✕</button>
+                </div>
+
+                <script>
+                    async function copyAll() {
+                        const content = document.getElementById('tts-content');
+                        // Use textContent to get clean text without HTML
+                        const text = content.textContent.trim().replace(/\\n{3,}/g, '\\n\\n'); 
+                        
+                        try {
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                await navigator.clipboard.writeText(text);
+                                alert('${isAfSermon ? 'Gekopieer na knipbord!' : 'Copied to clipboard!'}');
+                            } else {
+                                // Fallback
+                                const area = document.createElement('textarea');
+                                area.value = text;
+                                document.body.appendChild(area);
+                                area.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(area);
+                                alert('${isAfSermon ? 'Gekopieer na knipbord!' : 'Copied to clipboard!'}');
+                            }
+                        } catch (err) {
+                            alert('Copy failed. Please select text manually.');
+                        }
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        ttsWindow.document.write(htmlContent);
+        ttsWindow.document.close();
+    };
 
     const handleExportPDF = () => {
         if (!currentSermon) return;
@@ -1844,8 +2046,8 @@ const SermonPrep = () => {
                     <button className="action-btn secondary pdf-btn" onClick={handlePreachMode} style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}>
                         🗣️ {isAf ? 'Preek Modus' : 'Preach Mode'}
                     </button>
-                    <button className="action-btn primary done-btn" onClick={() => handleSaveContent(true)}>
-                        ✅ {isAf ? 'Klaar' : 'Done'}
+                    <button className="action-btn secondary tts-btn" onClick={handleTTSView} style={{ borderColor: '#38bdf8', color: '#38bdf8' }}>
+                        🎙️ {isAf ? 'TTS PDF' : 'TTS PDF'}
                     </button>
                 </div>
             </div>
