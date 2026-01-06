@@ -38,84 +38,33 @@ const AudioPlayer = ({
     const utteranceRef = useRef(null);
 
     // --- 1. Initialization & Voice Loading ---
-    useEffect(() => {
-        if (!synth) {
-            setDebugInfo(prev => ({ ...prev, state: 'N/A', error: 'Speech API Not Found' }));
-            return;
+    const loadVoices = () => {
+        if (!synth) return;
+        // Get all voices
+        let allVoices = synth.getVoices();
+
+        // Deduplicate by voiceURI and name (some browsers return duplicates)
+        const uniqueVoices = [];
+        const seenURIs = new Set();
+        for (const v of allVoices) {
+            if (!seenURIs.has(v.voiceURI)) {
+                uniqueVoices.push(v);
+                seenURIs.add(v.voiceURI);
+            }
         }
 
-        const loadVoices = () => {
-            // Get all voices
-            let allVoices = synth.getVoices();
+        console.log(`[Audio] Loaded ${uniqueVoices.length} unique voices`);
+        setDebugInfo(prev => ({
+            ...prev,
+            voicesCount: uniqueVoices.length,
+            state: uniqueVoices.length > 0 ? 'Voices Ready' : 'Probing...'
+        }));
 
-            // Deduplicate by voiceURI and name (some browsers return duplicates)
-            const uniqueVoices = [];
-            const seenURIs = new Set();
-            for (const v of allVoices) {
-                if (!seenURIs.has(v.voiceURI)) {
-                    uniqueVoices.push(v);
-                    seenURIs.add(v.voiceURI);
-                }
-            }
-
-            console.log(`[Audio] Loaded ${uniqueVoices.length} unique voices`);
-            setDebugInfo(prev => ({
-                ...prev,
-                voicesCount: uniqueVoices.length,
-                state: uniqueVoices.length > 0 ? 'Voices Ready' : 'Probing...'
-            }));
-
-            if (uniqueVoices.length > 0) {
-                setVoices(uniqueVoices);
-                restoreSettings(uniqueVoices);
-            }
-        };
-
-        // Initial load
-        loadVoices();
-
-        // Browser event for voice list updates
-        if (synth.onvoiceschanged !== undefined) {
-            synth.onvoiceschanged = loadVoices;
+        if (uniqueVoices.length > 0) {
+            setVoices(uniqueVoices);
+            restoreSettings(uniqueVoices);
         }
-
-        // AGGRESSIVE POLLING: 
-        // Mobile Edge/Safari often need multiple attempts or a user gesture
-        let pollCount = 0;
-        const timer = setInterval(() => {
-            pollCount++;
-            loadVoices();
-
-            // After 5 attempts (5sec), stop if we have voices
-            if (synth.getVoices().length > 1 || pollCount >= 10) {
-                clearInterval(timer);
-                console.log("[Audio] Polling finished.");
-            }
-        }, 1000);
-
-        // SILENT PROBE:
-        // Some browsers only populate the list after the FIRST speak call.
-        // We do a silent probe on mount to attempt to "wake up" the engine.
-        setTimeout(() => {
-            if (synth.getVoices().length <= 1) {
-                console.log("[Audio] Attempting silent probe to wake voices...");
-                const probe = new SpeechSynthesisUtterance(' ');
-                probe.volume = 0;
-                synth.speak(probe);
-            }
-        }, 500);
-
-        // Restore speed preference
-        const savedRate = localStorage.getItem('audio_rate');
-        if (savedRate) setRate(parseFloat(savedRate));
-
-        return () => {
-            clearInterval(timer);
-            cancelSpeech();
-        };
-    }, []);
-
-    // --- 2. Intelligent Voice Selection ---
+    };
 
     const restoreSettings = (availableVoices) => {
         const savedVoiceURI = localStorage.getItem('audio_voice_uri');
@@ -126,21 +75,59 @@ const AudioPlayer = ({
             voice = availableVoices.find(v => v.voiceURI === savedVoiceURI);
         }
 
-        // B. Smart Fallback (Afrikaans/Dutch priority if book is Afrikaans-like context, 
-        // strictly speaking we should check Bible Version, but we prioritize local user lang match)
+        // B. Smart Fallback
         if (!voice) {
-            // Try Afrikaans
             voice = availableVoices.find(v => v.lang.startsWith('af'));
-            // Try Dutch (close enough for fallback)
             if (!voice) voice = availableVoices.find(v => v.lang.startsWith('nl'));
-            // Default to English
             if (!voice) voice = availableVoices.find(v => v.lang.startsWith('en'));
-            // Default to first
             if (!voice) voice = availableVoices[0];
         }
 
         if (voice) setSelectedVoice(voice);
     };
+
+    useEffect(() => {
+        if (!synth) {
+            setDebugInfo(prev => ({ ...prev, state: 'N/A', error: 'Speech API Not Found' }));
+            return;
+        }
+
+        // Initial load
+        loadVoices();
+
+        // Browser event for voice list updates
+        if (synth.onvoiceschanged !== undefined) {
+            synth.onvoiceschanged = loadVoices;
+        }
+
+        // AGGRESSIVE POLLING
+        let pollCount = 0;
+        const timer = setInterval(() => {
+            pollCount++;
+            loadVoices();
+            if (synth.getVoices().length > 1 || pollCount >= 10) {
+                clearInterval(timer);
+            }
+        }, 1000);
+
+        // SILENT PROBE
+        setTimeout(() => {
+            if (synth.getVoices().length <= 1) {
+                const probe = new SpeechSynthesisUtterance(' ');
+                probe.volume = 0;
+                synth.speak(probe);
+            }
+        }, 500);
+
+        // Restore speed
+        const savedRate = localStorage.getItem('audio_rate');
+        if (savedRate) setRate(parseFloat(savedRate));
+
+        return () => {
+            clearInterval(timer);
+            cancelSpeech();
+        };
+    }, []);
 
     // --- 3. Playback Logic ---
 
@@ -178,6 +165,9 @@ const AudioPlayer = ({
 
         utterance.onstart = () => {
             setDebugInfo(prev => ({ ...prev, state: 'Speaking...' }));
+            // DEEP PROBE: Some mobile browsers only reveal voices AFTER speech hardware starts
+            setTimeout(loadVoices, 100);
+            setTimeout(loadVoices, 1000);
         };
 
         utterance.onend = () => {
@@ -400,16 +390,29 @@ const AudioPlayer = ({
             {/* Settings Drawer */}
             {showSettings && !isMinimize && (
                 <div className="audio-settings-drawer">
-                    <div className="setting-row">
-                        <label>Voice</label>
+                    <div className="setting-row" style={{ borderBottom: '1px solid #333', paddingBottom: '8px', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <label>Voice</label>
+                            <span style={{ fontSize: '10px', color: '#888' }}>
+                                Found: {voices.length}
+                                <button
+                                    onClick={forceLoadVoices}
+                                    style={{ marginLeft: '8px', background: 'none', border: '1px solid #444', color: '#aaa', padding: '1px 4px', fontSize: '9px', borderRadius: '3px' }}
+                                >
+                                    Scan
+                                </button>
+                            </span>
+                        </div>
                         <select
                             value={selectedVoice?.voiceURI || ''}
                             onChange={handleVoiceChange}
                             className="voice-select"
+                            disabled={voices.length === 0}
                         >
+                            {voices.length === 0 && <option>Default System Voice</option>}
                             {voices.map(v => (
                                 <option key={v.voiceURI} value={v.voiceURI}>
-                                    {v.name} ({v.lang}) {v.localService ? '(Offline)' : '(Online)'}
+                                    {v.name} ({v.lang})
                                 </option>
                             ))}
                         </select>
