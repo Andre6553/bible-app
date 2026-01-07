@@ -949,7 +949,7 @@ const SermonPrep = () => {
                 </div>
 
                 <div class="floating-actions">
-                    <button class="btn" onclick="window.clearAppCache()" style="background: #ef4444; color: white;">🔄 Update App (v12.2)</button>
+                    <button class="btn" onclick="window.clearAppCache()" style="background: #ef4444; color: white;">🔄 Update App (v12.3)</button>
                     <select id="voiceSelect" class="voice-selector">
                         <option value="">${L.voices}</option>
                     </select>
@@ -1114,8 +1114,8 @@ const SermonPrep = () => {
                         const status = document.getElementById('overlayStatus');
                         overlay.style.display = 'flex';
                         
-                        // v12.2: Advanced Chunking & Cache Busting
-                        console.log('TTS Engine: v12.2 Active');
+                        // v12.3: Debugging Edge "60" error (HTML detected)
+                        console.log('TTS Engine: v12.3 Active');
                         function segmentText(str, max) {
                             const chunks = [];
                             let current = "";
@@ -1137,33 +1137,38 @@ const SermonPrep = () => {
                         const buffers = [];
                         
                         for (let i = 0; i < chunks.length; i++) {
-                            status.innerText = 'v12.2 Joining Segment ' + (i+1) + '/' + chunks.length;
+                            status.innerText = 'v12.3 Progress: ' + (i+1) + '/' + chunks.length;
                             try {
                                 const url = '/tts-proxy/translate_tts?ie=UTF-8&tl=${isAfSermon ? 'af' : 'en'}&client=tw-ob&q=' + 
-                                            encodeURIComponent(chunks[i]) + '&v=' + Date.now();
+                                            encodeURIComponent(chunks[i]);
                                 const res = await fetch(url);
-                                if (!res.ok) throw new Error('Network error: ' + res.status);
+                                if (!res.ok) throw new Error('Proxy error: ' + res.status);
                                 
                                 const arrayBuffer = await res.arrayBuffer();
-                                
+                                if (arrayBuffer.byteLength === 0) continue;
+
                                 // MPEG Check: First byte should be 0xFF (Sync word start)
                                 const firstByte = new Uint8Array(arrayBuffer)[0];
-                                if (firstByte !== 255 && arrayBuffer.byteLength > 0) {
-                                    console.error('Invalid MPEG frame detected at chunk ' + i, firstByte);
-                                    // If we get an error page or non-mpeg, skip it rather than corrupting the file
+                                if (firstByte !== 255) {
+                                    // It's likely HTML (byte 60 = <)
+                                    const decoder = new TextDecoder('utf-8');
+                                    const snippet = decoder.decode(arrayBuffer.slice(0, 200));
+                                    console.error('v12.3 Invalid Data (Chunk ' + i + '):', snippet);
+                                    
+                                    // If we got a Google error/captcha, we should stop and tell the user
+                                    if (snippet.includes('Google') || snippet.includes('captcha')) {
+                                        throw new Error('Google flagged the request. Try again in a few minutes or use a different network.');
+                                    }
                                     continue;
                                 }
 
-                                if (arrayBuffer.byteLength > 0) {
-                                    buffers.push(arrayBuffer);
-                                    totalBufferLength += arrayBuffer.byteLength;
-                                }
-                                
-                                await new Promise(r => setTimeout(r, 300)); 
+                                buffers.push(arrayBuffer);
+                                totalBufferLength += arrayBuffer.byteLength;
+                                await new Promise(r => setTimeout(r, 400)); // Safer delay
                             } catch (e) {
-                                console.error('Join failed at chunk ' + i, e);
+                                console.error('Aborted join:', e);
                                 overlay.style.display = 'none';
-                                alert('v12.2 Error: ' + e.message);
+                                alert('v12.3 Error: ' + e.message);
                                 return;
                             }
                         }
