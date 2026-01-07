@@ -963,9 +963,21 @@ const SermonPrep = () => {
                     <button class="btn secondary" id="stopBtn" onclick="stopAudio()" disabled style="opacity:0.5">⏹️</button>
                     
                     <button class="btn copy-btn" onclick="copyAll()">📋 ${L.copy}</button>
+                    <button class="btn" onclick="openTextSplitter()" style="background: #8b5cf6;">✂️ Split (500)</button>
                     ${isWindows ? `<button class="btn download-btn" onclick="downloadAudio()">📥 Audio</button>` : ''}
                     ${isAdmin ? `<button class="btn" onclick="window.print()">🖨️ PDF</button>` : ''}
                     <button class="btn secondary" onclick="window.close()">✕</button>
+                </div>
+
+                <!-- Text Splitter Overlay -->
+                <div id="splitOverlay" class="overlay" style="display:none; justify-content:center; align-items:flex-start; padding-top: 50px;">
+                    <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                        <h3 style="margin-top:0; color: var(--accent-color);">✂️ Split Text (Max 500 chars)</h3>
+                        <div id="splitList" style="overflow-y: auto; flex: 1; padding-right: 10px; display: flex; flex-direction: column; gap: 15px;"></div>
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button class="btn secondary" onclick="document.getElementById('splitOverlay').style.display='none'">Close</button>
+                        </div>
+                    </div>
                 </div>
 
                 <script>
@@ -1121,6 +1133,7 @@ const SermonPrep = () => {
                         
                         // v12.4: Clean Text & Label Scrubbing
                         console.log('TTS Engine: v12.4 Active');
+                        
                         function segmentText(str, max) {
                             const chunks = [];
                             let current = "";
@@ -1135,6 +1148,23 @@ const SermonPrep = () => {
                             }
                             if (current) chunks.push(current.trim());
                             return chunks;
+                        }
+
+
+
+                        async function copySplitChunk(text, btn) {
+                            try {
+                                await navigator.clipboard.writeText(text);
+                                const originalText = btn.innerText;
+                                btn.innerText = '✅ Copied!';
+                                btn.style.background = '#22c55e';
+                                setTimeout(() => {
+                                    btn.innerText = originalText;
+                                    btn.style.background = '';
+                                }, 1500);
+                            } catch (err) {
+                                alert('Failed to copy');
+                            }
                         }
 
                         const chunks = segmentText(text, 160);
@@ -1219,6 +1249,92 @@ const SermonPrep = () => {
                         for (let btn of btns) {
                             btn.click();
                             await new Promise(r => setTimeout(r, 5000)); // Longer delay for joint processing
+                        }
+                    }
+
+                    // v12.5: Text Splitter Logic (Global Scope)
+                    window.openTextSplitter = function() {
+                        const fullText = document.getElementById('tts-content').innerText;
+                        const list = document.getElementById('splitList');
+                        list.innerHTML = '';
+                        
+                        const parts = splitTextByLength(fullText, 500);
+                        
+                        parts.forEach((part, idx) => {
+                            const div = document.createElement('div');
+                            div.id = 'split-chunk-' + idx; // ID for scrolling
+                            div.style.cssText = 'background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;';
+                            
+                            const header = document.createElement('div');
+                            header.style.cssText = 'display:flex; justify-content:space-between; margin-bottom: 8px; font-size: 0.9em; color: #94a3b8;';
+                            
+                            // Safe string concat
+                            const headerHtml = '<span>Part ' + (idx + 1) + ' (' + part.length + ' chars)</span>';
+                            header.innerHTML = headerHtml;
+                            
+                            const btn = document.createElement('button');
+                            btn.className = 'btn';
+                            btn.innerText = '📋 Copy';
+                            btn.style.fontSize = '0.8em';
+                            btn.style.padding = '4px 8px';
+                            btn.onclick = function() { copySplitChunk(part, this, idx); };
+                            
+                            header.appendChild(btn);
+                            
+                            const p = document.createElement('p');
+                            p.innerText = part;
+                            p.style.cssText = 'margin:0; font-size: 0.95em; color: #e2e8f0; white-space: pre-wrap;';
+                            
+                            div.appendChild(header);
+                            div.appendChild(p);
+                            list.appendChild(div);
+                        });
+                        
+                        document.getElementById('splitOverlay').style.display = 'flex';
+                    };
+
+                    function splitTextByLength(text, max) {
+                        const words = text.split(' ');
+                        const chunks = [];
+                        let current = "";
+                        
+                        for (let w of words) {
+                            if ((current + w).length > max) {
+                                if (current) chunks.push(current.trim());
+                                current = w + " ";
+                            } else {
+                                current += w + " ";
+                            }
+                        }
+                        if (current) chunks.push(current.trim());
+                        return chunks;
+                    }
+
+                    async function copySplitChunk(text, btn, idx) {
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            
+                            // 1. Persistent "Copied" State
+                            btn.innerText = '✅ Copied';
+                            btn.style.background = '#22c55e';
+                            btn.style.color = 'white';
+                            
+                            // Dim the container to show it's done
+                            const container = document.getElementById('split-chunk-' + idx);
+                            if (container) {
+                                container.style.opacity = '0.5';
+                                container.style.borderColor = '#22c55e';
+                            }
+                            
+                            // 2. Auto-scroll to next
+                            const nextIdx = idx + 1;
+                            const nextContainer = document.getElementById('split-chunk-' + nextIdx);
+                            if (nextContainer) {
+                                nextContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                            
+                        } catch (err) {
+                            alert('Failed to copy');
                         }
                     }
 
