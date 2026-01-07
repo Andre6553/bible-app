@@ -82,14 +82,14 @@ define(['./workbox-6fc00345'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.c56ff6l32q4"
+    "revision": "0.l47adsdagh8"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
     allowlist: [/^\/$/]
   }));
   workbox.registerRoute(/^https:\/\/fikjnvkzhemamtlwsrin\.supabase\.co\/.*/i, new workbox.NetworkFirst({
-    "cacheName": "bible-api-cache-v3",
+    "cacheName": "bible-api-cache-v12-2",
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 100,
       maxAgeSeconds: 86400

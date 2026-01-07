@@ -699,7 +699,7 @@ const SermonPrep = () => {
         };
 
         // 1. Scrubbing Logic
-        const scrubText = (text, blockTitle) => {
+        const scrubText = (text, blockTitle, mainSermonTitle) => {
             if (!text) return '';
             // Match (Instructions), Objective: ..., and **Highlights**
             const redTextRegex = /(\(.*?\)|(?:\*\*|\*)?\s*Objective:.*?(?:\n|$)|(?:\*\*.*?\*\*))/gi;
@@ -711,7 +711,9 @@ const SermonPrep = () => {
                 .replace(/^(?:point|punt)\s*\d+\s*[:\)]\s*/gi, '')
                 .replace(/[^\w\s]/g, '')
                 .trim();
-            const cleanTitle = getComparisonText(blockTitle || '');
+
+            const cleanBlockTitle = getComparisonText(blockTitle || '');
+            const cleanSermonTitle = getComparisonText(mainSermonTitle || '');
 
             // 2. TTS Optimization (Pauses)
             const lines = scrubbed.split('\n');
@@ -719,8 +721,11 @@ const SermonPrep = () => {
                 let l = line.trim();
                 if (!l) return null;
 
-                // Remove redundant Point labels (e.g. "Point 1:", "Point 2):", "1.")
-                l = l.replace(/^(?:Point|Punt)\s*\d+\s*[:\)]\s*/gi, '');
+                // Remove redundant Point/Header labels AND their trailing content if it's just a header
+                // e.g. "POINT 1: THE PROBLEM OF FEAR" -> might want to keep "THE PROBLEM OF FEAR" 
+                // OR might want to remove it if it duplicates the block title. 
+                // For now, we strip the label "POINT 1:" and let the dedup logic handle the rest.
+                l = l.replace(/^(?:Point|Punt|Application|Toepassing|Conclusion|Slot|Introduction|Inleiding)\s*\d*\s*[:\)]\s*/gi, '');
                 l = l.replace(/^\d+\.\s*/, '');
 
                 // Remove standalone colons or residue punctuation lines
@@ -730,8 +735,12 @@ const SermonPrep = () => {
                 l = l.replace(/[#*_-`$]/g, '').trim();
                 if (!l) return null;
 
-                // Deduplicate if this line is just the title again
-                if (cleanTitle && getComparisonText(l) === cleanTitle) return null;
+                // Deduplicate if this line is just the title again (Block Title OR Sermon Title)
+                const cmpLine = getComparisonText(l);
+                if ((cleanBlockTitle && cmpLine === cleanBlockTitle) ||
+                    (cleanSermonTitle && cmpLine === cleanSermonTitle)) {
+                    return null;
+                }
 
                 // Add emotional/pause markers for MAJOR punctuation only
                 // Handle trailing quotes/brackets: . ... or ." ... or .) ...
@@ -748,18 +757,14 @@ const SermonPrep = () => {
 
         const ttsBody = currentSermon.blocks && currentSermon.blocks.length > 0
             ? currentSermon.blocks.map(block => {
-                const titleLower = (block.title || '').trim().toLowerCase();
-                // Skip headers for Introduction to avoid redundancy as requested
-                const skipHeader = titleLower.startsWith('introduction') || titleLower.startsWith('inleiding');
-
+                // v12.4: Removed block title injection to ensure clean reading
                 return `
                     <div class="block-section">
-                        ${!skipHeader ? `<h2 class="tts-header">${safe(block.title)} ...</h2>` : ''}
-                        <div class="tts-text">${scrubText(block.notes || '', block.title)}</div>
+                        <div class="tts-text">${scrubText(block.notes || '', block.title, currentSermon.title)}</div>
                     </div>
                 `;
             }).join('')
-            : `<div class="tts-text">${scrubText(currentSermon.full_text || '', currentSermon.title)}</div>`;
+            : `<div class="tts-text">${scrubText(currentSermon.full_text || '', currentSermon.title, currentSermon.title)}</div>`;
 
         // 3. Open Window
         const ttsWindow = window.open('', '_blank');
@@ -949,7 +954,7 @@ const SermonPrep = () => {
                 </div>
 
                 <div class="floating-actions">
-                    <button class="btn" onclick="window.clearAppCache()" style="background: #ef4444; color: white;">🔄 Update App (v12.3)</button>
+                    <button class="btn" onclick="window.clearAppCache()" style="background: #ef4444; color: white;">🔄 Update App (v12.4)</button>
                     <select id="voiceSelect" class="voice-selector">
                         <option value="">${L.voices}</option>
                     </select>
@@ -1114,8 +1119,8 @@ const SermonPrep = () => {
                         const status = document.getElementById('overlayStatus');
                         overlay.style.display = 'flex';
                         
-                        // v12.3: Debugging Edge "60" error (HTML detected)
-                        console.log('TTS Engine: v12.3 Active');
+                        // v12.4: Clean Text & Label Scrubbing
+                        console.log('TTS Engine: v12.4 Active');
                         function segmentText(str, max) {
                             const chunks = [];
                             let current = "";
