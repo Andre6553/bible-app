@@ -91,7 +91,7 @@ const SermonPrep = () => {
         setTitle('');
         setMainScripture('');
         setAudience('general');
-        setTone('balanced');
+        setTone('practical');
         setTheme('');
         setPlannedDuration(90);
         setStep('foundation');
@@ -2825,11 +2825,11 @@ const SermonPrep = () => {
                 <div className="input-group">
                     <label>{isAf ? 'Styl / Toon' : 'Style / Tone'}</label>
                     <select value={tone} onChange={(e) => setTone(e.target.value)}>
+                        <option value="practical">{isAf ? 'Prakties & Direk *' : 'Practical & Punchy *'}</option>
                         <option value="balanced">{isAf ? 'Gebalanseerd' : 'Balanced'}</option>
                         <option value="high_energy">{isAf ? 'Dinamies & Hoë Energie' : 'Dynamic & High Energy'}</option>
                         <option value="compassionate">{isAf ? 'Sag & Deernisvol' : 'Soft & Compassionate'}</option>
                         <option value="deep">{isAf ? 'Teologies & Diep' : 'Theological & Deep'}</option>
-                        <option value="practical">{isAf ? 'Prakties & Direk' : 'Practical & Punchy'}</option>
                     </select>
                 </div>
 
