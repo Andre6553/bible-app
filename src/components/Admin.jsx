@@ -60,7 +60,16 @@ const Admin = () => {
 
     // By Endpoint
     const byEndpoint = stats.reduce((acc, curr) => {
-        acc[curr.endpoint] = (acc[curr.endpoint] || 0) + 1;
+        let key = curr.endpoint;
+
+        // Granular breakdown for Sermon AI
+        if (curr.endpoint === 'performResearch' && curr.metadata?.tool) {
+            key = `AI: ${curr.metadata.tool}`;
+        } else if (curr.endpoint === 'generateExegesis') {
+            key = 'AI: Sermon Skeleton';
+        }
+
+        acc[key] = (acc[key] || 0) + 1;
         return acc;
     }, {});
 
@@ -187,6 +196,40 @@ const Admin = () => {
                         </div>
                     </div>
 
+                    {/* API Distribution Section */}
+                    <div className="stat-card distribution-card" style={{ marginTop: '20px', padding: '20px' }}>
+                        <h3>📊 API Ecosystem Distribution</h3>
+                        {(() => {
+                            const sermonApiCount = stats.filter(s => s.endpoint === 'generateExegesis' || s.endpoint === 'performResearch').length;
+                            const appApiCount = totalCalls - sermonApiCount;
+                            const sermonPercent = totalCalls > 0 ? Math.round((sermonApiCount / totalCalls) * 100) : 0;
+                            const appPercent = totalCalls > 0 ? 100 - sermonPercent : 0;
+
+                            return (
+                                <>
+                                    <div className="distribution-bar" style={{ display: 'flex', height: '30px', borderRadius: '15px', overflow: 'hidden', margin: '20px 0', background: '#333' }}>
+                                        <div style={{ width: `${sermonPercent}%`, background: 'linear-gradient(90deg, #8b5cf6, #d946ef)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem', transition: 'width 0.5s ease' }}>
+                                            {sermonPercent > 5 && `${sermonPercent}%`}
+                                        </div>
+                                        <div style={{ width: `${appPercent}%`, background: 'linear-gradient(90deg, #3b82f6, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem', transition: 'width 0.5s ease' }}>
+                                            {appPercent > 5 && `${appPercent}%`}
+                                        </div>
+                                    </div>
+                                    <div className="distribution-legend" style={{ display: 'flex', justifyContent: 'center', gap: '40px', fontSize: '1rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(90deg, #8b5cf6, #d946ef)' }}></span>
+                                            <span><strong>Sermon API:</strong> {sermonApiCount}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(90deg, #3b82f6, #06b6d4)' }}></span>
+                                            <span><strong>App API:</strong> {appApiCount}</span>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
+                    </div>
+
                     <div className="details-grid">
                         {/* Usage by Endpoint */}
                         <div className="chart-section">
@@ -217,7 +260,10 @@ const Admin = () => {
                                         {stats.slice(0, 50).map((log) => (
                                             <tr key={log.id}>
                                                 <td>{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                                                <td>{log.endpoint}</td>
+                                                <td>
+                                                    {log.endpoint}
+                                                    {log.metadata?.tool && <span style={{ fontSize: '0.8em', opacity: 0.7, display: 'block' }}>Goal: {log.metadata.tool}</span>}
+                                                </td>
                                                 <td className={`status-${log.status}`}>{log.status}</td>
                                             </tr>
                                         ))}

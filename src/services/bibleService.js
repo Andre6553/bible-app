@@ -654,7 +654,13 @@ export const getUserStatistics = async () => {
                     .from('search_logs')
                     .select('id', { count: 'exact', head: true });
 
+                // 5. Get Sermon Count
+                const { count: sermonCount } = await supabase
+                    .from('sermons')
+                    .select('id', { count: 'exact', head: true });
+
                 counts.search = (counts.search || 0) + (searchCount || 0);
+                counts.sermon_creation = sermonCount || 0;
 
                 return { success: true, data: counts };
             } catch (err) {
@@ -736,13 +742,27 @@ export const getUserHistory = async (userId) => {
             .order('created_at', { ascending: false })
             .limit(1000);
 
-        const [searchRes, aiRes, blogRes, readingRes, activityRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq]);
+        const sermonCountReq = (async () => {
+            // Sermons table user_id is likely UUID, so filter out non-UUIDs to avoid 400 errors
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const validUuids = userIdsToFetch.filter(id => uuidRegex.test(id));
+
+            if (validUuids.length === 0) return { count: 0 };
+
+            return await supabase
+                .from('sermons')
+                .select('id', { count: 'exact', head: true })
+                .in('user_id', validUuids);
+        })();
+
+        const [searchRes, aiRes, blogRes, readingRes, activityRes, sermonCountRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq, sermonCountReq]);
 
         let searches = searchRes.data || [];
         let aiQuestions = aiRes.data || [];
         let blogViews = blogRes.data || [];
         let bibleReadings = readingRes.data || [];
         let activities = activityRes.data || [];
+        let sermonCount = sermonCountRes.count || 0;
 
         // 2. Fallback: If no results, try client-side filtering (handles potential column type casting issues)
         if (searches.length === 0) {
@@ -823,7 +843,8 @@ export const getUserHistory = async (userId) => {
             aiQuestions,
             blogViews,
             bibleReadings,
-            activities
+            activities,
+            sermonCount
         };
     } catch (error) {
         console.error('Error getting user history:', error);

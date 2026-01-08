@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabaseClient';
-import { getUserId } from './bibleService';
+import { getUserId, logActivity } from './bibleService';
 import { logApiCall } from './adminService';
 
 /**
@@ -145,6 +145,9 @@ export const createSermon = async (sermonData, fingerprint) => {
                 if (uError) console.error('Error updating trial count:', uError);
             });
         }
+
+        // Log Activity
+        logActivity('sermon_creation');
 
         return { success: true, sermon: data };
     } catch (err) {

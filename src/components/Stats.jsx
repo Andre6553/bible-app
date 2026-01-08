@@ -422,7 +422,8 @@ function Stats() {
                     aiQuestions: history.aiQuestions || [],
                     blogViews: history.blogViews || [],
                     bibleReadings: history.bibleReadings || [],
-                    activities: history.activities || []
+                    activities: history.activities || [],
+                    sermonCount: history.sermonCount
                 });
             }
         } catch (err) {
@@ -481,7 +482,8 @@ function Stats() {
                     aiQuestions: history.aiQuestions || [],
                     blogViews: history.blogViews || [],
                     bibleReadings: history.bibleReadings || [],
-                    activities: history.activities || []
+                    activities: history.activities || [],
+                    sermonCount: history.sermonCount
                 });
             }
         } catch (err) {
@@ -769,6 +771,59 @@ function Stats() {
 
     const handleDeleteUserFully = (userId) => deleteUserData(userId, true);
 
+    // Bulk Delete Inactive & Anonymous Users
+    const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+    const bulkDeleteInactiveUsers = async () => {
+        // 1. Filter candidates: No Email (Anonymous) AND No Activity (count === 0)
+        const candidates = userStats.topUsers.filter(u => !u.email && u.count === 0);
+
+        if (candidates.length === 0) {
+            alert('No inactive anonymous users found.');
+            return;
+        }
+
+        if (!window.confirm(`Found ${candidates.length} inactive anonymous users (No Email + No Activity).\n\nDelete them all? This cannot be undone.`)) {
+            return;
+        }
+
+        setBulkDeleteLoading(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const user of candidates) {
+            try {
+                // Reuse existing deletion logic (True = Full Delete)
+                // We'll reimplement a silent version here to avoid 50 alerts
+                const idsToDelete = user.originalIds || [user.userId];
+
+                // Use Promise.all like in deleteUserData but silent
+                const deletePromises = [
+                    supabase.from('search_logs').delete().in('user_id', idsToDelete),
+                    supabase.from('ai_questions').delete().in('user_id', idsToDelete),
+                    supabase.from('blog_views').delete().in('user_id', idsToDelete),
+                    supabase.from('bible_reading_logs').delete().in('user_id', idsToDelete),
+                    supabase.from('user_activity_logs').delete().in('user_id', idsToDelete)
+                ];
+
+                idsToDelete.forEach(id => {
+                    deletePromises.push(supabase.from('user_profiles').delete().eq('user_id', id));
+                    deletePromises.push(supabase.from('verse_highlights').delete().eq('user_id', id));
+                    deletePromises.push(supabase.from('verse_notes').delete().eq('user_id', id));
+                });
+
+                await Promise.all(deletePromises);
+                successCount++;
+            } catch (err) {
+                console.error('Failed to delete user:', user.userId, err);
+                failCount++;
+            }
+        }
+
+        alert(`Cleanup complete!\n\nDeleted: ${successCount}\nFailed: ${failCount}`);
+        setBulkDeleteLoading(false);
+        fetchUserStats(); // Refresh lists
+    };
+
     // Open date range modal
     const openDateRangeModal = (type) => {
         setDateRangeType(type);
@@ -867,6 +922,7 @@ function Stats() {
                                             'inductive_hint_3': { label: 'Inductive Hint Step 3', icon: '3️⃣', color: '#8b5cf6' },
                                             'word_study_ai': { label: 'Word Study', icon: '🅰️', color: '#06b6d4' },
                                             'semantic_search': { label: 'Semantic Search', icon: '🧠', color: '#f43f5e' },
+                                            'sermon_creation': { label: 'Sermon Created', icon: '⛪', color: '#8b5cf6' },
 
                                             'uncategorized': { label: 'General Activity', icon: '⚡', color: '#94a3b8' },
                                             'unknown_action': { label: 'Unknown Action', icon: '❓', color: '#cbd5e1' }
@@ -1012,6 +1068,14 @@ function Stats() {
                     <h3>Total Users</h3>
                     <div className="big-number">{userStats.totalUsers}</div>
                     <p className="subtitle">Unique devices</p>
+                    <button
+                        className="danger-action-btn"
+                        style={{ marginTop: '10px', width: 'auto', fontSize: '0.8rem', padding: '5px 10px' }}
+                        onClick={bulkDeleteInactiveUsers}
+                        disabled={bulkDeleteLoading}
+                    >
+                        {bulkDeleteLoading ? 'Cleaning...' : '🗑️ Clean Inactive'}
+                    </button>
                 </div>
 
                 <div className="stat-card">
@@ -1366,6 +1430,10 @@ function Stats() {
                                 <p><strong>Blog Visits:</strong> {selectedUserHistory.blogViews.length > 0
                                     ? `${selectedUserHistory.blogViews.length} visits (Last: ${new Date(selectedUserHistory.blogViews[0].created_at).toLocaleDateString()})`
                                     : 'No visits recorded'}
+                                </p>
+                                <p><strong>Saved Sermons:</strong> {selectedUserHistory.sermonCount !== undefined
+                                    ? `${selectedUserHistory.sermonCount} sermon${selectedUserHistory.sermonCount !== 1 ? 's' : ''}`
+                                    : 'Loading...'}
                                 </p>
                                 <div className="super-user-toggle">
                                     <label>
