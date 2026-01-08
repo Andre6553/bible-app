@@ -2520,7 +2520,7 @@ const SermonPrep = () => {
                                     <span className="ai-tool-icon">💡</span>
                                     <span className="ai-tool-label">{isAf ? 'Illustrasie' : 'Illustration'}</span>
                                 </button>
-                                <button className="ai-tool-btn audit-btn" onClick={() => handleRunAiTool('polish_all')} style={{ gridColumn: 'span 2', background: 'rgba(var(--accent-primary-rgb), 0.1)', borderColor: 'var(--accent-primary)' }}>
+                                <button className="ai-tool-btn" onClick={() => handleRunAiTool('polish_all')} style={{ gridColumn: 'span 2' }}>
                                     <span className="ai-tool-icon">⚖️</span>
                                     <span className="ai-tool-label">{isAf ? 'Oudit Preek' : 'Audit Sermon'}</span>
                                 </button>

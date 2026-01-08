@@ -1371,6 +1371,8 @@ function Stats() {
                     <p><strong>GitHub:</strong> Andre6553/bible-app</p>
                     <p><strong>Supabase:</strong> {supabaseUrl}</p>
                     <p><strong>Vercel:</strong> https://bible-app-phi-one.vercel.app</p>
+                    <p><strong>Google AI:</strong> https://aistudio.google.com/</p>
+                    <p><strong>API Key:</strong> <span style={{ fontFamily: 'monospace' }}>{import.meta.env.VITE_GEMINI_API_KEY ? `${import.meta.env.VITE_GEMINI_API_KEY.substring(0, 10)}...` : 'Not Set'}</span></p>
                 </div>
             </div>
 
