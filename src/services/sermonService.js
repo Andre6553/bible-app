@@ -273,6 +273,11 @@ export const generateExegesis = async (scripture, title, audience, theme, langua
         Please provide a "Structural Skeleton" for a ${plannedDuration}-minute sermon (or deep study) on this text.
         Tailor the tone of the suggested blocks (titles and types) to the Style/Tone provided ("${tone || 'balanced'}").
         
+        CRITICAL STRUCTURE INSTRUCTIONS:
+        - If Planned Duration is < 10 mins: Generate ONLY 3 blocks: Introduction, 1 Main Body Point, and Conclusion. Keep it simple.
+        - If Planned Duration is 10-20 mins: Generate Intro, 2-3 Main Points, and Conclusion.
+        - If Planned Duration is > 20 mins: Use a full breakdown (Intro, 3-5 Points, Application, Conclusion).
+        
         Return a JSON object with this EXACT structure:
         {
             "exegesis": {
@@ -285,22 +290,10 @@ export const generateExegesis = async (scripture, title, audience, theme, langua
                 {
                     "type": "intro",
                     "title": "Introduction", 
-                    "duration": 10, 
+                    "duration": 2, 
                     "notes": "Hook the audience..."
                 },
-                {
-                    "type": "point",
-                    "title": "Point 1: [Name]", 
-                    "duration": 20, 
-                    "notes": "Explain verse X-Y..."
-                }
-                ... (fill time to exactly ${plannedDuration} mins) ...
-                {
-                    "type": "conclusion",
-                    "title": "Conclusion", 
-                    "duration": 10, 
-                    "notes": "Call to action..."
-                }
+                ... (fill time to approximately ${plannedDuration} mins) ...
             ]
         }
         
@@ -397,29 +390,30 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 break;
             case 'suggest_content':
                 const isIntro = context.includes('Introduction');
+                const minutes = parseInt(context.match(/(\d+) mins?/)?.[1] || '5');
+                const maxWords = minutes * 135; // Absolute ceiling
+                const targetWordCount = minutes * 120; // Ideal target
+
                 prompt = `Generate the SPOKEN notes for the following sermon block: "${query}".
                 Context: ${context}.
-                
+
+                🛑 STRICT LENGTH CONSTRAINT (PRIORITY #1):
+                - TARGET WORD COUNT: ~${targetWordCount} words.
+                - ABSOLUTE MAXIMUM: ${maxWords} words.
+                - You MUST STOP before reaching ${maxWords} words.
+                - Generating 1000+ words for a 5-minute block is a CRITICAL FAILURE. Keep it tight.
+
                 CRITICAL INSTRUCTIONS:
                 1. ${isIntro ? 'This is the introduction. Include a warm greeting and hook.' : 'DO NOT include any greetings, welcomes, or "Hello everyone". Start immediately with the core message of this point.'}
                 2. You MUST include at least one specific Bible verse quoted in full.
                 3. You MUST include a distinct section for "MODERN APPLICATION" or "LIFE APPLICATION" where you explain how this scripture applies to daily life today.
-                4. TARGET BUDGET: The user has allocated a specific duration for this block.
-                   - Target Word Count: ~115 words per minute.
-                   - For ${context.match(/(\d+) mins?/)?.[1] || '5'} minutes, the MAXIMUM word count is ${(context.match(/(\d+) mins?/)?.[1] || 5) * 115}.
-                   - ABSOLUTE LIMIT: You may NOT exceed ${(context.match(/(\d+) mins?/)?.[1] || 5) * 128} words under any circumstances.
-                   - If you approach this limit, STOP and conclude the point immediately.
-                   - Shorter is better. Aim for density and impact, not length.
-                5. DURATION CONTROL:
-                   - IF YOU ARE GOING OVER TIME: Summarize immediately. Cut sub-points. Focus ONLY on the main idea.
-                   - IF YOU ARE UNDER TIME: Only then should you use the expansion techniques below.
-                   - EXPANSION TECHNIQUES (Use sparingly):
-                   - Use detailed spoken transitions between thoughts.
-                   - Expand "Modern Application" with multi-part examples and step-by-step guidance.
-                   - Add descriptive spoken directions (e.g. "Now, I want you to look at your neighbor and consider...").
-                6. ACCURACY RULE: Do NOT count headers or metadata. Focus on the actual spoken script. Verifieer jou woordtelling self voordat jy stop.
-                7. AUDIENCE & TONE: Tailor the script to the AUDIENCE AND the Style/Tone provided.
-                8. TONE OVERRIDE: Prioritize the selected mood (e.g., High Energy, Compassionate).
+                4. COMPLETENESS & PACING:
+                   - You MUST provide a complete, finished section. Do not end mid-thought.
+                   - Manage your word budget: Don't spend 80% on the intro. Get to the point.
+                   - If you are nearing the limit, WRAP UP immediately.
+                5. ACCURACY RULE: Do NOT count headers or metadata. Focus on the actual spoken script. Verifieer jou woordtelling self voordat jy stop.
+                6. AUDIENCE & TONE: Tailor the script to the AUDIENCE AND the Style/Tone provided.
+                7. TONE OVERRIDE: Prioritize the selected mood (e.g., High Energy, Compassionate).
                 
                 FORMATTING RULES:
                 1. Directions/Actions (not spoken) must be in parentheses. Example: (Pause for effect), (Hold up Bible).
@@ -435,8 +429,12 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 [How this applies to our lives today...]
                 
                 ${langInstruction}`;
+                // Dynamic Token Limit: ~1.5 tokens per word + buffer
+                // 5 mins = 600 words = ~900 tokens. Cap at 1500 to be safe but prevent 2000+ words.
+                // UPDATED: Use 2.5x buffer to prevent mid-sentence cutoffs, relying on prompt for brevity.
+                const estimatedTokens = Math.ceil(maxWords * 2.5);
                 generationConfig = {
-                    maxOutputTokens: 8192,
+                    maxOutputTokens: Math.min(estimatedTokens, 8192), // Use dynamic limit, but never exceed model max
                 };
                 break;
             case 'polish_all':
@@ -476,7 +474,10 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 4. CONCISENESS: If the sermon is very long, focus on the most impactful suggestions.
                 5. START YOUR RESPONSE WITH '{' AND END WITH '}'.
                 6. ZERO TOLERANCE: Any unescaped double quotes inside a string value will cause a system failure.
-                7. WORD COUNT CONSTRAINT: The total word count of the "suggested" text for each point must NOT differ from the original text by more than 8%. AI MUST count the words and ensure they are within the ±8% range. DO NOT SHORTEN THE SERMON.
+                7. STRICT TIME ADHERENCE: 
+                   - ONLY SHORTEN if the text significantly EXCEEDS the Time Budget (roughly > +10% target words).
+                   - If the text is UNDER or NEAR the target, maintain the length. Focus on quality, flow, and impact.
+                   - Do NOT cut content just for the sake of brevity if it fits the time.
                 8. FORMATTING PRESERVATION: 
                    - KEEP ALL INSTRUCTIONAL TEXT in parentheses (e.g., "(Pause for effect)") EXACTLY as they are. These are rendered in RED.
                    - KEEP ALL SCRIPTURE QUOTES in double quotes (e.g., "For God so loved the world...") EXACTLY as they are. These are rendered in BLUE.

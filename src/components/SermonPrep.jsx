@@ -215,8 +215,20 @@ const SermonPrep = () => {
 
             // ALWAYS generate content for each block during batch mode
             const duration = parseInt(block.duration) || 5;
-            const targetWords = duration * 135;
-            const context = `Sermon: ${currentSermon.title}. Block: ${block.title}. Audience: ${currentSermon.audience}. Style/Tone: ${currentSermon.tone || 'balanced'}. Duration: ${duration} min. STRICT MINIMUM TARGET LENGTH: ${targetWords} spoken words.`;
+
+            // SPECIAL HANDLING FOR MICRO-BLOCKS (<= 1 min)
+            // If the block is 1 min or less, 120 words is too much if there are many blocks.
+            // We cut it to 60 words to ensure the total sermon length is manageable.
+            const isMicroBlock = duration <= 1;
+            const targetWords = isMicroBlock ? 60 : duration * 120;
+
+            const strictLimit = targetWords + (isMicroBlock ? 15 : 25); // Hard cap
+
+            const context = `Sermon: ${currentSermon.title}. Block: ${block.title}. Audience: ${currentSermon.audience}. Style/Tone: ${currentSermon.tone || 'balanced'}. Duration: ${duration} min. 
+            STRICT CONSTRAINT: Target ${targetWords} words. MAXIMUM ${strictLimit} words.
+            ${isMicroBlock ? 'KEEP IT BRIEF. Bullet points or a single paragraph only.' : 'You MUST keep it short.'}
+            If you exceed ${strictLimit} words, the system will reject it.`;
+
             const result = await performResearch('suggest_content', block.title, context, settings.language);
 
             if (result.success) {
@@ -972,7 +984,14 @@ const SermonPrep = () => {
                 <!-- Text Splitter Overlay -->
                 <div id="splitOverlay" class="overlay" style="display:none; justify-content:center; align-items:flex-start; padding-top: 50px;">
                     <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-                        <h3 style="margin-top:0; color: var(--accent-color);">✂️ Split Text (Max 500 chars)</h3>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                            <h3 style="margin:0; color: var(--accent-color);">✂️ Split Text</h3>
+                            <div style="display:flex; align-items:center; gap: 10px;">
+                                <label style="color:#cbd5e1; font-size:0.9em;">Batch Size:</label>
+                                <input type="number" id="splitSizeInput" value="500" min="100" max="5000" style="width: 80px; padding: 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                                <button class="btn" id="refreshSplitBtn" style="font-size: 0.8em; padding: 5px 10px;">🔄 Apply</button>
+                            </div>
+                        </div>
                         <div id="splitList" style="overflow-y: auto; flex: 1; padding-right: 10px; display: flex; flex-direction: column; gap: 15px;"></div>
                         <div style="margin-top: 20px; text-align: right;">
                             <button class="btn secondary" onclick="document.getElementById('splitOverlay').style.display='none'">Close</button>
@@ -1254,11 +1273,24 @@ const SermonPrep = () => {
 
                     // v12.5: Text Splitter Logic (Global Scope)
                     window.openTextSplitter = function() {
+                        // Reset input to 500 default on open
+                        document.getElementById('splitSizeInput').value = 500;
+                        renderSplitChunks(500);
+                        document.getElementById('splitOverlay').style.display = 'flex';
+                        
+                        // Bind events
+                        document.getElementById('refreshSplitBtn').onclick = function() {
+                            const size = parseInt(document.getElementById('splitSizeInput').value) || 500;
+                            renderSplitChunks(size);
+                        };
+                    };
+
+                    window.renderSplitChunks = function(maxSize) {
                         const fullText = document.getElementById('tts-content').innerText;
                         const list = document.getElementById('splitList');
                         list.innerHTML = '';
                         
-                        const parts = splitTextByLength(fullText, 500);
+                        const parts = splitTextByLength(fullText, maxSize);
                         
                         parts.forEach((part, idx) => {
                             const div = document.createElement('div');
@@ -1289,8 +1321,6 @@ const SermonPrep = () => {
                             div.appendChild(p);
                             list.appendChild(div);
                         });
-                        
-                        document.getElementById('splitOverlay').style.display = 'flex';
                     };
 
                     function splitTextByLength(text, max) {
@@ -1546,7 +1576,7 @@ const SermonPrep = () => {
 
         return {
             words: totalWords,
-            estimatedMin: Math.round(totalWords / 130)
+            estimatedMin: Math.round(totalWords / 120) // Standardized to 120 WPM
         };
     };
 
@@ -1879,8 +1909,8 @@ const SermonPrep = () => {
                                         if (!confirm(isAf ? 'Wil jy inhoud genereer vir hierdie blok?' : 'Generate content for this block?')) return;
 
                                         const duration = parseInt(block.duration) || 5;
-                                        const targetWords = duration * 135;
-                                        const context = `Sermon: ${currentSermon.title}. Block: ${block.title}. Audience: ${currentSermon.audience}. Style/Tone: ${currentSermon.tone || 'balanced'}. Duration: ${duration} min. STRICT MINIMUM TARGET LENGTH: ${targetWords} spoken words.`;
+                                        const targetWords = duration * 120; // 120 WPM
+                                        const context = `Sermon: ${currentSermon.title}. Block: ${block.title}. Audience: ${currentSermon.audience}. Style/Tone: ${currentSermon.tone || 'balanced'}. Duration: ${duration} min. TARGET LENGTH: ~${targetWords} spoken words.`;
                                         const result = await performResearch('suggest_content', block.title, context, settings.language);
 
                                         if (result.success) {
@@ -1950,8 +1980,8 @@ const SermonPrep = () => {
 
             // Calculate Time Budget
             const totalMinutes = currentSermon.blocks.reduce((acc, b) => acc + (parseInt(b.duration) || 0), 0);
-            const targetWords = totalMinutes * 115;
-            const timeContext = `\n\nTIME BUDGET: ${totalMinutes} minutes.\nTARGET WORD COUNT: ~${targetWords} words (Aim to maintain this length).`;
+            const targetWords = totalMinutes * 120; // 120 WPM
+            const timeContext = `\n\nTIME BUDGET: ${totalMinutes} minutes.\nTARGET WORD COUNT: ~${targetWords} words (Aim to strictly maintain this length).`;
 
             finalQuery = `TITLE: ${currentSermon.title}${timeContext}\n\n${allNotes}${finalPolish}`;
         }
@@ -2176,7 +2206,8 @@ const SermonPrep = () => {
         if (!block) return null;
 
         const wordCount = block.notes ? block.notes.trim().split(/\s+/).length : 0;
-        const estimatedTime = Math.ceil(wordCount / 130);
+        const estimatedTime = Math.ceil(wordCount / 120); // 120 WPM
+
         const timeDiff = estimatedTime - block.duration;
         let timeStatus = 'neutral';
         if (timeDiff > 2) timeStatus = 'over';
@@ -2185,9 +2216,10 @@ const SermonPrep = () => {
         const handleRegenerate = async () => {
             if (!confirm(isAf ? 'Wil jy die inhoud oor-genereer? Dit sal die huidige teks vervang.' : 'Regenerate content? This will replace current text.')) return;
             setAiLoading(true);
+            setAiLoading(true);
             const duration = parseInt(block.duration) || 5;
-            const targetWords = duration * 135;
-            const context = `Sermon: ${currentSermon.title}. Block: ${block.title}. Duration: ${duration} min. STRICT MINIMUM TARGET LENGTH: ${targetWords} spoken words.`;
+            const targetWords = duration * 120; // 120 WPM
+            const context = `Sermon: ${currentSermon.title}. Block: ${block.title}. Duration: ${duration} min. TARGET LENGTH: ~${targetWords} spoken words.`;
             const result = await performResearch('suggest_content', block.title, context, settings.language);
             if (result.success) {
                 handleUpdateBlock(activeBlockIndex, 'notes', result.data);
