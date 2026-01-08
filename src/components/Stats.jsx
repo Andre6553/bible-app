@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { logError } from '../services/loggerService';
 
 import { supabase, supabaseUrl, supabaseKey } from '../config/supabaseClient';
-import { getUserStatistics, getUserHistory } from '../services/bibleService';
+import { getUserStatistics, getUserHistory, getGlobalSermonStats } from '../services/bibleService';
 import {
     isRateLimitEnabled,
     toggleRateLimit as toggleRateLimitSetting,
@@ -64,6 +64,7 @@ function Stats() {
 
     // User Stats
     const [userStats, setUserStats] = useState({ totalUsers: 0, topUsers: [] });
+    const [sermonStats, setSermonStats] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [selectedUserHistory, setSelectedUserHistory] = useState({ searches: [], aiQuestions: [], blogViews: [], bibleReadings: [], activities: [] });
     const [historyLoading, setHistoryLoading] = useState(false);
@@ -117,6 +118,7 @@ function Stats() {
             fetchAIQuestions();
             fetchReadingLogs();
             fetchUserStats();
+            fetchSermonStats();
             fetchRateLimitSetting();
             fetchSuperAutoSetting();
             fetchErrorLogs();
@@ -298,17 +300,18 @@ function Stats() {
             if (data) setReadingLogs(data);
             if (error) {
                 // If it's a known schema error (missing relationship or table), fallback silently
-                if (error.code === 'PGRST200' || error.status === 404) {
-                    const { data: raw } = await supabase.from('bible_reading_logs').select('*').order('created_at', { ascending: false }).limit(50);
-                    if (raw) setReadingLogs(raw);
-                } else {
-                    console.warn('Reading logs fetch error:', error);
-                }
+                console.warn('Failed to fetch readings with join:', error);
             }
-        } catch (e) {
-            console.warn('Error fetching reading logs:', e);
+        } catch (err) {
+            console.error('Fetch readings exception:', err);
         }
     };
+
+    const fetchSermonStats = async () => {
+        const stats = await getGlobalSermonStats();
+        setSermonStats(stats);
+    };
+
 
     const handleLogin = (e) => {
         e.preventDefault();
@@ -969,6 +972,62 @@ function Stats() {
                     </div>
                 )
             }
+
+            {/* NEW SERMON STATS CARD */}
+            <div className="full-width-card" style={{ marginTop: '20px', marginBottom: '30px' }}>
+                <div className="settings-card">
+                    <h3>📜 Sermon Creators (Total: {sermonStats.reduce((a, b) => a + b.count, 0)})</h3>
+                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid #333', textAlign: 'left' }}>
+                                    <th style={{ padding: '8px' }}>Rank</th>
+                                    <th style={{ padding: '8px' }}>User</th>
+                                    <th style={{ padding: '8px' }}>Sermons Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sermonStats.map((stat, i) => {
+                                    // Try to find matching user in topUsers by checking if the sermon userId is in their originalIds list
+                                    const userProfile = userStats.topUsers.find(u =>
+                                        u.userId === stat.userId || (u.originalIds && u.originalIds.includes(stat.userId))
+                                    );
+
+                                    // Fallback names
+                                    let displayName = stat.userId;
+
+                                    // Standardize display name logic
+                                    if (userProfile?.email) {
+                                        displayName = userProfile.email;
+                                    } else if (userProfile?.userId) {
+                                        // If we found a profile but no email (e.g. anonymous aggregated), use that ID
+                                        displayName = userProfile.userId;
+                                    }
+
+                                    // Mask user ID if it's long and not email
+                                    // Logic: If it contains '@', show it. If it's a UUID/Hash > 8 chars, mask it.
+                                    if (!displayName.includes('@') && displayName.length > 8) {
+                                        displayName = displayName.substring(0, 8) + '...';
+                                    }
+
+                                    return (
+                                        <tr key={stat.userId} style={{ borderBottom: '1px solid #222' }}>
+                                            <td style={{ padding: '8px', opacity: 0.7 }}>#{i + 1}</td>
+                                            <td style={{ padding: '8px' }}>{displayName}</td>
+                                            <td style={{ padding: '8px', color: 'var(--accent-primary)', fontWeight: 'bold' }}>{stat.count}</td>
+                                        </tr>
+                                    );
+                                })}
+                                {sermonStats.length === 0 && (
+                                    <tr>
+                                        <td colSpan="3" style={{ padding: '20px', textAlign: 'center', opacity: 0.6 }}>No sermons found yet.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
             <div className="stats-grid">
                 <div className="stat-card summary-card">

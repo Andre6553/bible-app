@@ -1061,3 +1061,34 @@ export const getLastReadState = async (userId) => {
         return { success: false, error: err.message };
     }
 };
+
+/**
+ * Get global sermon statistics (count per user)
+ */
+export const getGlobalSermonStats = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('sermons')
+            .select('user_id');
+
+        if (error) throw error;
+
+        const stats = {};
+        if (data) {
+            data.forEach(s => {
+                const uid = s.user_id || 'unknown';
+                stats[uid] = (stats[uid] || 0) + 1;
+            });
+        }
+
+        // Convert to array
+        return Object.keys(stats).map(userId => ({
+            userId,
+            count: stats[userId]
+        })).sort((a, b) => b.count - a.count);
+
+    } catch (error) {
+        console.error('Error getting global sermon stats:', error);
+        return [];
+    }
+};
