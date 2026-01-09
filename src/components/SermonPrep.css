@@ -16,6 +16,34 @@
     }
 }
 
+/* Navigation Steps Styles */
+.step-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    position: relative;
+    z-index: 15;
+}
+
+.step-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.step-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    transition: all 0.3s;
+}
+
+.step-dot.active {
+    background: var(--accent-primary);
+    transform: scale(1.2);
+}
+
 .sermon-header {
     margin-bottom: 32px;
 }
@@ -336,6 +364,10 @@
     padding: 20px;
 }
 
+.mobile-sermon-title {
+    display: none;
+}
+
 .time-budget-header {
     display: flex;
     justify-content: space-between;
@@ -351,6 +383,66 @@
     z-index: 10;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(12px);
+}
+
+@media (max-width: 768px) {
+    .mobile-sermon-title {
+        display: block;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .mobile-sermon-title h2 {
+        font-size: 1.5rem;
+        margin: 0 0 8px 0;
+    }
+
+    .scripture-badge {
+        display: inline-block;
+        background: rgba(var(--accent-primary-rgb), 0.1);
+        color: var(--accent-primary);
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .time-budget-header {
+        margin: -16px -16px 20px -16px;
+        /* Flush with smaller mobile padding */
+        border-radius: 0;
+        padding: 16px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        position: relative;
+        /* Unstick to save space */
+        top: auto;
+    }
+
+    /* Standard Bottom Actions for Mobile (Not Sticky) */
+    .skeleton-actions {
+        position: relative;
+        bottom: auto;
+        margin: 20px -20px -20px -20px;
+        padding: 16px 20px;
+        background: var(--bg-card);
+        border-top: 1px solid var(--border-color);
+        z-index: 1;
+        box-shadow: none;
+    }
+
+    .time-stat {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    /* Ensure title input doesn't break layout */
+    .title-stat {
+        width: 100%;
+    }
 }
 
 .title-stat {
@@ -2105,18 +2197,90 @@
     }
 
     /* Mobile Dashboard Adjustments */
-    .sermon-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
+    /* Dashboard Header Grid Layout (New Structure) */
+    .dashboard-header-row {
+        display: grid;
+        grid-template-areas:
+            "title sub new"
+            "trial trial new";
+        grid-template-columns: max-content max-content 1fr;
+        align-items: center;
+        gap: 8px 20px;
+        margin-bottom: 24px;
     }
 
     .dashboard-header-row h2 {
-        font-size: 1.25rem;
+        grid-area: title;
+        font-size: 1.5rem;
+        margin: 0;
     }
 
-    .new-sermon-btn {
-        padding: 8px 16px;
+    .subscriber-btn {
+        grid-area: sub;
         font-size: 0.9rem;
+        padding: 8px 16px;
+    }
+
+    .main-action-btn {
+        grid-area: new;
+        justify-self: end;
+    }
+
+    .trial-counter {
+        grid-area: trial;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        text-align: left;
+    }
+
+    /* Mobile Dashboard Adjustments */
+    @media (max-width: 768px) {
+        .sermon-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .dashboard-header-row {
+            grid-template-areas:
+                "title"
+                "sub"
+                "new"
+                "trial";
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .dashboard-header-row h2 {
+            text-align: center;
+        }
+
+        .main-action-btn,
+        .subscriber-btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            justify-self: stretch;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            /* Reset margins */
+            height: 50px;
+            /* Ensure exact same height */
+        }
+
+        .subscriber-btn {
+            /* Ensure solid style matches main button */
+            background: var(--accent-primary);
+            border: none;
+            color: white;
+        }
+
+        .trial-counter {
+            text-align: center;
+            margin-top: -8px;
+            /* Pull it up slightly closer to buttons */
+        }
     }
 
     /* Mobile Laboratory Refinements */
@@ -2452,4 +2616,26 @@
 .copy-modal-textarea {
     background: var(--bg-secondary) !important;
     color: var(--text-primary) !important;
+}
+
+/* FORCE OVERRIDE: Unstick Header and Footer on Mobile to reclaim screen real estate */
+@media (max-width: 768px) {
+
+    .time-budget-header,
+    .skeleton-view .time-budget-header,
+    .laboratory-view .time-budget-header {
+        position: relative !important;
+        top: auto !important;
+        margin-top: 0 !important;
+        z-index: 1 !important;
+    }
+
+    .skeleton-actions,
+    .laboratory-actions {
+        position: relative !important;
+        bottom: auto !important;
+        margin-bottom: 0 !important;
+        z-index: 1 !important;
+        box-shadow: none !important;
+    }
 }

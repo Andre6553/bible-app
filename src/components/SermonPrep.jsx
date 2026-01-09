@@ -6,6 +6,96 @@ import { getBooks, getChapter, getChapterCount } from '../services/bibleService'
 import { getDeviceFingerprint } from '../utils/security';
 import './SermonPrep.css';
 
+// --- pure helper functions ---
+const formatSermonHtml = (text) => {
+    if (!text) return '';
+
+    // Split by newlines to handle paragraphs
+    const lines = text.split(/\n+/);
+
+    return lines.map(line => {
+        if (!line.trim()) return '';
+
+        // Process internal formatting for each line
+        const parts = line.split(/(\(.*?\)|"[^"]*"|(?:\*\*|\*)?\s*Objective:.*?(?:\n|$)|(?:\*\*.*?\*\*))/gi);
+
+        const formattedLine = parts.map(part => {
+            if (!part) return '';
+            if (part.startsWith('(') && part.endsWith(')')) {
+                return `<span class="instruction-text">${part}</span>`;
+            }
+            if (part.startsWith('"') && part.endsWith('"')) {
+                return `<span class="scripture-text">${part}</span>`;
+            }
+            if (part.startsWith('**Objective:')) {
+                return `<span class="objective-text">${part.replace(/\*\*/g, '')}</span>`;
+            }
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return `<span class="highlight-text">${part.replace(/\*\*/g, '')}</span>`;
+            }
+            return part;
+        }).join('');
+
+        return `<p class="preach-line">${formattedLine}</p>`;
+    }).join('');
+};
+
+const scrubText = (text, blockTitle, mainSermonTitle) => {
+    if (!text) return '';
+    // Match (Instructions), Objective: ..., and **Highlights**
+    const redTextRegex = /(\(.*?\)|(?:\*\*|\*)?\s*Objective:.*?(?:\n|$)|(?:\*\*.*?\*\*))/gi;
+
+    let scrubbed = text.replace(redTextRegex, '');
+
+    // Clean title for comparison (remove "Point X:", "Punt X:", and punctuation)
+    const getComparisonText = (t) => t.toLowerCase()
+        .replace(/^(?:point|punt)\s*\d+\s*[:\)]\s*/gi, '')
+        .replace(/[^\w\s]/g, '')
+        .trim();
+
+    const cleanBlockTitle = getComparisonText(blockTitle || '');
+    const cleanSermonTitle = getComparisonText(mainSermonTitle || '');
+
+    // 2. TTS Optimization (Pauses)
+    const lines = scrubbed.split('\n');
+    let resultLines = lines.map(line => {
+        let l = line.trim();
+        if (!l) return null;
+
+        // Remove redundant Point/Header labels AND their trailing content if it's just a header
+        // e.g. "POINT 1: THE PROBLEM OF FEAR" -> might want to keep "THE PROBLEM OF FEAR" 
+        // OR might want to remove it if it duplicates the block title. 
+        // For now, we strip the label "POINT 1:" and let the dedup logic handle the rest.
+        l = l.replace(/^(?:Point|Punt|Application|Toepassing|Conclusion|Slot|Introduction|Inleiding)\s*\d*\s*[:\)]\s*/gi, '');
+        l = l.replace(/^\d+\.\s*/, '');
+
+        // Remove standalone colons or residue punctuation lines
+        if (l === ':' || l === '.' || l === '):') return null;
+
+        // Remove any remaining markdown markers (including backticks and dollars that break template literals)
+        l = l.replace(/[#*_-`$]/g, '').trim();
+        if (!l) return null;
+
+        // Deduplicate if this line is just the title again (Block Title OR Sermon Title)
+        const cmpLine = getComparisonText(l);
+        if ((cleanBlockTitle && cmpLine === cleanBlockTitle) ||
+            (cleanSermonTitle && cmpLine === cleanSermonTitle)) {
+            return null;
+        }
+
+        // Add emotional/pause markers for MAJOR punctuation only
+        // Handle trailing quotes/brackets: . ... or ." ... or .) ...
+        let processed = l.replace(/([.?!;])(["'”’)]?)(?:\s+|$)/g, '$1$2 ... ');
+
+        // Final cleanup: remove redundant dots/pauses like "... ." or "... . ..."
+        return processed.replace(/\.\.\.\s*\.\s*(\.\.\.)?/g, '... ')
+            .replace(/\.\s+\.\.\./g, ' ...')
+            .trim();
+    }).filter(l => l !== null);
+
+    return resultLines.join('\n\n');
+};
+
 const SermonPrep = () => {
     const { settings, user, profile, fetchProfile } = useSettings();
     const navigate = useNavigate();
@@ -302,39 +392,6 @@ const SermonPrep = () => {
 
         // Ensure we have text to display, otherwise show a friendly message
         const textToFormat = currentSermon.full_text || (isAf ? 'Geen preek inhoud gevind nie. Gaan terug en genereer eers jou preek.' : 'No sermon content found. Go back and generate your sermon first.');
-        // Helper to format text as HTML string (not JSX)
-        const formatSermonHtml = (text) => {
-            if (!text) return '';
-
-            // Split by newlines to handle paragraphs
-            const lines = text.split(/\n+/);
-
-            return lines.map(line => {
-                if (!line.trim()) return '';
-
-                // Process internal formatting for each line
-                const parts = line.split(/(\(.*?\)|"[^"]*"|(?:\*\*|\*)?\s*Objective:.*?(?:\n|$)|(?:\*\*.*?\*\*))/gi);
-
-                const formattedLine = parts.map(part => {
-                    if (!part) return '';
-                    if (part.startsWith('(') && part.endsWith(')')) {
-                        return `<span class="instruction-text">${part}</span>`;
-                    }
-                    if (part.startsWith('"') && part.endsWith('"')) {
-                        return `<span class="scripture-text">${part}</span>`;
-                    }
-                    if (part.startsWith('**Objective:')) {
-                        return `<span class="objective-text">${part.replace(/\*\*/g, '')}</span>`;
-                    }
-                    if (part.startsWith('**') && part.endsWith('**')) {
-                        return `<span class="highlight-text">${part.replace(/\*\*/g, '')}</span>`;
-                    }
-                    return part;
-                }).join('');
-
-                return `<p class="preach-line">${formattedLine}</p>`;
-            }).join('');
-        };
 
         const formattedHtml = formatSermonHtml(textToFormat);
 
@@ -710,62 +767,6 @@ const SermonPrep = () => {
             downloadNow: isAfSermon ? 'Laai Deel Af' : 'Download Part'
         };
 
-        // 1. Scrubbing Logic
-        const scrubText = (text, blockTitle, mainSermonTitle) => {
-            if (!text) return '';
-            // Match (Instructions), Objective: ..., and **Highlights**
-            const redTextRegex = /(\(.*?\)|(?:\*\*|\*)?\s*Objective:.*?(?:\n|$)|(?:\*\*.*?\*\*))/gi;
-
-            let scrubbed = text.replace(redTextRegex, '');
-
-            // Clean title for comparison (remove "Point X:", "Punt X:", and punctuation)
-            const getComparisonText = (t) => t.toLowerCase()
-                .replace(/^(?:point|punt)\s*\d+\s*[:\)]\s*/gi, '')
-                .replace(/[^\w\s]/g, '')
-                .trim();
-
-            const cleanBlockTitle = getComparisonText(blockTitle || '');
-            const cleanSermonTitle = getComparisonText(mainSermonTitle || '');
-
-            // 2. TTS Optimization (Pauses)
-            const lines = scrubbed.split('\n');
-            let resultLines = lines.map(line => {
-                let l = line.trim();
-                if (!l) return null;
-
-                // Remove redundant Point/Header labels AND their trailing content if it's just a header
-                // e.g. "POINT 1: THE PROBLEM OF FEAR" -> might want to keep "THE PROBLEM OF FEAR" 
-                // OR might want to remove it if it duplicates the block title. 
-                // For now, we strip the label "POINT 1:" and let the dedup logic handle the rest.
-                l = l.replace(/^(?:Point|Punt|Application|Toepassing|Conclusion|Slot|Introduction|Inleiding)\s*\d*\s*[:\)]\s*/gi, '');
-                l = l.replace(/^\d+\.\s*/, '');
-
-                // Remove standalone colons or residue punctuation lines
-                if (l === ':' || l === '.' || l === '):') return null;
-
-                // Remove any remaining markdown markers (including backticks and dollars that break template literals)
-                l = l.replace(/[#*_-`$]/g, '').trim();
-                if (!l) return null;
-
-                // Deduplicate if this line is just the title again (Block Title OR Sermon Title)
-                const cmpLine = getComparisonText(l);
-                if ((cleanBlockTitle && cmpLine === cleanBlockTitle) ||
-                    (cleanSermonTitle && cmpLine === cleanSermonTitle)) {
-                    return null;
-                }
-
-                // Add emotional/pause markers for MAJOR punctuation only
-                // Handle trailing quotes/brackets: . ... or ." ... or .) ...
-                let processed = l.replace(/([.?!;])(["'”’)]?)(?:\s+|$)/g, '$1$2 ... ');
-
-                // Final cleanup: remove redundant dots/pauses like "... ." or "... . ..."
-                return processed.replace(/\.\.\.\s*\.\s*(\.\.\.)?/g, '... ')
-                    .replace(/\.\s+\.\.\./g, ' ...')
-                    .trim();
-            }).filter(l => l !== null);
-
-            return resultLines.join('\n\n');
-        };
 
         const ttsBody = currentSermon.blocks && currentSermon.blocks.length > 0
             ? currentSermon.blocks.map(block => {
@@ -1762,6 +1763,12 @@ const SermonPrep = () => {
 
         return (
             <div className="skeleton-view">
+                {/* Mobile Only Title (Context) */}
+                <div className="mobile-sermon-title">
+                    <h2>{currentSermon.title}</h2>
+                    <span className="scripture-badge">{currentSermon.main_scripture}</span>
+                </div>
+
                 <div className="time-budget-header">
                     <div className="time-stat">
                         <span className="time-label">{isAf ? 'Tyd Beplan' : 'Time Planned'}</span>
@@ -2614,31 +2621,29 @@ const SermonPrep = () => {
     const renderDashboard = () => (
         <div className="dashboard-view">
             <div className="dashboard-header-row">
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <h2>{isAf ? 'My Preke' : 'My Sermons'}</h2>
-                        {profile && profile.subscription_tier === 'free' && (
-                            <button
-                                className="new-sermon-btn"
-                                style={{ padding: '6px 14px', fontSize: '0.9rem', opacity: 0.9 }}
-                                onClick={() => navigate('/subscription')}
-                            >
-                                {isAf ? 'Word \'n Intekenaar' : 'Become a Subscriber'}
-                            </button>
-                        )}
-                    </div>
-                    {profile && profile.subscription_tier === 'free' && (
-                        <div className="trial-counter">
-                            {isAf ? 'Gratis Preke oor:' : 'Free Trials left:'}
-                            <span className={3 - profile.sermon_trial_count <= 1 ? 'critical' : ''}>
-                                {Math.max(0, 3 - profile.sermon_trial_count)} / 3
-                            </span>
-                        </div>
-                    )}
-                </div>
-                <button className="new-sermon-btn" onClick={handleStartNew}>
+                <h2>{isAf ? 'My Preke' : 'My Sermons'}</h2>
+
+                {profile && profile.subscription_tier === 'free' && (
+                    <button
+                        className="new-sermon-btn subscriber-btn"
+                        onClick={() => navigate('/subscription')}
+                    >
+                        {isAf ? 'Word \'n Intekenaar' : 'Become a Subscriber'}
+                    </button>
+                )}
+
+                <button className="new-sermon-btn main-action-btn" onClick={handleStartNew}>
                     + {isAf ? 'Nuwe Preek' : 'New Sermon'}
                 </button>
+
+                {profile && profile.subscription_tier === 'free' && (
+                    <div className="trial-counter">
+                        {isAf ? 'Gratis Preke oor:' : 'Free Trials left:'}
+                        <span className={3 - profile.sermon_trial_count <= 1 ? 'critical' : ''}>
+                            {Math.max(0, 3 - profile.sermon_trial_count)} / 3
+                        </span>
+                    </div>
+                )}
             </div>
 
             {isLoading ? (

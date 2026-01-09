@@ -7,24 +7,16 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['bible-icon.svg', 'icon-192.png', 'icon-512.png'],
+            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
             manifest: {
-                id: '/',
-                name: 'Bible Study App',
-                short_name: 'Bible',
-                description: 'Read and study multiple Bible versions',
-                theme_color: '#1a1a2e',
-                background_color: '#0f0f1e',
-                display: 'standalone',
-                orientation: 'portrait-primary',
+                name: 'Omni Bible',
+                short_name: 'Omni Bible',
+                description: 'AI-Powered Bible Study Application',
+                theme_color: '#ffffff',
                 icons: [
                     {
-                        src: 'icon-192.png',
+                        src: 'pwa-192x192.png',
                         sizes: '192x192',
-                        type: 'image/png',
-                        purpose: 'any maskable'
-                    },
-                    {
                         src: 'icon-512.png',
                         sizes: '512x512',
                         type: 'image/png',

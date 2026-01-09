@@ -466,8 +466,19 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     // Verse tap handler - original tap for simple selection maybe?
     // User requested specifically "Long Press" for highlighting.
+
+    // Touch Handling State
+    const isScrolling = useRef(false);
+    const longPressTimer = useRef(null);
+
+    // Initial tap handler
     const handleVerseTap = (verse, e) => {
-        // Simple tap toggles selection/action sheet
+        // If we were scrolling, ignore the tap
+        if (isScrolling.current) {
+            isScrolling.current = false;
+            return;
+        }
+
         e.stopPropagation();
 
         const selection = window.getSelection();
@@ -493,7 +504,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     // Long press handler for premium feel
     const handleLongPress = (verse, e) => {
-        e.preventDefault();
+        // If scrolling, do not trigger long press
+        if (isScrolling.current) return;
+
+        if (e.cancelable && e.preventDefault) {
+            e.preventDefault();
+        }
         e.stopPropagation();
 
         // Auto-select this verse and show action sheet
@@ -504,6 +520,33 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         if (window.navigator && window.navigator.vibrate) {
             window.navigator.vibrate(50);
         }
+    };
+
+    const handleTouchStart = (verse, e) => {
+        isScrolling.current = false;
+        longPressTimer.current = setTimeout(() => {
+            handleLongPress(verse, e);
+        }, 500);
+    };
+
+    const handleTouchMove = () => {
+        // If moved, we are scrolling or panning, cancel long press
+        isScrolling.current = true;
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+        // Small delay to ensure click handlers know we just finished a touch interaction
+        setTimeout(() => {
+            isScrolling.current = false;
+        }, 100);
     };
 
     const toggleSplitView = () => {
@@ -1161,12 +1204,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             id={`verse-${verse.verse}`}
                                             className={`verse-item ${selectedVerses.some(v => v.verse === verse.verse) ? 'verse-selected' : ''}`}
                                             onContextMenu={(e) => handleLongPress(verse, e)}
-                                            onTouchStart={(e) => {
-                                                const timer = setTimeout(() => handleLongPress(verse, e), 500);
-                                                const cancel = () => clearTimeout(timer);
-                                                e.target.addEventListener('touchend', cancel, { once: true });
-                                                e.target.addEventListener('touchmove', cancel, { once: true });
-                                            }}
+
+                                            onTouchStart={(e) => handleTouchStart(verse, e)}
+                                            onTouchMove={handleTouchMove}
+                                            onTouchEnd={handleTouchEnd}
                                             onClick={(e) => handleVerseTap(verse, e)}
                                         >
                                             <span className="verse-number">{verse.verse}</span>
