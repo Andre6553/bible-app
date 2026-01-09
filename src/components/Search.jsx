@@ -734,7 +734,16 @@ Here are the available shortcuts to quickly ask questions:
             // Refresh quota
             await loadQuotaInfo();
         } else {
-            setAiResponse(`❌ ${result.error}`);
+            if (result.quotaExceeded) {
+                setAiResponse('🔒 Daily Limit Reached. Upgrade for Unlimited Access.');
+                if (window.confirm(settings.language === 'af'
+                    ? 'Daaglikse AI-limiet bereik.\n\nWil jy opgradeer vir ONBEPERKTE toegang?'
+                    : 'Daily AI Limit Reached.\n\nWould you like to upgrade for UNLIMITED access?')) {
+                    navigate('/subscription');
+                }
+            } else {
+                setAiResponse(`❌ ${result.error}`);
+            }
         }
     };
 

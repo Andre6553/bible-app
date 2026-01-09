@@ -112,7 +112,7 @@ const SubscriptionPage = () => {
             } else if (code === 'Test') {
                 updates = {
                     subscription_override: 'tester',
-                    // Reset renewal month to force a fresh start or track current
+                    email: user.email,
                     last_renewal_month: new Date().toISOString().slice(0, 7),
                     sermon_trial_count: 0,
                     ai_usage_count: 0

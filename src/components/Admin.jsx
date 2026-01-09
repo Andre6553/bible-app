@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUsageStats } from '../services/adminService';
+import { getApiUsageStats, getUserDetailsByEmail } from '../services/adminService';
 import { useSettings } from '../context/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 import './Admin.css';
@@ -147,6 +147,73 @@ const Admin = () => {
                     </button>
                     <button className="btn-back" onClick={() => navigate('/')}>
                         Back to App
+                    </button>
+                </div>
+            </div>
+
+            <div className="admin-controls user-lookup-section" style={{
+                background: settings.theme === 'dark' ? '#2d2d44' : '#fff',
+                padding: '24px',
+                borderRadius: '12px',
+                marginBottom: '30px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }}>
+                <h3 style={{ marginTop: 0, marginBottom: '16px' }}>🔍 User Limit Lookup</h3>
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+                    <input
+                        type="email"
+                        placeholder="Enter user email (e.g. omnibible@gmail.com)"
+                        style={{
+                            flex: 1,
+                            padding: '10px 16px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-color)',
+                            fontSize: '1rem',
+                            background: settings.theme === 'dark' ? '#1f2937' : '#f9fafb',
+                            color: settings.theme === 'dark' ? '#ffffff' : '#111827'
+                        }}
+                        onKeyDown={async (e) => {
+                            if (e.key === 'Enter') {
+                                const email = e.target.value;
+                                if (!email) return;
+                                const btn = e.target.nextSibling;
+                                btn.click();
+                            }
+                        }}
+                    />
+                    <button
+                        className="btn-primary"
+                        style={{
+                            padding: '10px 20px',
+                            background: '#7c3aed',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                        }}
+                        onClick={async (e) => {
+                            const input = e.target.previousSibling;
+                            if (!input.value) return;
+                            const res = await getUserDetailsByEmail(input.value);
+                            if (res.success) {
+                                let msg = `🔍 Found ${res.data.length} profile(s):\n`;
+                                res.data.forEach((p, index) => {
+                                    msg += `\n-----------------------\n`;
+                                    msg += `Profile #${index + 1}\n`;
+                                    msg += `🆔 ID: ${p.user_id}\n`;
+                                    msg += `💎 Tier: ${p.subscription_tier || 'Free'}\n`;
+                                    msg += `🔑 Override: ${p.subscription_override || 'None'}\n`;
+                                    msg += `📊 Usage: ${p.ai_usage_count || 0}\n`;
+                                    msg += `📅 Last Seen: ${p.last_seen ? new Date(p.last_seen).toLocaleDateString() : 'N/A'}`;
+                                });
+                                alert(msg);
+                            } else {
+                                alert(res.error);
+                            }
+                        }}
+                    >
+                        Check Status
                     </button>
                 </div>
             </div>

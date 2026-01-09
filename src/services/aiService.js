@@ -112,21 +112,43 @@ export async function getCurrentQuota() {
 export async function getUserRemainingQuota(userId) {
     try {
         const today = new Date().toISOString().split('T')[0];
+
+        // 1. Check Subscription Status FIRST
+        const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('subscription_tier, subscription_override, subscription_expiry')
+            .eq('user_id', userId)
+            .single();
+
+        const override = profile?.subscription_override;
+        const expiry = profile?.subscription_expiry;
+        const isPremium = profile?.subscription_tier === 'premium' ||
+            override === 'premium' ||
+            override === 'admin' ||
+            override === 'tester' ||
+            (expiry && new Date(expiry) > new Date());
+
+        // If Premium/Subscriber -> UNLIMITED QUOTA
+        if (isPremium) {
+            return { remaining: 999999, used: 0, quota: 999999, isPremium: true };
+        }
+
+        // 2. Normal Quota Logic for Free Users
         const currentQuota = await getCurrentQuota();
 
         // Count questions asked today
-        const { data, error } = await supabase
+        const { count, error } = await supabase
             .from('ai_questions')
-            .select('id')
+            .select('*', { count: 'exact', head: true })
             .eq('user_id', userId)
             .gte('created_at', today);
 
         if (error) throw error;
 
-        const used = data?.length || 0;
+        const used = count || 0;
         const remaining = Math.max(0, currentQuota - used);
 
-        return { remaining, used, quota: currentQuota };
+        return { remaining, used, quota: currentQuota, isPremium: false };
 
     } catch (error) {
         console.error('Check quota error:', error);

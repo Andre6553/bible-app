@@ -336,7 +336,20 @@ function Stats() {
 
     const fetchLogs = async () => {
         setLoading(true);
-        // Fetch last 5000 logs to match stats calculation window
+
+        // 1. Try Global RPC
+        const { data: globalStats, error: rpcError } = await supabase.rpc('get_global_search_stats_v2');
+
+        if (!rpcError && globalStats) {
+            setStats(globalStats);
+            // Still fetch recent logs for the "Recent Activity" list
+            const { data } = await supabase.from('search_logs').select('*').order('created_at', { ascending: false }).limit(50);
+            if (data) setLogs(data);
+            setLoading(false);
+            return;
+        }
+
+        // 2. Fallback (Old Logic)
         const { data, error } = await supabase
             .from('search_logs')
             .select('*')
@@ -356,6 +369,21 @@ function Stats() {
     };
 
     const fetchAIQuestions = async () => {
+        // 1. Try Global RPC
+        const { data: globalStats, error: rpcError } = await supabase.rpc('get_global_ai_stats_v2');
+
+        if (!rpcError && globalStats) {
+            setAiStats({
+                total: globalStats.total,
+                topQuestions: globalStats.topQuestions || []
+            });
+            // Still fetch recent logs for list
+            const { data } = await supabase.from('ai_questions').select('*').order('created_at', { ascending: false }).limit(50);
+            if (data) setAiQuestions(data);
+            return;
+        }
+
+        // 2. Fallback
         const { data, error } = await supabase
             .from('ai_questions')
             .select('*')
@@ -1150,7 +1178,7 @@ function Stats() {
                                     <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>
                                         <span className="rank">#{idx + 1}</span>
                                         <div className="user-info-col">
-                                            <span className="term">{u.displayId.substring(0, 15)}...</span>
+                                            <span className="term">{(u.displayId || 'Unknown').substring(0, 15)}...</span>
                                             <span className="device-badge">
                                                 {u.device}
                                                 {isSuper && <span title="Super User" style={{ marginLeft: '4px' }}>⭐</span>}

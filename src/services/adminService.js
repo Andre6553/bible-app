@@ -157,3 +157,27 @@ export const updateEmailTemplate = async (key, value) => {
         return { success: false, error: error.message };
     }
 };
+/**
+ * Get detailed user info by email (including limits)
+ */
+export const getUserDetailsByEmail = async (email) => {
+    try {
+        const { data: profiles, error } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .ilike('email', email)
+            .order('last_seen', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+
+        if (!profiles || profiles.length === 0) {
+            return { success: false, error: 'User not found in user_profiles table.' };
+        }
+
+        return { success: true, data: profiles };
+    } catch (error) {
+        console.error('Error fetching user details:', error);
+        return { success: false, error: 'User not found or error fetching details.' };
+    }
+};

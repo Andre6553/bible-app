@@ -476,7 +476,48 @@ export const logActivity = async (activityType) => {
  */
 export const getUserStatistics = async () => {
     try {
-        // 1. Fetch search and AI logs
+        // 1. Try Global RPC (Secure Global Data)
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_user_stats_v2');
+
+        if (!rpcError && rpcData) {
+            const users = rpcData.users || [];
+            const mappedUsers = users.map(u => ({
+                userId: u.user_id,
+                email: u.email,
+                count: (u.search_count || 0) + (u.ai_count || 0) + (u.sermon_count || 0),
+                devices: u.device ? [u.device] : [],
+                device: u.device || 'Unknown',
+                displayId: u.email || u.user_id,
+                lastSeen: u.last_seen,
+                originalIds: new Set([u.user_id]) // Helper for existing logic
+            }));
+
+            // Calculate global activity counts for the chart
+            const globalActivityCounts = {
+                search: 0,
+                ai: 0,
+                sermon_creation: 0,
+                total: 0
+            };
+
+            users.forEach(u => {
+                globalActivityCounts.search += (u.search_count || 0);
+                globalActivityCounts.ai += (u.ai_count || 0);
+                globalActivityCounts.sermon_creation += (u.sermon_count || 0);
+            });
+            globalActivityCounts.total = globalActivityCounts.search + globalActivityCounts.ai + globalActivityCounts.sermon_creation;
+
+            return {
+                success: true,
+                data: {
+                    totalUsers: rpcData.total || 0,
+                    topUsers: mappedUsers,
+                    globalActivityCounts: globalActivityCounts
+                }
+            };
+        }
+
+        // 2. Fallback (Legacy Client-side Fetch)
         // 1. Fetch search and AI logs (latest 5000 for each to get a representative active set)
         const searchReq = supabase.from('search_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
         const aiReq = supabase.from('ai_questions').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
@@ -572,22 +613,20 @@ export const getUserStatistics = async () => {
                 return acc;
             }, {});
 
-            return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+            return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
         };
 
         // 3. Sort by activity (but keep 0 count users)
-        const topUsers = Object.entries(userStats)
-            .map(([identity, stats]) => ({
-                userId: identity, // This will be the email if available, otherwise userId
-                displayId: stats.email || identity,
-                email: stats.email,
-                count: stats.count,
-                device: getDeviceName(stats.devices),
-                fullUserAgents: [...new Set(stats.devices)].slice(0, 5),
-                isGroupedByEmail: !!stats.email,
-                originalIds: Array.from(stats.originalIds)
+        const topUsers = validIdentities
+            .map(id => ({
+                userId: id, // Identity (email or ID)
+                email: userStats[id].email,
+                displayId: userStats[id].email || id,
+                count: userStats[id].count,
+                device: getDeviceName(userStats[id].devices),
+                originalIds: Array.from(userStats[id].originalIds) // Keep original IDs for deep filtering
             }))
-            .sort((a, b) => b.count - a.count);
+            .sort((a, b) => b.count - a.count); // Sort by activity count
 
         /**
          * Get distribution of all user activities for global chart
@@ -654,10 +693,9 @@ export const getUserStatistics = async () => {
                     .from('search_logs')
                     .select('id', { count: 'exact', head: true });
 
-                // 5. Get Sermon Count
-                const { count: sermonCount } = await supabase
-                    .from('sermons')
-                    .select('id', { count: 'exact', head: true });
+                // 5. Get Sermon Count (Use Global RPC helper to match the list)
+                const globalSermonStats = await getGlobalSermonStats();
+                const sermonCount = globalSermonStats.reduce((sum, s) => sum + s.count, 0);
 
                 counts.search = (counts.search || 0) + (searchCount || 0);
                 counts.sermon_creation = sermonCount || 0;
@@ -1067,6 +1105,17 @@ export const getLastReadState = async (userId) => {
  */
 export const getGlobalSermonStats = async () => {
     try {
+        // 1. Try RPC First (Secure Global Stats)
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_sermon_counts_v2');
+
+        if (!rpcError && rpcData) {
+            return rpcData.map(d => ({
+                userId: d.user_id,
+                count: d.count
+            }));
+        }
+
+        // 2. Fallback: RLS-limited Select (Legacy)
         const { data, error } = await supabase
             .from('sermons')
             .select('user_id');
