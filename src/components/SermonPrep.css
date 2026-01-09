@@ -2637,5 +2637,19 @@
         margin-bottom: 0 !important;
         z-index: 1 !important;
         box-shadow: none !important;
+
+        /* Grid Layout for Mobile Buttons */
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    /* Ensure buttons are tall enough for touch */
+    .skeleton-actions .action-btn,
+    .laboratory-actions .action-btn {
+        height: 100%;
+        min-height: 50px;
+        margin: 0;
+        width: auto;
     }
 }
