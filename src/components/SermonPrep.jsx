@@ -3,6 +3,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 import { getMySermons, createSermon, deleteSermon, generateExegesis, updateSermon, performResearch } from '../services/sermonService';
 import { getBooks, getChapter, getChapterCount } from '../services/bibleService';
+import { askBibleQuestion } from '../services/aiService';
 import { getDeviceFingerprint } from '../utils/security';
 import './SermonPrep.css';
 
@@ -119,6 +120,7 @@ const SermonPrep = () => {
     const [isAutoGenerating, setIsAutoGenerating] = useState(false);
     const [autoGenerateProgress, setAutoGenerateProgress] = useState(0);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isSuggestingVerses, setIsSuggestingVerses] = useState(false);
 
     // Laboratory & Editor State
     const [activeBlockIndex, setActiveBlockIndex] = useState(0);
@@ -210,6 +212,68 @@ const SermonPrep = () => {
         }
     };
 
+    const handleSuggestVerses = async () => {
+        if (!title.trim()) {
+            alert(isAf ? 'Voer asseblief eers \'n titel in.' : 'Please enter a title first.');
+            return;
+        }
+
+        setIsSuggestingVerses(true);
+        try {
+            const prompt = `Find 5 Bible verses that address the following request and return ONLY the verse references enclosed in double brackets and separated by commas (e.g. [[John 3:16]], [[Romans 5:8]]). Use modern citations. Request: ${title}`;
+            const result = await askBibleQuestion(user.id, prompt, [], settings.language);
+
+            if (result.success) {
+                const matches = result.answer.match(/\[\[(.*?)\]\]/g) || [];
+                const uniqueRefs = [...new Set(matches.map(m => m.replace(/\[\[|\]\]/g, '').trim()))];
+                const cleanRefs = uniqueRefs.join(', ');
+
+                if (cleanRefs) {
+                    setMainScripture(cleanRefs);
+                } else {
+                    alert(isAf ? 'Kon nie verse vir hierdie titel vind nie.' : 'Could not find verses for this title.');
+                }
+            } else {
+                alert(result.error || 'AI Error');
+            }
+        } catch (err) {
+            console.error('Verse suggestion error:', err);
+        } finally {
+            setIsSuggestingVerses(false);
+        }
+    };
+
+    const handleSuggestVersesSkeleton = async () => {
+        if (!currentSermon) return;
+
+        setIsSuggestingVerses(true);
+        try {
+            const prompt = `Based on the sermon title '${currentSermon.title}', suggest 5 relevant Bible verses that are DIFFERENT from these current ones: ${currentSermon.main_scripture}. Return ONLY the verse references enclosed in double brackets and separated by commas (e.g. [[John 3:16]], [[Romans 5:8]]). Use modern citations.`;
+            const result = await askBibleQuestion(user.id, prompt, [], settings.language);
+
+            if (result.success) {
+                const matches = result.answer.match(/\[\[(.*?)\]\]/g) || [];
+                const uniqueRefs = [...new Set(matches.map(m => m.replace(/\[\[|\]\]/g, '').trim()))];
+                const cleanRefs = uniqueRefs.join(', ');
+
+                if (cleanRefs) {
+                    const updatedSermon = { ...currentSermon, main_scripture: cleanRefs };
+                    setCurrentSermon(updatedSermon);
+                    // Update database
+                    await updateSermon(currentSermon.id, { main_scripture: cleanRefs });
+                } else {
+                    alert(isAf ? 'Kon nie nuwe verse vir hierdie titel vind nie.' : 'Could not find new verses for this title.');
+                }
+            } else {
+                alert(result.error || 'AI Error');
+            }
+        } catch (err) {
+            console.error('Verse skeleton suggestion error:', err);
+        } finally {
+            setIsSuggestingVerses(false);
+        }
+    };
+
     const handleGenerateSkeleton = async () => {
         if (!title || !mainScripture) {
             alert(isAf ? 'Voer asseblief n titel en skrifgedeelte in.' : 'Please enter a title and scripture passage.');
@@ -251,6 +315,36 @@ const SermonPrep = () => {
             console.error(err);
             const errMsg = err.message || (isAf ? 'Onbekende fout' : 'Unknown error');
             alert((isAf ? 'Fout met herwinning van data: ' : 'Error retrieving data: ') + errMsg);
+        }
+        setIsGenerating(false);
+    };
+
+    const handleRegenerateSkeleton = async () => {
+        if (!currentSermon) return;
+        if (!confirm(isAf ? 'Wil jy die hele raamwerk (blokke) her-genereer gebaseer op die nuwe skrifgedeeltes? Huidige notas sal verlore gaan.' : 'Regenerate the entire outline (blocks) based on new scriptures? Current notes will be lost.')) return;
+
+        setIsGenerating(true);
+        try {
+            const result = await generateExegesis(
+                currentSermon.main_scripture,
+                currentSermon.title,
+                currentSermon.audience,
+                currentSermon.theme,
+                settings.language,
+                plannedDuration,
+                currentSermon.tone
+            );
+
+            if (result.success) {
+                const updatedSermon = { ...currentSermon, blocks: result.data.suggested_blocks };
+                setCurrentSermon(updatedSermon);
+                await updateSermon(currentSermon.id, { blocks: result.data.suggested_blocks });
+            } else {
+                alert(result.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert(isAf ? 'Fout met her-generering.' : 'Error regenerating.');
         }
         setIsGenerating(false);
     };
@@ -1830,9 +1924,55 @@ const SermonPrep = () => {
                         </div>
                         <div className="skeleton-info-item">
                             <span>📖</span>
-                            <div>
-                                <strong>{isAf ? 'Skrif:' : 'Scripture:'}</strong><br />
-                                {currentSermon.main_scripture}
+                            <div style={{ width: '100%' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <strong>{isAf ? 'Skrif:' : 'Scripture:'}</strong>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                        <button
+                                            className="ai-suggest-btn"
+                                            onClick={handleSuggestVersesSkeleton}
+                                            disabled={isSuggestingVerses}
+                                            title={isAf ? "Stel ander verse voor" : "Suggest different verses"}
+                                            style={{
+                                                background: 'rgba(56, 189, 248, 0.1)',
+                                                border: '1px solid var(--accent-primary)',
+                                                color: 'var(--accent-primary)',
+                                                borderRadius: '4px',
+                                                padding: '2px 6px',
+                                                fontSize: '0.7rem',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            {isSuggestingVerses ? '...' : '✨ ' + (isAf ? 'Wissel' : 'Rotate')}
+                                        </button>
+                                        <button
+                                            className="ai-suggest-btn"
+                                            onClick={handleRegenerateSkeleton}
+                                            disabled={isGenerating}
+                                            title={isAf ? "Her-genereer raamwerk" : "Regenerate outline"}
+                                            style={{
+                                                background: 'rgba(236, 72, 153, 0.1)',
+                                                border: '1px solid #ec4899',
+                                                color: '#ec4899',
+                                                borderRadius: '4px',
+                                                padding: '2px 6px',
+                                                fontSize: '0.7rem',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            {isGenerating ? '...' : '🔄 ' + (isAf ? 'Herstel' : 'Redo')}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style={{ fontSize: '0.9rem', marginTop: '4px' }}>
+                                    {currentSermon.main_scripture}
+                                </div>
                             </div>
                         </div>
                         <div className="skeleton-info-item">
@@ -1917,7 +2057,7 @@ const SermonPrep = () => {
 
                                         const duration = parseInt(block.duration) || 5;
                                         const targetWords = duration * 120; // 120 WPM
-                                        const context = `Sermon: ${currentSermon.title}. Block: ${block.title}. Audience: ${currentSermon.audience}. Style/Tone: ${currentSermon.tone || 'balanced'}. Duration: ${duration} min. TARGET LENGTH: ~${targetWords} spoken words.`;
+                                        const context = `Sermon: ${currentSermon.title}. Scripture: ${currentSermon.main_scripture}. Block: ${block.title}. Audience: ${currentSermon.audience}. Style/Tone: ${currentSermon.tone || 'balanced'}. Duration: ${duration} min. TARGET LENGTH: ~${targetWords} spoken words.`;
                                         const result = await performResearch('suggest_content', block.title, context, settings.language);
 
                                         if (result.success) {
@@ -2798,10 +2938,34 @@ const SermonPrep = () => {
                 </div>
 
                 <div className="input-group">
-                    <label>
-                        {isAf ? 'Hoof Skrifgedeelte(s)' : 'Main Scripture Passage(s)'}
-                        <span className="ai-badge">AI Analysis</span>
-                        <span style={{ color: 'red' }}>*</span>
+                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span>
+                            {isAf ? 'Hoof Skrifgedeelte(s)' : 'Main Scripture Passage(s)'}
+                            <span className="ai-badge">AI Analysis</span>
+                            <span style={{ color: 'red' }}>*</span>
+                        </span>
+                        <button
+                            className="ai-suggest-btn"
+                            onClick={handleSuggestVerses}
+                            disabled={isSuggestingVerses || !title.trim()}
+                            title={isAf ? "Stel verse voor gebaseer op titel" : "Suggest verses based on title"}
+                            style={{
+                                background: 'rgba(56, 189, 248, 0.1)',
+                                border: '1px solid var(--accent-primary)',
+                                color: 'var(--accent-primary)',
+                                borderRadius: '4px',
+                                padding: '2px 8px',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}
+                        >
+                            {isSuggestingVerses ? (
+                                <div className="loading-spinner" style={{ width: '12px', height: '12px', borderWeight: '2px' }}></div>
+                            ) : '✨ ' + (isAf ? 'Stel Verse Voor' : 'Suggest AI Verses')}
+                        </button>
                     </label>
                     <input
                         type="text"
@@ -2824,6 +2988,7 @@ const SermonPrep = () => {
                         <option value="new_believers">{isAf ? 'Nuwe Gelowiges' : 'New Believers'}</option>
                         <option value="mature">{isAf ? 'Volwasse Gelowiges' : 'Mature Believers'}</option>
                         <option value="outreach">{isAf ? 'Buitekerklike / Evangelisasie' : 'Outreach / Evangelism'}</option>
+                        <option value="wedding">{isAf ? 'Troue (Bruidspaar & Gaste)' : 'Wedding (Couple & Guests)'}</option>
                     </select>
                 </div>
 

@@ -273,6 +273,12 @@ export const generateExegesis = async (scripture, title, audience, theme, langua
         - Central Theme: "${theme || 'N/A'}"
         - Planned Duration: ${plannedDuration} minutes
         
+        SPECIAL INSTRUCTIONS FOR WEDDING AUDIENCE:
+        If Target Audience is "wedding", focus the sermon on the couple getting married and the sanctity of marriage.
+        - Tone: Celebratory, encouraging, and warm.
+        - Engagement: Include 1-2 subtle rhetorical questions directed at the couple to engage them (e.g., "Do you remember the moment...?").
+        - Balance: Ensure the message remains relevant to the guests as well, celebrating the witness of the community.
+        
         Please provide a "Structural Skeleton" for a ${plannedDuration}-minute sermon (or deep study) on this text.
         Tailor the tone of the suggested blocks (titles and types) to the Style/Tone provided ("${tone || 'balanced'}").
         
@@ -408,7 +414,7 @@ export const performResearch = async (tool, query, context, language = 'en') => 
 
                 CRITICAL INSTRUCTIONS:
                 1. ${isIntro ? 'This is the introduction. Include a warm greeting and hook.' : 'DO NOT include any greetings, welcomes, or "Hello everyone". Start immediately with the core message of this point.'}
-                2. You MUST include at least one specific Bible verse quoted in full.
+                2. SCRIPTURE RULE: You MUST use the specific Bible verse(s) provided in the "Scripture:" context above. Quote at least one of them in full and base your teaching on them.
                 3. You MUST include a distinct section for "MODERN APPLICATION" or "LIFE APPLICATION" where you explain how this scripture applies to daily life today.
                 4. COMPLETENESS & PACING:
                    - You MUST provide a complete, finished section. Do not end mid-thought.
@@ -430,6 +436,12 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 
                 **Modern Application:**
                 [How this applies to our lives today...]
+                
+                SPECIAL LENS FOR WEDDING AUDIENCE:
+                If the audience is "wedding", prioritize engagement:
+                - Couple: Use 1-2 gentle rhetorical questions focused on their journey (without expecting verbal answers).
+                - Guests: Use practical, real-life examples of how love and marriage impact the broader community.
+                - Vibe: Keep the attention of the whole room—celebratory and relatable.
                 
                 ${langInstruction}`;
                 // Dynamic Token Limit: ~1.5 tokens per word + buffer
