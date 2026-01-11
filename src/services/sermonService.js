@@ -79,9 +79,10 @@ export const createSermon = async (sermonData, fingerprint) => {
         const tier = profile?.subscription_tier || 'free';
         // If reset happened, we treat trials as 0 for this checking purpose
         const trials = resetHappened ? 0 : (profile?.sermon_trial_count || 0);
+        const isFingerUser = profile?.email?.toLowerCase().includes('finger') || profile?.subscription_override === 'tester_finger';
 
         // 2. Anti-Abuse: Check if this device has already exhausted trials on other accounts
-        if (tier === 'free' && fingerprint) {
+        if (tier === 'free' && fingerprint && !isFingerUser) {
             const { data: fingerprintMatches, error: fError } = await supabase
                 .from('user_profiles')
                 .select('user_id, sermon_trial_count')
@@ -100,7 +101,7 @@ export const createSermon = async (sermonData, fingerprint) => {
         // 3. Check Trial Limit for current account & Overrides
         const override = profile?.subscription_override;
         let limit = 3;
-        if (override === 'tester') limit = 10;
+        if (override === 'tester' || override === 'tester_finger' || isFingerUser) limit = 10;
         if (override === 'admin') limit = 9999;
 
         // If admin, we can skip the check entirely, or just set high limit.

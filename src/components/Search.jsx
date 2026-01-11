@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference, getBooks, getVerseByReference, getUserId } from '../services/bibleService';
 import { useSettings } from '../context/SettingsContext';
 import SearchHelpModal from './SearchHelpModal';
-import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch } from '../services/aiService';
+import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch, getArchaeologicalContext } from '../services/aiService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { saveBulkHighlights, removeBulkHighlights, getAllHighlights } from '../services/highlightService';
 import ColorPickerModal from './ColorPickerModal';
@@ -44,6 +44,7 @@ function Search({ currentVersion, versions }) {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [showMobileResults, setShowMobileResults] = useState(false);
     const [isVerseShortcutResponse, setIsVerseShortcutResponse] = useState(false); // Track if current AI response is from /Bible Verse
+    const [archaeologyData, setArchaeologyData] = useState(null); // Structured archaeological report
 
     // Bulk Highlight State
     const [selectedVerses, setSelectedVerses] = useState(new Set());
@@ -139,6 +140,7 @@ function Search({ currentVersion, versions }) {
         { cmd: '/teach', desc: settings.language === 'af' ? 'Wat leer die Bybel oor...' : 'What does the Bible teach...', icon: '🎓' },
         { cmd: '/compare', desc: settings.language === 'af' ? 'Vergelyk in die Bybel...' : 'Compare in the Bible...', icon: '⚖️' },
         { cmd: '/Bible Verse', desc: settings.language === 'af' ? 'Vind en kopieer verse...' : 'Find and copy verses...', icon: '📋' },
+        { cmd: '/archaeology', desc: settings.language === 'af' ? 'Argeologiese navorsing oor...' : 'Archaeological research on...', icon: '🏺' },
         { cmd: '/help', desc: settings.language === 'af' ? 'Wys alle kortpaaie' : 'Show all shortcuts', icon: 'ℹ️' },
     ];
 
@@ -595,6 +597,7 @@ function Search({ currentVersion, versions }) {
 
         setAiLoading(true);
         setAiResponse(null);
+        setArchaeologyData(null);
 
         // Process shortcuts like /story, /explain, /meaning
         let processedQuestion = aiQuestion.trim();
@@ -649,7 +652,35 @@ Here are the available shortcuts to quickly ask questions:
 • **/Bible Verse [topic]** - Find and copy 5 verses for a topic.
   Example: \`/Bible Verse God Love\` or \`/Bible Verse 5 verses describe God Love for Us in new Testament\`
 
+• **/archaeology [topic/passage]** - Get archaeological context.
+  Example: \`/archaeology Megiddo\` or \`/archaeology John 9\`
+
 💡 **Tip:** Just type the shortcut followed by your topic and press Ask!`);
+            return;
+        }
+
+        const isArchaeologyRequest = processedQuestion.toLowerCase().startsWith('/archaeology ');
+        if (isArchaeologyRequest) {
+            const topic = processedQuestion.substring(13).trim();
+            const uid = currentUserId || await getUserId();
+            const result = await getArchaeologicalContext(uid, topic, settings.language);
+            setAiLoading(false);
+            if (result.success) {
+                setArchaeologyData(result.data);
+                setIsAnswerExpanded(true);
+                // Save to history (summary)
+                const newEntry = {
+                    question: aiQuestion,
+                    answer: result.data.summary,
+                    timestamp: Date.now()
+                };
+                const updatedHistory = [newEntry, ...aiHistory].slice(0, 20);
+                setAiHistory(updatedHistory);
+                localStorage.setItem('ai_search_history', JSON.stringify(updatedHistory));
+                await loadQuotaInfo();
+            } else {
+                setAiResponse(`❌ ${result.error}`);
+            }
             return;
         }
 
@@ -1474,6 +1505,65 @@ Here are the available shortcuts to quickly ask questions:
                                                 <button onClick={() => { setIsAnswerExpanded(false); setShowAIModal(false); }}>🔍 Search</button>
                                             </div>
                                         )}
+                                    </div>
+                                )}
+
+                                {archaeologyData && (
+                                    <div className={`info-section archaeology-report ${isAnswerExpanded ? 'expanded' : ''}`}>
+                                        <div className="archaeology-header">
+                                            <h3>🏺 {settings.language === 'af' ? 'Argeologiese Konteksopsomming' : 'Archaeological Context Summary'}</h3>
+                                            <span className="archaeology-period">{archaeologyData.period}</span>
+                                        </div>
+
+                                        <p className="archaeology-summary">{archaeologyData.summary}</p>
+
+                                        <div className="archaeology-section">
+                                            <h4>🏺 {settings.language === 'af' ? 'Sleutel Ontdekkings' : 'Key Discoveries'}</h4>
+                                            <div className="archaeology-grid">
+                                                {archaeologyData.discoveries?.map((d, i) => (
+                                                    <div key={i} className="archaeology-card">
+                                                        <h4>{d.name}</h4>
+                                                        <p><strong>{settings.language === 'af' ? 'Beskrywing:' : 'Description:'}</strong> {d.description}</p>
+                                                        <p><strong>{settings.language === 'af' ? 'Relevansie:' : 'Relevance:'}</strong> {d.relevance}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="archaeology-section">
+                                            <h4>🗺️ {settings.language === 'af' ? 'Terrein Analise' : 'Site Analysis'}</h4>
+                                            <div className="archaeology-grid">
+                                                {archaeologyData.sites?.map((s, i) => (
+                                                    <div key={i} className="archaeology-card">
+                                                        <h4>{s.name}</h4>
+                                                        <p>{s.archaeologicalStatus}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="archaeology-section">
+                                            <h4>📜 {settings.language === 'af' ? 'Kulturele Parallelle' : 'Cultural Parallels'}</h4>
+                                            <div className="archaeology-parallels">
+                                                {archaeologyData.parallels}
+                                            </div>
+                                        </div>
+
+                                        <div className="consensus-box">
+                                            <strong>{settings.language === 'af' ? 'Akademiese Konsensus:' : 'Scholarly Consensus:'}</strong> {archaeologyData.scholarlyConsensus}
+                                        </div>
+
+                                        <div className="ai-response-actions" style={{ marginTop: '20px', justifyContent: 'center' }}>
+                                            <button
+                                                className="collapse-btn"
+                                                onClick={() => {
+                                                    setIsAnswerExpanded(false);
+                                                    setShowAIModal(false);
+                                                }}
+                                            >
+                                                {t.backToResults}
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
 

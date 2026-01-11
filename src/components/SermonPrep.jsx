@@ -102,7 +102,8 @@ const SermonPrep = () => {
     const navigate = useNavigate();
     const isAf = settings.language === 'af';
     const isAdmin = profile?.subscription_override === 'admin';
-    const canSeeExperimental = isAdmin || profile?.subscription_override === 'tester' || user?.email === 'Andre@58078';
+    const isFingerUser = user?.email?.toLowerCase().includes('finger') || profile?.subscription_override === 'tester_finger';
+    const canSeeExperimental = isAdmin || profile?.subscription_override === 'tester' || user?.email === 'Andre@58078' || isFingerUser;
 
     // Workflow State
     const [step, setStep] = useState('dashboard'); // dashboard, foundation, skeleton, laboratory
@@ -165,17 +166,25 @@ const SermonPrep = () => {
     };
 
     const handleStartNew = () => {
-        // Enforce Limit Check using unified "Premium" logic
-        const isPremium = profile?.subscription_override === 'premium' ||
-            profile?.subscription_override === 'admin' ||
-            profile?.subscription_override === 'tester' ||
+        // Enforce Limit Check using unified logic
+        const isPremiumTier = profile?.subscription_override === 'premium' ||
             (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
 
-        // If NOT Premium and already has 3 or more sermons, BLOCK.
-        if (!isPremium && sermons.length >= 3) {
+        const isTesterTier = profile?.subscription_override === 'tester' ||
+            profile?.subscription_override === 'tester_finger' ||
+            user?.email?.toLowerCase().includes('finger');
+
+        // Determine effective limit
+        let limit = 3;
+        if (isAdmin) limit = 9999;
+        else if (isPremiumTier) limit = 9999;
+        else if (isTesterTier) limit = 10;
+
+        // If at or above limit, BLOCK.
+        if (sermons.length >= limit) {
             alert(isAf
-                ? 'U het u limiet van 3 gratis preke bereik. Gradeer asseblief op.'
-                : 'You have reached your limit of 3 free sermons. Please upgrade to continue.'
+                ? `Jy het jou limiet van ${limit} gratis preke bereik. Gradeer asseblief op.`
+                : `You have reached your limit of ${limit} free sermons. Please upgrade to continue.`
             );
             navigate('/subscription');
             return;
@@ -2772,8 +2781,8 @@ const SermonPrep = () => {
                 <h2>{isAf ? 'Gratis Proeftyd Verstreke' : 'Free Trial Expired'}</h2>
                 <p>
                     {isAf
-                        ? 'Jy het reeds jou 3 gratis preke gebou. Gradeer op na Pro vir onbeperkte toegang!'
-                        : 'You have already built your 3 free sermons. Upgrade to Pro for unlimited access!'}
+                        ? `Jy het reeds jou ${isFingerUser || profile?.subscription_override === 'tester' ? '10' : '3'} gratis preke gebou. Gradeer op na Pro vir onbeperkte toegang!`
+                        : `You have already built your ${isFingerUser || profile?.subscription_override === 'tester' ? '10' : '3'} free sermons. Upgrade to Pro for unlimited access!`}
                 </p>
                 <div className="premium-features">
                     <span>✅ {isAf ? 'Onbeperkte AI Analise' : 'Unlimited AI Analysis'}</span>
@@ -2811,9 +2820,15 @@ const SermonPrep = () => {
                 {profile && profile.subscription_tier === 'free' && (
                     <div className="trial-counter">
                         {isAf ? 'Gratis Preke oor:' : 'Free Trials left:'}
-                        <span className={3 - profile.sermon_trial_count <= 1 ? 'critical' : ''}>
-                            {Math.max(0, 3 - profile.sermon_trial_count)} / 3
-                        </span>
+                        {(() => {
+                            const limit = (isFingerUser || profile?.subscription_override === 'tester') ? 10 : 3;
+                            const left = Math.max(0, limit - profile.sermon_trial_count);
+                            return (
+                                <span className={left <= 1 ? 'critical' : ''}>
+                                    {left} / {limit}
+                                </span>
+                            );
+                        })()}
                     </div>
                 )}
             </div>
@@ -2827,18 +2842,23 @@ const SermonPrep = () => {
                         const isPremium = profile?.subscription_override === 'premium' ||
                             profile?.subscription_override === 'admin' ||
                             profile?.subscription_override === 'tester' ||
+                            profile?.subscription_override === 'tester_finger' ||
+                            isFingerUser ||
                             (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
 
                         const isLocked = !isPremium && index >= 3;
+                        const isTesterLocked = (profile?.subscription_override === 'tester' || profile?.subscription_override === 'tester_finger' || isFingerUser) && index >= 10;
+
+                        const locked = isLocked || isTesterLocked;
 
                         return (
                             <div
                                 key={sermon.id}
-                                className={`sermon-card ${isLocked ? 'locked' : ''}`}
-                                onClick={() => !isLocked && handleResumeSermon(sermon)}
-                                style={isLocked ? { opacity: 0.6, cursor: 'not-allowed', position: 'relative' } : {}}
+                                className={`sermon-card ${locked ? 'locked' : ''}`}
+                                onClick={() => !locked && handleResumeSermon(sermon)}
+                                style={locked ? { opacity: 0.6, cursor: 'not-allowed', position: 'relative' } : {}}
                             >
-                                {isLocked && (
+                                {locked && (
                                     <div className="lock-overlay" style={{
                                         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',

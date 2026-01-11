@@ -109,6 +109,13 @@ const SubscriptionPage = () => {
             if (code === 'Andre@58078') {
                 updates = { subscription_override: 'admin' };
                 message = isAf ? 'Admin toegang toegestaan! (Premium)' : 'Admin access granted! (Premium)';
+            } else if (code === 'Finger') {
+                updates = {
+                    subscription_override: 'tester_finger',
+                    last_renewal_month: new Date().toISOString().slice(0, 7),
+                    sermon_trial_count: 0
+                };
+                message = isAf ? 'Geheime "Finger" toegang toegestaan! (Bypass)' : 'Secret "Finger" access granted! (Bypass)';
             } else if (code === 'Test') {
                 updates = {
                     subscription_override: 'tester',

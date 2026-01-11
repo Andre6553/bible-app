@@ -745,3 +745,82 @@ export async function performSemanticSearch(userId, query, versionId = 'KJV', te
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Get Archaeological and Historical Context for a Bible passage
+ */
+export async function getArchaeologicalContext(userId, passageRef, language = 'en') {
+    try {
+        const { remaining } = await getUserRemainingQuota(userId);
+        if (remaining <= 0) return { success: false, error: 'Daily quota exceeded. Try again tomorrow!' };
+
+        const isAf = language === 'af';
+        const outputLanguage = isAf ? 'Afrikaans' : 'English';
+
+        const prompt = `You are a world-class Biblical Archaeologist and Historian. Your goal is to provide a "Synthetic Archaeological Context Summary" for the passage or site: "${passageRef}".
+
+        CRITICAL: All explanations and descriptive text MUST be in ${outputLanguage}.
+
+        Scientific & Scholarly Directives (Phase 9 - Universal Precision):
+        1. **Scholarly Rigor**: Distinguish clearly between historical narrative and stratified material evidence. Use precise, non-sensational language suitable for graduate-level research.
+        2. **Multi-Era Precision**:
+           - **Iron Age**: Prioritize **Iron Age IIA–C** institutional crystallization. Use precise dating for **Khirbet Qeiyafa** (early Iron Age IIA, late 11th–early 10th century BCE) and prioritize its cultic rooms/ritual indicators for Ark-related themes.
+           - **Late Antiquity/Byzantine**: For the **Temple Mount**, acknowledge the "garbage dump" (stercus) theory but also include emerging findings from the **Temple Mount Sifting Project** suggesting complex Christian activity (chancel screens, mosaics, official weights).
+           - **Early Islamic**: For the **Dome of the Rock**, focus on its **Foundation Stone (es-Sakhra)**, acknowledging interpretive proposals (e.g., Leen Ritmeyer) regarding Holy of Holies dimensions while noting they are speculative due to excavation restrictions.
+        3. **Iconography & Parallels**:
+           - **Iron Age**: Focus on **cherubim throne iconography** and ANE ritual-purity laws for the Ark/Temple.
+           - **Islamic/Byzantine**: Transition to **aniconic vegetal motifs**, epigraphy, and **Sasanian-inspired imperial symbols** (e.g., winged crowns) for Umayyad structures.
+        4. **Advanced Site Analysis (Jerusalem)**: Detail the "archaeological opacity" caused by overlapping layers (Herodian, Byzantine, Umayyad, Crusader, Ottoman).
+        5. **Refined Scholarly Consensus**:
+           - **Iron Age**: Minimalist perspectives (late monarchic/exilic composition) vs. Centrist/Maximalist "historical core."
+           - **Early Islamic**: Debate on Abd al-Malik's motives (commemorating the Night Journey vs. political dominance vs. seeking to divert pilgrimage from Mecca—noting the latter is largely discredited in modern scholarship but historically significant).
+        6. **Historical Witness**: Treat written accounts (Biblical, Byzantine, early Islamic) as essential witnesses whose claims provide the "physical stage" for the archaeology.
+
+        Format the response as a single valid JSON object:
+        {
+          "period": "e.g., Middle Bronze Age II / Patriarchal Period",
+          "summary": "Concise summary of the historical setting in ${outputLanguage}...",
+          "discoveries": [
+            { "name": "...", "description": "...", "relevance": "..." }
+          ],
+          "sites": [
+            { "name": "...", "archaeologicalStatus": "..." }
+          ],
+          "parallels": "Comparison with external records in ${outputLanguage}...",
+          "scholarlyConsensus": "..."
+        }
+        
+        Do not use markdown formatting. Return raw JSON.`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().trim();
+
+        // Extract JSON
+        const startIdx = text.indexOf('{');
+        const endIdx = text.lastIndexOf('}');
+        if (startIdx === -1 || endIdx === -1) throw new Error("Invalid AI response format");
+
+        const data = JSON.parse(text.substring(startIdx, endIdx + 1));
+
+        // Log the research call
+        logApiCall('getArchaeologicalContext', 'success', 'gemini-2.0-flash', { userId, passageRef });
+
+        // Save to question history
+        supabase.from('ai_questions').insert({
+            user_id: userId,
+            question: `Archaeological Research: ${passageRef}`,
+            answer: JSON.stringify(data),
+            cached: false
+        }).then(({ error }) => {
+            if (error) console.error('Background logging failed:', error);
+        });
+
+        return { success: true, data };
+
+    } catch (error) {
+        console.error('Archaeology tool error:', error);
+        logApiCall('getArchaeologicalContext', 'error', 'gemini-2.0-flash', { userId, passageRef, error: error.message });
+        return { success: false, error: error.message };
+    }
+}
