@@ -102,6 +102,7 @@ const SermonPrep = () => {
     const navigate = useNavigate();
     const isAf = settings.language === 'af';
     const isAdmin = profile?.subscription_override === 'admin';
+    const canSeeExperimental = isAdmin || profile?.subscription_override === 'tester' || user?.email === 'Andre@58078';
 
     // Workflow State
     const [step, setStep] = useState('dashboard'); // dashboard, foundation, skeleton, laboratory
@@ -2690,14 +2691,18 @@ const SermonPrep = () => {
                                     <span className="ai-tool-icon">⚖️</span>
                                     <span className="ai-tool-label">{isAf ? 'Oudit Preek' : 'Audit Sermon'}</span>
                                 </button>
-                                <button className="ai-tool-btn" onClick={() => handleRunAiTool('generate_podcast')} style={{ borderColor: '#ec4899', color: '#ec4899' }}>
-                                    <span className="ai-tool-icon">🎙️</span>
-                                    <span className="ai-tool-label">{isAf ? 'Podgooi Skrip' : 'Podcast Script'}</span>
-                                </button>
-                                <button className="ai-tool-btn" onClick={() => handleRunAiTool('generate_narrative')} style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }}>
-                                    <span className="ai-tool-icon">📄</span>
-                                    <span className="ai-tool-label">{isAf ? 'Verteller Skrip' : 'Narrator Script'}</span>
-                                </button>
+                                {canSeeExperimental && (
+                                    <>
+                                        <button className="ai-tool-btn" onClick={() => handleRunAiTool('generate_podcast')} style={{ borderColor: '#ec4899', color: '#ec4899' }}>
+                                            <span className="ai-tool-icon">🎙️</span>
+                                            <span className="ai-tool-label">{isAf ? 'Podgooi Skrip' : 'Podcast Script'}</span>
+                                        </button>
+                                        <button className="ai-tool-btn" onClick={() => handleRunAiTool('generate_narrative')} style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }}>
+                                            <span className="ai-tool-icon">📄</span>
+                                            <span className="ai-tool-label">{isAf ? 'Verteller Skrip' : 'Narrator Script'}</span>
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </>
 
@@ -2775,7 +2780,7 @@ const SermonPrep = () => {
                     <span>✅ {isAf ? 'Gevorderde Navorsingsgereedskap' : 'Advanced Research Tools'}</span>
                     <span>✅ {isAf ? 'PDF Uitvoer & Druk' : 'PDF Export & Print'}</span>
                 </div>
-                <button className="gate-btn premium-btn">
+                <button className="gate-btn premium-btn" onClick={() => navigate('/subscription')}>
                     {isAf ? 'Gradeer nou op' : 'Upgrade Now'}
                 </button>
                 <button className="gate-btn secondary" onClick={() => { setStep('dashboard'); setError(null); }}>
