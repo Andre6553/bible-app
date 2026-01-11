@@ -134,6 +134,7 @@ const SermonPrep = () => {
     const [auditReview, setAuditReview] = useState(null); // { analysis: '', suggestions: [], currentIndex: 0 }
     const [showFormattingTips, setShowFormattingTips] = useState(false);
     const [copyModal, setCopyModal] = useState(null); // { content: string } - for iOS manual copy
+    const [scriptCopyNote, setScriptCopyNote] = useState(null); // { type: string }
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -2101,8 +2102,8 @@ const SermonPrep = () => {
 
     const handleRunAiTool = async (tool) => {
         if (!aiQuery) {
-            // polish_all and suggest_context don't need aiQuery
-            const skipQueryCheck = ['suggest_context', 'polish_all'].includes(tool);
+            // polish_all and suggest_context and generate_podcast and generate_narrative don't need aiQuery
+            const skipQueryCheck = ['suggest_context', 'polish_all', 'generate_podcast', 'generate_narrative'].includes(tool);
             if (!skipQueryCheck) {
                 alert(isAf ? "Tik asseblief 'n soekterm of vraag in." : "Please enter a search term or question.");
                 return;
@@ -2120,17 +2121,22 @@ const SermonPrep = () => {
             finalQuery = aiQuery.replace(/^\/bible\s*/i, '').trim();
         }
 
-        // Custom logic for polish_all: gather all blocks
-        if (effectiveTool === 'polish_all') {
+        // Custom logic for polish_all, generate_podcast, or generate_narrative: gather all blocks
+        if (effectiveTool === 'polish_all' || effectiveTool === 'generate_podcast' || effectiveTool === 'generate_narrative') {
             const allNotes = currentSermon.blocks.map((b, i) => `Point ${i + 1} (${b.title}):\n${b.notes || ''}`).join('\n\n');
             const finalPolish = currentSermon.full_text ? `\n\nFinal Polish:\n${currentSermon.full_text}` : '';
 
-            // Calculate Time Budget
-            const totalMinutes = currentSermon.blocks.reduce((acc, b) => acc + (parseInt(b.duration) || 0), 0);
-            const targetWords = totalMinutes * 120; // 120 WPM
-            const timeContext = `\n\nTIME BUDGET: ${totalMinutes} minutes.\nTARGET WORD COUNT: ~${targetWords} words (Aim to strictly maintain this length).`;
+            if (effectiveTool === 'polish_all') {
+                // Calculate Time Budget
+                const totalMinutes = currentSermon.blocks.reduce((acc, b) => acc + (parseInt(b.duration) || 0), 0);
+                const targetWords = totalMinutes * 120; // 120 WPM
+                const timeContext = `\n\nTIME BUDGET: ${totalMinutes} minutes.\nTARGET WORD COUNT: ~${targetWords} words (Aim to strictly maintain this length).`;
 
-            finalQuery = `TITLE: ${currentSermon.title}${timeContext}\n\n${allNotes}${finalPolish}`;
+                finalQuery = `TITLE: ${currentSermon.title}${timeContext}\n\n${allNotes}${finalPolish}`;
+            } else {
+                // generate_podcast or generate_narrative
+                finalQuery = `TITLE: ${currentSermon.title}\n\n${allNotes}${finalPolish}`;
+            }
         }
 
 
@@ -2328,7 +2334,15 @@ const SermonPrep = () => {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             try {
                 await navigator.clipboard.writeText(content);
-                alert(isAf ? 'Gekopieer na knipbord!' : 'Copied to clipboard!');
+
+                // Special popup for scripts instead of standard alert
+                const isScript = content.includes('HOST:') || content.includes('EXPERT:') || content.includes('NARRATOR:');
+                if (isScript) {
+                    setScriptCopyNote({ type: content.includes('HOST:') ? 'generate_podcast' : 'generate_narrative' });
+                } else {
+                    alert(isAf ? 'Gekopieer na knipbord!' : 'Copied to clipboard!');
+                }
+
                 setIsAiPanelOpen(false);
                 return;
             } catch (clipErr) {
@@ -2338,7 +2352,12 @@ const SermonPrep = () => {
 
         // Fallback: execCommand
         if (fallbackCopy()) {
-            alert(isAf ? 'Gekopieer na knipbord!' : 'Copied to clipboard!');
+            const isScript = content.includes('HOST:') || content.includes('EXPERT:') || content.includes('NARRATOR:');
+            if (isScript) {
+                setScriptCopyNote({ type: content.includes('HOST:') ? 'generate_podcast' : 'generate_narrative' });
+            } else {
+                alert(isAf ? 'Gekopieer na knipbord!' : 'Copied to clipboard!');
+            }
         } else {
             // Last resort: show full-screen modal with selectable text for iOS
             setCopyModal({ content: content });
@@ -2667,9 +2686,17 @@ const SermonPrep = () => {
                                     <span className="ai-tool-icon">💡</span>
                                     <span className="ai-tool-label">{isAf ? 'Illustrasie' : 'Illustration'}</span>
                                 </button>
-                                <button className="ai-tool-btn" onClick={() => handleRunAiTool('polish_all')} style={{ gridColumn: 'span 2' }}>
+                                <button className="ai-tool-btn" onClick={() => handleRunAiTool('polish_all')}>
                                     <span className="ai-tool-icon">⚖️</span>
                                     <span className="ai-tool-label">{isAf ? 'Oudit Preek' : 'Audit Sermon'}</span>
+                                </button>
+                                <button className="ai-tool-btn" onClick={() => handleRunAiTool('generate_podcast')} style={{ borderColor: '#ec4899', color: '#ec4899' }}>
+                                    <span className="ai-tool-icon">🎙️</span>
+                                    <span className="ai-tool-label">{isAf ? 'Podgooi Skrip' : 'Podcast Script'}</span>
+                                </button>
+                                <button className="ai-tool-btn" onClick={() => handleRunAiTool('generate_narrative')} style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }}>
+                                    <span className="ai-tool-icon">📄</span>
+                                    <span className="ai-tool-label">{isAf ? 'Verteller Skrip' : 'Narrator Script'}</span>
                                 </button>
                             </div>
                         </>
@@ -3067,6 +3094,45 @@ const SermonPrep = () => {
         </div>
     );
 
+    const renderScriptCopyNote = () => {
+        if (!scriptCopyNote) return null;
+        const isPodcast = scriptCopyNote.type === 'generate_podcast';
+
+        return (
+            <div className="copy-modal-overlay" onClick={() => setScriptCopyNote(null)}>
+                <div className="copy-modal-content script-note" onClick={e => e.stopPropagation()}>
+                    <div className="script-note-icon" style={{ fontSize: '3rem', marginBottom: '12px' }}>{isPodcast ? '🎙️' : '📄'}</div>
+                    <h3 style={{ margin: '12px 0', fontSize: '1.5rem', color: 'var(--text-primary)' }}>{isAf ? 'Skrip Gekopieer!' : 'Script Copied!'}</h3>
+                    <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '20px' }}>
+                        {isAf
+                            ? `Hierdie ${isPodcast ? 'podgooi-skrip' : 'verteller-skrip'} is nou op jou knipbord. Jy kan dit in enige TTS (Text-to-Speech) sagteware gebruik.`
+                            : `This ${isPodcast ? 'podcast script' : 'narrator script'} is now on your clipboard. You can use it in any TTS (Text-to-Speech) software.`}
+                    </p>
+                    <div className="external-tool-tip" style={{
+                        background: 'rgba(var(--accent-primary-rgb), 0.1)',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        marginBottom: '24px',
+                        border: '1px dashed var(--accent-primary)',
+                        textAlign: 'left'
+                    }}>
+                        <strong style={{ display: 'block', marginBottom: '4px', color: 'var(--accent-primary)' }}>
+                            💡 {isAf ? 'Wenk:' : 'Tip:'}
+                        </strong>
+                        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                            {isAf
+                                ? 'Gebruik dit in Google NotebookLM vir \'n professionele klank-oorsig!'
+                                : 'Use it in Google NotebookLM for a professional audio overview!'}
+                        </p>
+                    </div>
+                    <button className="gate-btn primary" onClick={() => setScriptCopyNote(null)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--accent-primary)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                        {isAf ? 'Ek Verstaan' : 'I Understand'}
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="sermon-prep-container">
             {!user ? renderAuthGate() : (
@@ -3150,6 +3216,8 @@ const SermonPrep = () => {
                     </div>
                 </div>
             )}
+            {/* Script Copy Notification */}
+            {scriptCopyNote && renderScriptCopyNote()}
         </div>
     );
 };

@@ -279,6 +279,11 @@ export const generateExegesis = async (scripture, title, audience, theme, langua
         - Engagement: Include 1-2 subtle rhetorical questions directed at the couple to engage them (e.g., "Do you remember the moment...?").
         - Balance: Ensure the message remains relevant to the guests as well, celebrating the witness of the community.
         
+        STRICT SCRIPTURE RULE (CRITICAL):
+        - Use ONLY the passages provided in "Main Scripture(s)" ("${scripture}") as the basis for the sermon blocks.
+        - DO NOT suggest blocks based on default wedding passages like 1 Corinthians 13 unless it is explicitly listed in the input.
+        - If the user provides specific verses, your job is to build the outline around THOSE verses, even for a wedding.
+        
         Please provide a "Structural Skeleton" for a ${plannedDuration}-minute sermon (or deep study) on this text.
         Tailor the tone of the suggested blocks (titles and types) to the Style/Tone provided ("${tone || 'balanced'}").
         
@@ -443,6 +448,11 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 - Guests: Use practical, real-life examples of how love and marriage impact the broader community.
                 - Vibe: Keep the attention of the whole room—celebratory and relatable.
                 
+                HARD SCRIPTURE ADHERENCE (WEDDING):
+                - Even though this is a wedding, you MUST NOT default to 1 Corinthians 13 or other common wedding verses if they are not in the context.
+                - Use the SPECIFIC VERSES provided in the "Scripture:" context above.
+                - Base your teaching and examples ONLY on those provided verses.
+                
                 ${langInstruction}`;
                 // Dynamic Token Limit: ~1.5 tokens per word + buffer
                 // 5 mins = 600 words = ~900 tokens. Cap at 1500 to be safe but prevent 2000+ words.
@@ -450,6 +460,51 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 const estimatedTokens = Math.ceil(maxWords * 2.5);
                 generationConfig = {
                     maxOutputTokens: Math.min(estimatedTokens, 8192), // Use dynamic limit, but never exceed model max
+                };
+                break;
+            case 'generate_podcast':
+                prompt = `Convert the following sermon into a professional, engaging 2-person podcast script (HOST and BIBLICAL EXPERT).
+                
+                Sermon Content:
+                ${query}
+                
+                CRITICAL BIBLICAL RULES:
+                1. STRICT ADHERENCE: Use ONLY the scriptures and theological points provided in the sermon text above. 
+                2. NO HALLUCINATIONS: Do NOT add outside Bible verses or extra-biblical stories that aren't mentioned in the sermon.
+                3. ACCURACY: Maintain the exact theological message and intent of the original sermon.
+                4. PROFESSIONALISM: Avoid overly casual "fluff" or conversational filler that distracts from the biblical truth. Keep it smart, inquisitive, and respectful.
+                
+                FORMATTING:
+                - Use "HOST:" and "EXPERT:" as speakers.
+                - Keep the dialogue balanced.
+                - Ensure the HOST asks insightful questions that the EXPERT answers using the sermon's points.
+                
+                ${langInstruction}`;
+                generationConfig = {
+                    maxOutputTokens: 8192
+                };
+                break;
+            case 'generate_narrative':
+                prompt = `Convert the following sermon into a professional, engaging single-person narrative script (NARRATOR).
+                This is intended for a single-speaker "Audio Overview" or "Briefing" style presentation.
+                
+                Sermon Content:
+                ${query}
+                
+                CRITICAL BIBLICAL RULES:
+                1. STRICT ADHERENCE: Use ONLY the scriptures and theological points provided in the sermon text above. 
+                2. NO HALLUCINATIONS: Do NOT add outside Bible verses or extra-biblical stories that aren't mentioned in the sermon.
+                3. ACCURACY: Maintain the exact theological message and intent of the original sermon.
+                4. PROFESSIONALISM: Avoid overly casual "fluff" or conversational filler. Keep it deep, reflective, and pastoral.
+                
+                FORMATTING:
+                - Use "NARRATOR:" as the label.
+                - Keep the flow smooth and logical, following the sermon's structure.
+                - Ensure the tone is consistent with the provided style.
+                
+                ${langInstruction}`;
+                generationConfig = {
+                    maxOutputTokens: 8192
                 };
                 break;
             case 'polish_all':
