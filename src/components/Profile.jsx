@@ -13,6 +13,7 @@ import WordStudyModal from './WordStudyModal';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
 import { migrateAnonymousData, checkIfMigrationNeeded } from '../services/migrationService';
+import TutorialOverlay from './TutorialOverlay';
 import './Profile.css';
 
 function Profile() {
@@ -52,11 +53,44 @@ function Profile() {
     const [loadedColors, setLoadedColors] = useState(new Set()); // Track which colors have been loaded
     const [loadingSpecificCategory, setLoadingSpecificCategory] = useState({}); // { label: boolean } used for RPC loading items like "Other Highlights"
     const [isPwaReady, setIsPwaReady] = useState(false);
+    const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+    const [tutorialStepIdx, setTutorialStepIdx] = useState(0);
+
+    const tutorialSteps = [
+        {
+            target: '.profile-tabs',
+            title: settings.language === 'af' ? 'Jou Biblioteek' : 'Your Library',
+            content: settings.language === 'af'
+                ? 'Hier vind jy al jou persoonlike inhoud, van merke tot notas en studies.'
+                : 'Here you\'ll find all your personal content, from highlights to notes and studies.'
+        },
+        {
+            target: '#tutorial-highlight-discovery',
+            title: settings.language === 'af' ? 'Gestoorde Merke' : 'Stored Highlights',
+            content: settings.language === 'af'
+                ? 'Al jou gekleurde verse is hier gegroepeer. Jy kan op n kategorie klik om dit oop te maak.'
+                : 'All your colored verses are grouped here. You can click on a category to open it.'
+        },
+        {
+            target: '.profile-tab[id="notes"]',
+            title: settings.language === 'af' ? 'Notas & Studies' : 'Notes & Studies',
+            content: settings.language === 'af'
+                ? 'Wissel tussen bachoeke om jou ander gestoorde items te bekyk.'
+                : 'Switch between tabs to view your other saved items.'
+        }
+    ];
 
     useEffect(() => {
         loadData();
         checkUser();
         checkPwaStatus();
+
+        // Check if we should show tutorial (navigated from search)
+        const showTutorial = localStorage.getItem('profile_tutorial_trigger');
+        if (showTutorial === 'true') {
+            setIsTutorialOpen(true);
+            localStorage.removeItem('profile_tutorial_trigger');
+        }
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             const currentUser = session?.user ?? null;
@@ -761,6 +795,7 @@ function Profile() {
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
+                        id={`tutorial-tab-${tab.id}`}
                         className={`profile-tab ${activeTab === tab.id ? 'active' : ''}`}
                         onClick={() => {
                             setActiveTab(tab.id);
@@ -788,7 +823,7 @@ function Profile() {
                     <>
                         {/* Highlights Tab */}
                         {activeTab === 'highlights' && (
-                            <div className="highlights-grouped-container">
+                            <div className="highlights-grouped-container" id="tutorial-highlight-discovery">
                                 {uniqueLabels.length === 0 ? (
                                     <div className="empty-state">
                                         <p>No highlights yet</p>
@@ -1246,6 +1281,16 @@ function Profile() {
                     </div>
                 )
             }
+
+            <TutorialOverlay
+                isOpen={isTutorialOpen}
+                steps={tutorialSteps}
+                language={settings.language}
+                onComplete={() => {
+                    setIsTutorialOpen(false);
+                    setTutorialStepIdx(0);
+                }}
+            />
         </div >
     );
 }

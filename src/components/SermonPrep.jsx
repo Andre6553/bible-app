@@ -6,6 +6,7 @@ import { getBooks, getChapter, getChapterCount } from '../services/bibleService'
 import { askBibleQuestion } from '../services/aiService';
 import { getDeviceFingerprint } from '../utils/security';
 import './SermonPrep.css';
+import TutorialOverlay from './TutorialOverlay';
 
 // --- pure helper functions ---
 const formatSermonHtml = (text) => {
@@ -137,6 +138,50 @@ const SermonPrep = () => {
     const [showFormattingTips, setShowFormattingTips] = useState(false);
     const [copyModal, setCopyModal] = useState(null); // { content: string } - for iOS manual copy
     const [scriptCopyNote, setScriptCopyNote] = useState(null); // { type: string }
+    const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+    const [isTutorialMode, setIsTutorialMode] = useState(false);
+    const [tutorialStepIdx, setTutorialStepIdx] = useState(0);
+
+    const tutorialSteps = [
+        {
+            target: '#tutorial-new-sermon',
+            title: isAf ? 'Begin Hier' : 'Start Here',
+            content: isAf
+                ? 'Klik hier om jou eerste preek te skep. Dit is die begin van jou reis.'
+                : 'Click here to create your first sermon. This is the start of your journey.'
+        },
+        {
+            target: '#tutorial-foundation-title',
+            title: isAf ? 'Die Tema' : 'The Title',
+            content: isAf
+                ? 'Gee jou preek \'n kragtige titel. Die AI gebruik dit om die res van die inhoud te rig.'
+                : 'Give your sermon a powerful title. The AI uses this to guide the rest of the content.'
+        },
+        {
+            target: '#tutorial-foundation-scripture',
+            title: isAf ? 'Die Woord' : 'The Scripture',
+            content: isAf
+                ? 'Voer die hoofverse in. Ons AI kan selfs verse voorstel as jy vashaak!'
+                : 'Enter the main scriptures. Our AI can even suggest verses if you get stuck!'
+        },
+        {
+            target: '#tutorial-start-building',
+            title: isAf ? 'Laat die AI help' : 'Let AI help',
+            content: isAf
+                ? 'Sodra jy gereed is, klik hier. Die AI sal die teks analiseer en \'n volledige raamwerk skep.'
+                : 'Once you are ready, click here. The AI will analyze the text and create a complete framework.'
+        }
+    ];
+
+    useEffect(() => {
+        // Auto-open tutorial for new users who have 0 sermons
+        if (sermons.length === 0 && !localStorage.getItem('tutorial_completed')) {
+            setTimeout(() => {
+                setIsTutorialMode(true);
+                setIsTutorialOpen(true);
+            }, 1500);
+        }
+    }, [sermons]);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -198,6 +243,11 @@ const SermonPrep = () => {
         setTheme('');
         setPlannedDuration(90);
         setStep('foundation');
+
+        if (isTutorialMode) {
+            setTutorialStepIdx(1); // Move to "The Title"
+            setIsTutorialOpen(true);
+        }
     };
 
     const handleResumeSermon = (sermon) => {
@@ -314,6 +364,13 @@ const SermonPrep = () => {
                     setStep('skeleton');
                     loadSermons();
                     fetchProfile(user.id); // Refresh trial count
+
+                    if (isTutorialMode) {
+                        setIsTutorialMode(false);
+                        setIsTutorialOpen(false);
+                        setTutorialStepIdx(0);
+                        localStorage.setItem('tutorial_completed', 'true');
+                    }
                 } else if (saveResult.error === 'TRIAL_EXPIRED') {
                     setError('TRIAL_EXPIRED');
                 } else {
@@ -2261,6 +2318,11 @@ const SermonPrep = () => {
                             textarea.value = result.data;
                             textarea.style.position = 'fixed';
                             textarea.style.left = '-9999px';
+                            textarea.style.width = '100px';
+                            textarea.style.height = '100px';
+                            textarea.style.opacity = '0.01';
+                            textarea.style.fontSize = '16px';
+                            textarea.setAttribute('readonly', '');
                             document.body.appendChild(textarea);
                             textarea.select();
                             document.execCommand('copy');
@@ -2802,7 +2864,32 @@ const SermonPrep = () => {
     const renderDashboard = () => (
         <div className="dashboard-view">
             <div className="dashboard-header-row">
-                <h2>{isAf ? 'My Preke' : 'My Sermons'}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <h2>{isAf ? 'My Preke' : 'My Sermons'}</h2>
+                    <label className="tutorial-toggle" style={{
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        borderRadius: '20px',
+                        color: 'var(--accent-primary)',
+                        cursor: 'pointer',
+                        border: '1px solid rgba(56, 189, 248, 0.2)'
+                    }}>
+                        <input
+                            type="checkbox"
+                            checked={isTutorialMode}
+                            onChange={(e) => {
+                                setIsTutorialMode(e.target.checked);
+                                setIsTutorialOpen(e.target.checked);
+                                if (e.target.checked) setTutorialStepIdx(0);
+                            }}
+                        />
+                        {isAf ? 'Handleiding Mode' : 'Tutorial Mode'}
+                    </label>
+                </div>
 
                 {profile && profile.subscription_tier === 'free' && (
                     <button
@@ -2813,7 +2900,7 @@ const SermonPrep = () => {
                     </button>
                 )}
 
-                <button className="new-sermon-btn main-action-btn" onClick={handleStartNew}>
+                <button id="tutorial-new-sermon" className="new-sermon-btn main-action-btn" onClick={handleStartNew}>
                     + {isAf ? 'Nuwe Preek' : 'New Sermon'}
                 </button>
 
@@ -2982,6 +3069,7 @@ const SermonPrep = () => {
                         <span style={{ color: 'red' }}>*</span>
                     </label>
                     <input
+                        id="tutorial-foundation-title"
                         type="text"
                         placeholder={isAf ? 'bv. Die Verlore Seun' : 'e.g. The Prodigal Son'}
                         value={title}
@@ -3020,6 +3108,7 @@ const SermonPrep = () => {
                         </button>
                     </label>
                     <input
+                        id="tutorial-foundation-scripture"
                         type="text"
                         placeholder={isAf ? 'bv. Joh 3:16, Ps 23, Romeine 8' : 'e.g. John 3:16, Ps 23, Romans 8'}
                         value={mainScripture}
@@ -3087,6 +3176,7 @@ const SermonPrep = () => {
                 </div>
 
                 <button
+                    id="tutorial-start-building"
                     className="start-btn"
                     onClick={handleGenerateSkeleton}
                     disabled={!title || !mainScripture || isGenerating}
@@ -3243,6 +3333,42 @@ const SermonPrep = () => {
             )}
             {/* Script Copy Notification */}
             {scriptCopyNote && renderScriptCopyNote()}
+
+            <TutorialOverlay
+                isOpen={isTutorialOpen}
+                steps={tutorialSteps}
+                language={settings.language}
+                externalStepIdx={isTutorialMode ? tutorialStepIdx : null}
+                onNext={(idx) => {
+                    // Detect Finish button (last step)
+                    if (idx === tutorialSteps.length - 1) {
+                        setIsTutorialOpen(false);
+                        setIsTutorialMode(false);
+                        setTutorialStepIdx(0);
+                        localStorage.setItem('tutorial_completed', 'true');
+                        return;
+                    }
+
+                    // In manual mode, simple next
+                    if (!isTutorialMode) {
+                        // handled internally by TutorialOverlay
+                    } else {
+                        // If they are on Step 1 (idx 0) and click Next, trigger the New Sermon logic
+                        if (idx === 0) {
+                            handleStartNew();
+                        } else {
+                            // In Tutorial Mode, we guide them but let them skip ahead if they want
+                            setTutorialStepIdx(prev => Math.min(prev + 1, tutorialSteps.length - 1));
+                        }
+                    }
+                }}
+                onComplete={() => {
+                    setIsTutorialOpen(false);
+                    setIsTutorialMode(false);
+                    setTutorialStepIdx(0);
+                    localStorage.setItem('tutorial_completed', 'true');
+                }}
+            />
         </div>
     );
 };

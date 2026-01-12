@@ -7,6 +7,7 @@ import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch, getArch
 import { getLocalizedBookName } from '../constants/bookNames';
 import { saveBulkHighlights, removeBulkHighlights, getAllHighlights } from '../services/highlightService';
 import ColorPickerModal from './ColorPickerModal';
+import TutorialOverlay from './TutorialOverlay';
 
 function Search({ currentVersion, versions }) {
     const isSearchingRef = useRef(false);
@@ -50,6 +51,159 @@ function Search({ currentVersion, versions }) {
     const [selectedVerses, setSelectedVerses] = useState(new Set());
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
+    const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+    const [isTutorialMode, setIsTutorialMode] = useState(false);
+    const [tutorialStepIdx, setTutorialStepIdx] = useState(0);
+
+    // Context-Aware Tutorial Jumps
+    useEffect(() => {
+        if (!isTutorialMode || !isTutorialOpen) return;
+
+        // 1. If AI Modal is opened, jump to AI Intro (Index 8)
+        if (showAIModal && tutorialStepIdx < 8) {
+            setTutorialStepIdx(8);
+            return;
+        }
+
+        // 2. If AI Modal is closed, but we were in AI steps, go back or to results
+        if (!showAIModal && tutorialStepIdx >= 8 && tutorialStepIdx <= 11) {
+            if (hasSearched) {
+                setTutorialStepIdx(12);
+            } else {
+                setTutorialStepIdx(0);
+            }
+            return;
+        }
+
+        // 3. If Search completes and we have results, jump to Results Area (Index 12)
+        // Only jump if we are currently on the input/filter steps (0-7)
+        if (hasSearched && !showAIModal && tutorialStepIdx < 12) {
+            setTutorialStepIdx(12);
+            return;
+        }
+    }, [showAIModal, hasSearched, isTutorialMode, isTutorialOpen]);
+
+    const tutorialSteps = [
+        {
+            target: '#tutorial-search-input',
+            title: settings.language === 'af' ? 'Soek die Woord' : 'Search the Word',
+            content: settings.language === 'af'
+                ? 'Tik enige woord, frase of versverwysing hier in. Jy kan ook kortpaaie soos /story gebruik.'
+                : 'Type any word, phrase, or verse reference here. You can also use shortcuts like /story.'
+        },
+        {
+            target: '#tutorial-search-mode',
+            title: settings.language === 'af' ? 'Soek-Modusse' : 'Search Modes',
+            content: settings.language === 'af'
+                ? 'Hier kan jy kies tussen "Presies" vir spesifieke woorde, of "Konsep" vir AI wat temas verstaan.'
+                : 'Here you can choose between "Exact" for specific words, or "Concept" for AI that understands themes.'
+        },
+        {
+            target: '#tutorial-ai-research',
+            title: settings.language === 'af' ? 'AI Navorsing' : 'AI Research',
+            content: settings.language === 'af'
+                ? 'Stel diep vrae vir historiese en teologiese konteks. Dit gaan verder as net soek.'
+                : 'Ask deep questions for historical and theological context. This goes beyond just searching.'
+        },
+        {
+            target: '#tutorial-search-btn',
+            title: settings.language === 'af' ? 'Presiese Soek' : 'Exact Match Search',
+            content: settings.language === 'af'
+                ? 'Wanneer in "Presies" modus, vind hierdie knoppie verse met jou eksakte woorde.'
+                : 'When in "Exact" mode, this button finds verses with your exact words.'
+        },
+        {
+            target: '#tutorial-search-btn',
+            title: settings.language === 'af' ? 'Konsep Soek' : 'Concept Search',
+            content: settings.language === 'af'
+                ? 'Wanneer in "Konsep" modus, vind hierdie knoppie verse wat by jou tema pas, selfs sonder dieselfde woorde.'
+                : 'When in "Concept" mode, this button finds verses that match your theme, even without the same words.'
+        },
+        {
+            target: '#tutorial-versions',
+            title: settings.language === 'af' ? 'Vertalings' : 'Versions',
+            content: settings.language === 'af'
+                ? 'Kies uit verskeie Bybelvertalings om die teks te vergelyk.'
+                : 'Select from various Bible translations to compare the text.'
+        },
+        {
+            target: '#tutorial-testaments',
+            title: settings.language === 'af' ? 'Testamente' : 'Testament',
+            content: settings.language === 'af'
+                ? 'Beperk jou soektog tot die Ou of Nuwe Testament.'
+                : 'Limit your search to the Old or New Testament.'
+        },
+        {
+            target: '#tutorial-recent-chips',
+            title: settings.language === 'af' ? 'Onlangse Geheue' : 'Recent Memory',
+            content: settings.language === 'af'
+                ? 'Klik op hierdie skyfies om vinnig terug te keer na jou onlangse soektogte.'
+                : 'Click on these chips to quickly return to your recent searches.'
+        },
+        {
+            target: '.ai-research-modal',
+            title: settings.language === 'af' ? 'AI Navorsing Gevorderd' : 'AI Research Advanced',
+            content: settings.language === 'af'
+                ? 'Welkom by die AI Navorsing sentrum. Hier kan jy dieper delf in die Skrif.'
+                : 'Welcome to the AI Research center. Here you can delve deeper into Scripture.'
+        },
+        {
+            target: '#tutorial-ai-shortcuts-modal',
+            title: settings.language === 'af' ? 'Vinnige Bevel Kortpaaie' : 'Quick Command Shortcuts',
+            content: settings.language === 'af'
+                ? 'Tik "/" om kortpaaie te sien: /meaning (woord betekenis), /story (storie vertel), /greek (Griekse konteks), /archeology (argetologiese vondste), /devotional (dagstukkie).'
+                : 'Type "/" to see shortcuts: /meaning (word meaning), /story (storytelling), /greek (Greek context), /archeology (archaeological finds), /devotional (daily reading).'
+        },
+        {
+            target: '#tutorial-ai-quota',
+            title: settings.language === 'af' ? 'Daaglikse Kwota' : 'Daily Quota',
+            content: settings.language === 'af'
+                ? 'Gratis gebruikers het n daaglikse limiet. Intekenare geniet onbeperkte AI-vrae.'
+                : 'Free users have a daily limit. Subscribers enjoy unlimited AI questions.'
+        },
+        {
+            target: '#tutorial-ai-history-modal',
+            title: settings.language === 'af' ? 'AI Geskiedenis' : 'AI History',
+            content: settings.language === 'af'
+                ? 'Bekyk jou vorige vrae en antwoorde hier om jou studie later voort te sit.'
+                : 'View your previous questions and answers here to continue your study later.'
+        },
+        {
+            target: '#tutorial-results-area',
+            title: settings.language === 'af' ? 'Soek-Resultate' : 'Search Results',
+            content: settings.language === 'af'
+                ? 'Hier kan jy al die verse sien wat by jou soektog pas. Blaai deur om die regte skrifgedeelte te vind.'
+                : 'Here you can see all the verses matching your search. Scroll through to find the right scripture.'
+        },
+        {
+            target: '#tutorial-verse-select',
+            title: settings.language === 'af' ? 'Kies Verse' : 'Select Verses',
+            content: settings.language === 'af'
+                ? 'Klik op die boksie regs van n vers om dit te kies vir vinnige aksies.'
+                : 'Click the checkbox on the right of a verse to select it for quick actions.'
+        },
+        {
+            target: '#tutorial-select-all',
+            title: settings.language === 'af' ? 'Kies Alles' : 'Select All',
+            content: settings.language === 'af'
+                ? 'Gebruik hierdie om vinnig alle sigbare resultate gelyktydig te kies.'
+                : 'Use this to quickly select all visible results at once.'
+        },
+        {
+            target: '#tutorial-bulk-highlight',
+            title: settings.language === 'af' ? 'Merk-Gereedskap' : 'Highlighting Tool',
+            content: settings.language === 'af'
+                ? 'Op PC kan jy op n kleur regs-klik om dit n naam te gee. Op selfoon tik jy net vir vinnige merking.'
+                : 'On PC, you can right-click a color to rename it. On mobile, just tap for quick highlighting.'
+        },
+        {
+            target: '#tutorial-highlight-discovery',
+            title: settings.language === 'af' ? 'Vind jou Merke' : 'Find your Highlights',
+            content: settings.language === 'af'
+                ? 'Al jou gekleurde verse word veilig op jou profielblad bewaar. Kom ons gaan kyk waar dit is!'
+                : 'All your colored verses are safely stored on your profile page. Let\'s go see where they are!'
+        }
+    ];
 
     // Toggle single verse selection
     const toggleVerseSelection = (verseKey, e) => {
@@ -228,6 +382,15 @@ function Search({ currentVersion, versions }) {
 
         loadQuotaInfo();
         loadBooks();
+
+        // Auto-open tutorial for first-time searchers if needed
+        const hasSeenSearchTutorial = localStorage.getItem('search_tutorial_completed');
+        if (!hasSeenSearchTutorial) {
+            setTimeout(() => {
+                setIsTutorialMode(true);
+                setIsTutorialOpen(true);
+            }, 1000);
+        }
     }, []);
 
     const refreshHighlights = async () => {
@@ -968,6 +1131,20 @@ Here are the available shortcuts to quickly ask questions:
                     ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
                             <h1 className="search-title">Search the Bible</h1>
+                            {/* Tutorial Mode Toggle */}
+                            <label className="tutorial-toggle-label" style={{ marginLeft: '10px', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isTutorialMode}
+                                    onChange={(e) => {
+                                        const active = e.target.checked;
+                                        setIsTutorialMode(active);
+                                        setIsTutorialOpen(active);
+                                        if (active) setTutorialStepIdx(0);
+                                    }}
+                                />
+                                {settings.language === 'af' ? 'Handleiding-modus' : 'Tutorial Mode'}
+                            </label>
                             {/* Show "View Results" if we have results but are in search mode (mobile) */}
                             {((results.length > 0 || semanticResults.length > 0) || hasSearched) && (
                                 <button
@@ -989,7 +1166,7 @@ Here are the available shortcuts to quickly ask questions:
                     </button>
                 </div>
 
-                <div className="search-input-container">
+                <div className="search-input-container" id="tutorial-search-input">
                     <form onSubmit={handleSearch} className="search-form">
                         {/* Row 1: Input + History Toggle */}
                         <div className="search-bar-row">
@@ -1049,6 +1226,7 @@ Here are the available shortcuts to quickly ask questions:
                             <button
                                 type="button"
                                 className={`history-toggle-btn ${showHistory ? 'active' : ''}`}
+                                id="tutorial-history"
                                 onClick={toggleHistory}
                                 title="Search History"
                             >
@@ -1061,6 +1239,7 @@ Here are the available shortcuts to quickly ask questions:
                             <button
                                 type="submit"
                                 className="search-btn btn-primary"
+                                id="tutorial-search-btn"
                                 onClick={(e) => {
                                     // If user typed a command manually in main search, handle it as AI
                                     if (searchQuery.startsWith('/')) {
@@ -1077,6 +1256,7 @@ Here are the available shortcuts to quickly ask questions:
                             <button
                                 type="button"
                                 className="search-btn ai-btn"
+                                id="tutorial-ai-research"
                                 onClick={handleAskAI}
                                 disabled={quotaInfo.remaining <= 0}
                             >
@@ -1113,8 +1293,8 @@ Here are the available shortcuts to quickly ask questions:
                     )}
                 </div>
 
-                <div className="search-filters">
-                    <div className="mode-toggle">
+                <div className="search-filters" id="tutorial-filters">
+                    <div className="mode-toggle" id="tutorial-search-mode">
                         <div className={`mode-slider ${searchMode}`}></div>
                         <button
                             className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
@@ -1136,6 +1316,7 @@ Here are the available shortcuts to quickly ask questions:
                         <span>Version:</span>
                         <select
                             className="version-filter select"
+                            id="tutorial-versions"
                             value={searchVersion}
                             onChange={(e) => handleFilterChange('version', e.target.value)}
                         >
@@ -1152,6 +1333,7 @@ Here are the available shortcuts to quickly ask questions:
                         <span>Testament:</span>
                         <select
                             className="version-filter select"
+                            id="tutorial-testaments"
                             value={searchTestament}
                             onChange={(e) => handleFilterChange('testament', e.target.value)}
                         >
@@ -1166,7 +1348,7 @@ Here are the available shortcuts to quickly ask questions:
             {/* Elevated Recent History Bar */}
             {
                 history.length > 0 && (
-                    <div className="recent-history-bar-container">
+                    <div className="recent-history-bar-container" id="tutorial-recent-chips">
                         <div className="history-bar-header">
                             <span className="history-label">{settings.language === 'af' ? 'Onlangse' : 'Recent'}</span>
                             <button
@@ -1210,7 +1392,7 @@ Here are the available shortcuts to quickly ask questions:
                 )
             }
 
-            <div className="search-results">
+            <div className="search-results" id="tutorial-results-area">
                 {loading ? (
                     <div className="loading-state">
                         <div className="loading-spinner"></div>
@@ -1220,12 +1402,28 @@ Here are the available shortcuts to quickly ask questions:
                     (results.length > 0 || semanticResults.length > 0) ? (
                         <>
                             <div className="results-header">
-                                <p className="results-count">
-                                    {settings.language === 'af'
-                                        ? `${results.length || semanticResults.length} vers${(results.length || semanticResults.length) !== 1 ? 'e' : ''} gevind`
-                                        : `Found ${results.length || semanticResults.length} verse${(results.length || semanticResults.length) !== 1 ? 's' : ''}`
-                                    }
-                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <p className="results-count">
+                                        {settings.language === 'af'
+                                            ? `${results.length || semanticResults.length} vers${(results.length || semanticResults.length) !== 1 ? 'e' : ''} gevind`
+                                            : `Found ${results.length || semanticResults.length} verse${(results.length || semanticResults.length) !== 1 ? 's' : ''}`
+                                        }
+                                    </p>
+                                    {/* Tutorial Mode Toggle in Results */}
+                                    <label className="tutorial-toggle-label" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={isTutorialMode}
+                                            onChange={(e) => {
+                                                const active = e.target.checked;
+                                                setIsTutorialMode(active);
+                                                setIsTutorialOpen(active);
+                                                if (active) setTutorialStepIdx(12); // Start at results area step
+                                            }}
+                                        />
+                                        {settings.language === 'af' ? 'Handleiding-modus' : 'Tutorial Mode'}
+                                    </label>
+                                </div>
                                 <div className="results-header-actions">
                                     {searchMode === 'semantic' && (semanticSummary || semanticResults.length > 0) && (
                                         <button
@@ -1248,7 +1446,7 @@ Here are the available shortcuts to quickly ask questions:
                             {/* Bulk Action Bar */}
                             {(results.length > 0 || semanticResults.length > 0) && (
                                 <div className="bulk-action-bar">
-                                    <label className="select-all-label">
+                                    <label className="select-all-label" id="tutorial-select-all">
                                         <input
                                             type="checkbox"
                                             className="select-all-checkbox"
@@ -1260,6 +1458,7 @@ Here are the available shortcuts to quickly ask questions:
 
                                     <button
                                         className="bulk-highlight-btn"
+                                        id="tutorial-bulk-highlight"
                                         onClick={() => setShowColorPicker(true)}
                                         disabled={selectedVerses.size === 0}
                                         title={settings.language === 'af' ? 'Merk gekose verse' : 'Highlight selected verses'}
@@ -1314,7 +1513,7 @@ Here are the available shortcuts to quickly ask questions:
                                                             {verse.version}
                                                         </span>
                                                     </div>
-                                                    <div className="selection-checkbox" onClick={(e) => toggleVerseSelection(key, e)}>
+                                                    <div className="selection-checkbox" id="tutorial-verse-select" onClick={(e) => toggleVerseSelection(key, e)}>
                                                         {isSelected ? '☑️' : '⬜'}
                                                     </div>
                                                 </div>
@@ -1357,7 +1556,7 @@ Here are the available shortcuts to quickly ask questions:
                                                             {verse.version}
                                                         </span>
                                                     </div>
-                                                    <div className="selection-checkbox" onClick={(e) => toggleVerseSelection(key, e)}>
+                                                    <div className="selection-checkbox" id="tutorial-verse-select" onClick={(e) => toggleVerseSelection(key, e)}>
                                                         {isSelected ? '☑️' : '⬜'}
                                                     </div>
                                                 </div>
@@ -1394,7 +1593,23 @@ Here are the available shortcuts to quickly ask questions:
                     <div className="book-selector-modal ai-research-modal" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
                         <div className="book-selector-content info-modal-content" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h2>{t.aiTitle}</h2>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                    <h2>{t.aiTitle}</h2>
+                                    {/* Tutorial Mode Toggle in Modal */}
+                                    <label className="tutorial-toggle-label" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={isTutorialMode}
+                                            onChange={(e) => {
+                                                const active = e.target.checked;
+                                                setIsTutorialMode(active);
+                                                setIsTutorialOpen(active);
+                                                if (active) setTutorialStepIdx(8); // Start at AI Research Modal Intro
+                                            }}
+                                        />
+                                        {settings.language === 'af' ? 'Handleiding-modus' : 'Tutorial Mode'}
+                                    </label>
+                                </div>
                                 <button className="close-btn back-to-results" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
                                     {t.backToResults}
                                 </button>
@@ -1405,6 +1620,7 @@ Here are the available shortcuts to quickly ask questions:
                                         <h3>{t.askQuestion}</h3>
                                         <textarea
                                             className="ai-question-input"
+                                            id="tutorial-ai-input-modal"
                                             placeholder={t.aiPlaceholder}
                                             value={aiQuestion}
                                             onChange={(e) => {
@@ -1420,9 +1636,9 @@ Here are the available shortcuts to quickly ask questions:
                                             rows={3}
                                         />
 
-                                        {/* Shortcut popup menu */}
-                                        {showShortcutMenu && (
-                                            <div className="shortcut-popup">
+                                        {/* Shortcut popup menu - always show a hint if tutorial is on this step */}
+                                        {(showShortcutMenu || (isTutorialOpen && tutorialSteps[tutorialStepIdx]?.target === '#tutorial-ai-shortcuts-modal')) && (
+                                            <div className="shortcut-popup" id="tutorial-ai-shortcuts-modal">
                                                 <div className="shortcut-header">{t.quickCommands}</div>
                                                 {AI_SHORTCUTS.map((item) => (
                                                     <button
@@ -1568,7 +1784,7 @@ Here are the available shortcuts to quickly ask questions:
                                 )}
 
                                 {!isAnswerExpanded && (
-                                    <div className="info-footer">
+                                    <div className="info-footer" id="tutorial-ai-quota">
                                         <p>{t.questionsRemaining(quotaInfo.remaining, quotaInfo.quota)}</p>
                                         <p style={{ fontSize: '0.75rem', marginTop: '5px' }}>{t.aiDisclaimer}</p>
                                     </div>
@@ -1576,7 +1792,7 @@ Here are the available shortcuts to quickly ask questions:
 
                                 {/* AI History Section */}
                                 {aiHistory.length > 0 && (
-                                    <div className="ai-history-section">
+                                    <div className="ai-history-section" id="tutorial-ai-history-modal">
                                         <button
                                             className="ai-history-toggle"
                                             onClick={() => setShowAIHistory(!showAIHistory)}
@@ -1643,13 +1859,47 @@ Here are the available shortcuts to quickly ask questions:
                     />
                 )
             }
-            {/* Bulk Color Picker */}
             <ColorPickerModal
                 isOpen={showColorPicker}
                 onClose={() => setShowColorPicker(false)}
                 onSelectColor={handleBulkHighlight}
                 allowNaming={true}
                 language={settings.language}
+            />
+
+            <TutorialOverlay
+                isOpen={isTutorialOpen}
+                setIsOpen={setIsTutorialOpen}
+                steps={tutorialSteps}
+                language={settings.language}
+                externalStepIdx={isTutorialMode ? tutorialStepIdx : null}
+                onNext={(idx) => {
+                    // Final step check
+                    if (idx === tutorialSteps.length - 1) {
+                        setIsTutorialOpen(false);
+                        setIsTutorialMode(false);
+                        setTutorialStepIdx(0);
+                        localStorage.setItem('search_tutorial_completed', 'true');
+                        // Navigate to profile to show highlights as requested
+                        localStorage.setItem('profile_tutorial_trigger', 'true');
+                        navigate('/profile');
+                        return;
+                    }
+
+                    if (isTutorialMode) {
+                        // If we are on the AI Research step (Step 3, index 2) and move to next, open the modal
+                        if (idx === 2) {
+                            handleAskAI();
+                        }
+                        setTutorialStepIdx(prev => Math.min(prev + 1, tutorialSteps.length - 1));
+                    }
+                }}
+                onComplete={() => {
+                    setIsTutorialOpen(false);
+                    setIsTutorialMode(false);
+                    setTutorialStepIdx(0);
+                    localStorage.setItem('search_tutorial_completed', 'true');
+                }}
             />
         </div>
     );

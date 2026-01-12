@@ -10,15 +10,14 @@ const SubscriptionPage = () => {
     const { settings, fetchProfile } = useSettings();
     const isAf = settings.language === 'af';
 
-    const [secretCode, setSecretCode] = React.useState('');
     const [loading, setLoading] = React.useState(false);
     const [randPrice, setRandPrice] = React.useState(null);
     const [basePriceUsd, setBasePriceUsd] = React.useState(5);
+    const [countryCode, setCountryCode] = React.useState('ZA'); // Default to ZA
 
     React.useEffect(() => {
         const fetchPricing = async () => {
             try {
-                // 1. Fetch Base Price from Supabase
                 const { data: config } = await supabase
                     .from('app_config')
                     .select('value')
@@ -28,39 +27,45 @@ const SubscriptionPage = () => {
                 const base = config ? parseFloat(config.value) : 5;
                 setBasePriceUsd(base);
 
-                // 2. Fetch Exchange Rate
                 const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
                 const data = await res.json();
                 const rate = data.rates.ZAR;
 
-                // 3. Calculate ZAR
                 const rands = (base * rate).toFixed(0);
                 setRandPrice(rands);
             } catch (err) {
                 console.error('Error fetching pricing:', err);
-                setRandPrice('85'); // Fallback
+                setRandPrice('85');
+            }
+        };
+
+        const detectLocation = async () => {
+            try {
+                const res = await fetch('https://ipapi.co/json/');
+                const data = await res.json();
+                if (data.country_code) {
+                    setCountryCode(data.country_code);
+                }
+            } catch (err) {
+                console.warn('Geolocation failed:', err);
             }
         };
 
         fetchPricing();
+        detectLocation();
 
-        // Check for Payment Return
         const checkPaymentStatus = async () => {
             const params = new URLSearchParams(window.location.search);
             const paymentStatus = params.get('payment');
-            const pfPaymentId = params.get('pf_payment_id'); // PayFast transaction ID
 
             if (paymentStatus === 'success') {
-                console.log('Payment Success detected. Upgrading user...');
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (user) {
-                        // Calculate 30 Days from now
                         const expiryDate = new Date();
                         expiryDate.setDate(expiryDate.getDate() + 30);
                         const expiryISO = expiryDate.toISOString();
 
-                        // Client-Side Update (Temporary Fix)
                         const { error } = await supabase
                             .from('user_profiles')
                             .update({
@@ -72,10 +77,10 @@ const SubscriptionPage = () => {
 
                         if (error) {
                             console.error('Error upgrading profile:', error);
-                            alert('Payment successful, but profile update failed. Please contact support.');
+                            alert('Payment successful, but profile update failed.');
                         } else {
                             await fetchProfile(user.id);
-                            alert(isAf ? 'Betaling Suksesvol! Welkom by Premium.' : 'Payment Successful! Welcome to Premium.');
+                            alert(isAf ? 'Betaling Suksesvol!' : 'Payment Successful!');
                             navigate('/sermon-prep');
                         }
                     }
@@ -88,81 +93,7 @@ const SubscriptionPage = () => {
         };
 
         checkPaymentStatus();
-
-    }, [navigate, isAf]);
-
-    const handleApplyCode = async () => {
-        const code = secretCode.trim();
-        setLoading(true);
-
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                alert(isAf ? 'U moet aangemeld wees.' : 'You must be logged in.');
-                setLoading(false);
-                return;
-            }
-
-            let updates = {};
-            let message = '';
-
-            if (code === 'Andre@58078') {
-                updates = { subscription_override: 'admin' };
-                message = isAf ? 'Admin toegang toegestaan! (Premium)' : 'Admin access granted! (Premium)';
-            } else if (code === 'Finger') {
-                updates = {
-                    subscription_override: 'tester_finger',
-                    last_renewal_month: new Date().toISOString().slice(0, 7),
-                    sermon_trial_count: 0
-                };
-                message = isAf ? 'Geheime "Finger" toegang toegestaan! (Bypass)' : 'Secret "Finger" access granted! (Bypass)';
-            } else if (code === 'Test') {
-                updates = {
-                    subscription_override: 'tester',
-                    email: user.email,
-                    last_renewal_month: new Date().toISOString().slice(0, 7),
-                    sermon_trial_count: 0,
-                    ai_usage_count: 0
-                };
-                message = isAf ? 'Toets toegang toegestaan! (10 Preke / 500 AI)' : 'Tester access granted! (10 Sermons / 500 AI)';
-            } else if (code === 'ExpireMe') {
-                // Testing Tool: Force Expiry
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                updates = {
-                    subscription_override: null,
-                    subscription_expiry: yesterday.toISOString()
-                };
-                message = isAf ? 'Afgradeer na Gratis (Verval)' : 'Downgraded to Free (Expired)';
-            } else {
-                alert(isAf ? 'Ongeldige kode.' : 'Invalid code.');
-                setLoading(false);
-                return;
-            }
-
-            const { error } = await supabase
-                .from('user_profiles')
-                .update(updates)
-                .eq('user_id', user.id);
-
-            if (error) throw error;
-
-            // Clear local storage overrides to avoid confusion
-            localStorage.removeItem('subscription_override');
-            localStorage.removeItem('tester_last_renewal_month');
-
-            await fetchProfile(user.id);
-
-            alert(message);
-            navigate('/sermon-prep');
-
-        } catch (error) {
-            console.error('Error applying code:', error);
-            alert(isAf ? 'Fout met die opdatering.' : 'Error updating profile.');
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [navigate, isAf, fetchProfile]);
 
     const handlePayment = async () => {
         setLoading(true);
@@ -174,7 +105,6 @@ const SubscriptionPage = () => {
                 return;
             }
 
-            // Check if already subscribed
             const { data: profile } = await supabase
                 .from('user_profiles')
                 .select('subscription_override, subscription_expiry')
@@ -192,68 +122,38 @@ const SubscriptionPage = () => {
                     ? new Date(profile.subscription_expiry).toLocaleDateString(undefined, { dateStyle: 'long' })
                     : 'Lifetime/Admin';
                 alert(isAf
-                    ? `U is reeds ingeteken totdat: ${expiry}. Geen betaling nodig nie.`
-                    : `You are already subscribed until: ${expiry}. No payment needed.`
+                    ? `U is reeds ingeteken totdat: ${expiry}.`
+                    : `You are already subscribed until: ${expiry}.`
                 );
                 setLoading(false);
                 return;
             }
 
-            // --- PAYFAST CONFIGURATION ---
-            // Toggle this to switch between Sandbox and Live
             const USE_SANDBOX = false;
-
-            // Config logic
-            const baseUrl = USE_SANDBOX
-                ? 'https://sandbox.payfast.co.za/eng/process'
-                : 'https://www.payfast.co.za/eng/process';
-
-            const receiver = USE_SANDBOX
-                ? '10000100'        // Generic Sandbox Merchant ID
-                : '11945617';       // Your Real Merchant ID
-
-            const merchantKey = USE_SANDBOX
-                ? '46f0cd694581a'   // Generic Sandbox Merchant Key
-                : '9anvup217hdck';  // Your Real Merchant Key
-            // -----------------------------
+            const baseUrl = USE_SANDBOX ? 'https://sandbox.payfast.co.za/eng/process' : 'https://www.payfast.co.za/eng/process';
+            const receiver = USE_SANDBOX ? '10000100' : '11945617';
+            const merchantKey = USE_SANDBOX ? '46f0cd694581a' : '9anvup217hdck';
 
             const amount = randPrice ? `${randPrice}.00` : '85.00';
             const item_name = 'Omni Bible Subscription';
-            // FIX: Point back to THIS page so the useEffect above can run and upgrade the user!
             const return_url = `${window.location.origin}/subscription?payment=success`;
             const cancel_url = `${window.location.origin}/subscription?payment=cancelled`;
             const custom_str1 = user.id;
 
-            // 2. Build Data Object (Simple Pay Now structure)
-            const data = {
+            const payParams = new URLSearchParams({
                 cmd: '_paynow',
-                receiver: receiver, // Reverted back to receiver as required by PayFast
+                receiver: receiver,
                 item_name: item_name,
                 amount: amount,
                 return_url: return_url,
                 cancel_url: cancel_url,
-                // adding custom_str1 to track user ID on return if supported, otherwise extra fields are allowed
                 custom_str1: custom_str1,
                 merchant_key: merchantKey
-            };
+            });
 
-            // 3. No Signature Generation needed for "_paynow" command unless explicitly enforced on account.
-
-            console.log('Starting Simple Payment via GET Redirect...');
-
-            // 4. Submit via GET (Redirect) to bypass WAF/CloudFront 403 on POST
-            const params = new URLSearchParams();
-            for (const key in data) {
-                if (data.hasOwnProperty(key) && data[key] !== '') {
-                    params.append(key, data[key].trim());
-                }
-            }
-
-            window.location.href = `${baseUrl}?${params.toString()}`;
-
+            window.location.href = `${baseUrl}?${payParams.toString()}`;
         } catch (error) {
             console.error('Payment Error:', error);
-            alert('Something went wrong starting the payment.');
             setLoading(false);
         }
     };
@@ -266,37 +166,6 @@ const SubscriptionPage = () => {
                 </button>
                 <h1>{isAf ? 'Ontsluit Premium' : 'Unlock Premium'}</h1>
             </header>
-
-            {/* Secret Code Section (Hidden-ish) */}
-            <div className="secret-code-section" style={{ textAlign: 'center', marginBottom: '30px', opacity: 0.7 }}>
-                <input
-                    type="password"
-                    placeholder={isAf ? 'Geheime Kode...' : 'Secret Code...'}
-                    value={secretCode}
-                    onChange={(e) => setSecretCode(e.target.value)}
-                    style={{
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #4b5563',
-                        background: '#1f2937',
-                        color: '#fff',
-                        marginRight: '10px'
-                    }}
-                />
-                <button
-                    onClick={handleApplyCode}
-                    style={{
-                        padding: '10px 20px',
-                        borderRadius: '8px',
-                        background: '#374151',
-                        color: '#fff',
-                        border: 'none',
-                        cursor: 'pointer'
-                    }}
-                >
-                    {isAf ? 'Pas Toe' : 'Apply'}
-                </button>
-            </div>
 
             <div className="pricing-container">
                 {/* Free Tier Card */}
@@ -330,10 +199,17 @@ const SubscriptionPage = () => {
                         <div className="best-value">{isAf ? 'Beste Waarde' : 'Best Value'}</div>
                         <h2>{isAf ? 'Premium' : 'Premium'}</h2>
                         <div className="price">
-                            {randPrice ? `R${randPrice}` : <span style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>...</span>}<span>/mo</span>
+                            {countryCode === 'ZA' ? (
+                                <>
+                                    {randPrice ? `R${randPrice}` : <span style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>...</span>}
+                                </>
+                            ) : (
+                                `$${basePriceUsd}`
+                            )}
+                            <span>/mo</span>
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '5px' }}>
-                            (${basePriceUsd} USD)
+                            {countryCode === 'ZA' && `($${basePriceUsd} USD)`}
                         </div>
                     </div>
                     <ul className="features-list">
@@ -357,10 +233,17 @@ const SubscriptionPage = () => {
                     <button className="upgrade-btn" onClick={handlePayment} disabled={loading}>
                         {loading ? (isAf ? 'Verwerk...' : 'Processing...') : (isAf ? 'Gradeer Nou Op' : 'Upgrade Now')}
                     </button>
+                    {countryCode !== 'ZA' && (
+                        <p style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '12px', color: '#9ca3af', textAlign: 'center' }}>
+                            {isAf
+                                ? '* Transaksies word in ZAR verwerk teen die huidige wisselkoers.'
+                                : '* Transactions are processed in ZAR at the current exchange rate.'}
+                        </p>
+                    )}
                 </div>
             </div>
-            {/* Mobile Spacer to ensure button visibility */}
-            <div style={{ height: '150px', width: '100%', display: 'block' }} className="mobile-only-spacer" />
+            {/* Footer Spacer to ensure clearance */}
+            <div style={{ height: '150px', width: '100%' }} className="footer-padding-spacer" />
         </div>
     );
 };

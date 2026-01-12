@@ -110,6 +110,8 @@ function Stats() {
     // Subscription Settings (Dynamic Pricing)
     const [subscriptionPrice, setSubscriptionPrice] = useState('');
     const [priceLoading, setPriceLoading] = useState(false);
+    const [secretCode, setSecretCode] = useState('');
+    const [secretCodeLoading, setSecretCodeLoading] = useState(false);
 
     useEffect(() => {
         // Only fetch if authenticated
@@ -164,6 +166,63 @@ function Stats() {
             alert('Price updated! The subscription page will now reflect this change.');
         }
         setPriceLoading(false);
+    };
+
+    const handleApplySecretCode = async () => {
+        const code = secretCode.trim();
+        if (!code) return;
+        setSecretCodeLoading(true);
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                alert('You must be logged in as an admin to apply codes locally.');
+                setSecretCodeLoading(false);
+                return;
+            }
+
+            let updates = {};
+            let message = '';
+
+            if (code === 'Andre@58078') {
+                updates = { subscription_override: 'admin' };
+                message = 'Admin access granted!';
+            } else if (code === 'Finger') {
+                updates = {
+                    subscription_override: 'tester_finger',
+                    last_renewal_month: new Date().toISOString().slice(0, 7),
+                    sermon_trial_count: 0
+                };
+                message = 'Secret "Finger" access granted!';
+            } else if (code === 'Test') {
+                updates = {
+                    subscription_override: 'tester',
+                    email: user.email,
+                    last_renewal_month: new Date().toISOString().slice(0, 7),
+                    sermon_trial_count: 0,
+                    ai_usage_count: 0
+                };
+                message = 'Tester access granted!';
+            } else {
+                alert('Invalid secret code.');
+                setSecretCodeLoading(false);
+                return;
+            }
+
+            const { error } = await supabase
+                .from('user_profiles')
+                .update(updates)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+            alert(message);
+            setSecretCode('');
+        } catch (error) {
+            console.error('Error applying code:', error);
+            alert('Error updating profile.');
+        } finally {
+            setSecretCodeLoading(false);
+        }
     };
 
     const fetchRateLimitSetting = async () => {
@@ -1273,6 +1332,32 @@ function Stats() {
                         <p className="setting-desc" style={{ marginTop: '5px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                             Set the base monthly price in USD. The app will automatically convert this to ZAR based on the daily exchange rate.
                         </p>
+                    </div>
+
+                    {/* [NEW] SECRET ACCESS CODES SECTION */}
+                    <div className="full-width-card" style={{ marginTop: '20px' }}>
+                        <div className="settings-card">
+                            <h3>🔑 Secret Access Codes (Admin Use)</h3>
+                            <p style={{ opacity: 0.7, fontSize: '0.9rem', marginBottom: '15px' }}>
+                                Apply special overrides to your current admin/tester account.
+                            </p>
+                            <div className="price-input-group" style={{ display: 'flex', gap: '10px' }}>
+                                <input
+                                    type="password"
+                                    value={secretCode}
+                                    onChange={(e) => setSecretCode(e.target.value)}
+                                    placeholder="Enter secret code..."
+                                    style={{ flexGrow: 1 }}
+                                />
+                                <button
+                                    className="update-price-btn"
+                                    onClick={handleApplySecretCode}
+                                    disabled={secretCodeLoading}
+                                >
+                                    {secretCodeLoading ? 'Applying...' : 'Apply Code'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="setting-divider" style={{ margin: '15px 0', borderTop: '1px solid var(--border-subtle)', opacity: 0.3 }}></div>
