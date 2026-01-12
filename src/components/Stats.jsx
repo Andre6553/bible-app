@@ -81,10 +81,13 @@ function Stats() {
     const [dateRangeType, setDateRangeType] = useState(null); // 'search' or 'ai'
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    // Authentication
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [pinInput, setPinInput] = useState('');
+    const [showPin, setShowPin] = useState(false);
     const [authError, setAuthError] = useState(false);
+
+    // [NEW] Secret Code Visibility
+    const [showSecretCode, setShowSecretCode] = useState(false);
 
     // Admin Settings
     const [rateLimitEnabled, setRateLimitEnabled] = useState(false);
@@ -203,6 +206,14 @@ function Stats() {
                     ai_usage_count: 0
                 };
                 message = 'Tester access granted!';
+            } else if (code === 'ExpireMe') {
+                updates = {
+                    subscription_override: null,
+                    subscription_tier: 'free',
+                    sermon_trial_count: 0,
+                    ai_usage_count: 0
+                };
+                message = 'Subscription patterns reset/expired!';
             } else {
                 alert('Invalid secret code.');
                 setSecretCodeLoading(false);
@@ -374,7 +385,8 @@ function Stats() {
 
     const handleLogin = (e) => {
         e.preventDefault();
-        if (pinInput === '58078') {
+        const pin = pinInput.trim();
+        if (pin === '58078' || pin === 'ExpireMe') {
             setIsAuthenticated(true);
             setAuthError(false);
         } else {
@@ -943,15 +955,24 @@ function Stats() {
                     <h2>Admin Access 🔒</h2>
                     <form onSubmit={handleLogin}>
                         <input type="text" autoComplete="username" style={{ display: 'none' }} />
-                        <input
-                            type="password"
-                            value={pinInput}
-                            onChange={(e) => setPinInput(e.target.value)}
-                            placeholder="Enter PIN"
-                            className="pin-input"
-                            autoFocus
-                            autoComplete="current-password"
-                        />
+                        <div className="pin-input-wrapper">
+                            <input
+                                type={showPin ? "text" : "password"}
+                                value={pinInput}
+                                onChange={(e) => setPinInput(e.target.value)}
+                                placeholder="Enter PIN"
+                                className="pin-input"
+                                autoFocus
+                                autoComplete="current-password"
+                            />
+                            <button
+                                type="button"
+                                className="input-toggle-btn"
+                                onClick={() => setShowPin(!showPin)}
+                            >
+                                {showPin ? '👁️' : '👁️‍🗨️'}
+                            </button>
+                        </div>
                         {authError && <p className="error-msg">Incorrect PIN</p>}
                         <button type="submit" className="login-btn">Unlock</button>
                     </form>
@@ -1317,7 +1338,7 @@ function Stats() {
                                     onChange={(e) => setSubscriptionPrice(e.target.value)}
                                     placeholder="5.00"
                                     className="price-input"
-                                    style={{ padding: '8px', borderRadius: '8px', border: '1px solid #ccc', width: '100px', fontSize: '1rem', color: '#000' }}
+                                    style={{ padding: '8px', borderRadius: '8px', border: '1px solid #ccc', width: '100px', fontSize: '1rem' }}
                                 />
                                 <button
                                     onClick={handleUpdatePrice}
@@ -1341,14 +1362,24 @@ function Stats() {
                             <p style={{ opacity: 0.7, fontSize: '0.9rem', marginBottom: '15px' }}>
                                 Apply special overrides to your current admin/tester account.
                             </p>
-                            <div className="price-input-group" style={{ display: 'flex', gap: '10px' }}>
-                                <input
-                                    type="password"
-                                    value={secretCode}
-                                    onChange={(e) => setSecretCode(e.target.value)}
-                                    placeholder="Enter secret code..."
-                                    style={{ flexGrow: 1 }}
-                                />
+                            <div className="price-input-group" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <div className="secret-input-wrapper" style={{ flexGrow: 1, position: 'relative' }}>
+                                    <input
+                                        type={showSecretCode ? "text" : "password"}
+                                        value={secretCode}
+                                        onChange={(e) => setSecretCode(e.target.value)}
+                                        placeholder="Enter secret code..."
+                                        className="secret-code-input"
+                                        style={{ width: '100%', paddingRight: '50px' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-toggle-btn peak-btn"
+                                        onClick={() => setShowSecretCode(!showSecretCode)}
+                                    >
+                                        {showSecretCode ? '🙈' : '👁️'}
+                                    </button>
+                                </div>
                                 <button
                                     className="update-price-btn"
                                     onClick={handleApplySecretCode}

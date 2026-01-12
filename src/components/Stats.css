@@ -247,20 +247,53 @@
     color: var(--text-primary);
 }
 
-.pin-input {
+.pin-input-wrapper {
+    position: relative;
     width: 200px;
-    padding: 12px;
-    font-size: 1.2rem;
+    margin: 0 auto;
+}
+
+.pin-input {
+    width: 100% !important;
+    padding: 12px !important;
+    padding-right: 40px !important;
+    font-size: 1.2rem !important;
     letter-spacing: 4px;
     text-align: center;
-    border: 1px solid var(--border-subtle);
+    border: 1px solid var(--border-subtle) !important;
     border-radius: 8px;
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    margin-bottom: 1rem;
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
     display: block;
-    margin-left: auto;
-    margin-right: auto;
+}
+
+.secret-input-wrapper {
+    position: relative;
+    flex-grow: 1;
+}
+
+.secret-code-input {
+    width: 100% !important;
+    padding: 10px 14px !important;
+    padding-right: 50px !important;
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-subtle) !important;
+}
+
+.input-toggle-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
 }
 
 .pin-input:focus {
@@ -1447,4 +1480,58 @@
     .label-text {
         font-size: 0.8rem;
     }
+}
+
+/* Base input styling for Stats page to ensure theme consistency */
+.stats-page input[type="text"],
+.stats-page input[type="password"],
+.stats-page input[type="number"],
+.stats-page textarea {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+/* Specific fix for the "text is not black" (visibility issue) */
+/* If the user is in light mode, var(--text-primary) should be dark. */
+/* If the user is in dark mode, var(--text-primary) should be light. */
+/* We ensure the background always contrasts. */
+
+.stats-page input:focus,
+.stats-page textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+.price-input {
+    width: 100px !important;
+}
+
+.price-input-group input {
+    flex-grow: 1;
+    padding-right: 40px !important;
+    /* Space for eye toggle if needed */
+}
+
+/* Ensure buttons in settings cards look consistent */
+.stats-page .action-btn,
+.stats-page .update-price-btn {
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.stats-page .action-btn:hover,
+.stats-page .update-price-btn:hover {
+    opacity: 0.9;
 }
