@@ -94,7 +94,7 @@ const TutorialOverlay = ({ steps, onComplete, onNext, isOpen, language = 'en', e
             {/* Instruction Card */}
             {(() => {
                 const cardWidth = 300;
-                const cardHeight = 220; // Estimated max height
+                const cardHeight = 250; // Use a more conservative estimate for padding
                 const margin = 20;
 
                 let cardTop = '50%';
@@ -106,9 +106,9 @@ const TutorialOverlay = ({ steps, onComplete, onNext, isOpen, language = 'en', e
                     const screenHeight = window.innerHeight;
                     const screenWidth = window.innerWidth;
 
-                    // Decide if we should place the card ABOVE or BELOW the highlight
-                    // If the highlight's bottom is in the lower 60% of the screen, place card ABOVE
-                    const placeAbove = highlightBottom > screenHeight * 0.6;
+                    // Decidedly place card ABOVE if highlight is in the bottom half
+                    // This creates much more space below for the card to sit safely
+                    const placeAbove = highlightBottom > screenHeight * 0.5;
 
                     if (placeAbove) {
                         cardTop = highlightStyle.top - cardHeight - margin;
@@ -116,8 +116,13 @@ const TutorialOverlay = ({ steps, onComplete, onNext, isOpen, language = 'en', e
                         cardTop = highlightBottom + margin;
                     }
 
-                    // Constrain Top
-                    cardTop = Math.max(margin, Math.min(cardTop, screenHeight - cardHeight - margin));
+                    // CONSTRAINT: Ensure at least 200px padding at the bottom as requested
+                    // But prevent the card from flying off the top of the screen
+                    const minBottomGap = 200;
+                    const topLimit = margin;
+                    const bottomLimit = screenHeight - cardHeight - minBottomGap;
+
+                    cardTop = Math.max(topLimit, Math.min(cardTop, bottomLimit));
 
                     // Horizontal positioning
                     if (screenWidth < 600) {
