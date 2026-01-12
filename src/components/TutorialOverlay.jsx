@@ -18,14 +18,25 @@ const TutorialOverlay = ({ steps, onComplete, onNext, isOpen, language = 'en', e
 
     useEffect(() => {
         if (isOpen && steps[currentStepIdx]) {
-            // Tiny delay to ensure DOM is ready for newly rendered steps
-            const timer = setTimeout(updatePosition, 100);
+            // Settling delay: wait for entrance animations (like slideUp) to finish
+            const timer = setTimeout(updatePosition, 350);
+
             window.addEventListener('resize', updatePosition);
             window.addEventListener('scroll', updatePosition);
+
+            // MutationObserver to catch movements during layout shifts
+            const observer = new MutationObserver(updatePosition);
+            observer.observe(document.body, {
+                attributes: true,
+                childList: true,
+                subtree: true
+            });
+
             return () => {
                 clearTimeout(timer);
                 window.removeEventListener('resize', updatePosition);
                 window.removeEventListener('scroll', updatePosition);
+                observer.disconnect();
             };
         }
     }, [isOpen, currentStepIdx, steps]);
@@ -81,28 +92,71 @@ const TutorialOverlay = ({ steps, onComplete, onNext, isOpen, language = 'en', e
             <div className="tutorial-highlight" style={highlightStyle} />
 
             {/* Instruction Card */}
-            <div className="tutorial-card" style={{
-                top: highlightStyle.top ? Math.min(window.innerHeight - 250, highlightStyle.top + highlightStyle.height + 20) : '50%',
-                left: highlightStyle.left ? Math.min(window.innerWidth - 320, Math.max(20, highlightStyle.left)) : '50%',
-                transform: highlightStyle.top ? 'none' : 'translate(-50%, -50%)'
-            }}>
-                <div className="tutorial-progress">
-                    {currentStepIdx + 1} / {steps.length}
-                </div>
-                <h3>{currentStep.title}</h3>
-                <p>{currentStep.content}</p>
+            {(() => {
+                const cardWidth = 300;
+                const cardHeight = 220; // Estimated max height
+                const margin = 20;
 
-                <div className="tutorial-footer">
-                    <button className="tutorial-skip" onClick={handleSkip}>
-                        {isAf ? 'Slaan oor' : 'Skip'}
-                    </button>
-                    <button className="tutorial-next" onClick={handleNext}>
-                        {currentStepIdx === steps.length - 1
-                            ? (isAf ? 'Klaar' : 'Finish')
-                            : (isAf ? 'Volgende' : 'Next')}
-                    </button>
-                </div>
-            </div>
+                let cardTop = '50%';
+                let cardLeft = '50%';
+                let transform = 'translate(-50%, -50%)';
+
+                if (highlightStyle.top !== undefined) {
+                    const highlightBottom = highlightStyle.top + highlightStyle.height;
+                    const screenHeight = window.innerHeight;
+                    const screenWidth = window.innerWidth;
+
+                    // Decide if we should place the card ABOVE or BELOW the highlight
+                    // If the highlight's bottom is in the lower 60% of the screen, place card ABOVE
+                    const placeAbove = highlightBottom > screenHeight * 0.6;
+
+                    if (placeAbove) {
+                        cardTop = highlightStyle.top - cardHeight - margin;
+                    } else {
+                        cardTop = highlightBottom + margin;
+                    }
+
+                    // Constrain Top
+                    cardTop = Math.max(margin, Math.min(cardTop, screenHeight - cardHeight - margin));
+
+                    // Horizontal positioning
+                    if (screenWidth < 600) {
+                        // Center horizontally on mobile
+                        cardLeft = '50%';
+                        transform = 'translateX(-50%)';
+                        // If top was '50%', transform would be 'translate(-50%, -50%)', but we calculated cardTop
+                    } else {
+                        // Align with left of highlight, but stay within screen
+                        cardLeft = Math.max(margin, Math.min(highlightStyle.left, screenWidth - cardWidth - margin));
+                        transform = 'none';
+                    }
+                }
+
+                return (
+                    <div className="tutorial-card" style={{
+                        top: cardTop,
+                        left: cardLeft,
+                        transform: transform
+                    }}>
+                        <div className="tutorial-progress">
+                            {currentStepIdx + 1} / {steps.length}
+                        </div>
+                        <h3>{currentStep.title}</h3>
+                        <p>{currentStep.content}</p>
+
+                        <div className="tutorial-footer">
+                            <button className="tutorial-skip" onClick={handleSkip}>
+                                {isAf ? 'Slaan oor' : 'Skip'}
+                            </button>
+                            <button className="tutorial-next" onClick={handleNext}>
+                                {currentStepIdx === steps.length - 1
+                                    ? (isAf ? 'Klaar' : 'Finish')
+                                    : (isAf ? 'Volgende' : 'Next')}
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
