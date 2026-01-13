@@ -88,6 +88,7 @@ function Stats() {
 
     // [NEW] Secret Code Visibility
     const [showSecretCode, setShowSecretCode] = useState(false);
+    const [showCodeInfo, setShowCodeInfo] = useState(false);
 
     // Admin Settings
     const [rateLimitEnabled, setRateLimitEnabled] = useState(false);
@@ -97,6 +98,7 @@ function Stats() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isUserSuper, setIsUserSuper] = useState(false);
     const [allSuperUsers, setAllSuperUsers] = useState([]);
+    const [isMasterAdmin, setIsMasterAdmin] = useState(false);
     const [showClearErrorConfirm, setShowClearErrorConfirm] = useState(false);
 
     // Email Notification Settings
@@ -130,8 +132,31 @@ function Stats() {
             fetchEmailSettings();
             fetchEmailTemplates();
             fetchSubscriptionPrice();
+            fetchEmailSettings();
+            fetchEmailTemplates();
+            fetchSubscriptionPrice();
+            checkMasterAdmin();
         }
     }, [isAuthenticated]);
+
+    const checkMasterAdmin = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data } = await supabase
+                    .from('user_profiles')
+                    .select('subscription_override')
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (data && data.subscription_override === 'admin') {
+                    setIsMasterAdmin(true);
+                }
+            }
+        } catch (err) {
+            console.error('Error checking master admin:', err);
+        }
+    };
 
     const fetchSubscriptionPrice = async () => {
         setPriceLoading(true);
@@ -187,9 +212,10 @@ function Stats() {
             let updates = {};
             let message = '';
 
-            if (code === 'Andre@58078') {
+            if (code === 'Master@12345') {
                 updates = { subscription_override: 'admin' };
                 message = 'Admin access granted!';
+                setIsMasterAdmin(true);
             } else if (code === 'SUB') {
                 updates = {
                     subscription_tier: 'premium',
@@ -222,6 +248,7 @@ function Stats() {
                     ai_usage_count: 0
                 };
                 message = 'Subscription patterns reset/expired!';
+                setIsMasterAdmin(false);
             } else {
                 alert('Invalid secret code.');
                 setSecretCodeLoading(false);
@@ -1336,7 +1363,12 @@ function Stats() {
 
 
                     {/* Dynamic Pricing Setting */}
-                    <div className="settings-card" style={{ marginTop: '15px' }}>
+                    <div className="settings-card" style={{ marginTop: '15px', opacity: isMasterAdmin ? 1 : 0.5, pointerEvents: isMasterAdmin ? 'auto' : 'none', position: 'relative' }}>
+                        {!isMasterAdmin && (
+                            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ background: 'rgba(0,0,0,0.8)', padding: '5px 10px', borderRadius: '4px', fontSize: '0.8rem', color: '#fff' }}>🔒 Master Admin Only</span>
+                            </div>
+                        )}
                         <h3>💲 Base Subscription Price (USD)</h3>
                         <div className="toggle-row" style={{ alignItems: 'center' }}>
                             <span className="setting-label">Current Base Price ($)</span>
@@ -1367,7 +1399,24 @@ function Stats() {
                     {/* [NEW] SECRET ACCESS CODES SECTION */}
                     <div className="full-width-card" style={{ marginTop: '20px' }}>
                         <div className="settings-card">
-                            <h3>🔑 Secret Access Codes (Admin Use)</h3>
+                            <h3>
+                                🔑 Secret Access Codes (Admin Use)
+                                <button
+                                    onClick={() => setShowCodeInfo(true)}
+                                    style={{
+                                        border: 'none',
+                                        background: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: '1rem',
+                                        marginLeft: '8px',
+                                        verticalAlign: 'middle',
+                                        marginTop: '-4px'
+                                    }}
+                                    title="View Available Codes"
+                                >
+                                    ℹ️
+                                </button>
+                            </h3>
                             <p style={{ opacity: 0.7, fontSize: '0.9rem', marginBottom: '15px' }}>
                                 Apply special overrides to your current admin/tester account.
                             </p>
@@ -1616,6 +1665,67 @@ function Stats() {
                             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                             <button onClick={deleteByDateRange}>Confirm Delete</button>
+                        </div>
+                    </div>
+                )
+            }
+
+            {
+                showCodeInfo && (
+                    <div className="detail-modal-overlay" onClick={() => setShowCodeInfo(false)}>
+                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="detail-modal-header">
+                                <h3>🗝️ Available Secret Codes</h3>
+                                <button onClick={() => setShowCodeInfo(false)}>✕</button>
+                            </div>
+                            <div className="detail-modal-body">
+                                <div style={{ marginBottom: '20px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                                    <strong>How to Use:</strong>
+                                    <p style={{ margin: '5px 0 0', fontSize: '0.9rem', opacity: 0.9 }}>
+                                        Enter one of the codes below into the text box and click <strong>"Apply Code"</strong>.
+                                        The app will refresh your status immediately.
+                                    </p>
+                                </div>
+
+                                <table className="log-table" style={{ width: '100%' }}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ textAlign: 'left', padding: '8px' }}>Code</th>
+                                            <th style={{ textAlign: 'left', padding: '8px' }}>Effect & Usage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>SUB</td>
+                                            <td style={{ padding: '8px' }}>
+                                                <strong>Grants Premium Subscriber Status (30 Days)</strong><br />
+                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Unlocks all premium features (Unlimited AI, etc.) without payment. Use this to verify the "Paid" experience.</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>Finger</td>
+                                            <td style={{ padding: '8px' }}>
+                                                <strong>Sets Override to "tester_finger"</strong><br />
+                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Assigns a unique tester identity and <strong>resets sermon trial counts</strong> to 0. Use this to test the "Sermon Generator" free trial flow.</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>Test</td>
+                                            <td style={{ padding: '8px' }}>
+                                                <strong>Sets Override to "tester"</strong><br />
+                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Grants generic tester privileges. Useful for general debugging.</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>ExpireMe</td>
+                                            <td style={{ padding: '8px' }}>
+                                                <strong>Resets Account to Free Tier</strong><br />
+                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Clears all subscriptions and tester overrides. Use this to test the "Upgrade to Premium" flow or simulate a new user.</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )

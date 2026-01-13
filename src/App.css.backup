@@ -1,33 +1,20 @@
 :root {
-    /* Color Palette - Royal Gold Premium Dark */
-    --bg-primary: #050510;
-    /* Deep Luxury Black */
-    --bg-secondary: #0f0f1a;
-    /* Dark Graphite */
-    --bg-tertiary: #181824;
-    /* Soft Charcoal */
-    --bg-elevated: #222230;
-    /* Elevated Card */
+    /* Color Palette - Modern Dark Theme */
+    --bg-primary: #0f0f1e;
+    --bg-secondary: #1a1a2e;
+    --bg-tertiary: #252541;
+    --bg-elevated: #2d2d4a;
 
-    /* Gold Accents */
-    --accent-primary: #D4AF37;
-    /* Metallic Gold */
-    --accent-secondary: #F59E0B;
-    /* Bright Amber */
-    --accent-dark: #B4941F;
-    /* Deep Gold */
+    --accent-primary: #6366f1;
+    --accent-secondary: #818cf8;
+    --accent-dark: #4f46e5;
 
-    --text-primary: #f8fafc;
-    /* Crisp White */
+    --text-primary: #f1f5f9;
     --text-secondary: #cbd5e1;
-    /* Soft Silver */
     --text-muted: #94a3b8;
-    /* Muted Steel */
 
-    --border-color: #2D2D3A;
-    /* Subtle Graphite Border */
-    --border-subtle: #181824;
-    /* Very Subtle Border */
+    --border-color: #334155;
+    --border-subtle: #1e293b;
 
     /* Spacing */
     --spacing-xs: 0.25rem;
