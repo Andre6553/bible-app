@@ -2,6 +2,14 @@ import { supabase } from '../config/supabaseClient';
 import { getUserId } from './bibleService';
 import { logApiCall } from './adminService';
 
+const getCapturedIp = () => {
+    try {
+        return localStorage.getItem('captured_ip') || null;
+    } catch (e) {
+        return null;
+    }
+};
+
 /**
  * Blog Service - Handles personalized content and AI devotionals
  */
@@ -1191,7 +1199,8 @@ export const logBlogView = async (userId) => {
             .from('blog_views')
             .insert({
                 user_id: userId,
-                device_info: navigator.userAgent
+                device_info: navigator.userAgent,
+                ip_address: getCapturedIp()
             });
 
         console.log('📈 Blog view logged');

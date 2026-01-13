@@ -149,6 +149,18 @@ function Blog() {
     const refreshDevotional = async () => {
         const userId = await getUserId();
 
+        // --- REGISTRATION GATING ---
+        if (userId && userId.startsWith('user_')) {
+            const promptMsg = settings.language === 'af'
+                ? 'Om nuwe gepersonaliseerde dagstukkies te genereer, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To generate new personalized devotionals, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to provide your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
+
         // Check cooldown first
         const cooldown = await checkRefreshCooldown(userId);
         if (!cooldown.canRefresh) {
@@ -170,6 +182,18 @@ function Blog() {
 
     const refreshPosts = async () => {
         const userId = await getUserId();
+
+        // --- REGISTRATION GATING ---
+        if (userId && userId.startsWith('user_')) {
+            const promptMsg = settings.language === 'af'
+                ? 'Om nuwe gepersonaliseerde artikels te genereer, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To generate new personalized articles, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
 
         // Check cooldown first
         const cooldown = await checkRefreshCooldown(userId);

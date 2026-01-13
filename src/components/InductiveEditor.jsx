@@ -137,6 +137,18 @@ function InductiveEditor() {
 
     const handleGetAiHints = async () => {
         const userId = await getUserId();
+        // --- REGISTRATION GATING ---
+        if (userId && userId.startsWith('user_')) {
+            const promptMsg = settings.language === 'af'
+                ? 'Om KI-wenke vir jou studie te kry, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To get AI hints for your study, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
+
         if (!userId) {
             alert('Please sign in to use AI assistance');
             return;

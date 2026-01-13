@@ -136,13 +136,13 @@ export const createSermon = async (sermonData, fingerprint) => {
         // 4. Increment Trial Count & Save Fingerprint (Background)
         // Only increment if we are technically still "free" in database, 
         // regardless of override, so we track usage.
-        if (tier === 'free') {
-            supabase.from('user_profiles').upsert({
-                user_id: userId,
+        // Skip for guest users - they don't have cloud profiles
+        if (tier === 'free' && !userId.startsWith('user_')) {
+            supabase.from('user_profiles').update({
                 sermon_trial_count: trials + 1,
                 device_fingerprint: fingerprint,
                 last_seen: new Date().toISOString()
-            }, { onConflict: 'user_id' }).then(({ error: uError }) => {
+            }).eq('user_id', userId).then(({ error: uError }) => {
                 if (uError) console.error('Error updating trial count:', uError);
             });
         }
@@ -206,6 +206,21 @@ const checkAndIncrementAiUsage = async () => {
         .select('*')
         .eq('user_id', userId)
         .single();
+
+    // If profile doesn't exist (e.g. Guest user), use fallback logic
+    if (error && error.code === 'PGRST116') {
+        // For guests, we count their logs instead of using a column
+        const { count } = await supabase
+            .from('api_usage_logs')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
+
+        const guestUsage = count || 0;
+        if (guestUsage >= 10) { // Specific limit for guests
+            throw new Error('AI_LIMIT_EXCEEDED');
+        }
+        return true;
+    }
 
     if (error) throw error;
 

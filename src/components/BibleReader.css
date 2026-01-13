@@ -1588,6 +1588,39 @@ body.reader-mode-active .verses-content {
 }
 
 @media (max-width: 480px) {
+    .bible-header {
+        padding: 8px 10px;
+    }
+
+    .header-top {
+        gap: 2px;
+        margin-bottom: 8px;
+    }
+
+    .header-left,
+    .header-right {
+        gap: 2px;
+    }
+
+    .app-title {
+        font-size: 1.15rem;
+        white-space: nowrap;
+        margin: 0 4px;
+    }
+
+    .info-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    .version-selector {
+        min-width: 75px;
+        font-size: 0.85rem;
+        padding: 0 4px;
+        height: 36px;
+    }
+
     .sync-banner {
         flex-direction: column;
         gap: 12px;

@@ -119,7 +119,7 @@ const SubscriptionPage = () => {
                         // This allows us to track "one discount per IP" in the future
                         try {
                             // Re-fetch IP if context was lost during redirect (best effort)
-                            const ipRes = await fetch('https://ipapi.co/json/');
+                            const ipRes = await fetch('https://api.ipify.org?format=json');
                             const ipData = await ipRes.json();
 
                             await supabase.from('payment_history').insert([{

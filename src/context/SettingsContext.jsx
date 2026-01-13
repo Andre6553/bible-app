@@ -32,12 +32,50 @@ export const SettingsProvider = ({ children }) => {
         }
 
         // Single Auth Source
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             const currentUser = session?.user ?? null;
             setUser(currentUser);
 
             if (currentUser && currentUser.id !== lastFetchedUserId.current) {
                 fetchRemoteSettings(currentUser.id);
+
+                // Capture IP on login/session restore
+                const shouldCaptureIp = event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION';
+
+                if (shouldCaptureIp) {
+                    console.log('[Auth] 📍 Attempting IP capture for user:', currentUser.id, 'on event:', event);
+                    try {
+                        const ipRes = await fetch('https://api.ipify.org?format=json');
+                        if (!ipRes.ok) throw new Error('IP API response not OK: ' + ipRes.status);
+
+                        const ipData = await ipRes.json();
+                        console.log('[Auth] 📍 Raw IP Data received:', ipData);
+
+                        if (ipData?.ip) {
+                            // Store in localStorage for access by non-component services (like bibleService.js)
+                            localStorage.setItem('captured_ip', ipData.ip);
+
+                            const { error: updateError } = await supabase
+                                .from('user_profiles')
+                                .update({
+                                    last_ip: ipData.ip,
+                                    ip_address: ipData.ip, // Update both for consistency
+                                    last_seen: new Date().toISOString()
+                                })
+                                .eq('user_id', currentUser.id);
+
+                            if (updateError) {
+                                console.error('[Auth] ❌ Database update failed for IP:', updateError);
+                            } else {
+                                console.log('[Auth] ✅ IP successfully saved to profile:', ipData.ip);
+                            }
+                        } else {
+                            console.warn('[Auth] ⚠️ No IP field in response data');
+                        }
+                    } catch (ipErr) {
+                        console.warn('[Auth] ⚠️ IP capture process failed:', ipErr.message);
+                    }
+                }
             } else if (!currentUser) {
                 lastFetchedUserId.current = null;
             }

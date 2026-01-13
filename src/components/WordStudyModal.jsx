@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getWordStudy } from '../services/aiService';
 import { getUserId, getVerseByReference, getOriginalVerse, getVerseCount } from '../services/bibleService';
 import { saveWordStudy, deleteWordStudy, checkIsWordStudySaved } from '../services/wordStudyService';
@@ -15,6 +16,7 @@ function WordStudyModal({
     initialStudyData = null,
     onClose
 }) {
+    const navigate = useNavigate();
     const { settings } = useSettings();
     // Current verse being studied
     const [currentVerse, setCurrentVerse] = useState({
@@ -159,6 +161,20 @@ function WordStudyModal({
 
         try {
             const userId = await getUserId();
+
+            // --- REGISTRATION GATING ---
+            if (userId && userId.startsWith('user_')) {
+                const promptMsg = settings.language === 'af'
+                    ? 'Om Woordstudies te doen, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                    : 'To perform Word Studies, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+                if (window.confirm(promptMsg)) {
+                    navigate('/auth');
+                }
+                setLoading(false);
+                return;
+            }
+
             const result = await getWordStudy(userId, currentVerse.ref, currentVerse.text, currentVerse.originalText, cleanedWord, settings.language);
             if (result.success) {
                 setStudyData(result.data);

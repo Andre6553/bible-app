@@ -279,6 +279,19 @@ const SermonPrep = () => {
             return;
         }
 
+        // --- REGISTRATION GATING ---
+        const uid = user?.id || await getUserId();
+        if (uid && uid.startsWith('user_')) {
+            const promptMsg = isAf
+                ? 'Om KI-versvoorstelle te kry, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To get AI verse suggestions, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
+
         setIsSuggestingVerses(true);
         try {
             const prompt = `Find 5 Bible verses that address the following request and return ONLY the verse references enclosed in double brackets and separated by commas (e.g. [[John 3:16]], [[Romans 5:8]]). Use modern citations. Request: ${title}`;
@@ -306,6 +319,19 @@ const SermonPrep = () => {
 
     const handleSuggestVersesSkeleton = async () => {
         if (!currentSermon) return;
+
+        // --- REGISTRATION GATING ---
+        const uid = user?.id || await getUserId();
+        if (uid && uid.startsWith('user_')) {
+            const promptMsg = isAf
+                ? 'Om KI-versvoorstelle te kry, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To get AI verse suggestions, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
 
         setIsSuggestingVerses(true);
         try {
@@ -338,6 +364,19 @@ const SermonPrep = () => {
     const handleGenerateSkeleton = async () => {
         if (!title || !mainScripture) {
             alert(isAf ? 'Voer asseblief n titel en skrifgedeelte in.' : 'Please enter a title and scripture passage.');
+            return;
+        }
+
+        // --- REGISTRATION GATING ---
+        const uid = user?.id || await getUserId();
+        if (uid && uid.startsWith('user_')) {
+            const promptMsg = isAf
+                ? 'Om preek raamwerke te genereer, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To generate sermon skeletons, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
             return;
         }
 
@@ -455,6 +494,19 @@ const SermonPrep = () => {
     };
 
     const handleAutoGenerateBlocks = async () => {
+        // --- REGISTRATION GATING ---
+        const uid = user?.id || await getUserId();
+        if (uid && uid.startsWith('user_')) {
+            const promptMsg = isAf
+                ? 'Om al die blokke outomaties te genereer, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To auto-generate all blocks, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
+
         if (!confirm(isAf ? 'Wil jy inhoud outomaties genereer vir AL die blokke? Dit kan \'n paar oomblikke neem.' : 'Auto-generate content for ALL blocks? This may take a few moments.')) return;
 
         setIsAutoGenerating(true);
@@ -2121,6 +2173,20 @@ const SermonPrep = () => {
                                     className="magic-generate-btn"
                                     onClick={async (e) => {
                                         e.stopPropagation();
+
+                                        // --- REGISTRATION GATING ---
+                                        const uid = user?.id || await getUserId();
+                                        if (uid && uid.startsWith('user_')) {
+                                            const promptMsg = isAf
+                                                ? 'Om AI-inhoud vir blokke te genereer, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                                                : 'To generate AI content for blocks, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+                                            if (window.confirm(promptMsg)) {
+                                                navigate('/auth');
+                                            }
+                                            return;
+                                        }
+
                                         if (!confirm(isAf ? 'Wil jy inhoud genereer vir hierdie blok?' : 'Generate content for this block?')) return;
 
                                         const duration = parseInt(block.duration) || 5;
@@ -2168,6 +2234,19 @@ const SermonPrep = () => {
 
 
     const handleRunAiTool = async (tool) => {
+        // --- REGISTRATION GATING ---
+        const uid = user?.id || await getUserId();
+        if (uid && uid.startsWith('user_')) {
+            const promptMsg = isAf
+                ? 'Om AI-gereedskap te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To use AI tools, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
+
         if (!aiQuery) {
             // polish_all and suggest_context and generate_podcast and generate_narrative don't need aiQuery
             const skipQueryCheck = ['suggest_context', 'polish_all', 'generate_podcast', 'generate_narrative'].includes(tool);

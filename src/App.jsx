@@ -6,6 +6,7 @@ import { getVersions } from './services/bibleService';
 import { Analytics } from "@vercel/analytics/react"
 import ErrorBoundary from './components/ErrorBoundary';
 import { initGlobalErrorListeners } from './services/loggerService';
+import SplashScreen from './components/SplashScreen';
 import './App.css';
 
 // Lazy load components
@@ -27,10 +28,18 @@ function App() {
     const [currentVersion, setCurrentVersion] = useState(null);
     const [versions, setVersions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showSplash, setShowSplash] = useState(true);
 
     useEffect(() => {
         initGlobalErrorListeners();
         loadVersions();
+
+        // High-end Splash Screen duration
+        const splashTimer = setTimeout(() => {
+            setShowSplash(false);
+        }, 2700); // 2.7s total (2.2s visible + 0.5s fade out)
+
+        return () => clearTimeout(splashTimer);
     }, []);
 
     const loadVersions = async () => {
@@ -68,6 +77,7 @@ function App() {
 
     return (
         <SettingsProvider>
+            {showSplash && <SplashScreen />}
             <ThemeHandler />
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <div className="app">

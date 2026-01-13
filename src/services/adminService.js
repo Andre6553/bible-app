@@ -166,8 +166,8 @@ export const getUserDetailsByEmail = async (email) => {
             .from('user_profiles')
             .select('*')
             .ilike('email', email)
-            .order('last_seen', { ascending: false })
-            .limit(1);
+            .order('last_seen', { ascending: false });
+        // Removed .limit(1) to show ALL duplicate profiles
 
         if (error) throw error;
 

@@ -132,9 +132,6 @@ function Stats() {
             fetchEmailSettings();
             fetchEmailTemplates();
             fetchSubscriptionPrice();
-            fetchEmailSettings();
-            fetchEmailTemplates();
-            fetchSubscriptionPrice();
             checkMasterAdmin();
         }
     }, [isAuthenticated]);
@@ -444,7 +441,11 @@ function Stats() {
         setLoading(true);
 
         // 1. Try Global RPC
-        const { data: globalStats, error: rpcError } = await supabase.rpc('get_global_search_stats_v2');
+        const { data: globalStats, error: rpcError } = await supabase.rpc('get_global_search_stats_v5');
+
+        if (rpcError) {
+            if (rpcError.status !== 404) console.warn('Search Stats RPC Missing:', rpcError);
+        }
 
         if (!rpcError && globalStats) {
             setStats(globalStats);
@@ -476,7 +477,11 @@ function Stats() {
 
     const fetchAIQuestions = async () => {
         // 1. Try Global RPC
-        const { data: globalStats, error: rpcError } = await supabase.rpc('get_global_ai_stats_v2');
+        const { data: globalStats, error: rpcError } = await supabase.rpc('get_global_ai_stats_v5');
+
+        if (rpcError) {
+            if (rpcError.status !== 404) console.warn('AI Stats RPC Missing:', rpcError);
+        }
 
         if (!rpcError && globalStats) {
             setAiStats({
@@ -1119,7 +1124,7 @@ function Stats() {
             {/* NEW SERMON STATS CARD */}
             <div className="full-width-card" style={{ marginTop: '20px', marginBottom: '30px' }}>
                 <div className="settings-card">
-                    <h3>📜 Sermon Creators (Total: {sermonStats.reduce((a, b) => a + b.count, 0)})</h3>
+                    <h3>📜 Sermon Creators (Total: {(sermonStats || []).reduce((a, b) => a + (b.count || 0), 0)})</h3>
                     <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                             <thead>
@@ -1286,17 +1291,18 @@ function Stats() {
                         <ul className="top-list">
                             {userStats.topUsers.map((u, idx) => {
                                 // Check if user is super (check all IDs + email) OR is a subscriber
-                                const isSuper = (u.originalIds || [u.userId]).some(id => allSuperUsers.includes(id)) ||
-                                    (u.email && allSuperUsers.includes(u.email)) ||
+                                const isSuper = (u.originalIds || [u.userId]).some(id => (allSuperUsers || []).includes(id)) ||
+                                    (u.email && (allSuperUsers || []).includes(u.email)) ||
                                     u.isSubscriber;
 
                                 return (
                                     <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>
                                         <span className="rank">#{idx + 1}</span>
                                         <div className="user-info-col">
-                                            <span className="term">{(u.displayId || 'Unknown').substring(0, 15)}...</span>
+                                            <span className="term">{String(u.displayId || 'Unknown').substring(0, 15)}...</span>
                                             <span className="device-badge">
                                                 {u.device}
+                                                {(u.ip_address || u.last_ip) && <span style={{ marginLeft: '6px', opacity: 0.6, fontSize: '0.8em' }}>• {u.ip_address || u.last_ip}</span>}
                                                 {isSuper && <span title="Super User" style={{ marginLeft: '4px' }}>⭐</span>}
                                             </span>
                                         </div>
@@ -1420,7 +1426,8 @@ function Stats() {
                             <p style={{ opacity: 0.7, fontSize: '0.9rem', marginBottom: '15px' }}>
                                 Apply special overrides to your current admin/tester account.
                             </p>
-                            <div className="price-input-group" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <form onSubmit={(e) => { e.preventDefault(); handleApplySecretCode(); }} className="price-input-group" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <input type="text" name="username" autoComplete="username" style={{ display: 'none' }} readOnly />
                                 <div className="secret-input-wrapper" style={{ flexGrow: 1, position: 'relative' }}>
                                     <input
                                         type={showSecretCode ? "text" : "password"}
@@ -1429,6 +1436,7 @@ function Stats() {
                                         placeholder="Enter secret code..."
                                         className="secret-code-input"
                                         style={{ width: '100%', paddingRight: '50px' }}
+                                        autoComplete="current-password"
                                     />
                                     <button
                                         type="button"
@@ -1439,13 +1447,13 @@ function Stats() {
                                     </button>
                                 </div>
                                 <button
+                                    type="submit"
                                     className="update-price-btn"
-                                    onClick={handleApplySecretCode}
                                     disabled={secretCodeLoading}
                                 >
                                     {secretCodeLoading ? 'Applying...' : 'Apply Code'}
                                 </button>
-                            </div>
+                            </form>
                         </div>
                     </div>
 
@@ -1750,6 +1758,7 @@ function Stats() {
                             </div>
                             <div className="detail-modal-body">
                                 <p><strong>ID:</strong> {selectedUser.userId}</p>
+                                {(selectedUser.ip_address || selectedUser.last_ip) && <p><strong>Last IP:</strong> {selectedUser.ip_address || selectedUser.last_ip}</p>}
                                 <p><strong>Actions:</strong> {selectedUser.count}</p>
                                 <p><strong>Blog Visits:</strong> {selectedUserHistory.blogViews.length > 0
                                     ? `${selectedUserHistory.blogViews.length} visits (Last: ${new Date(selectedUserHistory.blogViews[0].created_at).toLocaleDateString()})`

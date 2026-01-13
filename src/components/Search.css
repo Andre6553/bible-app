@@ -1341,7 +1341,8 @@
     .header-controls {
         display: flex;
         align-items: center;
-        gap: 20px;
+        gap: 40px;
+        /* Increased from 20px to prevent overlap */
     }
 
     .close-btn.back-to-results {
@@ -2043,131 +2044,7 @@
     /* Take remaining space */
 }
 
-/* Archaeology Report Styles */
-.archaeology-report {
-    background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    padding-bottom: 250px !important;
-    /* Added 250px bottom padding as requested */
-    border: 1px solid var(--border-subtle);
-    animation: fadeIn 0.4s ease-out;
-    max-height: 80vh;
-    /* Ensure it doesn't exceed screen height */
-    overflow-y: auto;
-    /* Add scrollbar on the right */
-    -webkit-overflow-scrolling: touch;
-    /* Smooth scrolling for mobile */
-}
 
-/* Custom Scrollbar for Archaeology Report */
-.archaeology-report::-webkit-scrollbar {
-    width: 8px;
-    display: block;
-    /* Ensure it's visible */
-}
-
-.archaeology-report::-webkit-scrollbar-track {
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-}
-
-.archaeology-report::-webkit-scrollbar-thumb {
-    background: var(--accent-primary);
-    border-radius: 4px;
-}
-
-.archaeology-report::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-secondary);
-}
-
-.archaeology-report h3 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: var(--spacing-md);
-    color: var(--accent-primary);
-}
-
-.archaeology-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 2px solid var(--accent-primary);
-}
-
-.archaeology-period {
-    background: var(--accent-primary);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 700;
-}
-
-.archaeology-summary {
-    font-style: italic;
-    line-height: 1.6;
-    margin-bottom: var(--spacing-lg);
-    color: var(--text-primary);
-}
-
-.archaeology-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-}
-
-.archaeology-card {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-md);
-}
-
-.archaeology-card h4 {
-    color: var(--accent-secondary);
-    margin-bottom: var(--spacing-xs);
-    font-size: 0.95rem;
-}
-
-.archaeology-card p {
-    font-size: 0.85rem;
-    line-height: 1.5;
-    color: var(--text-secondary);
-}
-
-.archaeology-section {
-    margin-bottom: var(--spacing-lg);
-}
-
-.archaeology-section h4 {
-    font-size: 1rem;
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.archaeology-parallels {
-    background: rgba(var(--accent-secondary-rgb), 0.05);
-    padding: var(--spacing-md);
-    border-radius: var(--radius-md);
-    border-left: 3px solid var(--accent-secondary);
-    font-size: 0.9rem;
-}
-
-.consensus-box {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    border-top: 1px solid var(--border-subtle);
-    padding-top: var(--spacing-md);
-    margin-top: var(--spacing-md);
-}
 
 /* Subscriber Promo Button */
 .subscriber-promo-btn {
@@ -2241,5 +2118,29 @@
     /* Adjust header layout for desktop */
     .search-header .header-top-row {
         flex-wrap: wrap;
+    }
+}
+
+/* AI Modal Tutorial Toggle */
+.ai-modal-tutorial-toggle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.ai-modal-tutorial-toggle input {
+    margin: 0;
+    cursor: pointer;
+}
+
+/* Ensure Back button has breathing room (Desktop only) */
+@media (min-width: 769px) {
+    .close-btn.back-to-results {
+        margin-left: 20px;
     }
 }

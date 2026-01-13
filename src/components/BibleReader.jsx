@@ -941,7 +941,20 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 <div className="header-top">
                     <div className="header-left">
                         <button className="info-btn icon-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
-                        <button className="info-btn icon-btn" onClick={() => setShowChapterSummary(true)} title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}>📝</button>
+                        <button className="info-btn icon-btn" onClick={async () => {
+                            const uid = await getUserId();
+                            if (uid && uid.startsWith('user_')) {
+                                const promptMsg = settings.language === 'af'
+                                    ? 'Om Hoofstuk Opsommings te sien, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                                    : 'To see Chapter Summaries, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+                                if (window.confirm(promptMsg)) {
+                                    navigate('/auth');
+                                }
+                                return;
+                            }
+                            setShowChapterSummary(true);
+                        }} title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}>📝</button>
                         <button className="info-btn icon-btn" onClick={() => setShowInfo(true)} title="App Info">ℹ️</button>
                         <h1
                             className="app-title"

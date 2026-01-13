@@ -40,11 +40,11 @@ export const migrateAnonymousData = async (newUserId) => {
         const { data: { session } } = await supabase.auth.getSession();
         const email = session?.user?.email;
         if (email) {
-            console.log(`[Migration] 🔗 Linking guest ${oldUserId} to ${email}`);
+            console.log(`[Migration] 🔗 Linking ${newUserId} to ${email}`);
+            // Only create/update the authenticated user's profile, NOT the guest profile
             supabase.from('user_profiles').upsert([
-                { user_id: oldUserId, email: email },
-                { user_id: newUserId, email: email }
-            ]).then(({ error }) => {
+                { user_id: newUserId, email: email, last_seen: new Date().toISOString() }
+            ], { onConflict: 'user_id' }).then(({ error }) => {
                 if (error) console.warn('[Migration] Profile link error:', error.message);
             });
         }

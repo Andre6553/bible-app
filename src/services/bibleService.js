@@ -362,14 +362,17 @@ export const getUserId = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             const email = session?.user?.email || null;
 
-            supabase.from('user_profiles').upsert({
-                user_id: userId,
-                email: email,
-                last_seen: new Date().toISOString()
-            }, { onConflict: 'user_id' }).then(({ error }) => {
-                if (error) console.warn('[ProfileSync] Error syncing profile:', error.message);
-                else localStorage.setItem(`profile_sync_${userId}`, now.toString());
-            });
+            // Only sync profiles for authenticated users, not guests
+            if (session?.user && !userId.startsWith('user_')) {
+                supabase.from('user_profiles').upsert({
+                    user_id: userId,
+                    email: email,
+                    last_seen: new Date().toISOString()
+                }, { onConflict: 'user_id' }).then(({ error }) => {
+                    if (error) console.warn('[ProfileSync] Error syncing profile:', error.message);
+                    else localStorage.setItem(`profile_sync_${userId}`, now.toString());
+                });
+            }
         }
     }
 
@@ -423,18 +426,32 @@ const initializeNewUser = async (userId) => {
 };
 
 /**
+ * Helper to get the IP address captured by SettingsContext
+ */
+const getCapturedIp = () => {
+    try {
+        return localStorage.getItem('captured_ip') || null;
+    } catch (e) {
+        return null;
+    }
+};
+
+/**
  * Log search query for analytics
  */
 export const logSearch = async (query, version, testament) => {
     try {
         const userId = await getUserId();
+        const ipAddress = getCapturedIp();
+
         await supabase.from('search_logs').insert([
             {
                 query,
                 version: version || 'all',
                 testament: testament || 'all',
                 user_id: userId,
-                device_info: navigator.userAgent
+                device_info: navigator.userAgent,
+                ip_address: ipAddress
             }
         ]);
     } catch (err) {
@@ -462,6 +479,7 @@ export const logActivity = async (activityType) => {
             user_id: userId,
             activity_type: activityType,
             // details: {}, // Removed due to missing schema column
+            ip_address: getCapturedIp(),
             created_at: new Date().toISOString()
         });
 
@@ -477,7 +495,15 @@ export const logActivity = async (activityType) => {
 export const getUserStatistics = async () => {
     try {
         // 1. Try Global RPC (Secure Global Data)
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_user_stats_v2');
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_user_stats_v5');
+
+        if (rpcError) {
+            // If it's a 404 (Not Found), it means the function doesn't exist.
+            // We ignore this and let the fallback logic below take over.
+            if (rpcError.code !== 'PGRST116' && rpcError.status !== 404) {
+                console.warn('RPC Stats Error:', rpcError);
+            }
+        }
 
         if (!rpcError && rpcData) {
             const users = rpcData.users || [];
@@ -489,7 +515,7 @@ export const getUserStatistics = async () => {
                 device: u.device || 'Unknown',
                 displayId: u.email || u.user_id,
                 lastSeen: u.last_seen,
-                originalIds: new Set([u.user_id]) // Helper for existing logic
+                originalIds: [u.user_id] // Helper for existing logic
             }));
 
             // Calculate global activity counts for the chart
@@ -548,7 +574,7 @@ export const getUserStatistics = async () => {
         const blogReq = supabase.from('blog_views').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
         const readingReq = supabase.from('bible_reading_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
         const activityReq = supabase.from('user_activity_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
-        const profileReq = supabase.from('user_profiles').select('user_id, email, subscription_tier, subscription_override, subscription_expiry');
+        const profileReq = supabase.from('user_profiles').select('user_id, email, last_ip, subscription_tier, subscription_override, subscription_expiry');
 
         const [searchRes, aiRes, blogRes, readingRes, activityRes, profileRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq, profileReq]);
 
@@ -587,6 +613,7 @@ export const getUserStatistics = async () => {
                         count: 0,
                         devices: [],
                         email: p.email || null,
+                        last_ip: p.last_ip || null,
                         originalIds: new Set(),
                         isSubscriber: false
                     };
@@ -612,7 +639,11 @@ export const getUserStatistics = async () => {
             const identity = profileMap[uid] || uid;
 
             if (!userStats[identity]) {
-                // This handles legacy logs with no profile mapping
+                // [FIX] If the profile is missing AND this isn't an email we already know,
+                // we should check if they even have a valid existence in profileRes.data.
+                // If they are not in the profile table, they are likely deleted - IGNORE THEM.
+                if (!profileMap[uid]) return;
+
                 userStats[identity] = {
                     count: 0,
                     devices: [],
@@ -655,6 +686,7 @@ export const getUserStatistics = async () => {
             .map(id => ({
                 userId: id, // Identity (email or ID)
                 email: userStats[id].email,
+                last_ip: userStats[id].last_ip,
                 displayId: userStats[id].email || id,
                 count: userStats[id].count,
                 device: getDeviceName(userStats[id].devices),
@@ -1066,7 +1098,8 @@ export const logBibleReading = async (bookId, chapter) => {
             user_id: userId,
             book_id: bookId,
             chapter: chapter,
-            device_info: navigator.userAgent
+            device_info: navigator.userAgent,
+            ip_address: getCapturedIp()
         }).then(({ error }) => {
             if (error) console.warn('❌ Error logging Bible reading:', error);
         });
@@ -1099,13 +1132,19 @@ export const updateLastReadState = async (userId, state) => {
     try {
         if (!userId) userId = await getUserId();
 
+        // Skip cloud sync for guest users - they use localStorage only
+        if (userId.startsWith('user_')) {
+            console.log('[Sync] Skipping cloud sync for guest user');
+            return;
+        }
+
         const { error } = await supabase
             .from('user_profiles')
-            .upsert({
-                user_id: userId,
+            .update({
                 last_read_state: state,
                 last_seen: new Date().toISOString()
-            }, { onConflict: 'user_id' });
+            })
+            .eq('user_id', userId);
 
         if (error) throw error;
     } catch (err) {
@@ -1141,7 +1180,11 @@ export const getLastReadState = async (userId) => {
 export const getGlobalSermonStats = async () => {
     try {
         // 1. Try RPC First (Secure Global Stats)
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_sermon_counts_v2');
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_sermon_counts_v5');
+
+        if (rpcError) {
+            if (rpcError.status !== 404) console.warn('Sermon Stats RPC Missing:', rpcError);
+        }
 
         if (!rpcError && rpcData) {
             return rpcData.map(d => ({

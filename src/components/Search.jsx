@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference, getBooks, getVerseByReference, getUserId } from '../services/bibleService';
 import { useSettings } from '../context/SettingsContext';
 import SearchHelpModal from './SearchHelpModal';
-import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch, getArchaeologicalContext, getAIHistory } from '../services/aiService';
+import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch, getAIHistory } from '../services/aiService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { saveBulkHighlights, removeBulkHighlights, getAllHighlights } from '../services/highlightService';
 import ColorPickerModal from './ColorPickerModal';
@@ -65,7 +65,6 @@ function Search({ currentVersion, versions }) {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [showMobileResults, setShowMobileResults] = useState(false);
     const [isVerseShortcutResponse, setIsVerseShortcutResponse] = useState(false); // Track if current AI response is from /Bible Verse
-    const [archaeologyData, setArchaeologyData] = useState(null); // Structured archaeological report
 
     // Bulk Highlight State
     const [selectedVerses, setSelectedVerses] = useState(new Set());
@@ -314,7 +313,6 @@ function Search({ currentVersion, versions }) {
         { cmd: '/teach', desc: settings.language === 'af' ? 'Wat leer die Bybel oor...' : 'What does the Bible teach...', icon: '🎓' },
         { cmd: '/compare', desc: settings.language === 'af' ? 'Vergelyk in die Bybel...' : 'Compare in the Bible...', icon: '⚖️' },
         { cmd: '/Bible Verse', desc: settings.language === 'af' ? 'Vind en kopieer verse...' : 'Find and copy verses...', icon: '📋' },
-        { cmd: '/archaeology', desc: settings.language === 'af' ? 'Argeologiese navorsing oor...' : 'Archaeological research on...', icon: '🏺' },
         { cmd: '/help', desc: settings.language === 'af' ? 'Wys alle kortpaaie' : 'Show all shortcuts', icon: 'ℹ️' },
     ];
 
@@ -602,8 +600,22 @@ function Search({ currentVersion, versions }) {
 
         if (mode === 'semantic') {
             console.log("🚀 Starting Semantic Search for:", query);
-            const { performSemanticSearch } = await import('../services/aiService');
+
+            // --- REGISTRATION GATING ---
             const uid = currentUserId || await getUserId();
+            if (uid && uid.startsWith('user_')) {
+                const promptMsg = settings.language === 'af'
+                    ? 'Om Semantiese (AI) soektog te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                    : 'To use Semantic (AI) Search, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+                if (window.confirm(promptMsg)) {
+                    navigate('/auth');
+                }
+                setLoading(false);
+                return;
+            }
+
+            const { performSemanticSearch } = await import('../services/aiService');
             const aiResult = await performSemanticSearch(uid, query.trim(), versionId, testament, settings.language);
 
             console.log("🤖 AI raw result:", aiResult);
@@ -786,9 +798,22 @@ function Search({ currentVersion, versions }) {
     const submitAIQuestion = async () => {
         if (!aiQuestion.trim()) return;
 
+        // --- REGISTRATION GATING ---
+        // Check if user is anonymous/guest
+        const uid = currentUserId || await getUserId();
+        if (uid && uid.startsWith('user_')) {
+            const promptMsg = settings.language === 'af'
+                ? 'Om AI-kenmerke te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To use AI features, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
+
         setAiLoading(true);
         setAiResponse(null);
-        setArchaeologyData(null);
 
         // Process shortcuts like /story, /explain, /meaning
         let processedQuestion = aiQuestion.trim();
@@ -843,35 +868,8 @@ Here are the available shortcuts to quickly ask questions:
 • **/Bible Verse [topic]** - Find and copy 5 verses for a topic.
   Example: \`/Bible Verse God Love\` or \`/Bible Verse 5 verses describe God Love for Us in new Testament\`
 
-• **/archaeology [topic/passage]** - Get archaeological context.
-  Example: \`/archaeology Megiddo\` or \`/archaeology John 9\`
 
 💡 **Tip:** Just type the shortcut followed by your topic and press Ask!`);
-            return;
-        }
-
-        const isArchaeologyRequest = processedQuestion.toLowerCase().startsWith('/archaeology ');
-        if (isArchaeologyRequest) {
-            const topic = processedQuestion.substring(13).trim();
-            const uid = currentUserId || await getUserId();
-            const result = await getArchaeologicalContext(uid, topic, settings.language);
-            setAiLoading(false);
-            if (result.success) {
-                setArchaeologyData(result.data);
-                setIsAnswerExpanded(true);
-                // Save to history (summary)
-                const newEntry = {
-                    question: aiQuestion,
-                    answer: result.data.summary,
-                    timestamp: Date.now()
-                };
-                const updatedHistory = [newEntry, ...aiHistory].slice(0, 20);
-                setAiHistory(updatedHistory);
-                localStorage.setItem('ai_search_history', JSON.stringify(updatedHistory));
-                await loadQuotaInfo();
-            } else {
-                setAiResponse(`❌ ${result.error}`);
-            }
             return;
         }
 
@@ -917,8 +915,8 @@ Here are the available shortcuts to quickly ask questions:
             text: v.text
         }));
 
-        const uid = currentUserId || await getUserId();
-        const result = await askBibleQuestion(uid, processedQuestion, verseContext, settings.language);
+        const currentUid = currentUserId || await getUserId();
+        const result = await askBibleQuestion(currentUid, processedQuestion, verseContext, settings.language);
 
         setAiLoading(false);
 
@@ -1078,7 +1076,7 @@ Here are the available shortcuts to quickly ask questions:
                 });
                 // Persist state, don't close modal (handled by caching)
             } else {
-                console.warn(`Book not found: ${bookNameRaw} (Normalized: ${targetName})`);
+                console.warn(`Book not found: ${bookNameRaw}(Normalized: ${targetName})`);
                 // Optional: Flash a toast or error to user
             }
         } catch (e) {
@@ -1118,7 +1116,7 @@ Here are the available shortcuts to quickly ask questions:
 
                         return (
                             <button
-                                key={`${index}-${refIdx}`}
+                                key={`${index} - ${refIdx}`}
                                 className="citation-link"
                                 onClick={() => handleCitationClick(fullRef)}
                                 title="Read this verse"
@@ -1146,7 +1144,7 @@ Here are the available shortcuts to quickly ask questions:
     };
 
     return (
-        <div className={`search-page ${showMobileResults ? 'mobile-results-open' : ''}`}>
+        <div className={`search - page ${showMobileResults ? 'mobile-results-open' : ''}`}>
             <div className="search-header">
                 <div className="header-top-row">
                     {showMobileResults ? (
@@ -1264,7 +1262,7 @@ Here are the available shortcuts to quickly ask questions:
                             )}
                             <button
                                 type="button"
-                                className={`history-toggle-btn ${showHistory ? 'active' : ''}`}
+                                className={`history - toggle - btn ${showHistory ? 'active' : ''}`}
                                 id="tutorial-history"
                                 onClick={toggleHistory}
                                 title="Search History"
@@ -1335,16 +1333,16 @@ Here are the available shortcuts to quickly ask questions:
 
                 <div className="search-filters" id="tutorial-filters">
                     <div className="mode-toggle" id="tutorial-search-mode">
-                        <div className={`mode-slider ${searchMode}`}></div>
+                        <div className={`mode - slider ${searchMode}`}></div>
                         <button
-                            className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
+                            className={`mode - btn ${searchMode === 'exact' ? 'active' : ''} `}
                             onClick={() => handleFilterChange('mode', 'exact')}
                             type="button"
                         >
                             {settings.language === 'af' ? 'Presiese Soektog' : 'Exact Match'}
                         </button>
                         <button
-                            className={`mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
+                            className={`mode - btn ${searchMode === 'semantic' ? 'active' : ''} `}
                             onClick={() => handleFilterChange('mode', 'semantic')}
                             type="button"
                         >
@@ -1392,7 +1390,7 @@ Here are the available shortcuts to quickly ask questions:
                         <div className="history-bar-header">
                             <span className="history-label">{settings.language === 'af' ? 'Onlangse' : 'Recent'}</span>
                             <button
-                                className={`history-manage-btn ${isHistoryEditMode ? 'active' : ''}`}
+                                className={`history - manage - btn ${isHistoryEditMode ? 'active' : ''} `}
                                 onClick={() => setIsHistoryEditMode(!isHistoryEditMode)}
                             >
                                 {isHistoryEditMode
@@ -1400,15 +1398,15 @@ Here are the available shortcuts to quickly ask questions:
                                     : (settings.language === 'af' ? 'Bestuur' : 'Manage')}
                             </button>
                         </div>
-                        <div className={`recent-history-bar ${isHistoryEditMode ? 'edit-mode' : ''}`}>
+                        <div className={`recent - history - bar ${isHistoryEditMode ? 'edit-mode' : ''} `}>
                             {history.map((term, i) => {
                                 const query = term && typeof term === 'object' ? term.query : (typeof term === 'string' ? term : '');
                                 const mode = term && typeof term === 'object' ? term.mode : 'exact';
                                 if (!query) return null;
                                 return (
                                     <button
-                                        key={`${i}-${query}`}
-                                        className={`history-chip ${mode === 'semantic' ? 'semantic' : ''} ${isHistoryEditMode ? 'deletable' : ''}`}
+                                        key={`${i} -${query} `}
+                                        className={`history - chip ${mode === 'semantic' ? 'semantic' : ''} ${isHistoryEditMode ? 'deletable' : ''} `}
                                         style={{ '--i': i }}
                                         onClick={() => {
                                             if (isHistoryEditMode) {
@@ -1446,7 +1444,7 @@ Here are the available shortcuts to quickly ask questions:
                                     <p className="results-count">
                                         {settings.language === 'af'
                                             ? `${results.length || semanticResults.length} vers${(results.length || semanticResults.length) !== 1 ? 'e' : ''} gevind`
-                                            : `Found ${results.length || semanticResults.length} verse${(results.length || semanticResults.length) !== 1 ? 's' : ''}`
+                                            : `Found ${results.length || semanticResults.length} verse${(results.length || semanticResults.length) !== 1 ? 's' : ''} `
                                         }
                                     </p>
                                     {/* Tutorial Mode Toggle in Results */}
@@ -1470,7 +1468,7 @@ Here are the available shortcuts to quickly ask questions:
                                             className="copy-all-btn btn-secondary"
                                             onClick={handleCopyAllSemantic}
                                         >
-                                            {copyStatus === 'Copy' ? (settings.language === 'af' ? '📋 Kopieer Alles' : '📋 Copy All') : `✅ ${copyStatus}`}
+                                            {copyStatus === 'Copy' ? (settings.language === 'af' ? '📋 Kopieer Alles' : '📋 Copy All') : `✅ ${copyStatus} `}
                                         </button>
                                     )}
                                     <button
@@ -1511,7 +1509,7 @@ Here are the available shortcuts to quickly ask questions:
                             <div
                                 className="results-list"
                                 style={{
-                                    fontSize: `${settings.fontSize}px`,
+                                    fontSize: `${settings.fontSize} px`,
                                     fontFamily: settings.fontFamily === 'serif' ? '"Merriweather", "Times New Roman", serif' : 'system-ui, -apple-system, sans-serif'
                                 }}
                             >
@@ -1524,10 +1522,10 @@ Here are the available shortcuts to quickly ask questions:
 
                                 {searchMode === 'semantic' ? (
                                     semanticResults.map((verse, index) => {
-                                        const key = `${verse.books.id}-${verse.chapter}-${verse.verse}-${verse.version}`;
+                                        const key = `${verse.books.id} -${verse.chapter} -${verse.verse} -${verse.version} `;
                                         const isSelected = selectedVerses.has(key);
                                         return (
-                                            <div key={index} className={`verse-card semantic-card ${isSelected ? 'selected' : ''}`} onClick={() => {
+                                            <div key={index} className={`verse - card semantic - card ${isSelected ? 'selected' : ''} `} onClick={() => {
                                                 navigate('/bible', {
                                                     state: {
                                                         bookId: verse.books.id,
@@ -1568,10 +1566,10 @@ Here are the available shortcuts to quickly ask questions:
                                     })
                                 ) : (
                                     results.map((verse, index) => {
-                                        const key = `${verse.books.id}-${verse.chapter}-${verse.verse}-${verse.version}`;
+                                        const key = `${verse.books.id} -${verse.chapter} -${verse.verse} -${verse.version} `;
                                         const isSelected = selectedVerses.has(key);
                                         return (
-                                            <div key={index} className={`verse-card ${isSelected ? 'selected' : ''}`} onClick={() => {
+                                            <div key={index} className={`verse - card ${isSelected ? 'selected' : ''} `} onClick={() => {
                                                 navigate('/bible', {
                                                     state: {
                                                         bookId: verse.books.id,
@@ -1639,7 +1637,7 @@ Here are the available shortcuts to quickly ask questions:
                                 </div>
                                 <div className="header-controls">
                                     {/* Tutorial Mode Toggle in Modal */}
-                                    <label className="tutorial-toggle-label ai-modal-tutorial-toggle" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                                    <label className="tutorial-toggle-label ai-modal-tutorial-toggle">
                                         <input
                                             type="checkbox"
                                             checked={isTutorialMode}
@@ -1715,14 +1713,14 @@ Here are the available shortcuts to quickly ask questions:
 
                                 {aiResponse && (
                                     <div
-                                        className={`info-section ai-response ${isAnswerExpanded ? 'expanded' : ''}`}
+                                        className={`info - section ai - response ${isAnswerExpanded ? 'expanded' : ''} `}
                                         onDoubleClick={() => setIsAnswerExpanded(!isAnswerExpanded)}
                                     >
                                         <div className="ai-response-header">
                                             <h3>{t.biblicalAnswer}</h3>
                                             <div className="ai-response-actions">
                                                 <button
-                                                    className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
+                                                    className={`copy - btn ${copyStatus === 'Copied!' ? 'success' : ''} `}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         copyToClipboard();
@@ -1767,64 +1765,7 @@ Here are the available shortcuts to quickly ask questions:
                                     </div>
                                 )}
 
-                                {archaeologyData && (
-                                    <div className={`info-section archaeology-report ${isAnswerExpanded ? 'expanded' : ''}`}>
-                                        <div className="archaeology-header">
-                                            <h3>🏺 {settings.language === 'af' ? 'Argeologiese Konteksopsomming' : 'Archaeological Context Summary'}</h3>
-                                            <span className="archaeology-period">{archaeologyData.period}</span>
-                                        </div>
 
-                                        <p className="archaeology-summary">{archaeologyData.summary}</p>
-
-                                        <div className="archaeology-section">
-                                            <h4>🏺 {settings.language === 'af' ? 'Sleutel Ontdekkings' : 'Key Discoveries'}</h4>
-                                            <div className="archaeology-grid">
-                                                {archaeologyData.discoveries?.map((d, i) => (
-                                                    <div key={i} className="archaeology-card">
-                                                        <h4>{d.name}</h4>
-                                                        <p><strong>{settings.language === 'af' ? 'Beskrywing:' : 'Description:'}</strong> {d.description}</p>
-                                                        <p><strong>{settings.language === 'af' ? 'Relevansie:' : 'Relevance:'}</strong> {d.relevance}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="archaeology-section">
-                                            <h4>🗺️ {settings.language === 'af' ? 'Terrein Analise' : 'Site Analysis'}</h4>
-                                            <div className="archaeology-grid">
-                                                {archaeologyData.sites?.map((s, i) => (
-                                                    <div key={i} className="archaeology-card">
-                                                        <h4>{s.name}</h4>
-                                                        <p>{s.archaeologicalStatus}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="archaeology-section">
-                                            <h4>📜 {settings.language === 'af' ? 'Kulturele Parallelle' : 'Cultural Parallels'}</h4>
-                                            <div className="archaeology-parallels">
-                                                {archaeologyData.parallels}
-                                            </div>
-                                        </div>
-
-                                        <div className="consensus-box">
-                                            <strong>{settings.language === 'af' ? 'Akademiese Konsensus:' : 'Scholarly Consensus:'}</strong> {archaeologyData.scholarlyConsensus}
-                                        </div>
-
-                                        <div className="ai-response-actions" style={{ marginTop: '20px', justifyContent: 'center' }}>
-                                            <button
-                                                className="close-btn back-to-results"
-                                                onClick={() => {
-                                                    setIsAnswerExpanded(false);
-                                                    setShowAIModal(false);
-                                                }}
-                                            >
-                                                {t.backToResults}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
 
                                 {!isAnswerExpanded && (
                                     <div className="info-footer" id="tutorial-ai-quota">
@@ -1841,7 +1782,7 @@ Here are the available shortcuts to quickly ask questions:
                                             onClick={() => setShowAIHistory(!showAIHistory)}
                                         >
                                             {t.prevQuestions(aiHistory.length)}
-                                            <span className={`toggle-arrow ${showAIHistory ? 'open' : ''}`}>▼</span>
+                                            <span className={`toggle - arrow ${showAIHistory ? 'open' : ''} `}>▼</span>
                                         </button>
 
                                         {showAIHistory && (
@@ -1855,24 +1796,10 @@ Here are the available shortcuts to quickly ask questions:
                                                                 onClick={() => {
                                                                     setAiQuestion(item.question);
                                                                     if (item.answer) {
-                                                                        // Check if it's archaeology (stored as JSON string)
-                                                                        if (item.question.includes('Archaeological Research:') || (typeof item.answer === 'string' && item.answer.startsWith('{'))) {
-                                                                            try {
-                                                                                const archData = JSON.parse(item.answer);
-                                                                                setArchaeologyData(archData);
-                                                                                setAiResponse(null);
-                                                                            } catch (e) {
-                                                                                setAiResponse(item.answer);
-                                                                                setArchaeologyData(null);
-                                                                            }
-                                                                        } else {
-                                                                            setAiResponse(item.answer);
-                                                                            setArchaeologyData(null);
-                                                                        }
+                                                                        setAiResponse(item.answer);
                                                                         setIsAnswerExpanded(true);
                                                                     } else {
                                                                         setAiResponse(null);
-                                                                        setArchaeologyData(null);
                                                                     }
                                                                 }}
                                                                 title="View this answer"
