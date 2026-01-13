@@ -21,6 +21,7 @@ const Auth = lazy(() => import('./components/Auth'));
 const SermonPrep = lazy(() => import('./components/SermonPrep'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const SubscriptionPage = lazy(() => import('./components/SubscriptionPage'));
+const Legal = lazy(() => import('./components/Legal'));
 
 function App() {
     const [currentVersion, setCurrentVersion] = useState(null);
@@ -133,6 +134,14 @@ function App() {
                                     <Route
                                         path="/subscription"
                                         element={<SubscriptionPage />}
+                                    />
+                                    <Route
+                                        path="/privacy"
+                                        element={<Legal type="privacy" />}
+                                    />
+                                    <Route
+                                        path="/terms"
+                                        element={<Legal type="terms" />}
                                     />
                                     <Route path="/" element={<Navigate to="/bible" replace />} />
                                 </Routes>

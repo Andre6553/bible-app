@@ -17,6 +17,7 @@ const TABLES_TO_MIGRATE = [
     'search_logs',
     'ai_questions',
     'devotional_history',
+    'sermons',
     'user_settings'
 ];
 

@@ -823,193 +823,112 @@ function Profile() {
                     <>
                         {/* Highlights Tab */}
                         {activeTab === 'highlights' && (
-                            <div className="highlights-grouped-container" id="tutorial-highlight-discovery">
+                            <div className="highlights-list-container">
                                 {uniqueLabels.length === 0 ? (
-                                    <div className="empty-state">
-                                        <p>No highlights yet</p>
-                                        <p className="empty-hint">Tap on a verse while reading to add highlights</p>
+                                    <div className="premium-empty-state">
+                                        <div className="empty-state-icon">🖍️</div>
+                                        <h3>No highlights yet</h3>
+                                        <p>As you read the Bible, long-press or tap a verse to highlight your favorite passages.</p>
+                                        <button className="cta-btn" onClick={() => navigate('/bible')}>
+                                            Start Reading
+                                        </button>
                                     </div>
                                 ) : (
-                                    // Render Category Headers directly (On-Demand Mode)
-                                    uniqueLabels.map(label => {
-                                        const isExpanded = expandedCategories[label];
-
-                                        // Filter highlights for this label from the loaded 'highlights' array
-                                        const group = highlights.filter(h => {
-                                            const catLabel = categories[h.color];
-
-                                            // Handle Other Highlights
-                                            if (label === 'Other Highlights') {
-                                                // Show if the highlight's color is NOT assigned to any known category
-                                                // This handles uncategorized colors, custom hexes, etc.
-                                                if (!categories[h.color]) return true;
-                                                return false;
-                                            }
-
-                                            if (!catLabel) return false;
-
-                                            // Check text splitting logic
-                                            const allLabels = String(catLabel).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l);
-                                            if (!allLabels.includes(label)) return false;
-
-                                            if (allLabels.length > 1) {
-                                                // [NEW] Use explicit label if available
-                                                if (h.label) {
+                                    <div className="highlights-grouped-container" id="tutorial-highlight-discovery">
+                                        {uniqueLabels.map(label => {
+                                            const isExpanded = expandedCategories[label];
+                                            const group = highlights.filter(h => {
+                                                const catLabel = categories[h.color];
+                                                if (label === 'Other Highlights') {
+                                                    if (!categories[h.color]) return true;
+                                                    return false;
+                                                }
+                                                if (!catLabel) return false;
+                                                const allLabels = String(catLabel).split(/[,，、;|/&+]/).map(l => l.trim()).filter(l => l);
+                                                if (!allLabels.includes(label)) return false;
+                                                if (allLabels.length > 1 && h.label) {
                                                     return h.label === label;
                                                 }
-
-                                                const verseText = (h.text || '').toLowerCase();
-                                                const match = verseText.includes(label.toLowerCase());
-                                                // Fallback if no match: show in all
-                                                if (!match) {
-                                                    const anyMatch = allLabels.some(l => verseText.includes(l.toLowerCase()));
-                                                    if (!anyMatch) return true; // Show in all if no match found
-                                                    return false; // Matched another label, not this one
-                                                }
                                                 return true;
-                                            }
-                                            return true;
-                                        });
-
-                                        // Calculate if we are still loading data for this category
-                                        const categoryColors = label === 'Other Highlights'
-                                            ? [] // Managed by loadingSpecificCategory state
-                                            : Object.keys(categories).filter(c => {
-                                                const l = categories[c];
-                                                return String(l).split(/[,，、;|/&+]/).map(s => s.trim()).includes(label);
                                             });
 
-                                        // For "Other Highlights", we check the RPC loading state.
-                                        // For others, we check if all relevant colors are loaded.
-                                        const isFullyLoaded = label === 'Other Highlights'
-                                            ? !loadingSpecificCategory[label]
-                                            : categoryColors.every(c => loadedColors.has(c));
+                                            const categoryColors = label === 'Other Highlights' ? [] : Object.keys(categories).filter(c => {
+                                                return String(categories[c]).split(/[,，、;|/&+]/).map(s => s.trim()).includes(label);
+                                            });
+                                            const isFullyLoaded = label === 'Other Highlights' ? !loadingSpecificCategory[label] : categoryColors.every(c => loadedColors.has(c));
 
-                                        return (
-                                            <div key={label} className={`highlight-category-group ${isExpanded ? 'is-expanded' : ''}`}>
-                                                <div className="category-header-wrapper">
-                                                    <button
-                                                        className="category-header"
-                                                        onClick={() => toggleCategory(label)}
-                                                        aria-expanded={isExpanded}
-                                                    >
-                                                        <span className="category-title">{label}</span>
-                                                        <span className="category-count">
-                                                            {/* If loaded, show count. If not, show '?' or just '...' */}
-                                                            {isExpanded ? `(${group.length})` : '(Click to Load)'}
-                                                        </span>
-                                                        <span className="category-chevron">{isExpanded ? '▼' : '▶'}</span>
-                                                    </button>
-
-                                                    <button
-                                                        className="delete-category-btn"
-                                                        onClick={(e) => openDeleteConfirm('category', label, label, e)}
-                                                        title={
-                                                            label === 'Other Highlights'
-                                                                ? (settings.language === 'af' ? 'Vee alle hoogtepunte hier uit' : 'Delete all highlights in this group')
-                                                                : (settings.language === 'af' ? 'Vee kategorie uit' : 'Delete category')
-                                                        }
-                                                    >
-                                                        🗑️
-                                                    </button>
-                                                </div>
-
-                                                {isExpanded && (
-                                                    <div className="highlights-list">
-                                                        {group.length === 0 ? (
-                                                            !isFullyLoaded ? (
-                                                                <div style={{ padding: '10px', color: '#888', fontStyle: 'italic' }}>Loading verses...</div>
-                                                            ) : (
-                                                                <div style={{ padding: '10px', color: '#888', fontStyle: 'italic' }}>No verses found</div>
-                                                            )
-                                                        ) : (
-                                                            group.map(h => (
-                                                                <div
-                                                                    key={h.id}
-                                                                    className="highlight-item"
-                                                                    onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}
-                                                                >
-                                                                    <div
-                                                                        className="highlight-color-dot"
-                                                                        style={{ backgroundColor: h.color }}
-                                                                    />
-                                                                    <div className="highlight-info">
-                                                                        <span className="highlight-ref">
-                                                                            {getBookName(h.book_id)} {h.chapter}:{h.verse}
-                                                                        </span>
-                                                                        <span className="highlight-version">{h.version}</span>
-                                                                    </div>
-                                                                    <button
-                                                                        className="delete-btn"
-                                                                        onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:{h.verse}`, e)}
-                                                                    >
-                                                                        🗑️
-                                                                    </button>
-                                                                </div>
-                                                            ))
-                                                        )}
+                                            return (
+                                                <div key={label} className={`highlight-category-group ${isExpanded ? 'is-expanded' : ''}`}>
+                                                    <div className="category-header-wrapper">
+                                                        <button className="category-header" onClick={() => toggleCategory(label)}>
+                                                            <span className="category-title">{label}</span>
+                                                            <span className="category-count">{isExpanded ? `(${group.length})` : '(Click to Load)'}</span>
+                                                            <span className="category-chevron">{isExpanded ? '▼' : '▶'}</span>
+                                                        </button>
+                                                        <button className="delete-category-btn" onClick={(e) => openDeleteConfirm('category', label, label, e)}>🗑️</button>
                                                     </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })
+                                                    {isExpanded && (
+                                                        <div className="highlights-list">
+                                                            {group.length === 0 ? (
+                                                                <div style={{ padding: '10px', color: '#888', fontStyle: 'italic' }}>{isFullyLoaded ? 'No verses found' : 'Loading verses...'}</div>
+                                                            ) : (
+                                                                group.map(h => (
+                                                                    <div key={h.id} className="highlight-item" onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}>
+                                                                        <div className="highlight-color-dot" style={{ backgroundColor: h.color }} />
+                                                                        <div className="highlight-info">
+                                                                            <span className="highlight-ref">{getBookName(h.book_id)} {h.chapter}:{h.verse}</span>
+                                                                            <span className="highlight-version">{h.version}</span>
+                                                                        </div>
+                                                                        <button className="delete-btn" onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:{h.verse}`, e)}>🗑️</button>
+                                                                    </div>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                        <div style={{ height: '300px', width: '100%', flexShrink: 0 }}></div>
+                                    </div>
                                 )}
-                                {/* Physical Spacer to force scroll */}
-                                <div style={{ height: '300px', width: '100%', flexShrink: 0 }}></div>
                             </div>
                         )}
 
                         {/* Notes Tab */}
                         {activeTab === 'notes' && (
-                            <div className="notes-list">
-                                {selectedStudyId && (
-                                    <div className="filter-banner">
-                                        <span>
-                                            Filtering by study: <strong>{studies.find(s => s.id === selectedStudyId)?.name}</strong>
-                                        </span>
-                                        <button onClick={() => setSelectedStudyId(null)}>Clear Filter</button>
-                                    </div>
-                                )}
-                                {(selectedStudyId ? notes.filter(n => n.study_id === selectedStudyId) : notes).length === 0 ? (
-                                    <div className="empty-state">
-                                        <p>No notes yet</p>
-                                        <p className="empty-hint">Add notes to verses for personal study</p>
+                            <div className="notes-list-container">
+                                {notes.length === 0 ? (
+                                    <div className="premium-empty-state">
+                                        <div className="empty-state-icon">📝</div>
+                                        <h3>Your thoughts, preserved</h3>
+                                        <p>Capture your reflections, prayers, and insights as you study the Word.</p>
+                                        <button className="cta-btn" onClick={() => navigate('/bible')}>
+                                            Go to Bible
+                                        </button>
                                     </div>
                                 ) : (
-                                    (selectedStudyId ? notes.filter(n => n.study_id === selectedStudyId) : notes).map(note => (
-                                        <div
-                                            key={note.id}
-                                            className="note-item"
-                                            onClick={() => {
-                                                logActivity('notes_visit');
-                                                navigateToVerse(note.book_id, note.chapter, note.verse);
-                                            }}
-                                        >
-                                            <div className="note-ref">
-                                                {getBookName(note.book_id)} {note.chapter}:{note.verse}
+                                    <div className="notes-list">
+                                        {selectedStudyId && (
+                                            <div className="filter-banner">
+                                                <span>Filtering by study: <strong>{studies.find(s => s.id === selectedStudyId)?.name}</strong></span>
+                                                <button onClick={() => setSelectedStudyId(null)}>Clear Filter</button>
                                             </div>
-                                            <p className="note-text-preview">{note.note_text}</p>
-                                            <div className="note-footer">
-                                                {note.study_collections && (
-                                                    <span
-                                                        className="note-study-badge"
-                                                        style={{ backgroundColor: note.study_collections.color }}
-                                                    >
-                                                        {note.study_collections.name}
-                                                    </span>
-                                                )}
-                                                <button
-                                                    className="delete-btn"
-                                                    onClick={(e) => openDeleteConfirm('note', note.id, `${getBookName(note.book_id)} ${note.chapter}:${note.verse}`, e)}
-                                                >
-                                                    🗑️
-                                                </button>
+                                        )}
+                                        {(selectedStudyId ? notes.filter(n => n.study_id === selectedStudyId) : notes).map(note => (
+                                            <div key={note.id} className="note-item" onClick={() => navigate(`/bible?book=${note.book_id}&chapter=${note.chapter}`)}>
+                                                <div className="note-ref">{getBookName(note.book_id)} {note.chapter}:{note.verse}</div>
+                                                <p className="note-text-preview">{note.note_text}</p>
+                                                <div className="note-footer">
+                                                    {note.study_collections && (
+                                                        <span className="note-study-badge" style={{ backgroundColor: note.study_collections.color }}>{note.study_collections.name}</span>
+                                                    )}
+                                                    <button className="delete-btn" onClick={(e) => openDeleteConfirm('note', note.id, `${getBookName(note.book_id)} ${note.chapter}:${note.verse}`, e)}>🗑️</button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        ))}
+                                        <div style={{ height: '300px', width: '100%', flexShrink: 0 }}></div>
+                                    </div>
                                 )}
-                                {/* Physical Spacer to force scroll */}
-                                <div style={{ height: '300px', width: '100%', flexShrink: 0 }}></div>
                             </div>
                         )}
 
@@ -1135,57 +1054,54 @@ function Profile() {
 
                         {/* Downloads Tab */}
                         {activeTab === 'downloads' && (
-                            <div className="downloads-list">
-                                <div className="debug-section" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#3f1a1a', borderRadius: '8px', border: '1px solid #ef4444' }}>
-                                    <h3 style={{ color: '#ef4444', marginTop: 0 }}>Troubleshooting</h3>
-                                    <p style={{ fontSize: '0.9rem', color: '#ccc' }}>
-                                        If you are seeing old data or weird characters (like "Â k"), tap this button to reset the app cache completely.
+                            <div className="premium-downloads-container">
+                                <div className="troubleshooting-card glass-panel">
+                                    <div className="troubleshooting-header">
+                                        <span className="icon">🛡️</span>
+                                        <h3>Troubleshooting</h3>
+                                    </div>
+                                    <p className="troubleshooting-text">
+                                        Seeing old data or unusual characters? Resetting the cache can resolve local storage inconsistencies.
                                     </p>
                                     <button
-                                        className="reset-app-btn"
-                                        style={{
-                                            backgroundColor: '#ef4444',
-                                            color: 'white',
-                                            border: 'none',
-                                            padding: '10px 20px',
-                                            borderRadius: '6px',
-                                            marginTop: '10px',
-                                            cursor: 'pointer',
-                                            width: '100%',
-                                            fontWeight: 'bold'
-                                        }}
+                                        className="premium-reset-btn"
                                         onClick={async () => {
                                             if (window.confirm("This will clear all offline data and refresh the app. Continue?")) {
-                                                // 1. Unregister Service Workers
                                                 if ('serviceWorker' in navigator) {
                                                     const registrations = await navigator.serviceWorker.getRegistrations();
                                                     for (let registration of registrations) {
                                                         await registration.unregister();
                                                     }
                                                 }
-                                                // 2. Clear Cache Storage
                                                 if ('caches' in window) {
                                                     const keys = await caches.keys();
                                                     for (let key of keys) {
                                                         await caches.delete(key);
                                                     }
                                                 }
-                                                // 3. Clear Local Storage (Optional, but safe for verse data)
-                                                // We preserve 'user_settings' if needed, but for 'corrupt verse data' total wipe is safer.
-                                                // localStorage.clear(); 
-                                                // Let's NOT clear localStorage entirely to keep highlights/notes unless user wants to.
-                                                // Just reload.
                                                 window.location.reload(true);
                                             }
                                         }}
                                     >
-                                        ⚠️ Hard Reset App Data
+                                        <span className="btn-icon">⚠️</span>
+                                        <span className="btn-text">Reset App Cache</span>
                                     </button>
                                 </div>
 
-                                <div className="storage-info" style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>💾 Storage used: {storageUsage}</span>
-                                    <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 'bold' }}>✨ Full Bible Support Enabled</span>
+                                <div className="storage-dashboard">
+                                    <div className="storage-stats">
+                                        <div className="storage-left">
+                                            <span className="storage-label">Local Storage</span>
+                                            <span className="storage-value">{storageUsage}</span>
+                                        </div>
+                                        <span className="storage-feature-badge">✨ Sync Enabled</span>
+                                    </div>
+                                    <div className="storage-pills">
+                                        {/* Visual bar placeholder - CSS will handle the fill */}
+                                        <div className="storage-bar">
+                                            <div className="storage-fill" style={{ width: '35%' }}></div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {versions.map(version => {
@@ -1195,45 +1111,56 @@ function Profile() {
                                     const isDownloading = progress !== undefined;
 
                                     return (
-                                        <div key={version.id} className="download-item">
-                                            <div className="download-status">
-                                                {downloaded ? '✅' : '⬜'}
+                                        <div key={version.id} className={`premium-download-card ${downloaded ? 'downloaded' : ''} ${isDownloading ? 'syncing' : ''}`}>
+                                            <div className="card-main-info">
+                                                <div className="card-header-row">
+                                                    <span className="version-name">{version.name}</span>
+                                                    {downloaded && <span className="premium-badge">Offline Ready</span>}
+                                                </div>
+                                                <div className="card-meta">
+                                                    <span className="version-abbrev">{version.abbreviation}</span>
+                                                    {downloaded && info && (
+                                                        <span className="version-size"> • {formatBytes(info.size_bytes)}</span>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="download-info">
-                                                <span className="download-name">{version.name}</span>
-                                                <span className="download-abbrev">{version.abbreviation}</span>
-                                                {downloaded && info && (
-                                                    <span className="download-size">
-                                                        {formatBytes(info.size_bytes)}
-                                                    </span>
-                                                )}
-                                                {isDownloading && (
-                                                    <div className="progress-bar-container">
-                                                        <div
-                                                            className="progress-bar-fill"
-                                                            style={{ width: `${progress}%` }}
-                                                        />
+
+                                            <div className="card-status-actions">
+                                                {isDownloading ? (
+                                                    <div className="card-sync-status">
+                                                        <div className="sync-spinner"></div>
+                                                        <span className="sync-text">
+                                                            {progress >= 90 && progress < 100 ? 'Verifying...' : `${Math.round(progress)}%`}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="card-controls">
+                                                        {downloaded ? (
+                                                            <button
+                                                                className="card-action-btn delete"
+                                                                onClick={() => handleDeleteDownload(version.id)}
+                                                                title="Delete Offline Data"
+                                                            >
+                                                                🗑️
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                className="card-action-btn download"
+                                                                onClick={() => handleDownload(version.id)}
+                                                                title="Download for Offline"
+                                                            >
+                                                                ⬇️
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="download-actions">
-                                                {downloaded ? (
-                                                    <button
-                                                        className="delete-dl-btn"
-                                                        onClick={() => handleDeleteDownload(version.id)}
-                                                    >
-                                                        🗑️
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        className="download-btn"
-                                                        onClick={() => handleDownload(version.id)}
-                                                        disabled={isDownloading}
-                                                    >
-                                                        {isDownloading ? `${Math.round(progress)}%` : '⬇️'}
-                                                    </button>
-                                                )}
-                                            </div>
+
+                                            {isDownloading && (
+                                                <div className="card-progress-bar">
+                                                    <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -1259,6 +1186,14 @@ function Profile() {
                     />
                 )
             }
+
+            <footer className="profile-legal-footer" style={{ padding: '40px 20px', textAlign: 'center', opacity: 0.6, fontSize: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '10px' }}>
+                    <a href="/privacy" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>Privacy Policy</a>
+                    <a href="/terms" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>Terms of Service</a>
+                </div>
+                <p>© {new Date().getFullYear()} Omni Bible (Pty) Ltd. POPIA Compliant.</p>
+            </footer>
 
             {/* Confirm Delete Modal */}
             {

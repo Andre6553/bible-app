@@ -127,20 +127,149 @@
     min-height: 48px;
 }
 
-/* AI Modal Back Button */
+/* AI Modal Back Button - Optimized for Mobile & PC */
 .close-btn.back-to-results {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--accent-primary);
-    background: rgba(var(--accent-primary-rgb), 0.1);
-    padding: 10px 16px;
-    /* Larger touch target */
+    background: var(--bg-tertiary);
+    border: 1px solid var(--accent-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    padding: 10px 22px;
     border-radius: 20px;
-    border: 1px solid transparent;
-    transition: all 0.2s;
+    color: var(--accent-primary) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     flex-shrink: 0;
-    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.close-btn.back-to-results:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.close-btn.back-to-results:active {
+    transform: scale(0.96);
+}
+
+@media (max-width: 768px) {
+    .ai-modal-header {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        padding: var(--spacing-md) !important;
+        gap: 12px !important;
+    }
+
+    .ai-modal-title-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .ai-modal-title {
+        font-size: 1.1rem !important;
+        width: 100%;
+        text-align: left;
+        margin: 0 !important;
+        white-space: normal !important;
+    }
+
+    .header-icon {
+        width: 32px !important;
+        height: 32px !important;
+        margin-right: 0 !important;
+    }
+
+    .header-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .close-btn.back-to-results {
+        width: auto !important;
+        height: auto !important;
+        padding: 8px 16px;
+        font-size: 0.8rem;
+        min-height: 40px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--accent-primary);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
+        color: var(--accent-primary) !important;
+        flex-shrink: 0;
+    }
+}
+
+/* Premium AI Icon Styles */
+.premium-ai-icon-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.premium-ai-icon {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 4px rgba(var(--accent-primary-rgb), 0.4));
+}
+
+.inline-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    vertical-align: middle;
+    margin: 0 4px;
+}
+
+.inline-icon.mini {
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+.header-icon {
+    width: 38px;
+    height: 38px;
+    margin-right: 12px;
+    background: rgba(var(--accent-primary-rgb), 0.15);
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(var(--accent-primary-rgb), 0.3);
+    box-shadow: 0 0 15px rgba(var(--accent-primary-rgb), 0.2);
+    backdrop-filter: blur(4px);
+    animation: ai-float 3s ease-in-out infinite;
+}
+
+.ai-modal-title-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+@keyframes ai-float {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-4px) rotate(1deg);
+    }
 }
 
 /* Submit Question Button - Professional Look */
@@ -177,6 +306,23 @@
     display: none;
     /* Smooth fade in */
     animation: fadeIn 0.3s ease-out;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary) rgba(0, 0, 0, 0.1);
+}
+
+.search-results::-webkit-scrollbar {
+    width: 6px;
+    display: block;
+}
+
+.search-results::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.search-results::-webkit-scrollbar-thumb {
+    background-color: var(--accent-primary);
+    border-radius: 3px;
+    opacity: 0.5;
 }
 
 /* Home Button - Mobile Touch Target */
@@ -789,10 +935,27 @@
     border-left: 4px solid var(--accent-primary);
     line-height: 1.8;
     white-space: pre-wrap;
-    max-height: 400px;
-    overflow-y: auto;
+    /* max-height: 400px; REMOVED to allow modal to handle scrolling to history */
+    /* overflow-y: auto; REMOVED */
     color: var(--text-primary);
-    /* Ensure text is visible */
+    -webkit-overflow-scrolling: touch;
+    /* Force Scrollbar Visibility for Mobile */
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary) rgba(0, 0, 0, 0.1);
+}
+
+.ai-answer::-webkit-scrollbar {
+    width: 8px;
+    display: block !important;
+}
+
+.ai-answer::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.ai-answer::-webkit-scrollbar-thumb {
+    background-color: var(--accent-primary);
+    border-radius: 4px;
 }
 
 .citation-link {
@@ -821,9 +984,16 @@
 
 /* AI History Section */
 .ai-history-section {
-    margin-top: var(--spacing-lg);
-    border-top: 1px solid var(--border-subtle);
-    padding-top: var(--spacing-md);
+    margin-top: var(--spacing-xl);
+    border-top: 2px solid var(--border-subtle);
+    padding-top: var(--spacing-lg);
+    padding-bottom: 250px !important;
+    /* Large buffer at the very bottom */
+    background: var(--bg-secondary);
+    /* Give it a slight background contrast */
+    margin: 20px -10px;
+    /* Pull it out slightly */
+    padding: 20px 10px;
 }
 
 .ai-history-toggle {
@@ -831,14 +1001,18 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 12px;
+    padding: 14px 18px;
+    /* Taller for mobile touch */
     background: var(--bg-tertiary);
-    border: 1px solid var(--border-subtle);
+    border: 2px solid var(--accent-primary);
+    /* Use accent color to make it pop */
     border-radius: var(--radius-md);
     color: var(--text-primary);
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 1rem;
     cursor: pointer;
     transition: all 0.2s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .ai-history-toggle:hover {
@@ -1027,11 +1201,23 @@
         max-width: 100%;
         width: 100%;
         height: 100vh;
+        height: 100dvh;
+        /* Use dynamic viewport height */
         max-height: 100vh;
         border-radius: 0;
         box-shadow: none;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+    }
+
+    .ai-research-modal .info-body {
+        flex: 1;
+        /* Fill remaining height */
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 250px !important;
+        /* Move padding here for mobile */
     }
 
     .ai-research-modal .modal-header {
@@ -1143,10 +1329,19 @@
         position: relative;
     }
 
-    .ai-research-modal .modal-header {
+    .ai-modal-header {
         border-top-left-radius: var(--radius-lg);
         border-top-right-radius: var(--radius-lg);
         padding: var(--spacing-lg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 20px;
     }
 
     .close-btn.back-to-results {
@@ -1291,24 +1486,20 @@
     border-color: var(--accent-primary);
 }
 
-/* Expanded AI Answer Mode */
+/* Expanded AI Answer Mode - Removed Fixed Positioning to allow scrolling to history */
 .ai-response.expanded {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100001;
-    /* Ensure on top of everything including parent modal */
+    position: relative;
+    /* Changed from fixed to stay in flow */
+    min-height: 60vh;
+    z-index: 10;
     background: var(--bg-primary);
-    border-radius: 0;
-    margin: 0;
+    border-radius: var(--radius-md);
+    margin: var(--spacing-md) 0;
     padding: 0;
-    padding-top: var(--safe-top);
-    /* Respect notch */
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
+    /* Let modal handle scrolling */
 }
 
 .ai-response.expanded .ai-answer {
@@ -1449,10 +1640,40 @@
     }
 }
 
-.info-modal-body {
+.info-modal-body,
+.info-body {
     padding: 20px;
-    max-height: 70vh;
+    padding-bottom: 100px;
+    /* max-height: 85vh; REMOVED globally to allow flex parent to control */
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary) rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Archaeology should NOT have its own scrollbar inside the modal body */
+.archaeology-report {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-subtle);
+    animation: fadeIn 0.4s ease-out;
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+
+.info-modal-body::-webkit-scrollbar,
+.info-body::-webkit-scrollbar {
+    width: 6px;
+    display: block !important;
+}
+
+.info-modal-body::-webkit-scrollbar-thumb,
+.info-body::-webkit-scrollbar-thumb {
+    background: var(--accent-primary);
+    border-radius: 3px;
 }
 
 .info-section {
@@ -1827,8 +2048,8 @@
     background: var(--bg-secondary);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
-    padding-bottom: 150px;
-    /* Added 150px bottom padding as requested */
+    padding-bottom: 250px !important;
+    /* Added 250px bottom padding as requested */
     border: 1px solid var(--border-subtle);
     animation: fadeIn 0.4s ease-out;
     max-height: 80vh;
@@ -1946,4 +2167,79 @@
     border-top: 1px solid var(--border-subtle);
     padding-top: var(--spacing-md);
     margin-top: var(--spacing-md);
+}
+
+/* Subscriber Promo Button */
+.subscriber-promo-btn {
+    width: 50%;
+    /* User requested half size vertically split */
+    margin: 0 0 8px auto;
+    /* Aligned Right */
+    /* Reduced space */
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    /* Slightly reduced padding */
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(var(--accent-primary-rgb), 0.3);
+    text-align: center;
+    font-size: 0.95rem;
+    /* Slightly smaller font */
+    display: block;
+    position: relative;
+    overflow: hidden;
+    min-height: 44px;
+    /* Matches standard touch target but less bulky */
+}
+
+.subscriber-promo-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: shine 3s infinite;
+}
+
+@keyframes shine {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    20% {
+        transform: translateX(100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.subscriber-promo-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(var(--accent-primary-rgb), 0.4);
+    filter: brightness(1.1);
+}
+
+@media (min-width: 768px) {
+    .subscriber-promo-btn {
+        width: auto;
+        display: inline-block;
+        margin-bottom: 0;
+        margin-left: auto;
+        /* Push to right if in flex */
+        min-width: 200px;
+    }
+
+    /* Adjust header layout for desktop */
+    .search-header .header-top-row {
+        flex-wrap: wrap;
+    }
 }

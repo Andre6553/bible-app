@@ -824,3 +824,29 @@ export async function getArchaeologicalContext(userId, passageRef, language = 'e
         return { success: false, error: error.message };
     }
 }
+/**
+ * Fetch AI question history for a user from Supabase
+ */
+export async function getAIHistory(userId) {
+    try {
+        if (!userId) return [];
+
+        const { data, error } = await supabase
+            .from('ai_questions')
+            .select('question, answer, created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error) throw error;
+
+        return data.map(item => ({
+            question: item.question,
+            answer: item.answer,
+            timestamp: item.created_at
+        }));
+    } catch (error) {
+        console.error('Fetch AI history error:', error);
+        return [];
+    }
+}

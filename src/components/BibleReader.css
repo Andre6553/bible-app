@@ -1473,3 +1473,136 @@ body.reader-mode-active .verses-content {
         /* Handled by primary border-bottom */
     }
 }
+
+/* Smart Sync Banner */
+.sync-banner {
+    position: fixed;
+    bottom: calc(85px + var(--safe-bottom));
+    /* Above bottom nav */
+    left: 20px;
+    right: 20px;
+    background: rgba(15, 23, 42, 0.85);
+    /* Darker transparent blue/slate */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 9999;
+    animation: slideUpShort 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+@keyframes slideUpShort {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.sync-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+}
+
+.sync-icon {
+    font-size: 1.4rem;
+    animation: rotateContinuously 3s linear infinite;
+}
+
+@keyframes rotateContinuously {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.sync-content p {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.sync-content strong {
+    color: var(--accent-primary);
+    font-weight: 700;
+}
+
+.sync-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sync-btn {
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.sync-accept {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.sync-accept:hover {
+    background: var(--accent-secondary);
+    transform: scale(1.05);
+}
+
+.sync-dismiss {
+    background: rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 1rem;
+    border-radius: 50%;
+}
+
+.sync-dismiss:hover {
+    background: rgba(251, 113, 133, 0.2);
+    color: #fb7185;
+}
+
+@media (max-width: 480px) {
+    .sync-banner {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+        padding: 16px;
+        left: 10px;
+        right: 10px;
+    }
+
+    .sync-actions {
+        justify-content: flex-end;
+    }
+
+    .sync-accept {
+        flex: 1;
+        text-align: center;
+    }
+}

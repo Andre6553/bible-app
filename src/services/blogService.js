@@ -611,20 +611,37 @@ export const isSuperUser = async (userId) => {
     if (!userId) userId = await getUserId();
     const superUsers = await getSuperUsers();
 
-    // 1. Direct ID Check
+    // 1. Direct ID Check in the explicit Super User list
     if (superUsers.includes(userId)) return true;
 
-    // 2. Email Check (Robustness for ID rotation)
+    // 2. Check Profile for Subscription OR Email Match
     try {
-        const { data } = await supabase
+        const { data: profile } = await supabase
             .from('user_profiles')
-            .select('email')
+            .select('email, subscription_tier, subscription_override, subscription_expiry')
             .eq('user_id', userId)
             .single();
 
-        if (data?.email && superUsers.includes(data.email)) {
-            console.log(`🔓 Super User authenticated via Email: ${data.email}`);
-            return true;
+        if (profile) {
+            // A. Email Match for Explicit Super User List
+            if (profile.email && superUsers.includes(profile.email)) {
+                console.log(`🔓 Super User authenticated via Email: ${profile.email}`);
+                return true;
+            }
+
+            // B. Paid Subscribers automatically become Super Users (Req: Sub -> Super)
+            const override = profile.subscription_override;
+            const expiry = profile.subscription_expiry;
+            const isPremium = profile.subscription_tier === 'premium' ||
+                override === 'premium' ||
+                override === 'admin' ||
+                override === 'tester' ||
+                (expiry && new Date(expiry) > new Date());
+
+            if (isPremium) {
+                console.log(`🔓 Paid Subscriber auto-promoted to Super User benefits: ${userId}`);
+                return true;
+            }
         }
     } catch (e) {
         // Ignore error

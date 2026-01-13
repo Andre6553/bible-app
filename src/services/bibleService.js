@@ -507,11 +507,35 @@ export const getUserStatistics = async () => {
             });
             globalActivityCounts.total = globalActivityCounts.search + globalActivityCounts.ai + globalActivityCounts.sermon_creation;
 
+            // [NEW] Fetch Subscription Status for these users to show accurate badges
+            const userIds = users.map(u => u.user_id);
+            const { data: profiles } = await supabase
+                .from('user_profiles')
+                .select('user_id, subscription_tier, subscription_override, subscription_expiry')
+                .in('user_id', userIds);
+
+            const subMap = {};
+            if (profiles) {
+                profiles.forEach(p => {
+                    const isPremium = p.subscription_tier === 'premium' ||
+                        p.subscription_override === 'premium' ||
+                        p.subscription_override === 'admin' ||
+                        p.subscription_override === 'tester' ||
+                        (p.subscription_expiry && new Date(p.subscription_expiry) > new Date());
+                    if (isPremium) subMap[p.user_id] = true;
+                });
+            }
+
+            const finalUsers = mappedUsers.map(u => ({
+                ...u,
+                isSubscriber: subMap[u.userId] || false
+            }));
+
             return {
                 success: true,
                 data: {
                     totalUsers: rpcData.total || 0,
-                    topUsers: mappedUsers,
+                    topUsers: finalUsers,
                     globalActivityCounts: globalActivityCounts
                 }
             };
@@ -524,7 +548,7 @@ export const getUserStatistics = async () => {
         const blogReq = supabase.from('blog_views').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
         const readingReq = supabase.from('bible_reading_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
         const activityReq = supabase.from('user_activity_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
-        const profileReq = supabase.from('user_profiles').select('user_id, email');
+        const profileReq = supabase.from('user_profiles').select('user_id, email, subscription_tier, subscription_override, subscription_expiry');
 
         const [searchRes, aiRes, blogRes, readingRes, activityRes, profileRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq, profileReq]);
 
@@ -563,10 +587,20 @@ export const getUserStatistics = async () => {
                         count: 0,
                         devices: [],
                         email: p.email || null,
-                        originalIds: new Set()
+                        originalIds: new Set(),
+                        isSubscriber: false
                     };
                 }
                 userStats[identity].originalIds.add(p.user_id);
+
+                // Check premium status
+                const isPremium = p.subscription_tier === 'premium' ||
+                    p.subscription_override === 'premium' ||
+                    p.subscription_override === 'admin' ||
+                    p.subscription_override === 'tester' ||
+                    (p.subscription_expiry && new Date(p.subscription_expiry) > new Date());
+
+                if (isPremium) userStats[identity].isSubscriber = true;
             });
         }
 
@@ -624,7 +658,8 @@ export const getUserStatistics = async () => {
                 displayId: userStats[id].email || id,
                 count: userStats[id].count,
                 device: getDeviceName(userStats[id].devices),
-                originalIds: Array.from(userStats[id].originalIds) // Keep original IDs for deep filtering
+                originalIds: Array.from(userStats[id].originalIds), // Keep original IDs for deep filtering
+                isSubscriber: userStats[id].isSubscriber || false
             }))
             .sort((a, b) => b.count - a.count); // Sort by activity count
 

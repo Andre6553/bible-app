@@ -94,6 +94,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [syncPrompt, setSyncPrompt] = useState(null); // { bookId, chapter, title }
     const [isReaderMode, setIsReaderMode] = useState(false);
     const [showReaderControls, setShowReaderControls] = useState(true);
+    const [isFirstSyncDone, setIsFirstSyncDone] = useState(false); // Robust cloud-check protection
 
     // Manage body classes for UI visibility
     useEffect(() => {
@@ -251,66 +252,105 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     // Save last reading position (Local + Cloud Sync)
     useEffect(() => {
         if (selectedBook && selectedChapter && currentVersion) {
+            const now = Date.now();
             const state = {
                 bookId: selectedBook.id,
                 chapter: selectedChapter,
                 version: currentVersion.id,
                 secondaryVersion: secondVersion?.id,
-                isSplitView
+                isSplitView,
+                last_updated: now
             };
 
             localStorage.setItem('lastReadPosition', JSON.stringify(state));
 
-            // Sync to cloud
-            logBibleReading(selectedBook.id, selectedChapter);
+            // Sync to cloud - PROTECT against overwriting newer cloud data
+            // 1. Skip until initial check is finished
+            // 2. Skip if a sync prompt is currently visible (waiting for user answer)
+            if (!isFirstSyncDone || syncPrompt) {
+                console.log('ℹ️ Cloud sync-back delayed:', !isFirstSyncDone ? 'Initial check pending' : 'Sync prompt active');
+                return;
+            }
 
+            console.log('📡 Saving reading position to cloud:', selectedBook.name_full, selectedChapter);
+            logBibleReading(selectedBook.id, selectedChapter);
             loadCategories();
         }
-    }, [selectedBook, selectedChapter, currentVersion, secondVersion, isSplitView]);
+    }, [selectedBook, selectedChapter, currentVersion, secondVersion, isSplitView, isFirstSyncDone, syncPrompt]);
 
     // Check for Cloud Sync Continuity (Pick up where you left off)
-    useEffect(() => {
-        const checkCloudSync = async () => {
-            if (!books.all || books.all.length === 0) return;
+    const checkCloudSync = async () => {
+        if (!books.all || books.all.length === 0) return;
 
+        console.log('🔄 Checking for newer reading position in cloud...');
+        try {
             const result = await getLastReadState();
             if (result.success && result.state) {
                 const cloudState = result.state;
-                const localStateRaw = localStorage.getItem('lastReadPosition');
-                let shouldPrompt = false;
 
-                if (!localStateRaw) {
-                    shouldPrompt = true;
-                } else {
-                    const localState = JSON.parse(localStateRaw);
-                    // Prompt if cloud position is different
-                    if (cloudState.bookId != localState.bookId || cloudState.chapter != localState.chapter) {
-                        // Only prompt if cloud update is more recent (or just different for simplicity)
-                        shouldPrompt = true;
-                    }
+                if (!cloudState.bookId || !cloudState.chapter) {
+                    console.log('ℹ️ Cloud state empty.');
+                    setIsFirstSyncDone(true);
+                    return;
                 }
 
-                if (shouldPrompt) {
-                    const book = books.all.find(b => b.id == cloudState.bookId);
-                    if (book) {
-                        setSyncPrompt({
-                            bookId: cloudState.bookId,
-                            chapter: cloudState.chapter,
-                            title: `${getLocalizedBookName(book.name_full, currentVersion?.id)} ${cloudState.chapter}`,
-                            bookObj: book
-                        });
+                // IMPORTANT: Compare cloud against current LOCAL state (on screen)
+                const isDifferent = (selectedBook?.id != cloudState.bookId || selectedChapter != cloudState.chapter);
 
-                        // Auto-dismiss after 10 seconds
-                        setTimeout(() => setSyncPrompt(null), 10000);
+                if (isDifferent) {
+                    // Only prompt if cloud is actually newer based on timestamp
+                    // or if we have no local timestamp yet (first load)
+                    const cloudTime = cloudState.updated_at ? new Date(cloudState.updated_at).getTime() : 0;
+                    const localStateRaw = localStorage.getItem('lastReadPosition');
+                    const localTime = localStateRaw ? JSON.parse(localStateRaw).last_updated : 0;
+
+                    if (cloudTime > localTime || !localTime) {
+                        console.log('📡 Found newer cloud position:', cloudState.bookId, cloudState.chapter);
+                        const book = books.all.find(b => b.id == cloudState.bookId);
+                        if (book) {
+                            setSyncPrompt({
+                                bookId: cloudState.bookId,
+                                chapter: cloudState.chapter,
+                                title: `${getLocalizedBookName(book.name_full, currentVersion?.id)} ${cloudState.chapter}`,
+                                bookObj: book
+                            });
+                            // Auto-dismiss after 30 seconds
+                            setTimeout(() => setSyncPrompt(prev => prev?.bookId === cloudState.bookId ? null : prev), 30000);
+                        }
+                    } else {
+                        console.log('ℹ️ Local is newer than cloud. Skipping prompt.');
                     }
+                } else {
+                    console.log('✅ Local and Cloud are in sync.');
+                    if (syncPrompt) setSyncPrompt(null);
                 }
             }
-        };
+        } catch (err) {
+            console.error('❌ Cloud sync check failed:', err);
+        } finally {
+            setIsFirstSyncDone(true);
+        }
+    };
 
+    useEffect(() => {
         if (books.all?.length > 0) {
             checkCloudSync();
         }
     }, [books.all]);
+
+    useEffect(() => {
+        const handleSyncTrigger = () => {
+            if (document.visibilityState === 'visible' && books.all?.length > 0) {
+                checkCloudSync();
+            }
+        };
+        window.addEventListener('focus', handleSyncTrigger);
+        document.addEventListener('visibilitychange', handleSyncTrigger);
+        return () => {
+            window.removeEventListener('focus', handleSyncTrigger);
+            document.removeEventListener('visibilitychange', handleSyncTrigger);
+        };
+    }, [books.all, selectedBook, selectedChapter]);
 
     const handleSyncAccept = () => {
         if (syncPrompt) {
@@ -901,6 +941,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 <div className="header-top">
                     <div className="header-left">
                         <button className="info-btn icon-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
+                        <button className="info-btn icon-btn" onClick={() => setShowChapterSummary(true)} title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}>📝</button>
                         <button className="info-btn icon-btn" onClick={() => setShowInfo(true)} title="App Info">ℹ️</button>
                         <h1
                             className="app-title"
@@ -968,7 +1009,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     )}
                     <button
                         className="book-selector-btn btn-secondary"
-                        onClick={() => setShowBookSelector(!showBookSelector)}
+                        onClick={openBookSelector}
                     >
                         {selectedBook ? getLocalizedBookName(selectedBook.name_full, currentVersion?.id) : 'Select Book'}
                     </button>

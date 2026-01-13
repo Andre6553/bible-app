@@ -190,6 +190,13 @@ function Stats() {
             if (code === 'Andre@58078') {
                 updates = { subscription_override: 'admin' };
                 message = 'Admin access granted!';
+            } else if (code === 'SUB') {
+                updates = {
+                    subscription_tier: 'premium',
+                    subscription_override: 'premium',
+                    subscription_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+                };
+                message = '🚀 Test Subscriber status granted! Verifying auto-promotion...';
             } else if (code === 'Finger') {
                 updates = {
                     subscription_override: 'tester_finger',
@@ -210,6 +217,7 @@ function Stats() {
                 updates = {
                     subscription_override: null,
                     subscription_tier: 'free',
+                    subscription_expiry: null, // Ensure expiry is cleared so they can re-subscribe
                     sermon_trial_count: 0,
                     ai_usage_count: 0
                 };
@@ -1250,9 +1258,10 @@ function Stats() {
                     <div className="scrollable-user-list">
                         <ul className="top-list">
                             {userStats.topUsers.map((u, idx) => {
-                                // Check if user is super (check all IDs + email)
+                                // Check if user is super (check all IDs + email) OR is a subscriber
                                 const isSuper = (u.originalIds || [u.userId]).some(id => allSuperUsers.includes(id)) ||
-                                    (u.email && allSuperUsers.includes(u.email));
+                                    (u.email && allSuperUsers.includes(u.email)) ||
+                                    u.isSubscriber;
 
                                 return (
                                     <li key={idx} className="top-item clickable-row" onClick={() => handleUserClick(u)}>

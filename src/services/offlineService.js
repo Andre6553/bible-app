@@ -108,8 +108,17 @@ export const downloadVersion = async (versionId, onProgress) => {
         }
 
         onProgress?.(85);
+        console.log(`🔍 Verifying ${versionId} data integrity...`);
 
-        // 3. Organize verses by book and chapter
+        // 3. Verification: Ensure we have a complete Bible
+        // A standard Bible has ~31,102 verses. We allow some leeway (e.g. 30,000) 
+        // to account for version differences, but 1000 or 5000 is clearly incomplete.
+        const MIN_EXPECTED_VERSES = 30000;
+        if (allVerses.length < MIN_EXPECTED_VERSES) {
+            throw new Error(`Incomplete download: Only ${allVerses.length} verses found. Expected at least ${MIN_EXPECTED_VERSES}.`);
+        }
+
+        // 4. Organize verses by book and chapter
         const booksData = books.map(book => {
             const bookVerses = allVerses.filter(v => v.book_id === book.id);
             const chapters = {};
@@ -122,6 +131,7 @@ export const downloadVersion = async (versionId, onProgress) => {
                     id: v.id,
                     verse: v.verse,
                     text: v.text
+                    // Note: red_letters omitted as requested (disabled)
                 });
             });
 
@@ -133,11 +143,11 @@ export const downloadVersion = async (versionId, onProgress) => {
 
         onProgress?.(95);
 
-        // 4. Calculate storage size
+        // 5. Calculate storage size
         const jsonString = JSON.stringify(booksData);
         const sizeBytes = new Blob([jsonString]).size;
 
-        // 5. Store in IndexedDB
+        // 6. Store in IndexedDB (Atomic Save)
         const db = await initDB();
         await db.put(STORE_NAME, {
             version_id: versionId,
@@ -147,11 +157,11 @@ export const downloadVersion = async (versionId, onProgress) => {
         });
 
         onProgress?.(100);
-        console.log(`✅ Fully Downloaded ${versionId} (${allVerses.length} verses, ${(sizeBytes / 1024 / 1024).toFixed(2)} MB)`);
+        console.log(`✅ Verified & Saved ${versionId} (${allVerses.length} verses, ${(sizeBytes / 1024 / 1024).toFixed(2)} MB)`);
 
         return { success: true, sizeBytes, verseCount: allVerses.length };
     } catch (err) {
-        console.error('Error downloading version:', err);
+        console.error('❌ Offline Download Failed:', err);
         return { success: false, error: err.message };
     }
 };

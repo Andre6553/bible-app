@@ -14,8 +14,58 @@ const SubscriptionPage = () => {
     const [randPrice, setRandPrice] = React.useState(null);
     const [basePriceUsd, setBasePriceUsd] = React.useState(5);
     const [countryCode, setCountryCode] = React.useState('ZA'); // Default to ZA
+    const [userIP, setUserIP] = React.useState(null);
+    const [isDiscountEligible, setIsDiscountEligible] = React.useState(true); // Default to Eligible (Optimistic)
 
     React.useEffect(() => {
+        const detectLocationAndIP = async () => {
+            let ip = null;
+            try {
+                // Try Primary (ipapi.co)
+                const res = await fetch('https://ipapi.co/json/');
+                const data = await res.json();
+                if (data.country_code) setCountryCode(data.country_code);
+                ip = data.ip;
+            } catch (err) {
+                console.warn('Primary IP fetch failed, trying fallback...');
+                try {
+                    // Try Fallback (ipify)
+                    const res = await fetch('https://api64.ipify.org?format=json');
+                    const data = await res.json();
+                    ip = data.ip;
+                } catch (fallbackErr) {
+                    console.error('All IP fetches failed:', fallbackErr);
+                }
+            }
+
+            if (ip) {
+                setUserIP(ip);
+                checkEligibility(ip);
+            }
+        };
+
+        const checkEligibility = async (ip) => {
+            try {
+                // Check if this IP has ANY successful payments in history
+                const { count, error } = await supabase
+                    .from('payment_history')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('ip_address', ip)
+                    .eq('status', 'success');
+
+                if (error && error.code !== '42P01') { // Ignore "table not found" errors initially
+                    console.error('Eligibility check error:', error);
+                }
+
+                // Only REVOKE eligibility if we find a record
+                if (count > 0) setIsDiscountEligible(false);
+
+            } catch (err) {
+                console.warn('Silent eligibility check failed', err);
+                setIsDiscountEligible(true); // Default to eligible on error to avoid friction
+            }
+        };
+
         const fetchPricing = async () => {
             try {
                 const { data: config } = await supabase
@@ -39,20 +89,8 @@ const SubscriptionPage = () => {
             }
         };
 
-        const detectLocation = async () => {
-            try {
-                const res = await fetch('https://ipapi.co/json/');
-                const data = await res.json();
-                if (data.country_code) {
-                    setCountryCode(data.country_code);
-                }
-            } catch (err) {
-                console.warn('Geolocation failed:', err);
-            }
-        };
-
+        detectLocationAndIP();
         fetchPricing();
-        detectLocation();
 
         const checkPaymentStatus = async () => {
             const params = new URLSearchParams(window.location.search);
@@ -66,14 +104,34 @@ const SubscriptionPage = () => {
                         expiryDate.setDate(expiryDate.getDate() + 30);
                         const expiryISO = expiryDate.toISOString();
 
+                        // 1. Upgrade User Profile
                         const { error } = await supabase
                             .from('user_profiles')
                             .update({
+                                subscription_tier: 'premium',
                                 subscription_override: 'premium',
                                 subscription_expiry: expiryISO,
                                 last_renewal_month: new Date().toISOString().slice(0, 7)
                             })
                             .eq('user_id', user.id);
+
+                        // 2. Log Payment for IP Tracking (Silent)
+                        // This allows us to track "one discount per IP" in the future
+                        try {
+                            // Re-fetch IP if context was lost during redirect (best effort)
+                            const ipRes = await fetch('https://ipapi.co/json/');
+                            const ipData = await ipRes.json();
+
+                            await supabase.from('payment_history').insert([{
+                                user_id: user.id,
+                                ip_address: ipData.ip || 'unknown',
+                                status: 'success',
+                                amount: 'subscribed', // We can enhance this to track exact amount later
+                                provider: 'payfast'
+                            }]);
+                        } catch (logErr) {
+                            console.warn('Payment logging failed', logErr);
+                        }
 
                         if (error) {
                             console.error('Error upgrading profile:', error);
@@ -134,8 +192,16 @@ const SubscriptionPage = () => {
             const receiver = USE_SANDBOX ? '10000100' : '11945617';
             const merchantKey = USE_SANDBOX ? '46f0cd694581a' : '9anvup217hdck';
 
-            const amount = randPrice ? `${randPrice}.00` : '85.00';
-            const item_name = 'Omni Bible Subscription';
+            // Apply 50% discount if eligible
+            let finalPrice = randPrice;
+            if (isDiscountEligible && randPrice) {
+                finalPrice = Math.floor(parseInt(randPrice) * 0.5).toString();
+            } else if (!randPrice) {
+                finalPrice = '85'; // Fallback
+            }
+
+            const amount = `${finalPrice}.00`;
+            const item_name = isDiscountEligible ? 'Omni Bible Subscription (50% Off)' : 'Omni Bible Subscription';
             const return_url = `${window.location.origin}/subscription?payment=success`;
             const cancel_url = `${window.location.origin}/subscription?payment=cancelled`;
             const custom_str1 = user.id;
@@ -195,39 +261,81 @@ const SubscriptionPage = () => {
 
                 {/* Premium Tier Card */}
                 <div className="pricing-card premium">
+                    {isDiscountEligible && (
+                        <div className="discount-banner" style={{
+                            background: '#fbbf24',
+                            color: 'black',
+                            padding: '4px',
+                            textAlign: 'center',
+                            fontWeight: 'bold',
+                            fontSize: '0.9rem',
+                            borderRadius: '20px',
+                            marginBottom: '10px'
+                        }}>
+                            🎉 50% OFF First Month
+                        </div>
+                    )}
                     <div className="card-header">
                         <div className="best-value">{isAf ? 'Beste Waarde' : 'Best Value'}</div>
                         <h2>{isAf ? 'Premium' : 'Premium'}</h2>
                         <div className="price">
                             {countryCode === 'ZA' ? (
                                 <>
-                                    {randPrice ? `R${randPrice}` : <span style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>...</span>}
+                                    {isDiscountEligible && randPrice ? (
+                                        <>
+                                            <span style={{ textDecoration: 'line-through', opacity: 0.6, fontSize: '0.7em', marginRight: '6px' }}>
+                                                R{randPrice}
+                                            </span>
+                                            R{Math.floor(parseInt(randPrice) * 0.5)}
+                                        </>
+                                    ) : (
+                                        randPrice ? `R${randPrice}` : <span style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>...</span>
+                                    )}
                                 </>
                             ) : (
-                                `$${basePriceUsd}`
+                                <>
+                                    {isDiscountEligible ? (
+                                        <>
+                                            <span style={{ textDecoration: 'line-through', opacity: 0.6, fontSize: '0.7em', marginRight: '6px' }}>
+                                                ${basePriceUsd}
+                                            </span>
+                                            ${(basePriceUsd * 0.5).toFixed(2)}
+                                        </>
+                                    ) : (
+                                        `$${basePriceUsd}`
+                                    )}
+                                </>
                             )}
                             <span>/mo</span>
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '5px' }}>
-                            {countryCode === 'ZA' && `($${basePriceUsd} USD)`}
+                            {countryCode === 'ZA' && (
+                                isDiscountEligible
+                                    ? `(${(basePriceUsd * 0.5).toFixed(2)} USD)`
+                                    : `($${basePriceUsd} USD)`
+                            )}
                         </div>
                     </div>
                     <ul className="features-list">
+
                         <li>
                             <span className="check">✨</span>
-                            <strong>{isAf ? 'Onbeperkte Preke' : 'Unlimited Sermons'}</strong>
+                            <strong>{isAf ? 'Onbeperkte AI Soektogte' : 'Unlimited AI Searches'}</strong>
                         </li>
                         <li>
-                            <span className="check">✨</span>
-                            <strong>{isAf ? 'Onbeperkte AI Generasies' : 'Unlimited AI Generations'}</strong>
+                            <span className="check">🚀</span>
+                            <strong>{isAf ? 'Super User Status' : 'Super User Status'}</strong>
+                            <div style={{ fontSize: '0.8em', opacity: 0.8, marginLeft: '24px' }}>
+                                {isAf ? '(Kry kits verversings)' : '(Get instant refreshes)'}
+                            </div>
                         </li>
                         <li>
-                            <span className="check">✨</span>
+                            <span className="check">🧠</span>
                             {isAf ? 'Gevorderde Navorsing' : 'Advanced Research Tools'}
                         </li>
                         <li>
-                            <span className="check">✨</span>
-                            {isAf ? 'Prioriteit Ondersteuning' : 'Priority Support'}
+                            <span className="check">⛪</span>
+                            {isAf ? 'Onbeperkte Preek Skeppings' : 'Unlimited Sermon creations'}
                         </li>
                     </ul>
                     <button className="upgrade-btn" onClick={handlePayment} disabled={loading}>

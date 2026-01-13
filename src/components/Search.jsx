@@ -3,11 +3,28 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference, getBooks, getVerseByReference, getUserId } from '../services/bibleService';
 import { useSettings } from '../context/SettingsContext';
 import SearchHelpModal from './SearchHelpModal';
-import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch, getArchaeologicalContext } from '../services/aiService';
+import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch, getArchaeologicalContext, getAIHistory } from '../services/aiService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { saveBulkHighlights, removeBulkHighlights, getAllHighlights } from '../services/highlightService';
 import ColorPickerModal from './ColorPickerModal';
 import TutorialOverlay from './TutorialOverlay';
+
+// Premium AI Icon Component
+const AIIcon = ({ className = "" }) => (
+    <div className={`premium-ai-icon-wrapper ${className}`}>
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="premium-ai-icon">
+            <path d="M12 2L14.85 8.21L21.65 9.24L16.73 14.12L17.89 20.91L12 17.77L6.11 20.91L7.27 14.12L2.35 9.24L9.15 8.21L12 2Z" fill="url(#aiPremiumGradient)" />
+            <circle cx="12" cy="12" r="5" fill="white" fillOpacity="0.2" />
+            <circle cx="12" cy="12" r="2" fill="white" />
+            <defs>
+                <linearGradient id="aiPremiumGradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="var(--accent-primary)" />
+                    <stop offset="1" stopColor="#a855f7" />
+                </linearGradient>
+            </defs>
+        </svg>
+    </div>
+);
 
 function Search({ currentVersion, versions }) {
     const isSearchingRef = useRef(false);
@@ -18,7 +35,10 @@ function Search({ currentVersion, versions }) {
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
-    const { settings } = useSettings();
+    const { settings, profile } = useSettings();
+
+    // Localization
+    const isAf = settings.language === 'af';
 
     const navigate = useNavigate();
     const [history, setHistory] = useState([]);
@@ -299,7 +319,7 @@ function Search({ currentVersion, versions }) {
     ];
 
     const t = {
-        aiTitle: settings.language === 'af' ? '🤖 AI Bybel Navorsing' : '🤖 AI Bible Research',
+        aiTitle: settings.language === 'af' ? 'AI Bybel Navorsing' : 'AI Bible Research',
         backToResults: settings.language === 'af' ? '⬅ Terug na Resultate' : '⬅ Back to Results',
         askQuestion: settings.language === 'af' ? 'Stel jou vraag:' : 'Ask your question:',
         aiPlaceholder: settings.language === 'af' ? 'b.v., Wat sê die Bybel oor geloof? Hoe moet Christene op lyding reageer?' : 'e.g., What does the Bible say about faith? How should Christians respond to suffering?',
@@ -377,6 +397,14 @@ function Search({ currentVersion, versions }) {
         const fetchUserId = async () => {
             const id = await getUserId();
             setCurrentUserId(id);
+            if (id) {
+                // Fetch synced history from DB
+                const dbHistory = await getAIHistory(id);
+                if (dbHistory && dbHistory.length > 0) {
+                    setAiHistory(dbHistory);
+                    localStorage.setItem('ai_search_history', JSON.stringify(dbHistory));
+                }
+            }
         };
         fetchUserId();
 
@@ -1166,6 +1194,17 @@ Here are the available shortcuts to quickly ask questions:
                     </button>
                 </div>
 
+                {/* [NEW] Subscriber Promo Button - Show to Guests AND Free Users */}
+                {(!profile || (!profile.subscription_tier || profile.subscription_tier === 'free')) && (
+                    <button
+                        className="subscriber-promo-btn"
+                        onClick={() => navigate('/subscription')}
+                        style={{ marginBottom: '15px' }}
+                    >
+                        {settings.language === 'af' ? "Teken In" : "Subscribe"}
+                    </button>
+                )}
+
                 <div className="search-input-container" id="tutorial-search-input">
                     <form onSubmit={handleSearch} className="search-form">
                         {/* Row 1: Input + History Toggle */}
@@ -1251,7 +1290,8 @@ Here are the available shortcuts to quickly ask questions:
                                 }}
                                 disabled={loading || !searchQuery.trim()}
                             >
-                                {loading ? '...' : (searchQuery.startsWith('/') ? '🤖 Ask AI' : (searchMode === 'semantic' ? '🪄 Concept Search' : '🔍 Exact Search'))}
+                                {loading ? '...' : (searchQuery.startsWith('/') ? <AIIcon className="inline-icon" /> : (searchMode === 'semantic' ? '🪄 Concept Search' : '🔍 Exact Search'))}
+                                {searchQuery.startsWith('/') && ' Ask AI'}
                             </button>
                             <button
                                 type="button"
@@ -1260,7 +1300,7 @@ Here are the available shortcuts to quickly ask questions:
                                 onClick={handleAskAI}
                                 disabled={quotaInfo.remaining <= 0}
                             >
-                                🤖 AI Research
+                                <AIIcon className="inline-icon" /> AI Research
                             </button>
                         </div>
                     </form>
@@ -1285,7 +1325,7 @@ Here are the available shortcuts to quickly ask questions:
                                             setShowHistory(false);
                                         }}
                                     >
-                                        🕒 {(typeof item === 'string' ? item : item.query)} {(typeof item !== 'string' && item.mode === 'semantic') ? '🤖' : ''}
+                                        🕒 {(typeof item === 'string' ? item : item.query)} {(typeof item !== 'string' && item.mode === 'semantic') ? <AIIcon className="inline-icon mini" /> : ''}
                                     </button>
                                 ))}
                             </div>
@@ -1308,7 +1348,7 @@ Here are the available shortcuts to quickly ask questions:
                             onClick={() => handleFilterChange('mode', 'semantic')}
                             type="button"
                         >
-                            {settings.language === 'af' ? 'Konsep-soektog 🤖' : 'Concept Search 🤖'}
+                            {settings.language === 'af' ? <>Konsep-soektog <AIIcon className="inline-icon" /></> : <>Concept Search <AIIcon className="inline-icon" /></>}
                         </button>
                     </div>
 
@@ -1381,7 +1421,7 @@ Here are the available shortcuts to quickly ask questions:
                                             }
                                         }}
                                     >
-                                        <span className="chip-icon">{mode === 'semantic' ? '🤖' : '🔍'}</span>
+                                        <span className="chip-icon">{mode === 'semantic' ? <AIIcon className="inline-icon mini" /> : '🔍'}</span>
                                         {query}
                                         {isHistoryEditMode && <span className="delete-chip-icon">✕</span>}
                                     </button>
@@ -1592,11 +1632,14 @@ Here are the available shortcuts to quickly ask questions:
                 showAIModal && (
                     <div className="book-selector-modal ai-research-modal" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
                         <div className="book-selector-content info-modal-content" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <h2>{t.aiTitle}</h2>
+                            <div className="modal-header ai-modal-header">
+                                <div className="ai-modal-title-wrapper">
+                                    <AIIcon className="header-icon" />
+                                    <h2 className="ai-modal-title">{t.aiTitle}</h2>
+                                </div>
+                                <div className="header-controls">
                                     {/* Tutorial Mode Toggle in Modal */}
-                                    <label className="tutorial-toggle-label" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                                    <label className="tutorial-toggle-label ai-modal-tutorial-toggle" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
                                         <input
                                             type="checkbox"
                                             checked={isTutorialMode}
@@ -1609,10 +1652,10 @@ Here are the available shortcuts to quickly ask questions:
                                         />
                                         {settings.language === 'af' ? 'Handleiding-modus' : 'Tutorial Mode'}
                                     </label>
+                                    <button className="close-btn back-to-results" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
+                                        {t.backToResults}
+                                    </button>
                                 </div>
-                                <button className="close-btn back-to-results" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
-                                    {t.backToResults}
-                                </button>
                             </div>
                             <div className="modal-body info-body">
                                 {!isAnswerExpanded && (
@@ -1771,7 +1814,7 @@ Here are the available shortcuts to quickly ask questions:
 
                                         <div className="ai-response-actions" style={{ marginTop: '20px', justifyContent: 'center' }}>
                                             <button
-                                                className="collapse-btn"
+                                                className="close-btn back-to-results"
                                                 onClick={() => {
                                                     setIsAnswerExpanded(false);
                                                     setShowAIModal(false);
@@ -1791,7 +1834,7 @@ Here are the available shortcuts to quickly ask questions:
                                 )}
 
                                 {/* AI History Section */}
-                                {aiHistory.length > 0 && (
+                                {aiHistory.length > 0 ? (
                                     <div className="ai-history-section" id="tutorial-ai-history-modal">
                                         <button
                                             className="ai-history-toggle"
@@ -1812,11 +1855,24 @@ Here are the available shortcuts to quickly ask questions:
                                                                 onClick={() => {
                                                                     setAiQuestion(item.question);
                                                                     if (item.answer) {
-                                                                        setAiResponse(item.answer);
-                                                                        setIsAnswerExpanded(true); // Auto-expand for visibility
+                                                                        // Check if it's archaeology (stored as JSON string)
+                                                                        if (item.question.includes('Archaeological Research:') || (typeof item.answer === 'string' && item.answer.startsWith('{'))) {
+                                                                            try {
+                                                                                const archData = JSON.parse(item.answer);
+                                                                                setArchaeologyData(archData);
+                                                                                setAiResponse(null);
+                                                                            } catch (e) {
+                                                                                setAiResponse(item.answer);
+                                                                                setArchaeologyData(null);
+                                                                            }
+                                                                        } else {
+                                                                            setAiResponse(item.answer);
+                                                                            setArchaeologyData(null);
+                                                                        }
+                                                                        setIsAnswerExpanded(true);
                                                                     } else {
-                                                                        // Fallback if no answer saved
                                                                         setAiResponse(null);
+                                                                        setArchaeologyData(null);
                                                                     }
                                                                 }}
                                                                 title="View this answer"
@@ -1842,6 +1898,10 @@ Here are the available shortcuts to quickly ask questions:
                                                 </button>
                                             </div>
                                         )}
+                                    </div>
+                                ) : (
+                                    <div className="ai-history-section empty-history" style={{ textAlign: 'center', opacity: 0.5, padding: '20px', paddingBottom: '250px' }}>
+                                        <p>{settings.language === 'af' ? 'Geen vorige vrae nie' : 'No previous questions yet'}</p>
                                     </div>
                                 )}
                             </div>
@@ -1901,7 +1961,7 @@ Here are the available shortcuts to quickly ask questions:
                     localStorage.setItem('search_tutorial_completed', 'true');
                 }}
             />
-        </div>
+        </div >
     );
 }
 
