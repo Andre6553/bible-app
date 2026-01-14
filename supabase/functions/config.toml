@@ -1,0 +1,3 @@
+[functions.payfast-webhook]
+# PayFast IPN calls don't include JWT tokens, so we must disable JWT verification
+verify_jwt = false
