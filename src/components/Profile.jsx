@@ -18,7 +18,7 @@ import './Profile.css';
 
 function Profile() {
     const navigate = useNavigate();
-    const { settings, updateSettings, profile, fetchProfile } = useSettings();
+    const { settings, updateSettings, profile, fetchProfile, user } = useSettings();
     const [activeTab, setActiveTab] = useState('highlights');
     const [highlights, setHighlights] = useState([]);
     const [totalHighlightCount, setTotalHighlightCount] = useState(0);
@@ -30,7 +30,6 @@ function Profile() {
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedWordStudy, setSelectedWordStudy] = useState(null);
-    const [user, setUser] = useState(null);
     const [showSyncBtn, setShowSyncBtn] = useState(false);
     const [syncing, setSyncing] = useState(false);
 
@@ -91,24 +90,10 @@ function Profile() {
             setIsTutorialOpen(true);
             localStorage.removeItem('profile_tutorial_trigger');
         }
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
-            if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
-                loadData();
-                checkUser();
-                if (currentUser) fetchProfile(currentUser.id);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
+    }, [user]);
 
     const checkUser = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
+        const currentUser = user;
 
         // Check for un-migrated local data
         const localId = localStorage.getItem('bible_user_id');
@@ -155,7 +140,6 @@ function Profile() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        setUser(null);
         setHighlights([]);
         setNotes([]);
         setStudies([]);
