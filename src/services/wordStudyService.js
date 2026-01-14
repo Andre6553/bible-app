@@ -53,9 +53,9 @@ export const saveWordStudy = async (study) => {
 /**
  * Get all saved word studies for the current user
  */
-export const getSavedWordStudies = async () => {
+export const getSavedWordStudies = async (explicitUserId = null) => {
     try {
-        const userId = await getUserId();
+        const userId = explicitUserId || await getUserId();
         const { data, error } = await supabase
             .from('word_studies')
             .select('*')

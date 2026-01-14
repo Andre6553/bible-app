@@ -149,16 +149,19 @@ function Profile() {
 
     const loadData = async () => {
         setLoading(true);
+        const targetUserId = user?.id || null;
+        console.log(`[Profile] 🛰️ Loading data for ID: ${targetUserId || 'Guest'}`);
+
         // Optimization: Removed getAllHighlights() from initial load.
         // Highlights are now loaded on-demand when expanding categories.
         const [noteRes, studyRes, wordStudyRes, labelRes, bookRes, categoryRes, countRes] = await Promise.all([
-            getAllNotes(),
-            getStudyCollections(),
-            getSavedWordStudies(),
-            getLabels(),
-            getBooks(),
-            getHighlightCategories(),
-            getHighlightCount()
+            getAllNotes(targetUserId),
+            getStudyCollections(targetUserId),
+            getSavedWordStudies(targetUserId),
+            getLabels(targetUserId),
+            getBooks(), // getBooks is global, no userId needed
+            getHighlightCategories(targetUserId),
+            getHighlightCount(targetUserId)
         ]);
 
         if (noteRes.success) setNotes(noteRes.notes);

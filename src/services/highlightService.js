@@ -392,8 +392,8 @@ export const fetchHighlightTexts = async (highlights) => {
 /**
  * Get all highlight color categories/labels for a user
  */
-export const getHighlightCategories = async () => {
-    const userId = await getUserId();
+export const getHighlightCategories = async (explicitUserId = null) => {
+    const userId = explicitUserId || await getUserId();
     try {
         const { data, error } = await supabase
             .from('highlight_categories')
@@ -442,8 +442,8 @@ export const saveHighlightCategory = async (color, label) => {
 /**
  * Get total count of highlighted verses for a user
  */
-export const getHighlightCount = async () => {
-    const userId = await getUserId();
+export const getHighlightCount = async (explicitUserId = null) => {
+    const userId = explicitUserId || await getUserId();
     try {
         const { count, error } = await supabase
             .from('verse_highlights')
@@ -545,8 +545,8 @@ export const deleteCategory = async (labelToDelete) => {
 /**
  * Get all study collections for a user
  */
-export const getStudyCollections = async () => {
-    const userId = await getUserId();
+export const getStudyCollections = async (explicitUserId = null) => {
+    const userId = explicitUserId || await getUserId();
     try {
         const { data, error } = await supabase
             .from('study_collections')
@@ -707,8 +707,8 @@ export const deleteNote = async (noteId) => {
 /**
  * Get all notes for a user
  */
-export const getAllNotes = async () => {
-    const userId = await getUserId();
+export const getAllNotes = async (explicitUserId = null) => {
+    const userId = explicitUserId || await getUserId();
     try {
         const { data, error } = await supabase
             .from('verse_notes')
@@ -737,8 +737,8 @@ export const getAllNotes = async () => {
 /**
  * Get all labels for a user
  */
-export const getLabels = async () => {
-    const userId = await getUserId();
+export const getLabels = async (explicitUserId = null) => {
+    const userId = explicitUserId || await getUserId();
     try {
         const { data, error } = await supabase
             .from('user_labels')

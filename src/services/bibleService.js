@@ -314,74 +314,58 @@ let isSessionInitialized = false;
  * Get current User ID (Auth user if logged in, otherwise anonymous local ID)
  */
 export const getUserId = async () => {
-    if (cachedUserId && isSessionInitialized) return cachedUserId;
-
-    let userId = cachedUserId;
-
     try {
-        let { data: { session } } = await supabase.auth.getSession();
-
-        if (!session && !localStorage.getItem('bible_user_id') && !cachedUserId) {
-            await new Promise(r => setTimeout(r, 150));
-            const retry = await supabase.auth.getSession();
-            session = retry.data.session;
-        }
+        // Always try to get a fresh session first to avoid race conditions
+        const { data: { session } } = await supabase.auth.getSession();
 
         if (session?.user) {
-            userId = session.user.id;
-            const email = session.user.email;
+            const userId = session.user.id;
+            cachedUserId = userId; // Update memory cache
 
-            // Sync email to user_profiles for stats grouping (Debounced via session init below)
+            // Clean up guest ID if it exists
             if (localStorage.getItem('bible_user_id')) {
                 localStorage.removeItem('bible_user_id');
             }
-            cachedUserId = userId;
-        }
-    } catch (e) {
-        console.warn('Error checking auth session', e);
-    }
 
-    if (!userId) {
-        userId = localStorage.getItem('bible_user_id');
-    }
+            // Per-session initialization for authenticated users
+            if (!isSessionInitialized) {
+                isSessionInitialized = true;
+                initializeNewUser(userId).catch(err => console.error('[Auth] Init failed:', err));
 
-    if (!userId) {
-        userId = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-        localStorage.setItem('bible_user_id', userId);
-    }
-
-    cachedUserId = userId;
-
-    // PERFORM ONCE-PER-SESSION INITIALIZATION
-    if (!isSessionInitialized) {
-        isSessionInitialized = true;
-
-        initializeNewUser(userId).catch(err => console.error('User initialization failed:', err));
-
-        // Sync profile metadata with 24-hour debounce to save database writes
-        const lastSync = localStorage.getItem(`profile_sync_${userId}`);
-        const now = Date.now();
-        const oneDay = 24 * 60 * 60 * 1000;
-
-        if (!lastSync || (now - parseInt(lastSync) > oneDay)) {
-            const { data: { session } } = await supabase.auth.getSession();
-            const email = session?.user?.email || null;
-
-            // Only sync profiles for authenticated users, not guests
-            if (session?.user && !userId.startsWith('user_')) {
+                // Sync profile metadata
+                const email = session.user.email;
                 supabase.from('user_profiles').upsert({
                     user_id: userId,
                     email: email,
                     last_seen: new Date().toISOString()
-                }, { onConflict: 'user_id' }).then(({ error }) => {
-                    if (error) console.warn('[ProfileSync] Error syncing profile:', error.message);
-                    else localStorage.setItem(`profile_sync_${userId}`, now.toString());
-                });
+                }, { onConflict: 'user_id' }).catch(err => console.warn('[ProfileSync] Error:', err.message));
             }
+
+            return userId;
         }
+    } catch (e) {
+        console.warn('[Auth] Session check failed:', e);
     }
 
-    return userId;
+    // Fallback to memory cache
+    if (cachedUserId) return cachedUserId;
+
+    // Fallback to guest ID in localStorage
+    let guestId = localStorage.getItem('bible_user_id');
+    if (!guestId) {
+        guestId = 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem('bible_user_id', guestId);
+    }
+
+    cachedUserId = guestId;
+
+    // Per-session initialization for guests
+    if (!isSessionInitialized) {
+        isSessionInitialized = true;
+        initializeNewUser(guestId).catch(err => console.error('[Auth] Guest init failed:', err));
+    }
+
+    return guestId;
 };
 
 /**
