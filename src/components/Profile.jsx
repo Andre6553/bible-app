@@ -18,7 +18,7 @@ import './Profile.css';
 
 function Profile() {
     const navigate = useNavigate();
-    const { settings, updateSettings, profile, fetchProfile, user } = useSettings();
+    const { settings, updateSettings, profile, fetchProfile, user, manualSetUser } = useSettings();
     const [activeTab, setActiveTab] = useState('highlights');
     const [highlights, setHighlights] = useState([]);
     const [totalHighlightCount, setTotalHighlightCount] = useState(0);
@@ -145,6 +145,7 @@ function Profile() {
             console.error('Logout error:', error);
         } finally {
             // Force clean state regardless of server response
+            if (manualSetUser) manualSetUser(null); // CRITICAL FIX: Force global state clear
             setHighlights([]);
             setNotes([]);
             setStudies([]);

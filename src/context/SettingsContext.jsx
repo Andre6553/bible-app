@@ -168,16 +168,15 @@ export const SettingsProvider = ({ children }) => {
         }
     };
 
-    const contextValue = useMemo(() => ({
-        settings,
-        updateSettings,
-        user,
-        profile,
-        fetchProfile
-    }), [settings, user, profile]);
-
     return (
-        <SettingsContext.Provider value={contextValue}>
+        <SettingsContext.Provider value={{
+            settings,
+            updateSettings,
+            user,
+            manualSetUser: setUser, // Exporting this to allow forced logout
+            profile: null, // Profile now fetched inside components or separate hook if needed
+            fetchProfile: fetchRemoteSettings
+        }}>
             {children}
         </SettingsContext.Provider>
     );
