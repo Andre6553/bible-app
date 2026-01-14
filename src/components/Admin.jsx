@@ -13,13 +13,21 @@ const Admin = () => {
         return d.toISOString().split('T')[0];
     });
     const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
-    const { settings } = useSettings();
+    const { settings, profile } = useSettings();
     const navigate = useNavigate();
 
     // Authentication state
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [pinInput, setPinInput] = useState('');
     const [authError, setAuthError] = useState(false);
+
+    useEffect(() => {
+        // [PRODUCTION HARDENING] Use Identity-Based Access instead of PIN
+        if (profile?.subscription_override === 'admin') {
+            setIsAuthenticated(true);
+        } else {
+            setIsAuthenticated(false);
+        }
+    }, [profile]);
 
     useEffect(() => {
         // Only fetch if authenticated
@@ -27,17 +35,6 @@ const Admin = () => {
             fetchStats();
         }
     }, [isAuthenticated, startDate, endDate]);
-
-    const handleLogin = (e) => {
-        e.preventDefault();
-        if (pinInput === '58078') {
-            setIsAuthenticated(true);
-            setAuthError(false);
-        } else {
-            setAuthError(true);
-            setPinInput('');
-        }
-    };
 
     const fetchStats = async () => {
         setLoading(true);
@@ -73,65 +70,22 @@ const Admin = () => {
         return acc;
     }, {});
 
-    // If not authenticated, show login screen
+    // If not authenticated, show Access Denied screen
     if (!isAuthenticated) {
         return (
-            <div className="stats-login-container" style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minHeight: '100vh',
-                background: settings.theme === 'dark' ? '#1a1a2e' : '#f5f5f5'
-            }}>
-                <div className="stats-login-card" style={{
-                    background: settings.theme === 'dark' ? '#333' : '#fff',
-                    padding: '40px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                    textAlign: 'center',
-                    minWidth: '300px'
-                }}>
-                    <h2 style={{ marginBottom: '20px', color: settings.theme === 'dark' ? '#fff' : '#333' }}>
-                        Admin Access 🔒
-                    </h2>
-                    <form onSubmit={handleLogin}>
-                        <input
-                            type="password"
-                            value={pinInput}
-                            onChange={(e) => setPinInput(e.target.value)}
-                            placeholder="Enter PIN"
-                            className="pin-input"
-                            autoFocus
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                fontSize: '18px',
-                                textAlign: 'center',
-                                border: authError ? '2px solid #f44336' : '2px solid #ddd',
-                                borderRadius: '8px',
-                                marginBottom: '10px',
-                                background: settings.theme === 'dark' ? '#444' : '#fff',
-                                color: settings.theme === 'dark' ? '#fff' : '#333'
-                            }}
-                        />
-                        {authError && <p style={{ color: '#f44336', margin: '10px 0' }}>Incorrect PIN</p>}
-                        <button
-                            type="submit"
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                fontSize: '16px',
-                                background: '#4a90d9',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                marginTop: '10px'
-                            }}
-                        >
-                            Unlock
-                        </button>
-                    </form>
+            <div className="stats-login-container" style={{ textAlign: 'center', padding: '100px 20px', minHeight: '100vh', background: settings.theme === 'dark' ? '#1a1a2e' : '#f5f5f5' }}>
+                <div className="stats-login-card" style={{ maxWidth: '400px', margin: '0 auto', background: settings.theme === 'dark' ? '#333' : '#fff', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+                    <h2 style={{ fontSize: '3rem', marginBottom: '20px' }}>🔒</h2>
+                    <h2 style={{ marginBottom: '10px', color: settings.theme === 'dark' ? '#fff' : '#333' }}>Access Denied</h2>
+                    <p style={{ opacity: 0.7, marginBottom: '30px', color: settings.theme === 'dark' ? '#ccc' : '#666' }}>
+                        This area is restricted to administrators. Please log in with an authorized account to continue.
+                    </p>
+                    <button
+                        onClick={() => navigate('/')}
+                        style={{ padding: '12px 24px', background: '#4a90d9', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}
+                    >
+                        Return Home
+                    </button>
                 </div>
             </div>
         );
@@ -142,9 +96,6 @@ const Admin = () => {
             <div className="admin-header">
                 <h1>API Usage Dashboard</h1>
                 <div className="admin-header-buttons">
-                    <button className="btn-lock" onClick={() => setIsAuthenticated(false)}>
-                        Lock 🔒
-                    </button>
                     <button className="btn-back" onClick={() => navigate('/')}>
                         Back to App
                     </button>

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { logError } from '../services/loggerService';
+import { useSettings } from '../context/SettingsContext';
 
 import { supabase, supabaseUrl, supabaseKey } from '../config/supabaseClient';
 import { getUserStatistics, getUserHistory, getGlobalSermonStats } from '../services/bibleService';
@@ -55,6 +57,8 @@ Best regards,
 Omni Bible System`.trim();
 
 function Stats() {
+    const navigate = useNavigate();
+    const { profile, fetchProfile } = useSettings();
     const [logs, setLogs] = useState([]);
     const [aiQuestions, setAiQuestions] = useState([]);
     const [readingLogs, setReadingLogs] = useState([]); // New reading logs
