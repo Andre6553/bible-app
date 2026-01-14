@@ -20,17 +20,11 @@
 
 ## 📸 App Preview
 
-````carousel
 ![Bible Reader](public/screenshots/bible_reader.png)
-<!-- slide -->
 ![Lexicon & Original Languages](public/screenshots/lexicon.png)
-<!-- slide -->
 ![Intelligent Search](public/screenshots/search.png)
-<!-- slide -->
 ![Daily Inspiration](public/screenshots/for_you.png)
-<!-- slide -->
 ![Sermon Preparation](public/screenshots/sermon_prep.png)
-````
 
 ---
 
