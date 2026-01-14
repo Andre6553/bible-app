@@ -12,7 +12,7 @@
 
 *Read. Study. Prepare. Preach.*
 
-[Live Demo](https://bible-app-chi-mauve.vercel.app) · [Features](#-features) · [Comparison](#-competitor-comparison)
+[Live Demo](https://omnibible-online.vercel.app) · [Features](#-features) · [Comparison](#-competitor-comparison)
 
 </div>
 
