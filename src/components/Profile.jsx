@@ -139,12 +139,19 @@ function Profile() {
     };
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
-        setHighlights([]);
-        setNotes([]);
-        setStudies([]);
-        setWordStudies([]);
-        loadData(); // Reload to show anonymous data or empty state
+        try {
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            // Force clean state regardless of server response
+            setHighlights([]);
+            setNotes([]);
+            setStudies([]);
+            setWordStudies([]);
+            localStorage.removeItem('bible_user_id'); // Clear guest ID if any
+            loadData(); // Reload to show anonymous data or empty state
+        }
     };
 
     const loadData = async () => {
