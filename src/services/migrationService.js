@@ -32,6 +32,15 @@ export const migrateAnonymousData = async (newUserId) => {
         return { success: false, message: 'No valid IDs for migration' };
     }
 
+    console.log(`[Migration] 🔄 Checking if migration is needed for guest ${oldUserId}`);
+
+    const needsMigration = await checkIfMigrationNeeded(oldUserId);
+    if (!needsMigration) {
+        console.log(`[Migration] ⏭️ No data found for guest ${oldUserId}. Skipping migration.`);
+        localStorage.removeItem('bible_user_id');
+        return { success: true, message: 'No data to migrate' };
+    }
+
     console.log(`[Migration] 🔄 Starting migration from ${oldUserId} to ${newUserId}`);
 
     // Link the old guest ID to the new user email in the background
@@ -52,18 +61,15 @@ export const migrateAnonymousData = async (newUserId) => {
         console.warn('[Migration] Failed to link profile', e);
     }
 
-    const results = [];
-
-    for (const table of TABLES_TO_MIGRATE) {
+    const migrationPromises = TABLES_TO_MIGRATE.map(async (table) => {
         try {
             console.log(`[Migration] Processing table: ${table}`);
-            let { count, error } = await supabase
+            const { count, error } = await supabase
                 .from(table)
                 .update({ user_id: newUserId })
                 .eq('user_id', oldUserId);
 
             // Handle unique constraint conflicts (409 or 23505)
-            // This happens if the user has overlapping data (e.g. Daily Inspiration for same date/theme)
             if (error && (error.status === 409 || error.code === '23505')) {
                 console.log(`[Migration] 🧩 Table ${table} has record conflicts. Merging individually...`);
 
@@ -74,44 +80,41 @@ export const migrateAnonymousData = async (newUserId) => {
 
                 if (!fetchError && guestRecords) {
                     let migratedCount = 0;
+                    // Individual records still need sequential handle to avoid overwhelming if many
                     for (const record of guestRecords) {
                         try {
-                            const { id, created_at, ...dataToMove } = record;
-                            // Attempt to move this specific record
+                            const { id } = record;
                             const { error: singleError } = await supabase
                                 .from(table)
                                 .update({ user_id: newUserId })
                                 .eq('id', id);
 
                             if (singleError && (singleError.status === 409 || singleError.code === '23505')) {
-                                // It's a duplicate of data they already have in the new account
-                                // We can safely delete it from the guest session as the account already has it
                                 await supabase.from(table).delete().eq('id', id);
                             } else if (!singleError) {
                                 migratedCount++;
                             }
                         } catch (e) {
-                            // Skip individual record errors
+                            // Skip individual errors
                         }
                     }
-                    console.log(`[Migration] ✅ Table ${table}: Merged ${migratedCount} unique records individually.`);
-                    results.push({ table, success: true, count: migratedCount });
-                    continue;
+                    return { table, success: true, count: migratedCount };
                 }
             }
 
             if (error) {
-                console.warn(`[Migration] ⚠️ Failed for table ${table}:`, error.message, error.details);
-                results.push({ table, success: false, error: error.message, details: error.details });
+                console.warn(`[Migration] ⚠️ Failed for table ${table}:`, error.message);
+                return { table, success: false, error: error.message };
             } else {
-                console.log(`[Migration] ✅ Table ${table}: Migrated ${count || 0} records`);
-                results.push({ table, success: true, count: count || 0 });
+                return { table, success: true, count: count || 0 };
             }
         } catch (err) {
             console.error(`[Migration] ❌ Error in table ${table}:`, err);
-            results.push({ table, success: false, error: err.message });
+            return { table, success: false, error: err.message };
         }
-    }
+    });
+
+    const results = await Promise.all(migrationPromises);
 
     // Clear the old user ID from localStorage as it's no longer needed
     const successCount = results.filter(r => r.success).length;
