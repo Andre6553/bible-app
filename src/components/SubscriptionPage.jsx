@@ -174,7 +174,7 @@ const SubscriptionPage = () => {
                 return;
             }
 
-            const USE_SANDBOX = true; // TESTING MODE - switch back to false for production
+            const USE_SANDBOX = false; // PRODUCTION MODE
             const baseUrl = USE_SANDBOX ? 'https://sandbox.payfast.co.za/eng/process' : 'https://www.payfast.co.za/eng/process';
             const receiver = USE_SANDBOX ? '10000100' : '11945617';
             const merchantKey = USE_SANDBOX ? '46f0cd694581a' : '9anvup217hdck';
