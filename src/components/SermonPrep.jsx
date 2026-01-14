@@ -175,13 +175,14 @@ const SermonPrep = () => {
 
     useEffect(() => {
         // Auto-open tutorial for new users who have 0 sermons
-        if (sermons.length === 0 && !localStorage.getItem('tutorial_completed')) {
+        // Only check AFTER sermons have finished loading to avoid false positive
+        if (!isLoading && sermons.length === 0 && !localStorage.getItem('sermon_tutorial_completed')) {
             setTimeout(() => {
                 setIsTutorialMode(true);
                 setIsTutorialOpen(true);
             }, 1500);
         }
-    }, [sermons]);
+    }, [sermons, isLoading]);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -408,7 +409,7 @@ const SermonPrep = () => {
                         setIsTutorialMode(false);
                         setIsTutorialOpen(false);
                         setTutorialStepIdx(0);
-                        localStorage.setItem('tutorial_completed', 'true');
+                        localStorage.setItem('sermon_tutorial_completed', 'true');
                     }
                 } else if (saveResult.error === 'TRIAL_EXPIRED') {
                     setError('TRIAL_EXPIRED');
