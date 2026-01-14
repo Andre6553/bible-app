@@ -64,15 +64,20 @@ function Stats() {
 
     useEffect(() => {
         // [PRODUCTION HARDENING] Use Identity-Based Access instead of PIN
-        // Allow if profile has admin/tester tag OR if email matches the hardcoded master admin
+        // Logic: 'tester' role explicitly downgrades permissions (even for master email) to allow UI testing.
         const role = profile?.subscription_override;
-        const isTheBoss = role === 'admin' || user?.email === 'andre.ecprint@gmail.com';
-        const isTester = role === 'tester';
+        const masterEmail = 'andre.ecprint@gmail.com';
 
-        if (isTheBoss || isTester) {
+        if (role === 'tester') {
+            // Explicit Tester: Read-Only Access
             setIsAuthenticated(true);
-            setIsMasterAdmin(isTheBoss); // True for admin, False for tester (Read Only)
+            setIsMasterAdmin(false);
+        } else if (role === 'admin' || user?.email === masterEmail) {
+            // Admin or Master Email: Full Access
+            setIsAuthenticated(true);
+            setIsMasterAdmin(true);
         } else {
+            // No Access
             setIsAuthenticated(false);
             setIsMasterAdmin(false);
         }
