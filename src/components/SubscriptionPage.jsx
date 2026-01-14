@@ -200,6 +200,9 @@ const SubscriptionPage = () => {
                 item_name: item_name
             });
 
+            // The notify_url is where PayFast sends the IPN (webhook) confirmation
+            const notify_url = 'https://fikjnvkzhemamtlwsrin.supabase.co/functions/v1/payfast-webhook';
+
             const payParams = new URLSearchParams({
                 cmd: '_paynow',
                 receiver: receiver,
@@ -207,6 +210,7 @@ const SubscriptionPage = () => {
                 amount: amount,
                 return_url: return_url,
                 cancel_url: cancel_url,
+                notify_url: notify_url,
                 custom_str1: custom_str1,
                 merchant_key: merchantKey
             });
