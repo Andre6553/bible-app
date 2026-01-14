@@ -1338,16 +1338,16 @@ Here are the available shortcuts to quickly ask questions:
 
                 <div className="search-filters" id="tutorial-filters">
                     <div className="mode-toggle" id="tutorial-search-mode">
-                        <div className={`mode - slider ${searchMode}`}></div>
+                        <div className={`mode-slider ${searchMode}`}></div>
                         <button
-                            className={`mode - btn ${searchMode === 'exact' ? 'active' : ''} `}
+                            className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
                             onClick={() => handleFilterChange('mode', 'exact')}
                             type="button"
                         >
                             {settings.language === 'af' ? 'Presiese Soektog' : 'Exact Match'}
                         </button>
                         <button
-                            className={`mode - btn ${searchMode === 'semantic' ? 'active' : ''} `}
+                            className={`mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
                             onClick={() => handleFilterChange('mode', 'semantic')}
                             type="button"
                         >
