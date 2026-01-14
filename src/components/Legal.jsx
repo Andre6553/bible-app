@@ -8,13 +8,13 @@ const Legal = ({ type = 'privacy' }) => {
     const sections = {
         privacy: {
             title: 'Privacy Policy',
-            subtitle: 'POPIA & GDPR Compliant',
+            subtitle: 'Global Data Protection Compliant (POPIA, GDPR, CCPA)',
             content: (
                 <div className="legal-content">
                     <section>
                         <h3>1. Introduction</h3>
                         <p>Welcome to Omni Bible. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our website (regardless of where you visit it from) and tell you about your privacy rights and how the law protects you.</p>
-                        <p>For users in South Africa, this policy is designed to comply with the <strong>Protection of Personal Information Act (POPIA)</strong>.</p>
+                        <p>For users worldwide, this policy is designed to comply with global standards including <strong>POPIA</strong> (South Africa), <strong>GDPR</strong> (Europe), and <strong>CCPA</strong> (USA).</p>
                     </section>
                     <section>
                         <h3>2. The Data We Collect</h3>
@@ -40,7 +40,7 @@ const Legal = ({ type = 'privacy' }) => {
                     </section>
                     <section>
                         <h3>5. Your Rights</h3>
-                        <p>Under POPIA, you have the right to access, correct, or request the deletion of your personal data at any time. You can contact us via the app support for any data-related queries.</p>
+                        <p>You have the right to access, correct, or request the deletion of your personal data at any time. You can contact us via the app support for any data-related queries.</p>
                     </section>
                 </div>
             )
@@ -94,7 +94,7 @@ const Legal = ({ type = 'privacy' }) => {
             </main>
 
             <footer className="legal-footer">
-                <p>© {new Date().getFullYear()} Omni Bible (Pty) Ltd. Built with faith.</p>
+                <p>© {new Date().getFullYear()} Omni Bible. Built with faith for the world.</p>
             </footer >
         </div>
     );
