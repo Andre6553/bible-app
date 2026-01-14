@@ -8,7 +8,7 @@
 ![PWA](https://img.shields.io/badge/PWA-Ready-purple?style=flat-square)
 ![Gemini AI](https://img.shields.io/badge/Gemini-AI%20Powered-4285F4?style=flat-square&logo=google)
 
-**The AI-Powered Bible Study App for South Africa**
+**The AI-Powered Bible Study & Sermon Preparation Platform**
 
 *Read. Study. Prepare. Preach.*
 
