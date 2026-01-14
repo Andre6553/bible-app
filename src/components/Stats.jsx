@@ -58,7 +58,21 @@ Omni Bible System`.trim();
 
 function Stats() {
     const navigate = useNavigate();
-    const { profile, fetchProfile } = useSettings();
+    const { profile, fetchProfile, user } = useSettings();
+
+    // ... (state declarations)
+
+    useEffect(() => {
+        // [PRODUCTION HARDENING] Use Identity-Based Access instead of PIN
+        // Allow if profile has admin tag OR if email matches the hardcoded master admin
+        if (profile?.subscription_override === 'admin' || user?.email === 'andre.ecprint@gmail.com') {
+            setIsAuthenticated(true);
+            setIsMasterAdmin(true);
+        } else {
+            setIsAuthenticated(false);
+            setIsMasterAdmin(false);
+        }
+    }, [profile, user]);
     const [logs, setLogs] = useState([]);
     const [aiQuestions, setAiQuestions] = useState([]);
     const [readingLogs, setReadingLogs] = useState([]); // New reading logs
