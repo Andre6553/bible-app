@@ -1166,7 +1166,12 @@ Here are the available shortcuts to quickly ask questions:
                                         const active = e.target.checked;
                                         setIsTutorialMode(active);
                                         setIsTutorialOpen(active);
-                                        if (active) setTutorialStepIdx(0);
+                                        if (active) {
+                                            setTutorialStepIdx(0);
+                                        } else {
+                                            // User manually turned it off -> Mark as seen so it doesn't pop up again
+                                            localStorage.setItem('search_tutorial_completed', 'true');
+                                        }
                                     }}
                                 />
                                 {settings.language === 'af' ? 'Handleiding-modus' : 'Tutorial Mode'}

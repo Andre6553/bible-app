@@ -105,7 +105,12 @@ CREATE POLICY "owner_admin_note_labels" ON public.note_labels FOR ALL USING (
 -- 14. BIBLE_READING_LOGS
 CREATE POLICY "owner_admin_reading_logs" ON public.bible_reading_logs FOR ALL USING (auth.uid()::text = user_id::text OR public.is_admin_jwt());
 
--- 15. STATIC CONTENT (Verses & Books) - PUBLIC READ
+-- 15. USER_SETTINGS
+-- Stores theme, font size, etc.
+ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "owner_admin_user_settings" ON public.user_settings FOR ALL USING (auth.uid()::text = user_id::text OR public.is_admin_jwt());
+
+-- 16. STATIC CONTENT (Verses & Books) - PUBLIC READ
 -- Ensure we enable RLS so we can control it (though we want public read)
 ALTER TABLE public.verses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.books ENABLE ROW LEVEL SECURITY;
