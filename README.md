@@ -151,16 +151,93 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 
 ---
 
+---
+
+## 🏗️ Architecture Overview
+
+Omni Bible is built as a **Modern Serverless Web Application** leveraging the following architecture:
+
+```mermaid
+graph TD
+    A[React 18 Frontend] --> B[Supabase Client]
+    A --> C[Gemini AI SDK]
+    B --> D[(PostgreSQL)]
+    B --> E[Supabase Auth]
+    C --> F[Gemini 2.0 Flash]
+    A --> G[Service Worker / PWA]
+    G --> H[(Browser Cache / IDB)]
+```
+
+- **Frontend**: A highly responsive Single Page Application (SPA) built with React and Vite.
+- **Backend-as-a-Service**: Supabase handles data persistence, user authentication, and real-time synchronization.
+- **AI Intelligence**: Google's Gemini 2.0 Flash powers the semantic search, word studies, and sermon preparation tools.
+- **Offline First**: Service workers and IndexedDB ensure the Bible remains readable even without an internet connection.
+
+---
+
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 19, Vite, CSS3 |
-| **Backend** | Supabase (PostgreSQL + Auth) |
-| **AI** | Google Gemini 2.0 Flash |
-| **Hosting** | Vercel |
-| **PWA** | Vite PWA Plugin |
-| **Analytics** | Vercel Analytics |
+### Core
+- **React 18**: Dynamic UI components and state management.
+- **Vite**: Ultra-fast build tool and development server.
+- **Supabase**: Open-source Firebase alternative (Postgres + Auth).
+- **Gemini 2.0 Flash**: Next-generation AI model for biblical analysis.
+
+### Utilities
+- **Vite PWA Plugin**: Handles service worker generation and manifest management.
+- **React Router 6**: Client-side routing.
+- **EmailJS**: Handles contact form submissions without a backend.
+- **Fast-XML-Parser**: Parses USFM/XML Bible data for local processing.
+- **idb**: Lightweight wrapper for IndexedDB to manage offline Bibles.
+
+---
+
+## 🚀 Local Setup
+
+Follow these steps to run Omni Bible on your local machine:
+
+### 1. Prerequisites
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [npm](https://www.npmjs.com/)
+
+### 2. Clone and Install
+```bash
+git clone https://github.com/Andre6553/bible-app.git
+cd bible-app
+npm install
+```
+
+### 3. Environment Variables
+Create a `.env` file in the root directory and add your Gemini API Key:
+```env
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
+```
+> [!NOTE]
+> Supabase credentials are currently configured in `src/config/supabaseClient.js`. In a production environment, these should also be moved to environment variables.
+
+### 4. Run Development Server
+```bash
+npm run dev
+```
+The app will be available at `http://localhost:5173`.
+
+---
+
+## ☁️ Deployment
+
+Omni Bible is optimized for deployment on **Vercel**.
+
+### Automatic Deployment (Recommended)
+1. Push your code to a GitHub repository.
+2. Connect the repository to [Vercel](https://vercel.com/).
+3. Add the `VITE_GEMINI_API_KEY` to the **Environment Variables** section in the Vercel dashboard.
+4. Vercel will automatically detect Vite and deploy the application.
+
+### Manual Build
+```bash
+npm run build
+```
+This will generate a `dist` folder ready to be served by any static hosting provider.
 
 ---
 
