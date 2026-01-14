@@ -42,7 +42,7 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 |------------|-------------------|
 | 🤖 AI Sermon Builder | Build full sermons with AI assistance |
 | 📚 3 Afrikaans Translations | AFR53, AFR83, AFR NLV |
-| 🇿🇦 ZAR Pricing | Affordable for South Africans |
+| 🌍 Global Pricing | Just $5/month worldwide |
 | 📖 AI Word Study | Greek/Hebrew analysis on any word |
 | 💬 AI Bible Q&A | Ask questions, get scripture-backed answers |
 
@@ -136,7 +136,7 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 
 1. **🤖 AI Sermon Builder** - No competitor has this. Generate full sermon outlines and content with AI assistance.
 
-2. **🇿🇦 South African Focus** - 3 Afrikaans translations, ZAR pricing, local relevance.
+2. **🌍 Multilingual & Global Access** - Full support for English and Afrikaans, with affordable global pricing for users worldwide.
 
 3. **💬 Natural Language Bible Q&A** - Ask questions in plain language, get scripture-backed answers.
 
@@ -163,7 +163,7 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 
 ### **Overall: 8.9/10** ⭐⭐⭐⭐½
 
-### **For South African Market: 9.5/10** ⭐⭐⭐⭐⭐
+### **Global Market Appeal: 9.5/10** ⭐⭐⭐⭐⭐
 
 ---
 
@@ -207,10 +207,11 @@ The design of Omni Bible is "Reader-First." We prioritize typography, whitespace
 - **Mobile-First PWA**: Designed to be installed and used as a native app, with smooth transitions and haptic-like micro-animations.
 - **Bilingual Intuition**: Fully localized for English and Afrikaans.
 
-### Comparison: Omni Bible vs. BibleSA
-While apps like BibleSA provide excellent access to local translations, Omni Bible focuses on **active study and preparation**:
-- **BibleSA**: Primarily a digital reader for official translations.
-- **Omni Bible**: An active study partner that integrates AI for sermon building, semantic search, and original language analysis—all within the same interface.
+### Comparison with Traditional Digital Bibles
+
+While many apps provide basic digital access to scripture, Omni Bible focuses on **active study and preparation**:
+- **Standard Apps**: Primarily digital readers for fixed translations.
+- **Omni Bible**: An active study partner that integrates AI for sermon building, semantic search, and original language analysis—all in one place.
 
 ---
 
@@ -300,7 +301,7 @@ Proprietary. All rights reserved.
 
 <div align="center">
 
-**Built with ❤️ for South African Christians**
+**Built with ❤️ for Christians worldwide**
 
 *"Your word is a lamp for my feet, a light on my path." - Psalm 119:105*
 
