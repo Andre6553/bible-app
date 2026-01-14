@@ -136,7 +136,7 @@ function Profile() {
         setSyncing(true);
         try {
             const localId = localStorage.getItem('bible_user_id');
-            const result = await migrateAnonymousData(localId, user.id);
+            const result = await migrateAnonymousData(user.id);
             if (result.success) {
                 alert('Success! Your highlights and notes have been synced to your account.');
                 localStorage.removeItem('bible_user_id');

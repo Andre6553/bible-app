@@ -135,6 +135,7 @@ function Auth() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="your@email.com"
                                 required
+                                autoComplete="email"
                             />
                         </div>
 
@@ -146,6 +147,7 @@ function Auth() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Minimum 6 characters"
                                 required
+                                autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
                             />
                             {authMode === 'login' && (
                                 <button
@@ -177,6 +179,7 @@ function Auth() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="your@email.com"
                                 required
+                                autoComplete="email"
                             />
                         </div>
 
@@ -206,6 +209,7 @@ function Auth() {
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 placeholder="Minimum 6 characters"
                                 required
+                                autoComplete="new-password"
                                 autoFocus
                             />
                         </div>
