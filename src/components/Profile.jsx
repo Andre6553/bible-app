@@ -1055,38 +1055,6 @@ function Profile() {
                         {/* Downloads Tab */}
                         {activeTab === 'downloads' && (
                             <div className="premium-downloads-container">
-                                <div className="troubleshooting-card glass-panel">
-                                    <div className="troubleshooting-header">
-                                        <span className="icon">🛡️</span>
-                                        <h3>Troubleshooting</h3>
-                                    </div>
-                                    <p className="troubleshooting-text">
-                                        Seeing old data or unusual characters? Resetting the cache can resolve local storage inconsistencies.
-                                    </p>
-                                    <button
-                                        className="premium-reset-btn"
-                                        onClick={async () => {
-                                            if (window.confirm("This will clear all offline data and refresh the app. Continue?")) {
-                                                if ('serviceWorker' in navigator) {
-                                                    const registrations = await navigator.serviceWorker.getRegistrations();
-                                                    for (let registration of registrations) {
-                                                        await registration.unregister();
-                                                    }
-                                                }
-                                                if ('caches' in window) {
-                                                    const keys = await caches.keys();
-                                                    for (let key of keys) {
-                                                        await caches.delete(key);
-                                                    }
-                                                }
-                                                window.location.reload(true);
-                                            }
-                                        }}
-                                    >
-                                        <span className="btn-icon">⚠️</span>
-                                        <span className="btn-text">Reset App Cache</span>
-                                    </button>
-                                </div>
 
                                 <div className="storage-dashboard">
                                     <div className="storage-stats">

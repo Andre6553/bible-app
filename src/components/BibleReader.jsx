@@ -32,6 +32,7 @@ import BibleHelpModal from './BibleHelpModal';
 import OmniDefinitionModal from './OmniDefinitionModal';
 import ChapterSummaryModal from './ChapterSummaryModal';
 import './BibleReader.css';
+import { resetAppCache } from '../utils/appUtils';
 
 const THEME_COLORS = [
     '#6366f1', '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
@@ -1353,7 +1354,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                     <h2>Reader Settings ⚙️</h2>
                                     <button
                                         className="refresh-btn-icon"
-                                        onClick={() => window.location.reload()}
+                                        onClick={resetAppCache}
                                         title="Refresh App"
                                     >🔄 <span>Refresh App</span></button>
                                 </div>
