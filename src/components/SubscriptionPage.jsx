@@ -98,41 +98,38 @@ const SubscriptionPage = () => {
             const paymentStatus = params.get('payment');
 
             if (paymentStatus === 'success') {
-                if (paymentStatus === 'success') {
-                    // [PRODUCTION HARDENING] No longer updating DB directly from frontend.
-                    // The PayFast IPN Webhook handles this securely on the backend.
-                    // We just refresh the profile and show a success message.
-                    const checkStatus = async () => {
-                        const { data: { user } } = await supabase.auth.getUser(); // Fetch user here
-                        if (user) {
-                            await fetchProfile(user.id);
-                            // If profile still isn't premium, tell them it's processing
-                            const { data: profile } = await supabase
-                                .from('user_profiles')
-                                .select('subscription_tier, subscription_override')
-                                .eq('user_id', user.id)
-                                .single();
+                // Clear the URL param to prevent re-triggering on refresh
+                window.history.replaceState({}, '', window.location.pathname);
 
-                            const isNowPremium = profile?.subscription_tier === 'premium' || profile?.subscription_override === 'premium';
-                            if (!isNowPremium) {
-                                alert(isAf ? 'Betaling suksesvol! Jou rekening word nou opgedateer (dit kan \'n oomblik neem).' : 'Payment successful! Your account is being updated (this may take a moment).');
-                                // Polling for 5 seconds to give webhook time
-                                setTimeout(() => fetchProfile(user.id), 5000);
-                            } else {
-                                // [NEW] Log payment success event
-                                logEvent('purchase', {
-                                    value: 85.00, // Approximate fallback value
-                                    currency: 'ZAR',
-                                    item_name: 'Omni Bible Premium'
-                                });
-                                alert(isAf ? 'Betaling Suksesvol!' : 'Payment Successful!');
-                                navigate('/sermon-prep');
-                            }
-                        }
-                    };
-                    checkStatus();
+                // [PRODUCTION HARDENING] No longer updating DB directly from frontend.
+                // The PayFast IPN Webhook handles this securely on the backend.
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    await fetchProfile(user.id);
+                    const { data: profile } = await supabase
+                        .from('user_profiles')
+                        .select('subscription_tier, subscription_override')
+                        .eq('user_id', user.id)
+                        .single();
+
+                    const isNowPremium = profile?.subscription_tier === 'premium' || profile?.subscription_override === 'premium';
+                    if (!isNowPremium) {
+                        alert(isAf ? 'Betaling suksesvol! Jou rekening word nou opgedateer (dit kan \'n oomblik neem).' : 'Payment successful! Your account is being updated (this may take a moment).');
+                        // Polling for 5 seconds to give webhook time
+                        setTimeout(() => fetchProfile(user.id), 5000);
+                    } else {
+                        // Log payment success event
+                        logEvent('purchase', {
+                            value: 85.00,
+                            currency: 'ZAR',
+                            item_name: 'Omni Bible Premium'
+                        });
+                        alert(isAf ? 'Betaling Suksesvol!' : 'Payment Successful!');
+                        navigate('/sermon-prep');
+                    }
                 }
             } else if (paymentStatus === 'cancelled') {
+                window.history.replaceState({}, '', window.location.pathname);
                 alert(isAf ? 'Betaling Gekanselleer.' : 'Payment Cancelled.');
             }
         };
