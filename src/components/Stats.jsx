@@ -66,9 +66,12 @@ function Stats() {
         // [PRODUCTION HARDENING] Use Identity-Based Access instead of PIN
         // Allow if profile has admin/tester tag OR if email matches the hardcoded master admin
         const role = profile?.subscription_override;
-        if (role === 'admin' || role === 'tester' || user?.email === 'andre.ecprint@gmail.com') {
+        const isTheBoss = role === 'admin' || user?.email === 'andre.ecprint@gmail.com';
+        const isTester = role === 'tester';
+
+        if (isTheBoss || isTester) {
             setIsAuthenticated(true);
-            setIsMasterAdmin(true); // Treat testers as admins for viewing purposes
+            setIsMasterAdmin(isTheBoss); // True for admin, False for tester (Read Only)
         } else {
             setIsAuthenticated(false);
             setIsMasterAdmin(false);
