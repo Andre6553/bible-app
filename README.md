@@ -3,7 +3,7 @@
 <div align="center">
 
 ![Omni Bible](https://img.shields.io/badge/Omni-Bible-blue?style=for-the-badge)
-![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
 ![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=flat-square&logo=supabase)
 ![PWA](https://img.shields.io/badge/PWA-Ready-purple?style=flat-square)
 ![Gemini AI](https://img.shields.io/badge/Gemini-AI%20Powered-4285F4?style=flat-square&logo=google)
@@ -132,7 +132,7 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 
 ---
 
-## 📊 Ratings
+## 📊 Internal Evaluation
 
 | Category | Score | Notes |
 |----------|-------|-------|
