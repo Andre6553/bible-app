@@ -57,15 +57,17 @@ function Auth() {
                 }
 
                 try {
-                    await migrateAnonymousData(result.data.user.id);
+                    // [UX] Wait at most 3 seconds for migration before proceeding anyway
+                    const migrationTask = migrateAnonymousData(result.data.user.id);
+                    const timeoutTask = new Promise(resolve => setTimeout(resolve, 3000));
+
+                    await Promise.race([migrationTask, timeoutTask]);
+                    console.log('[Auth] Migration finished or timed out, navigating to profile.');
                 } catch (migErr) {
-                    console.error('Migration failed but proceeding to profile:', migErr);
+                    console.error('[Auth] Migration error, proceeding anyway:', migErr);
                 }
 
-                // Short delay to ensure context catches up
-                setTimeout(() => {
-                    navigate('/profile');
-                }, 500);
+                navigate('/profile');
             } else if (authMode === 'signup') {
                 sendWelcomeEmail(email);
                 notifyAdminOfNewUser('Pending', email);
