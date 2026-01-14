@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabaseClient';
 import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
 import { notifyAdminOfNewUser } from './emailService';
+import { logEvent } from './analyticsService';
 
 /**
  * Bible Service - Handles all Bible data operations with Supabase
@@ -64,7 +65,11 @@ export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
     const cacheKey = `chapter_${bookId}_${chapter}_${versionId}`;
 
     // [NEW] Log Bible reading activity (Always log, even on cache hits)
-    logBibleReading(bookId, chapter);
+    logEvent('view_bible_chapter', {
+        book_id: bookId,
+        chapter: chapter,
+        version_id: versionId
+    });
 
     // 1. Try to get from cache first
     try {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
 import md5 from 'crypto-js/md5';
+import { logEvent } from '../services/analyticsService';
 import './SubscriptionPage.css';
 
 const SubscriptionPage = () => {
@@ -97,53 +98,39 @@ const SubscriptionPage = () => {
             const paymentStatus = params.get('payment');
 
             if (paymentStatus === 'success') {
-                try {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (user) {
-                        const expiryDate = new Date();
-                        expiryDate.setDate(expiryDate.getDate() + 30);
-                        const expiryISO = expiryDate.toISOString();
-
-                        // 1. Upgrade User Profile
-                        const { error } = await supabase
-                            .from('user_profiles')
-                            .update({
-                                subscription_tier: 'premium',
-                                subscription_override: 'premium',
-                                subscription_expiry: expiryISO,
-                                last_renewal_month: new Date().toISOString().slice(0, 7)
-                            })
-                            .eq('user_id', user.id);
-
-                        // 2. Log Payment for IP Tracking (Silent)
-                        // This allows us to track "one discount per IP" in the future
-                        try {
-                            // Re-fetch IP if context was lost during redirect (best effort)
-                            const ipRes = await fetch('https://api.ipify.org?format=json');
-                            const ipData = await ipRes.json();
-
-                            await supabase.from('payment_history').insert([{
-                                user_id: user.id,
-                                ip_address: ipData.ip || 'unknown',
-                                status: 'success',
-                                amount: 'subscribed', // We can enhance this to track exact amount later
-                                provider: 'payfast'
-                            }]);
-                        } catch (logErr) {
-                            console.warn('Payment logging failed', logErr);
-                        }
-
-                        if (error) {
-                            console.error('Error upgrading profile:', error);
-                            alert('Payment successful, but profile update failed.');
-                        } else {
+                if (paymentStatus === 'success') {
+                    // [PRODUCTION HARDENING] No longer updating DB directly from frontend.
+                    // The PayFast IPN Webhook handles this securely on the backend.
+                    // We just refresh the profile and show a success message.
+                    const checkStatus = async () => {
+                        const { data: { user } } = await supabase.auth.getUser(); // Fetch user here
+                        if (user) {
                             await fetchProfile(user.id);
-                            alert(isAf ? 'Betaling Suksesvol!' : 'Payment Successful!');
-                            navigate('/sermon-prep');
+                            // If profile still isn't premium, tell them it's processing
+                            const { data: profile } = await supabase
+                                .from('user_profiles')
+                                .select('subscription_tier, subscription_override')
+                                .eq('user_id', user.id)
+                                .single();
+
+                            const isNowPremium = profile?.subscription_tier === 'premium' || profile?.subscription_override === 'premium';
+                            if (!isNowPremium) {
+                                alert(isAf ? 'Betaling suksesvol! Jou rekening word nou opgedateer (dit kan \'n oomblik neem).' : 'Payment successful! Your account is being updated (this may take a moment).');
+                                // Polling for 5 seconds to give webhook time
+                                setTimeout(() => fetchProfile(user.id), 5000);
+                            } else {
+                                // [NEW] Log payment success event
+                                logEvent('purchase', {
+                                    value: 85.00, // Approximate fallback value
+                                    currency: 'ZAR',
+                                    item_name: 'Omni Bible Premium'
+                                });
+                                alert(isAf ? 'Betaling Suksesvol!' : 'Payment Successful!');
+                                navigate('/sermon-prep');
+                            }
                         }
-                    }
-                } catch (err) {
-                    console.error('Error in payment success flow:', err);
+                    };
+                    checkStatus();
                 }
             } else if (paymentStatus === 'cancelled') {
                 alert(isAf ? 'Betaling Gekanselleer.' : 'Payment Cancelled.');
@@ -205,6 +192,13 @@ const SubscriptionPage = () => {
             const return_url = `${window.location.origin}/subscription?payment=success`;
             const cancel_url = `${window.location.origin}/subscription?payment=cancelled`;
             const custom_str1 = user.id;
+
+            // [NEW] Log checkout initiation
+            logEvent('begin_checkout', {
+                value: finalPrice,
+                currency: 'ZAR',
+                item_name: item_name
+            });
 
             const payParams = new URLSearchParams({
                 cmd: '_paynow',

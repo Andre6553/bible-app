@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from '../config/supabaseClient';
 import { logApiCall } from './adminService';
+import { logEvent } from './analyticsService';
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);

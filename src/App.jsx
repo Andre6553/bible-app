@@ -7,6 +7,8 @@ import { Analytics } from "@vercel/analytics/react"
 import ErrorBoundary from './components/ErrorBoundary';
 import { initGlobalErrorListeners } from './services/loggerService';
 import SplashScreen from './components/SplashScreen';
+import { initGA, logPageView, setUserId } from './services/analyticsService';
+import { useLocation } from 'react-router-dom';
 import './App.css';
 
 // Lazy load components
@@ -32,6 +34,7 @@ function App() {
 
     useEffect(() => {
         initGlobalErrorListeners();
+        initGA();
         loadVersions();
 
         // High-end Splash Screen duration
@@ -41,6 +44,15 @@ function App() {
 
         return () => clearTimeout(splashTimer);
     }, []);
+
+    // Analytics Route Tracker
+    const AnalyticsTracker = () => {
+        const location = useLocation();
+        useEffect(() => {
+            logPageView(location.pathname + location.search);
+        }, [location]);
+        return null;
+    };
 
     const loadVersions = async () => {
         const result = await getVersions();
@@ -80,6 +92,7 @@ function App() {
             {showSplash && <SplashScreen />}
             <ThemeHandler />
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <AnalyticsTracker />
                 <div className="app">
                     <Analytics />
                     <ErrorBoundary>

@@ -119,6 +119,17 @@ function Stats() {
     const [secretCodeLoading, setSecretCodeLoading] = useState(false);
 
     useEffect(() => {
+        // [PRODUCTION HARDENING] Use Identity-Based Access instead of PIN
+        if (profile?.subscription_override === 'admin') {
+            setIsAuthenticated(true);
+            setIsMasterAdmin(true);
+        } else {
+            setIsAuthenticated(false);
+            setIsMasterAdmin(false);
+        }
+    }, [profile]);
+
+    useEffect(() => {
         // Only fetch if authenticated
         if (isAuthenticated) {
             fetchLogs();
@@ -132,28 +143,8 @@ function Stats() {
             fetchEmailSettings();
             fetchEmailTemplates();
             fetchSubscriptionPrice();
-            checkMasterAdmin();
         }
     }, [isAuthenticated]);
-
-    const checkMasterAdmin = async () => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { data } = await supabase
-                    .from('user_profiles')
-                    .select('subscription_override')
-                    .eq('user_id', user.id)
-                    .single();
-
-                if (data && data.subscription_override === 'admin') {
-                    setIsMasterAdmin(true);
-                }
-            }
-        } catch (err) {
-            console.error('Error checking master admin:', err);
-        }
-    };
 
     const fetchSubscriptionPrice = async () => {
         setPriceLoading(true);
@@ -199,9 +190,23 @@ function Stats() {
         setSecretCodeLoading(true);
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                alert('You must be logged in as an admin to apply codes locally.');
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (!authUser) {
+                alert('You must be logged in to apply codes.');
+                setSecretCodeLoading(false);
+                return;
+            }
+
+            // 1. Fetch code detail from database
+            const { data: promo, error: promoError } = await supabase
+                .from('promo_codes')
+                .select('*')
+                .eq('code', code)
+                .eq('is_active', true)
+                .single();
+
+            if (promoError || !promo) {
+                alert('Invalid or expired secret code.');
                 setSecretCodeLoading(false);
                 return;
             }
@@ -209,60 +214,72 @@ function Stats() {
             let updates = {};
             let message = '';
 
-            if (code === 'Master@12345') {
-                updates = { subscription_override: 'admin' };
-                message = 'Admin access granted!';
-                setIsMasterAdmin(true);
-            } else if (code === 'SUB') {
-                updates = {
-                    subscription_tier: 'premium',
-                    subscription_override: 'premium',
-                    subscription_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
-                };
-                message = '🚀 Test Subscriber status granted! Verifying auto-promotion...';
-            } else if (code === 'Finger') {
-                updates = {
-                    subscription_override: 'tester_finger',
-                    last_renewal_month: new Date().toISOString().slice(0, 7),
-                    sermon_trial_count: 0
-                };
-                message = 'Secret "Finger" access granted!';
-            } else if (code === 'Test') {
-                updates = {
-                    subscription_override: 'tester',
-                    email: user.email,
-                    last_renewal_month: new Date().toISOString().slice(0, 7),
-                    sermon_trial_count: 0,
-                    ai_usage_count: 0
-                };
-                message = 'Tester access granted!';
-            } else if (code === 'ExpireMe') {
-                updates = {
-                    subscription_override: null,
-                    subscription_tier: 'free',
-                    subscription_expiry: null, // Ensure expiry is cleared so they can re-subscribe
-                    sermon_trial_count: 0,
-                    ai_usage_count: 0
-                };
-                message = 'Subscription patterns reset/expired!';
-                setIsMasterAdmin(false);
-            } else {
-                alert('Invalid secret code.');
-                setSecretCodeLoading(false);
-                return;
+            switch (promo.action) {
+                case 'admin':
+                    updates = { subscription_override: 'admin' };
+                    message = 'Admin access granted!';
+                    setIsMasterAdmin(true);
+                    break;
+                case 'premium':
+                    updates = {
+                        subscription_tier: 'premium',
+                        subscription_override: 'premium',
+                        subscription_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+                    };
+                    message = '🚀 Premium status granted!';
+                    break;
+                case 'tester_finger':
+                    updates = {
+                        subscription_override: 'tester_finger',
+                        last_renewal_month: new Date().toISOString().slice(0, 7),
+                        sermon_trial_count: 0
+                    };
+                    message = 'Secret "Finger" access granted!';
+                    break;
+                case 'tester':
+                    updates = {
+                        subscription_override: 'tester',
+                        last_renewal_month: new Date().toISOString().slice(0, 7),
+                        sermon_trial_count: 0,
+                        ai_usage_count: 0
+                    };
+                    message = 'Tester access granted!';
+                    break;
+                case 'reset':
+                    updates = {
+                        subscription_override: null,
+                        subscription_tier: 'free',
+                        subscription_expiry: null,
+                        sermon_trial_count: 0,
+                        ai_usage_count: 0
+                    };
+                    message = 'Subscription patterns reset!';
+                    setIsMasterAdmin(false);
+                    break;
+                default:
+                    alert('Action for this code is not implemented.');
+                    setSecretCodeLoading(false);
+                    return;
             }
 
-            const { error } = await supabase
+            const { error: updateError } = await supabase
                 .from('user_profiles')
-                .update(updates)
-                .eq('user_id', user.id);
+                .update({
+                    ...updates,
+                    last_seen: new Date().toISOString()
+                })
+                .eq('user_id', authUser.id);
 
-            if (error) throw error;
+            if (updateError) throw updateError;
             alert(message);
             setSecretCode('');
+
+            // Refresh local profile to reflect changes
+            if (fetchProfile) fetchProfile(authUser.id);
+
         } catch (error) {
             console.error('Error applying code:', error);
-            alert('Error updating profile.');
+            alert('Error updating profile: ' + error.message);
         } finally {
             setSecretCodeLoading(false);
         }
@@ -415,17 +432,7 @@ function Stats() {
     };
 
 
-    const handleLogin = (e) => {
-        e.preventDefault();
-        const pin = pinInput.trim();
-        if (pin === '58078' || pin === 'ExpireMe') {
-            setIsAuthenticated(true);
-            setAuthError(false);
-        } else {
-            setAuthError(true);
-            setPinInput('');
-        }
-    };
+    // [REMOVED] handleLogin - No longer using PIN for administrative access
 
     const fetchUserStats = async () => {
         const result = await getUserStatistics();
@@ -990,32 +997,19 @@ function Stats() {
 
     if (!isAuthenticated) {
         return (
-            <div className="stats-login-container">
-                <div className="stats-login-card">
-                    <h2>Admin Access 🔒</h2>
-                    <form onSubmit={handleLogin}>
-                        <input type="text" autoComplete="username" style={{ display: 'none' }} />
-                        <div className="pin-input-wrapper">
-                            <input
-                                type={showPin ? "text" : "password"}
-                                value={pinInput}
-                                onChange={(e) => setPinInput(e.target.value)}
-                                placeholder="Enter PIN"
-                                className="pin-input"
-                                autoFocus
-                                autoComplete="current-password"
-                            />
-                            <button
-                                type="button"
-                                className="input-toggle-btn"
-                                onClick={() => setShowPin(!showPin)}
-                            >
-                                {showPin ? '👁️' : '👁️‍🗨️'}
-                            </button>
-                        </div>
-                        {authError && <p className="error-msg">Incorrect PIN</p>}
-                        <button type="submit" className="login-btn">Unlock</button>
-                    </form>
+            <div className="stats-login-container" style={{ textAlign: 'center', padding: '100px 20px' }}>
+                <div className="stats-login-card" style={{ maxWidth: '400px', margin: '0 auto', background: 'var(--bg-secondary)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                    <h2 style={{ fontSize: '3rem', marginBottom: '20px' }}>🔒</h2>
+                    <h2 style={{ marginBottom: '10px' }}>Access Denied</h2>
+                    <p style={{ opacity: 0.7, marginBottom: '30px' }}>
+                        This area is restricted to administrators. Please log in with an authorized account to continue.
+                    </p>
+                    <button
+                        onClick={() => navigate('/')}
+                        style={{ padding: '12px 24px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                        Return Home
+                    </button>
                 </div>
             </div>
         );
@@ -1706,29 +1700,22 @@ function Stats() {
                                         <tr>
                                             <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>SUB</td>
                                             <td style={{ padding: '8px' }}>
-                                                <strong>Grants Premium Subscriber Status (30 Days)</strong><br />
-                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Unlocks all premium features (Unlimited AI, etc.) without payment. Use this to verify the "Paid" experience.</span>
+                                                <strong>Promote to Premium</strong><br />
+                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Upgrades the current account to the Paid Tier for testing purposes.</span>
                                             </td>
                                         </tr>
                                         <tr>
                                             <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>Finger</td>
                                             <td style={{ padding: '8px' }}>
-                                                <strong>Sets Override to "tester_finger"</strong><br />
-                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Assigns a unique tester identity and <strong>resets sermon trial counts</strong> to 0. Use this to test the "Sermon Generator" free trial flow.</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>Test</td>
-                                            <td style={{ padding: '8px' }}>
-                                                <strong>Sets Override to "tester"</strong><br />
-                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Grants generic tester privileges. Useful for general debugging.</span>
+                                                <strong>Reset Sermon Quota</strong><br />
+                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Resets artificial trial limits for debugging generation flows.</span>
                                             </td>
                                         </tr>
                                         <tr>
                                             <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>ExpireMe</td>
                                             <td style={{ padding: '8px' }}>
-                                                <strong>Resets Account to Free Tier</strong><br />
-                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Clears all subscriptions and tester overrides. Use this to test the "Upgrade to Premium" flow or simulate a new user.</span>
+                                                <strong>Clear All Overrides</strong><br />
+                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Resets the profile to standard "Free" status.</span>
                                             </td>
                                         </tr>
                                     </tbody>
