@@ -18,6 +18,22 @@
 
 ---
 
+## 📸 App Preview
+
+````carousel
+![Bible Reader](public/screenshots/bible_reader.png)
+<!-- slide -->
+![Lexicon & Original Languages](public/screenshots/lexicon.png)
+<!-- slide -->
+![Intelligent Search](public/screenshots/search.png)
+<!-- slide -->
+![Daily Inspiration](public/screenshots/for_you.png)
+<!-- slide -->
+![Sermon Preparation](public/screenshots/sermon_prep.png)
+````
+
+---
+
 ## 🚀 What Makes Omni Bible Different?
 
 Omni Bible is not just another Bible reading app. It's a **complete Bible study and sermon preparation platform** with AI capabilities that no other app offers.
