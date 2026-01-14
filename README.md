@@ -155,8 +155,18 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 
 ## 🏗️ Architecture Overview
 
-Omni Bible is built as a **Modern Serverless Web Application** leveraging the following architecture:
+Omni Bible is a **Modern Serverless Web Application** (PWA) with a multi-layered data strategy.
 
+### 🧩 Data Connectivity
+- **Frontend-to-Backend**: The frontend connects directly to **Supabase** via the lightweight `supabase-js` client. No intermediate server-side API or SSR is used; all data fetching, authentication, and real-time updates happen on the client.
+- **Bible Content Serving**: Bible text is served from a high-performance PostgreSQL database hosted on Supabase.
+- **Multi-Layered Caching**:
+    1. **Memory Cache**: For fast access to session data.
+    2. **LocalStorage**: Automatically caches the last 10 chapters viewed for instant repeat loading.
+    3. **IndexedDB**: Powering the "Offline Ready" feature, allowing users to download entire Bible versions for use without an internet connection.
+- **Rendering Strategy**: 100% **Client-Side Rendered (CSR)**. This ensures a fast, app-like feel and enables the PWA to be fully functional offline once the initial assets and Bible data are cached.
+
+### 🌐 System Diagram
 ```mermaid
 graph TD
     A[React 18 Frontend] --> B[Supabase Client]
@@ -165,13 +175,26 @@ graph TD
     B --> E[Supabase Auth]
     C --> F[Gemini 2.0 Flash]
     A --> G[Service Worker / PWA]
-    G --> H[(Browser Cache / IDB)]
+    G --> H[(Browser Cache)]
+    A --> I[(LocalStorage / IDB)]
 ```
 
-- **Frontend**: A highly responsive Single Page Application (SPA) built with React and Vite.
-- **Backend-as-a-Service**: Supabase handles data persistence, user authentication, and real-time synchronization.
-- **AI Intelligence**: Google's Gemini 2.0 Flash powers the semantic search, word studies, and sermon preparation tools.
-- **Offline First**: Service workers and IndexedDB ensure the Bible remains readable even without an internet connection.
+---
+
+## 🎨 UI / UX Design
+
+### Philosophy
+The design of Omni Bible is "Reader-First." We prioritize typography, whitespace, and a distraction-free environment for scripture engagement.
+
+### Key UX Features
+- **Modern Aesthetics**: Glassmorphism and vibrant, harmonious color palettes (HSL-based).
+- **Mobile-First PWA**: Designed to be installed and used as a native app, with smooth transitions and haptic-like micro-animations.
+- **Bilingual Intuition**: Fully localized for English and Afrikaans.
+
+### Comparison: Omni Bible vs. BibleSA
+While apps like BibleSA provide excellent access to local translations, Omni Bible focuses on **active study and preparation**:
+- **BibleSA**: Primarily a digital reader for official translations.
+- **Omni Bible**: An active study partner that integrates AI for sermon building, semantic search, and original language analysis—all within the same interface.
 
 ---
 
