@@ -148,11 +148,15 @@ export const SettingsProvider = ({ children }) => {
     };
 
     const [profile, setProfile] = useState(null);
+    const [profileLoading, setProfileLoading] = useState(true);
+
     useEffect(() => {
         if (user) {
+            setProfileLoading(true);
             fetchProfile(user.id);
         } else {
             setProfile(null);
+            setProfileLoading(false);
         }
     }, [user]);
 
@@ -168,6 +172,8 @@ export const SettingsProvider = ({ children }) => {
             setProfile(data);
         } catch (err) {
             console.error("[Settings] ❌ Profile fetch error:", err.message);
+        } finally {
+            setProfileLoading(false);
         }
     };
 
@@ -176,9 +182,10 @@ export const SettingsProvider = ({ children }) => {
             settings,
             updateSettings,
             user,
-            authLoading, // Exporting loading state
+            authLoading,
+            profileLoading, // Exporting profile loading state
             manualSetUser: setUser,
-            profile: null,
+            profile,
             fetchProfile: fetchRemoteSettings
         }}>
             {children}

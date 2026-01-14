@@ -58,7 +58,7 @@ Omni Bible System`.trim();
 
 function Stats() {
     const navigate = useNavigate();
-    const { profile, fetchProfile, user, authLoading } = useSettings();
+    const { profile, fetchProfile, user, authLoading, profileLoading } = useSettings();
 
     // ... (state declarations)
 
@@ -1014,7 +1014,7 @@ function Stats() {
         }
     };
 
-    if (authLoading) {
+    if (authLoading || profileLoading) {
         return (
             <div className="stats-loading">
                 <div className="loading-spinner"></div>
