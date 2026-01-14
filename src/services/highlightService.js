@@ -443,12 +443,15 @@ export const saveHighlightCategory = async (color, label) => {
  * Get total count of highlighted verses for a user
  */
 export const getHighlightCount = async (explicitUserId = null) => {
+    console.log('[HighlightService] getHighlightCount start');
     const userId = explicitUserId || await getUserId();
     try {
+        console.log('[HighlightService] Executing highlight count query for:', userId);
         const { count, error } = await supabase
             .from('verse_highlights')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', userId);
+        console.log('[HighlightService] highlight count query finished');
 
         if (error) throw error;
         return { success: true, count: count || 0 };
@@ -708,8 +711,10 @@ export const deleteNote = async (noteId) => {
  * Get all notes for a user
  */
 export const getAllNotes = async (explicitUserId = null) => {
+    console.log('[HighlightService] getAllNotes start', { explicitUserId });
     const userId = explicitUserId || await getUserId();
     try {
+        console.log('[HighlightService] Executing verse_notes query for:', userId);
         const { data, error } = await supabase
             .from('verse_notes')
             .select(`
@@ -721,6 +726,8 @@ export const getAllNotes = async (explicitUserId = null) => {
             `)
             .eq('user_id', userId)
             .order('updated_at', { ascending: false });
+
+        console.log('[HighlightService] verse_notes query finished', { success: !error });
 
         if (error) throw error;
         return { success: true, notes: data || [] };

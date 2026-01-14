@@ -338,7 +338,9 @@ export const getUserId = async () => {
                     user_id: userId,
                     email: email,
                     last_seen: new Date().toISOString()
-                }, { onConflict: 'user_id' }).catch(err => console.warn('[ProfileSync] Error:', err.message));
+                }, { onConflict: 'user_id' }).then(({ error }) => {
+                    if (error) console.warn('[ProfileSync] Error:', error.message);
+                });
             }
 
             return userId;

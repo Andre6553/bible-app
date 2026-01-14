@@ -63,7 +63,7 @@ export default defineConfig({
                 ]
             },
             devOptions: {
-                enabled: true,
+                enabled: false, // Disable PWA in dev to prevent caching issues/popups
                 type: 'module',
                 navigateFallback: 'index.html',
             }

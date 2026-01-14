@@ -150,39 +150,106 @@ function Profile() {
     const loadData = async () => {
         setLoading(true);
         const targetUserId = user?.id || null;
-        console.log(`[Profile] 🛰️ Loading data for ID: ${targetUserId || 'Guest'}`);
+        console.log(`[Profile] 🛰️ Target User ID: ${targetUserId || 'Guest'}`);
 
-        // Optimization: Removed getAllHighlights() from initial load.
-        // Highlights are now loaded on-demand when expanding categories.
-        const [noteRes, studyRes, wordStudyRes, labelRes, bookRes, categoryRes, countRes] = await Promise.all([
-            getAllNotes(targetUserId),
-            getStudyCollections(targetUserId),
-            getSavedWordStudies(targetUserId),
-            getLabels(targetUserId),
-            getBooks(), // getBooks is global, no userId needed
-            getHighlightCategories(targetUserId),
-            getHighlightCount(targetUserId)
-        ]);
+        const fetchWithLog = async (name, promise) => {
+            console.log(`[Profile] ⏳ Fetching ${name}...`);
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error(`${name} TIMEOUT`)), 10000));
+            try {
+                const result = await Promise.race([promise, timeoutPromise]);
+                console.log(`[Profile] 🏁 ${name} fetched:`, result.success ? 'Success' : 'Failed');
+                return result;
+            } catch (err) {
+                console.error(`[Profile] ❌ ${name} failed/timed out:`, err.message);
+                return { success: false, error: err.message };
+            }
+        };
 
-        if (noteRes.success) setNotes(noteRes.notes);
-        if (studyRes.success) setStudies(studyRes.collections);
-        if (wordStudyRes.success) setWordStudies(wordStudyRes.studies);
-        if (labelRes.success) setLabels(labelRes.labels);
-        if (bookRes.success) setBooks(bookRes.data.all || []);
-        if (categoryRes.success) setCategories(categoryRes.categories);
-        if (countRes.success) setTotalHighlightCount(countRes.count);
+        try {
+            // Reordered: Simpler queries first to isolate RLS issues
+            const countRes = await fetchWithLog('HighlightCount', getHighlightCount(targetUserId));
+            if (countRes.success) setTotalHighlightCount(countRes.count);
 
-        // Load versions and download status
-        const versionsRes = await getVersions();
-        if (versionsRes.success) setVersions(versionsRes.data);
+            const categoryRes = await fetchWithLog('Categories', getHighlightCategories(targetUserId));
+            if (categoryRes.success) setCategories(categoryRes.categories);
 
-        const downloaded = await getDownloadedVersions();
-        setDownloadedVersions(downloaded);
+            const noteRes = await fetchWithLog('Notes', getAllNotes(targetUserId));
+            if (noteRes.success) setNotes(noteRes.notes);
 
-        const usage = await getStorageUsage();
-        setStorageUsage(usage.formatted);
+            const studyRes = await fetchWithLog('Collections', getStudyCollections(targetUserId));
+            if (studyRes.success) setStudies(studyRes.collections);
 
-        setLoading(false);
+            const wordStudyRes = await fetchWithLog('WordStudies', getSavedWordStudies(targetUserId));
+            if (wordStudyRes.success) setWordStudies(wordStudyRes.studies);
+
+            const labelRes = await fetchWithLog('Labels', getLabels(targetUserId));
+            if (labelRes.success) setLabels(labelRes.labels);
+
+            const bookRes = await fetchWithLog('Books', getBooks());
+            if (bookRes.success) setBooks(bookRes.data.all || []);
+
+        } catch (err) {
+            console.error('[Profile] ❌ Critical error in loadData:', err);
+        } finally {
+            setLoading(false);
+            console.log('[Profile] 🏁 loadData finished');
+
+            // Background load extra info
+            getVersions().then(res => res.success && setVersions(res.data));
+            getDownloadedVersions().then(res => setDownloadedVersions(res));
+            getStorageUsage().then(res => setStorageUsage(res.formatted));
+        }
+    };
+
+    // DIAGNOSTIC STATE
+    const [diagResults, setDiagResults] = useState({});
+    const [runningDiag, setRunningDiag] = useState(false);
+
+    const runDiagnostics = async () => {
+        setRunningDiag(true);
+        const results = {};
+
+        // 1. PUBLIC INTERNET
+        try {
+            const start = Date.now();
+            await fetch('https://api.ipify.org?format=json');
+            results.internet = `✅ Online (${Date.now() - start}ms)`;
+        } catch (e) {
+            results.internet = `❌ Failed: ${e.message}`;
+        }
+
+        // 2. SUPABASE PUBLIC
+        try {
+            const start = Date.now();
+            const { error } = await supabase.from('app_settings').select('count').limit(1).single();
+            if (error && error.code !== 'PGRST116') throw error; // PGRST116 is fine (no rows)
+            results.supabasePublic = `✅ Connected (${Date.now() - start}ms)`;
+        } catch (e) {
+            results.supabasePublic = `❌ Failed: ${e.message}`;
+        }
+
+        // 3. AUTH CHECK
+        try {
+            const start = Date.now();
+            const { data: { session } } = await supabase.auth.getSession();
+            results.auth = session ? `✅ Authenticated (${Date.now() - start}ms)` : '❌ No Session';
+        } catch (e) {
+            results.auth = `❌ Error: ${e.message}`;
+        }
+
+        // 4. PRIVATE DATA (RLS)
+        try {
+            const start = Date.now();
+            // Try simpler query first: Highlight Count
+            const { count, error } = await supabase.from('verse_highlights').select('*', { count: 'exact', head: true });
+            if (error) throw error;
+            results.rls = `✅ Read Access (${Date.now() - start}ms)`;
+        } catch (e) {
+            results.rls = `❌ Blocked: ${e.message}`;
+        }
+
+        setDiagResults(results);
+        setRunningDiag(false);
     };
 
     const handleImageUpload = (e) => {
