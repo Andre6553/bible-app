@@ -63,18 +63,22 @@ function Stats() {
     // ... (state declarations)
 
     useEffect(() => {
-        // [PRODUCTION HARDENING] Use Identity-Based Access instead of PIN
-        // Logic: Only 'admin' or the master email can access the Stats page now (per user request).
-        // Testers are explicitly denied access to simplify debugging.
+        // [PRODUCTION HARDENING] Strict Admin-Only Access
+        // ONLY 'admin' role or the master email can access Stats. 
+        // Testers (tester, tester_finger) and all other roles are EXPLICITLY BLOCKED.
         const role = profile?.subscription_override;
         const masterEmail = 'andre.ecprint@gmail.com';
+        const userEmail = user?.email;
 
-        if (role === 'admin' || user?.email === masterEmail) {
-            // Admin or Master Email: Full Access
+        // Explicit admin check - role must be exactly 'admin', not 'tester' or anything else
+        const isAdmin = role === 'admin';
+        const isMasterEmail = userEmail === masterEmail;
+
+        if (isAdmin || isMasterEmail) {
             setIsAuthenticated(true);
             setIsMasterAdmin(true);
         } else {
-            // Testers and everyone else: No Access
+            // Block everyone else including testers
             setIsAuthenticated(false);
             setIsMasterAdmin(false);
         }
