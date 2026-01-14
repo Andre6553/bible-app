@@ -87,7 +87,89 @@ export const SettingsProvider = ({ children }) => {
         return () => subscription.unsubscribe();
     }, []);
 
-    // ... (rest of file)
+    // 2. Fetch from Supabase
+    const fetchRemoteSettings = async (userId) => {
+        if (!userId || userId === lastFetchedUserId.current) return;
+        lastFetchedUserId.current = userId;
+
+        try {
+            const { data, error } = await supabase
+                .from('user_settings')
+                .select('settings')
+                .eq('user_id', userId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error;
+
+            if (data?.settings) {
+                console.log("[Settings] ☁️ Synced from Cloud");
+                setSettings(prev => ({ ...prev, ...data.settings }));
+                localStorage.setItem('bible_app_settings', JSON.stringify(data.settings));
+            } else {
+                pushSettingsToCloud(userId, settings);
+            }
+        } catch (err) {
+            console.error("[Settings] ❌ Fetch error:", err.message);
+        }
+    };
+
+    // 3. Push to Supabase
+    const pushSettingsToCloud = async (userId, currentSettings) => {
+        try {
+            const { error } = await supabase
+                .from('user_settings')
+                .upsert({
+                    user_id: userId,
+                    settings: currentSettings,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id' });
+
+            if (error) throw error;
+            console.log("[Settings] ⬆️ Pushed to Cloud");
+        } catch (err) {
+            console.warn("[Settings] ⚠️ Push failed:", err.message);
+        }
+    };
+
+    const syncTimeoutRef = useRef(null);
+    const updateSettings = (newSettings) => {
+        setSettings(prev => {
+            const updated = { ...prev, ...newSettings };
+            localStorage.setItem('bible_app_settings', JSON.stringify(updated));
+
+            if (user) {
+                if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+                syncTimeoutRef.current = setTimeout(() => {
+                    pushSettingsToCloud(user.id, updated);
+                }, 2000);
+            }
+            return updated;
+        });
+    };
+
+    const [profile, setProfile] = useState(null);
+    useEffect(() => {
+        if (user) {
+            fetchProfile(user.id);
+        } else {
+            setProfile(null);
+        }
+    }, [user]);
+
+    const fetchProfile = async (userId) => {
+        try {
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error;
+            setProfile(data);
+        } catch (err) {
+            console.error("[Settings] ❌ Profile fetch error:", err.message);
+        }
+    };
 
     return (
         <SettingsContext.Provider value={{
