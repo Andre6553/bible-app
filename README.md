@@ -130,7 +130,7 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 | **PDF Export** | ✅ Formatted | ❌ | ✅ | ✅ | ❌ |
 | **Reading Plans** | ❌ Coming | ✅ | ✅ | ✅ | ✅ |
 | **Social Features** | ❌ Coming | ✅ | ⚠️ | ❌ | ❌ |
-| **Price** | 🆓 Free / R99/mo | 🆓 Free / $$ | 💰 $149+ | 💰 $30+ | 🆓 Free / $$ |
+| **Price** | 🆓 Free / $5/mo | 🆓 Free / $$ | 💰 $149+ | 💰 $30+ | 🆓 Free / $$ |
 
 ### Our Unique Advantages
 
@@ -280,11 +280,6 @@ This will generate a `dist` folder ready to be served by any static hosting prov
 
 ---
 
-## 📱 Screenshots
-
-*Coming soon*
-
----
 
 ## 🗺️ Roadmap
 
