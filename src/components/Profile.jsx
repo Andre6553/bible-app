@@ -1134,66 +1134,96 @@ function Profile() {
                                     </div>
                                 </div>
 
-                                {versions.map(version => {
-                                    const downloaded = isDownloaded(version.id);
-                                    const info = getDownloadInfo(version.id);
-                                    const progress = downloadProgress[version.id];
-                                    const isDownloading = progress !== undefined;
+                                {(() => {
+                                    const groups = {
+                                        English: [],
+                                        Afrikaans: [],
+                                        Xhosa: []
+                                    };
 
-                                    return (
-                                        <div key={version.id} className={`premium-download-card ${downloaded ? 'downloaded' : ''} ${isDownloading ? 'syncing' : ''}`}>
-                                            <div className="card-main-info">
-                                                <div className="card-header-row">
-                                                    <span className="version-name">{version.name}</span>
-                                                    {downloaded && <span className="premium-badge">Offline Ready</span>}
-                                                </div>
-                                                <div className="card-meta">
-                                                    <span className="version-abbrev">{version.abbreviation}</span>
-                                                    {downloaded && info && (
-                                                        <span className="version-size"> • {formatBytes(info.size_bytes)}</span>
-                                                    )}
+                                    versions.forEach(v => {
+                                        const lang = v.language?.toLowerCase() || '';
+                                        if (lang.startsWith('af')) groups.Afrikaans.push(v);
+                                        else if (lang.startsWith('xh')) groups.Xhosa.push(v);
+                                        else groups.English.push(v);
+                                    });
+
+                                    return Object.entries(groups).map(([lang, groupVersions]) => {
+                                        if (groupVersions.length === 0) return null;
+
+                                        return (
+                                            <div key={lang} className="download-language-group">
+                                                <h3 className="download-group-header">
+                                                    {lang === 'English' ? 'English - english versions' :
+                                                        lang === 'Afrikaans' ? 'Afrikaans - afrikaans versions' :
+                                                            lang}
+                                                </h3>
+                                                <div className="download-group-list">
+                                                    {groupVersions.map(version => {
+                                                        const downloaded = isDownloaded(version.id);
+                                                        const info = getDownloadInfo(version.id);
+                                                        const progress = downloadProgress[version.id];
+                                                        const isDownloading = progress !== undefined;
+
+                                                        return (
+                                                            <div key={version.id} className={`premium-download-card ${downloaded ? 'downloaded' : ''} ${isDownloading ? 'syncing' : ''}`}>
+                                                                <div className="card-main-info">
+                                                                    <div className="card-header-row">
+                                                                        <span className="version-name">{version.name}</span>
+                                                                        {downloaded && <span className="premium-badge">Offline Ready</span>}
+                                                                    </div>
+                                                                    <div className="card-meta">
+                                                                        <span className="version-abbrev">{version.abbreviation}</span>
+                                                                        {downloaded && info && (
+                                                                            <span className="version-size"> • {formatBytes(info.size_bytes)}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="card-status-actions">
+                                                                    {isDownloading ? (
+                                                                        <div className="card-sync-status">
+                                                                            <div className="sync-spinner"></div>
+                                                                            <span className="sync-text">
+                                                                                {progress >= 90 && progress < 100 ? 'Verifying...' : `${Math.round(progress)}%`}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="card-controls">
+                                                                            {downloaded ? (
+                                                                                <button
+                                                                                    className="card-action-btn delete"
+                                                                                    onClick={() => handleDeleteDownload(version.id)}
+                                                                                    title="Delete Offline Data"
+                                                                                >
+                                                                                    🗑️
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button
+                                                                                    className="card-action-btn download"
+                                                                                    onClick={() => handleDownload(version.id)}
+                                                                                    title="Download for Offline"
+                                                                                >
+                                                                                    ⬇️
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {isDownloading && (
+                                                                    <div className="card-progress-bar">
+                                                                        <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
-
-                                            <div className="card-status-actions">
-                                                {isDownloading ? (
-                                                    <div className="card-sync-status">
-                                                        <div className="sync-spinner"></div>
-                                                        <span className="sync-text">
-                                                            {progress >= 90 && progress < 100 ? 'Verifying...' : `${Math.round(progress)}%`}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="card-controls">
-                                                        {downloaded ? (
-                                                            <button
-                                                                className="card-action-btn delete"
-                                                                onClick={() => handleDeleteDownload(version.id)}
-                                                                title="Delete Offline Data"
-                                                            >
-                                                                🗑️
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                className="card-action-btn download"
-                                                                onClick={() => handleDownload(version.id)}
-                                                                title="Download for Offline"
-                                                            >
-                                                                ⬇️
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {isDownloading && (
-                                                <div className="card-progress-bar">
-                                                    <div className="progress-fill" style={{ width: `${progress}%` }}></div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    });
+                                })()}
                             </div>
                         )}
                     </>

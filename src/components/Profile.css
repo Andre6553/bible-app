@@ -813,8 +813,31 @@ body.light-mode .category-header,
 .premium-downloads-container {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 30px;
     padding-bottom: 200px;
+}
+
+.download-language-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.download-group-header {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding-left: 10px;
+    border-left: 3px solid var(--accent-primary);
+    margin: 0;
+}
+
+.download-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .glass-panel {

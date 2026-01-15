@@ -150,33 +150,68 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const secondaryScrollRef = useRef(null);
     const scrollDriver = useRef(null); // 'primary' or 'secondary'
     const scrollTimeout = useRef(null);
+    const lastScrollCall = useRef(0);
 
     const handleScroll = (sourceName, source, target) => {
         if (!isSplitView) return;
         if (!source.current || !target.current) return;
 
-        // If the other column is currently driving, ignore this event (prevent feedback loop)
-        if (scrollDriver.current && scrollDriver.current !== sourceName) return;
+        // Throttle to keep it performant
+        const now = Date.now();
+        if (now - lastScrollCall.current < 16) return;
+        lastScrollCall.current = now;
 
-        // Set us as the driver
+        // Prevent feedback loops
+        if (scrollDriver.current && scrollDriver.current !== sourceName) return;
         scrollDriver.current = sourceName;
 
-        // Clear existing release timer
         if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
 
-        // Calculate the percentage scrolled in the source
-        const sourceScrollTop = source.current.scrollTop;
-        const sourceScrollHeight = source.current.scrollHeight - source.current.clientHeight;
-        const scrollPercentage = sourceScrollTop / sourceScrollHeight;
+        // SYNC LOGIC: Find the FIRST visible verse at the top
+        const sourceRect = source.current.getBoundingClientRect();
+        const verseElements = source.current.querySelectorAll('.verse-item');
 
-        // Apply same percentage to the target
-        const targetScrollHeight = target.current.scrollHeight - target.current.clientHeight;
-        target.current.scrollTop = scrollPercentage * targetScrollHeight;
+        let anchorVerse = null;
 
-        // Release the driver lock shortly after scrolling stops
+        for (const el of verseElements) {
+            const rect = el.getBoundingClientRect();
+            // Using a slightly more aggressive intersection check for instantaneous feel
+            if (rect.bottom > sourceRect.top + 2) {
+                anchorVerse = el;
+                break;
+            }
+        }
+
+        if (anchorVerse) {
+            const parts = anchorVerse.id.split('-');
+            const verseNum = parts[parts.length - 1];
+            const targetIdPrefix = sourceName === 'primary' ? 'v2-' : 'verse-';
+            const targetElement = target.current.querySelector(`#${targetIdPrefix}${verseNum}`);
+
+            if (targetElement) {
+                const anchorRect = anchorVerse.getBoundingClientRect();
+                const targetRectCurrent = targetElement.getBoundingClientRect();
+                const targetContainerRect = target.current.getBoundingClientRect();
+
+                // Alignment matching math
+                const sourceRelativeY = anchorRect.top - sourceRect.top;
+                const targetRelativeY = targetRectCurrent.top - targetContainerRect.top;
+                const correction = targetRelativeY - sourceRelativeY;
+
+                if (Math.abs(correction) > 0.5) {
+                    // Update: Perform immediate update to avoid smooth-scroll lag
+                    target.current.scrollTop += correction;
+                }
+            } else {
+                // Fallback percentage
+                const scrollPct = source.current.scrollTop / (source.current.scrollHeight - source.current.clientHeight);
+                target.current.scrollTop = scrollPct * (target.current.scrollHeight - target.current.clientHeight);
+            }
+        }
+
         scrollTimeout.current = setTimeout(() => {
             scrollDriver.current = null;
-        }, 100);
+        }, 120); // Faster handoff
     };
 
     // Listen for global event to exit reader mode (e.g. from BottomNav click)
@@ -394,12 +429,19 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     // Improved Scroll to Verse with Retry
     const scrollToVerse = (verseNum, attempt = 1) => {
         const element = document.getElementById(`verse-${verseNum}`);
-        console.log(`🎯 scrollToVerse attempt ${attempt} for:`, verseNum, 'Element found:', !!element);
+        const element2 = isSplitView ? document.getElementById(`v2-${verseNum}`) : null;
+
+        console.log(`🎯 scrollToVerse attempt ${attempt} for:`, verseNum, 'Primary:', !!element, 'Secondary:', !!element2);
 
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             element.classList.add('highlight-verse');
             setTimeout(() => element.classList.remove('highlight-verse'), 2000);
+
+            // Sync secondary if available
+            if (element2) {
+                element2.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         } else if (attempt < 5) {
             // Retry if element not found (DOM render delay)
             setTimeout(() => scrollToVerse(verseNum, attempt + 1), 200);
@@ -484,6 +526,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         setVerses([]);
 
         try {
+            console.log(`[Reader] Loading chapter: ${selectedBook.id} ch.${selectedChapter} (${currentVersion.id}) split=${isSplitView}`);
             // Load main version
             const result = await getChapter(selectedBook.id, selectedChapter, currentVersion.id);
             if (result.success) {
@@ -492,6 +535,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
             // Load second version if in split view
             if (isSplitView && secondVersion) {
+                console.log(`[Reader] Loading secondary: ${secondVersion.id}`);
                 const result2 = await getChapter(selectedBook.id, selectedChapter, secondVersion.id);
                 if (result2.success) {
                     setSecondVerses(result2.data || []);
@@ -893,6 +937,25 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         }
     };
 
+    // Helper to find which verse is currently at the top of the viewport
+    const getTopVerseIndex = () => {
+        const container = primaryScrollRef.current;
+        if (!container) return 0;
+
+        const containerRect = container.getBoundingClientRect();
+        const verseElements = container.querySelectorAll('.verse-item');
+
+        for (let i = 0; i < verseElements.length; i++) {
+            const rect = verseElements[i].getBoundingClientRect();
+            // If the bottom of the verse is below the top of the container (+ small buffer)
+            if (rect.bottom > containerRect.top + 10) {
+                // Return index (matching the verses array which is 0-indexed)
+                return i;
+            }
+        }
+        return 0;
+    };
+
     if (error) {
         return (
             <div className="bible-reader error-state">
@@ -933,6 +996,46 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         }
 
         return parts;
+    };
+
+    // --- Version Categorization Helper ---
+    const renderVersionOptions = () => {
+        const groups = {
+            English: [],
+            Afrikaans: [],
+            Xhosa: []
+        };
+
+        versions.forEach(v => {
+            const lang = v.language?.toLowerCase() || '';
+            if (lang.startsWith('af')) groups.Afrikaans.push(v);
+            else if (lang.startsWith('xh')) groups.Xhosa.push(v);
+            else groups.English.push(v);
+        });
+
+        const result = [];
+        if (groups.English.length > 0) {
+            result.push(
+                <optgroup key="en" label="English - english versions">
+                    {groups.English.map(v => <option key={v.id} value={v.id}>{v.abbreviation}</option>)}
+                </optgroup>
+            );
+        }
+        if (groups.Afrikaans.length > 0) {
+            result.push(
+                <optgroup key="af" label="Afrikaans - afrikaans versions">
+                    {groups.Afrikaans.map(v => <option key={v.id} value={v.id}>{v.abbreviation}</option>)}
+                </optgroup>
+            );
+        }
+        if (groups.Xhosa.length > 0) {
+            result.push(
+                <optgroup key="xh" label="Xhosa">
+                    {groups.Xhosa.map(v => <option key={v.id} value={v.id}>{v.abbreviation}</option>)}
+                </optgroup>
+            );
+        }
+        return result;
     };
 
     return (
@@ -990,11 +1093,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             value={currentVersion?.id || ''}
                             onChange={handleVersionChange}
                         >
-                            {versions.map(version => (
-                                <option key={version.id} value={version.id}>
-                                    {version.abbreviation}
-                                </option>
-                            ))}
+                            {renderVersionOptions()}
                         </select>
                     </div>
                 </div>
@@ -1067,9 +1166,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 onChange={handleSecondVersionChange}
                                 style={{ marginLeft: '8px' }}
                             >
-                                {versions.map(v => (
-                                    <option key={v.id} value={v.id}>{v.abbreviation}</option>
-                                ))}
+                                {renderVersionOptions()}
                             </select>
                         )}
                     </div>
@@ -1227,7 +1324,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 // Global click handler to close tooltips/menus
                 if (contextMenu.visible) setContextMenu({ ...contextMenu, visible: false });
             }}>
-                <div className="bible-column primary-column">
+                <div className={`bible-column primary-column ${isSplitView ? 'split-mode' : ''}`}>
+                    {isSplitView && (
+                        <div className="pane-version-label">
+                            <span className="badge">{currentVersion?.abbreviation}</span>
+                        </div>
+                    )}
                     {loading ? (
                         <div className="loading-state">
                             <div className="loading-spinner"></div>
@@ -1269,8 +1371,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             <span
                                                 className="verse-text"
                                                 style={{
-                                                    backgroundColor: hexToRgba(highlights[verse.verse], 0.7),
-                                                    boxShadow: highlights[verse.verse] ? `0 0 10px 4px ${hexToRgba(highlights[verse.verse], 0.7)}` : 'none'
+                                                    backgroundColor: hexToRgba(highlights[verse.verse], 0.3),
+                                                    boxShadow: highlights[verse.verse] ? `0 0 10px 4px ${hexToRgba(highlights[verse.verse], 0.3)}` : 'none'
                                                 }}
                                                 onClick={(e) => handleVerseTap(verse, e)}
                                             >
@@ -1284,8 +1386,13 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                     )}
                 </div>
 
+                {isSplitView && <div className="split-divider"></div>}
+
                 {isSplitView && secondVersion && (
                     <div className="bible-column secondary-column">
+                        <div className="pane-version-label">
+                            <span className="badge">{secondVersion?.abbreviation}</span>
+                        </div>
                         {loading ? (
                             <div className="loading-state">
                                 <div className="loading-spinner"></div>
@@ -1302,9 +1409,26 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                         const verse = secondVerses.find(v => v.verse === verseNum);
                                         if (!verse) return null;
                                         return (
-                                            <div key={verse.id || `v2-${verse.verse}`} className="verse-item">
+                                            <div
+                                                key={verse.id || `v2-${verse.verse}`}
+                                                id={`v2-${verse.verse}`}
+                                                className={`verse-item ${selectedVerses.some(v => v.verse === verse.verse) ? 'verse-selected' : ''}`}
+                                                onContextMenu={(e) => handleLongPress(verse, e)}
+                                                onTouchStart={(e) => handleTouchStart(verse, e)}
+                                                onTouchMove={handleTouchMove}
+                                                onTouchEnd={handleTouchEnd}
+                                                onClick={(e) => handleVerseTap(verse, e)}
+                                            >
                                                 <span className="verse-number">{verse.verse}</span>
-                                                <span className="verse-text">{verse.text}</span>
+                                                <span
+                                                    className="verse-text"
+                                                    style={{
+                                                        backgroundColor: hexToRgba(highlights[verse.verse], 0.3),
+                                                        boxShadow: highlights[verse.verse] ? `0 0 10px 4px ${hexToRgba(highlights[verse.verse], 0.3)}` : 'none'
+                                                    }}
+                                                >
+                                                    {verse.text}
+                                                </span>
                                             </div>
                                         );
                                     })}
@@ -1515,6 +1639,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             scrollToVerse(verseNum);
                         }}
                         onClose={() => setShowAudioPlayer(false)}
+                        initialVerseIndex={getTopVerseIndex()}
+                        onGetTopVerseIndex={getTopVerseIndex}
                     />
                 )
             }

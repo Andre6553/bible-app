@@ -13,13 +13,15 @@ const AudioPlayer = ({
     onNextChapter,
     onHighlightVerse,
     onClose,
-    onPlayStateChange // To notify parent if playing
+    onPlayStateChange, // To notify parent if playing
+    initialVerseIndex = 0, // New prop: Start at specific verse
+    onGetTopVerseIndex // New prop: Function to get current top verse
 }) => {
     const isAf = navigator.language?.startsWith('af');
 
     // State
     const [isPlaying, setIsPlaying] = useState(false);
-    const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
+    const [currentVerseIndex, setCurrentVerseIndex] = useState(initialVerseIndex);
     const [voices, setVoices] = useState([]);
     const [selectedVoice, setSelectedVoice] = useState(null);
     const [selectedLang, setSelectedLang] = useState(localStorage.getItem('audio_lang') || (isAf ? 'af-ZA' : 'en-US'));
@@ -40,6 +42,12 @@ const AudioPlayer = ({
     const voicesCountRef = useRef(0);
     const selectedVoiceURIRef = useRef(localStorage.getItem('audio_voice_uri') || null);
     const isManuallyTriggeredRef = useRef(false);
+    const isPlayingRef = useRef(false);
+
+    // Sync Ref with State for use in async callbacks (onend, timeouts)
+    useEffect(() => {
+        isPlayingRef.current = isPlaying;
+    }, [isPlaying]);
 
     // --- 1. Initialization & Voice Loading ---
     const loadVoices = () => {
@@ -149,7 +157,19 @@ const AudioPlayer = ({
         const savedRate = localStorage.getItem('audio_rate');
         if (savedRate) setRate(parseFloat(savedRate));
 
+        // WATCHDOG: Occasionally check if we are stuck (isPlaying=true but nothing speaking)
+        const watchdog = setInterval(() => {
+            if (synth && !synth.speaking && !synth.pending) {
+                // If we think we should be playing, but the engine is silent
+                // This usually means a transition failed or was GC-ed
+                // We don't auto-advance here to avoid skipping, but we log the state
+                // and we will let the useEffect handle the restart if needed
+                // console.log('[Audio] Watchdog: Engine Idle');
+            }
+        }, 5000);
+
         return () => {
+            clearInterval(watchdog);
             clearInterval(timer);
             cancelSpeech();
         };
@@ -160,25 +180,32 @@ const AudioPlayer = ({
     // Effect: Handle Verse Change or Play/Pause
     useEffect(() => {
         if (isPlaying && verses.length > 0) {
+            console.log(`[Audio] Effect Trigger: isPlaying=${isPlaying}, index=${currentVerseIndex}`);
+
             // Bypass the effect's playVerse if togglePlay already triggered it manually.
-            // This prevents double-play/interrupted error on start.
             if (isManuallyTriggeredRef.current) {
+                console.log('[Audio] Ignoring effect trigger (manual play already started)');
                 isManuallyTriggeredRef.current = false;
                 return;
             }
 
             playVerse(currentVerseIndex);
         } else if (!isPlaying) {
+            console.log('[Audio] isPlaying is false, cancelling speech.');
             cancelSpeech();
         }
-    }, [isPlaying, currentVerseIndex, selectedVoice?.voiceURI, rate]);
+    }, [isPlaying, currentVerseIndex]); // Simplified deps, verses is usually stable
 
     const playVerse = (index) => {
+        if (!synth) return;
+
+        console.log(`[Audio] playVerse(idx: ${index}) - isPlayingRef: ${isPlayingRef.current}`);
+
         // Stop any current speech
         cancelSpeech();
 
         if (index >= verses.length) {
-            // End of chapter
+            console.log('[Audio] Index out of bounds, end of chapter.');
             handleEndOfChapter();
             return;
         }
@@ -186,56 +213,72 @@ const AudioPlayer = ({
         const verseData = verses[index];
         if (!verseData) return;
 
-        // Clean text (remove refs like [1])
         const text = verseData.text.replace(/\[.*?\]/g, '');
-        // Build Utterance
         const utterance = new SpeechSynthesisUtterance(text);
 
         if (selectedVoice) {
             utterance.voice = selectedVoice;
         } else {
-            // FALLBACK: If no voices listed, set the language code directly.
-            // On Android/Mobile browsers, this often forces the system to use the correct voice pack.
             utterance.lang = selectedLang;
         }
         utterance.rate = rate;
         utterance.pitch = 1.0;
 
+        // CRITICAL: Keep a reference to the utterance to prevent Garbage Collection
+        window._activeUtterance = utterance;
+        utteranceRef.current = utterance;
+
         utterance.onstart = () => {
+            console.log(`[Audio] START: v.${verseData.verse}`);
             setDebugInfo(prev => ({ ...prev, state: 'Speaking...' }));
-            // DEEP PROBE: Only run on mobile/restricted browsers (voices === 0)
-            // This prevents the "Interrupted" error on PC/Mac
-            if (voices.length === 0) {
-                setTimeout(loadVoices, 100);
-                setTimeout(loadVoices, 1000);
-            }
         };
 
         utterance.onend = () => {
+            console.log(`[Audio] END: v.${verseData.verse}. isPlayingRef: ${isPlayingRef.current}`);
             // Move to next verse automatically
-            if (isPlaying) {
-                setCurrentVerseIndex(prev => prev + 1);
+            if (isPlayingRef.current) {
+                // Faster check: Update state and trigger next verse immediately
+                setCurrentVerseIndex(prev => {
+                    const next = prev + 1;
+                    console.log(`[Audio] Next Verse -> ${next}`);
+                    return next;
+                });
             }
         };
 
         utterance.onerror = (e) => {
-            // ignore interrupted as it's often a normal part of switching verses
-            if (e.error === 'interrupted') return;
+            // Mobile browsers often flag 'interrupted' or 'canceled' during transitions
+            if (e.error === 'interrupted' || e.error === 'canceled') {
+                console.log(`[Audio] Handled Error: ${e.error}`);
+                return;
+            }
 
-            console.error('Audio Error:', e);
-            setDebugInfo(prev => ({ ...prev, error: e.error, state: 'Error' }));
-            setIsPlaying(false);
+            console.error('[Audio] Critical Error:', e.error);
+            setDebugInfo(prev => ({ ...prev, error: e.error, state: e.error }));
+
+            // If the error isn't just a transition issue, stop the player
+            if (['network', 'not-allowed', 'language-unavailable'].includes(e.error)) {
+                setIsPlaying(false);
+            }
         };
 
-        utteranceRef.current = utterance;
-
-        // Final check: some browsers pause the synth if idle
+        // Resume if paused (browser safety)
         if (synth.paused) synth.resume();
 
-        synth.speak(utterance);
+        // Final Speak trigger
+        setTimeout(() => {
+            if (isPlayingRef.current) {
+                console.log(`[Audio] SPEAK EXEC: v.${verseData.verse}`);
+                synth.speak(utterance);
+            } else {
+                console.log(`[Audio] Speak cancelled (isPlayingRef is false)`);
+            }
+        }, 50); // Slightly longer delay for PC stability
 
         // Update UI & External State
-        onHighlightVerse && onHighlightVerse(verseData.verse);
+        if (onHighlightVerse) {
+            setTimeout(() => onHighlightVerse(verseData.verse), 100);
+        }
         updateMediaSession(verseData);
     };
 
@@ -289,15 +332,30 @@ const AudioPlayer = ({
 
     const togglePlay = () => {
         const nextState = !isPlaying;
+
+        // --- CRITICAL ORDER ---
+        // 1. Update the Ref FIRST so playVerse sees the update immediately
+        isPlayingRef.current = nextState;
+
+        // 2. Update the State for React UI
         setIsPlaying(nextState);
         onPlayStateChange && onPlayStateChange(nextState);
 
         if (nextState) {
-            // --- MOBILE & PC STABILITY ---
-            // Trigger playVerse directly within the click gesture handler.
-            // This satisfies browser security rules and ensures immediate response.
+            // New logic: If the user paused and scrolled, re-anchor to the top visible verse
+            let startAt = currentVerseIndex;
+            if (onGetTopVerseIndex) {
+                const topIndex = onGetTopVerseIndex();
+                console.log(`[Audio] Resume Sync: Paused at ${currentVerseIndex}, Scrolled to ${topIndex}`);
+                startAt = topIndex;
+                setCurrentVerseIndex(topIndex);
+            }
+
+            // 3. Trigger playback
             isManuallyTriggeredRef.current = true;
-            playVerse(currentVerseIndex);
+            playVerse(startAt);
+        } else {
+            cancelSpeech();
         }
     };
 
