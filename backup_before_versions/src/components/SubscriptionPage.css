@@ -1,0 +1,288 @@
+.subscription-page {
+    padding: 20px;
+    padding-bottom: 200px;
+    /* Increased to 200px to be safe */
+    min-height: 100vh;
+    background: radial-gradient(circle at top right, #1e1b4b, #111827, #000);
+    color: #fff;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    /* Ensure it scrolls */
+}
+
+.sub-header {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 50px;
+    animation: fadeInDown 0.8s ease-out;
+}
+
+.back-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #9ca3af;
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-right: 20px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: translateX(-3px);
+}
+
+.sub-header h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.pricing-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    justify-content: center;
+    max-width: 1000px;
+    width: 100%;
+    margin-bottom: 150px;
+    /* Explicit space below cards */
+}
+
+.pricing-card {
+    background: rgba(31, 41, 55, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 40px;
+    flex: 1;
+    min-width: 320px;
+    max-width: 420px;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: fadeInUp 0.8s ease-out both;
+}
+
+.pricing-card.free {
+    animation-delay: 0.2s;
+}
+
+.pricing-card:hover {
+    transform: translateY(-10px);
+    background: rgba(31, 41, 55, 0.6);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.pricing-card.premium {
+    background: linear-gradient(145deg, rgba(31, 41, 55, 0.6) 0%, rgba(17, 24, 39, 0.8) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 0 0 20px rgba(245, 158, 11, 0.1);
+    animation-delay: 0.4s;
+    overflow: hidden;
+}
+
+.pricing-card.premium::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(transparent, transparent, transparent, rgba(245, 158, 11, 0.3));
+    animation: rotate 6s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pricing-card.premium::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    background: #111827;
+    border-radius: 22px;
+    z-index: 0;
+}
+
+.pricing-card.premium>* {
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes rotate {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.card-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.card-header h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0 0 15px 0;
+    color: #e5e7eb;
+}
+
+.premium .card-header {
+    padding-top: 50px;
+    /* Stronger separation for the badge */
+}
+
+.premium .card-header h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.price {
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+}
+
+.price span {
+    font-size: 1.1rem;
+    color: #9ca3af;
+    font-weight: 500;
+    margin-left: 4px;
+}
+
+.features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 40px 0;
+    flex-grow: 1;
+}
+
+.features-list li {
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.05rem;
+    color: #d1d5db;
+}
+
+.features-list li:last-child {
+    border-bottom: none;
+}
+
+.check {
+    font-size: 1.2rem;
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.premium .check {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.current-plan-badge {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    color: #9ca3af;
+    padding: 16px;
+    border-radius: 16px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.upgrade-btn {
+    background: linear-gradient(to right, #f59e0b, #d97706);
+    color: #000;
+    border: none;
+    padding: 18px;
+    border-radius: 16px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+    box-shadow: 0 10px 20px rgba(245, 158, 11, 0.2);
+}
+
+.upgrade-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 15px 30px rgba(245, 158, 11, 0.4);
+    filter: brightness(1.1);
+}
+
+.best-value {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(to right, #fbbf24, #f59e0b);
+    color: #000;
+    font-weight: 800;
+    padding: 4px 14px;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    box-shadow: 0 5px 15px rgba(245, 158, 11, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    z-index: 10;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 820px) {
+    .pricing-card {
+        min-width: 100%;
+        padding: 30px;
+    }
+
+    .sub-header h1 {
+        font-size: 1.8rem;
+    }
+}

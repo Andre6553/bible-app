@@ -102,6 +102,18 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 | **Profile System** | Profile picture, display name, cloud backup |
 | **Admin Dashboard** | Analytics, user management, error logging |
 
+### 👥 User Roles & Permissions
+
+Omni Bible has a distinct role system to manage access and privileges.
+
+| Role | Access Level | Type | Description |
+|------|--------------|------|-------------|
+| **Free User** | 🟢 Basic | Public | Full access to Bible Reading & Search. Limited AI usage (daily quota) and Sermon Builder (trial mode). |
+| **Premium** | 💎 Full | Paid | **Unlimited** AI interactions, Sermon Builder access, and advanced study tools. Supports the platform. |
+| **Tester** | 🧪 Full | Internal | Grants **Premium-level** access for internal testing or beta users without payment processing. |
+| **Tester + Finger** | 👆 Dev | Internal | **High Quota Access**. Designed for stress-testing generation limits ("Finger of God" mode). Resets usage limits for debugging. |
+| **Admin** | 🔑 Master | Internal | Complete control. Access to **Stats Dashboard**, ability to edit other users' roles, view global analytics, and manage settings. |
+
 ---
 
 ## 🏆 Competitor Comparison

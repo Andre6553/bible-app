@@ -1,4 +1,14 @@
--- check_user_profiles_schema.sql
-SELECT column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'user_profiles';
+
+SELECT
+    schemaname,
+    tablename,
+    policyname,
+    permissive,
+    roles,
+    cmd,
+    qual,
+    with_check
+FROM
+    pg_policies
+WHERE
+    tablename = 'user_profiles';

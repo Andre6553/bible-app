@@ -526,28 +526,37 @@ export const getUserStatistics = async () => {
             });
             globalActivityCounts.total = globalActivityCounts.search + globalActivityCounts.ai + globalActivityCounts.sermon_creation;
 
-            // [NEW] Fetch Subscription Status for these users to show accurate badges
+            // [NEW] Fetch Subscription Status via SECURE RPC (Bypasses RLS for Admins)
             const userIds = users.map(u => u.user_id);
-            const { data: profiles } = await supabase
-                .from('user_profiles')
-                .select('user_id, subscription_tier, subscription_override, subscription_expiry')
-                .in('user_id', userIds);
+            const { data: profiles, error: profileError } = await supabase
+                .rpc('get_user_profiles_secure', { user_ids: userIds });
+
+            if (profileError) console.error('❌ Error fetching secure profiles:', profileError);
+            console.log('🔍 Secure Profiles Fetched:', profiles ? profiles.length : 0, profiles);
 
             const subMap = {};
             if (profiles) {
                 profiles.forEach(p => {
-                    const isPremium = p.subscription_tier === 'premium' ||
-                        p.subscription_override === 'premium' ||
-                        p.subscription_override === 'admin' ||
-                        p.subscription_override === 'tester' ||
-                        (p.subscription_expiry && new Date(p.subscription_expiry) > new Date());
-                    if (isPremium) subMap[p.user_id] = true;
+                    subMap[p.user_id] = {
+                        isSubscriber: (
+                            p.subscription_tier === 'premium' ||
+                            p.subscription_override === 'premium' ||
+                            p.subscription_override === 'admin' ||
+                            p.subscription_override === 'tester' ||
+                            p.subscription_override === 'tester_finger' ||
+                            (p.subscription_expiry && new Date(p.subscription_expiry) > new Date())
+                        ),
+                        subscription_override: p.subscription_override,
+                        subscription_tier: p.subscription_tier
+                    };
                 });
             }
 
             const finalUsers = mappedUsers.map(u => ({
                 ...u,
-                isSubscriber: subMap[u.userId] || false
+                isSubscriber: subMap[u.userId]?.isSubscriber || false,
+                subscription_override: subMap[u.userId]?.subscription_override,
+                subscription_tier: subMap[u.userId]?.subscription_tier
             }));
 
             return {
@@ -567,23 +576,14 @@ export const getUserStatistics = async () => {
         const blogReq = supabase.from('blog_views').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
         const readingReq = supabase.from('bible_reading_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
         const activityReq = supabase.from('user_activity_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
-        const profileReq = supabase.from('user_profiles').select('user_id, email, last_ip, subscription_tier, subscription_override, subscription_expiry');
 
-        const [searchRes, aiRes, blogRes, readingRes, activityRes, profileRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq, profileReq]);
+        const [searchRes, aiRes, blogRes, readingRes, activityRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq]);
 
         if (searchRes.error) throw searchRes.error;
         if (aiRes.error) throw aiRes.error;
         if (blogRes.error) throw blogRes.error;
         if (readingRes.error) throw readingRes.error;
         // Don't throw for activityRes.error as it's a new table that might not exist yet
-
-        // Map userId to email for quick lookup
-        const profileMap = {};
-        if (profileRes.data) {
-            profileRes.data.forEach(p => {
-                profileMap[p.user_id] = p.email;
-            });
-        }
 
         // Combined list of all actions
         const allActions = [
@@ -594,12 +594,27 @@ export const getUserStatistics = async () => {
             ...(activityRes.data || []).map(d => ({ user: d.user_id, type: 'activity', device: d.device_info }))
         ];
 
+        // Extract unique user IDs for profile fetching
+        const uniqueUserIds = [...new Set(allActions.map(a => a.user).filter(u => u && u !== 'Anonymous' && u !== 'undefined'))];
+
+        // [SECURE FETCH] Fetch profiles using the RPC to bypass RLS for admins
+        const { data: profileData } = await supabase.rpc('get_user_profiles_secure', { user_ids: uniqueUserIds });
+
+        // Map userId to email for quick lookup
+        const profileMap = {};
+        if (profileData) {
+            profileData.forEach(p => {
+                profileMap[p.user_id] = p.email;
+            });
+        }
+
+
         // 2. User Activity Count & Device Parsing
         const userStats = {};
 
         // Initialize userStats with ALL users from user_profiles first
-        if (profileRes.data) {
-            profileRes.data.forEach(p => {
+        if (profileData) {
+            profileData.forEach(p => {
                 const identity = p.email || p.user_id;
                 if (!userStats[identity]) {
                     userStats[identity] = {
@@ -618,9 +633,14 @@ export const getUserStatistics = async () => {
                     p.subscription_override === 'premium' ||
                     p.subscription_override === 'admin' ||
                     p.subscription_override === 'tester' ||
+                    p.subscription_override === 'tester_finger' ||
                     (p.subscription_expiry && new Date(p.subscription_expiry) > new Date());
 
                 if (isPremium) userStats[identity].isSubscriber = true;
+
+                // [NEW] Capture detailed roles for admin UI
+                userStats[identity].subscription_override = p.subscription_override;
+                userStats[identity].subscription_tier = p.subscription_tier;
             });
         }
 

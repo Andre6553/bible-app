@@ -752,6 +752,9 @@ export async function performSemanticSearch(userId, query, versionId = 'KJV', te
             console.warn('Logging triggered error', e);
         }
 
+        // [NEW] Log API Usage for Admin Dashboard
+        logApiCall('performSemanticSearch', 'success', 'gemini-2.0-flash', { userId, query, results: data.results?.length });
+
         return { success: true, data, cached: false };
 
     } catch (error) {

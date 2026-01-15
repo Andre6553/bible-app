@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logError } from '../services/loggerService';
 import { useSettings } from '../context/SettingsContext';
@@ -19,7 +19,9 @@ import {
     getEmailNotificationSettings,
     toggleEmailNotification,
     getEmailTemplates,
-    updateEmailTemplate
+    updateEmailTemplate,
+    getUserDetailsByEmail,
+    updateUserStatus
 } from '../services/adminService';
 import { checkForNewJoinsAndNotify, notifyAdminOfNewUser, sendWelcomeEmail } from '../services/emailService';
 import './Stats.css';
@@ -145,6 +147,13 @@ function Stats() {
     const [priceLoading, setPriceLoading] = useState(false);
     const [secretCode, setSecretCode] = useState('');
     const [secretCodeLoading, setSecretCodeLoading] = useState(false);
+
+    // User Management (Admin Edit)
+    const [userUpdateLoading, setUserUpdateLoading] = useState(false);
+    const [userUpdateFeedback, setUserUpdateFeedback] = useState('');
+    const [showUserEditModal, setShowUserEditModal] = useState(false);
+    const [selectedUserForEdit, setSelectedUserForEdit] = useState(null);
+    const [newStatus, setNewStatus] = useState('');
 
     useEffect(() => {
         // [PRODUCTION HARDENING] Use Identity-Based Access instead of PIN
@@ -1023,6 +1032,53 @@ function Stats() {
         }
     };
 
+    // Update User Role/Status
+    const handleUpdateUserStatus = async () => {
+        if (!selectedUserForEdit || !newStatus) return;
+        setUserUpdateLoading(true);
+        setUserUpdateFeedback('');
+
+        const targetId = selectedUserForEdit.userId || (selectedUserForEdit.originalIds ? selectedUserForEdit.originalIds[0] : null);
+
+        if (!targetId) {
+            setUserUpdateFeedback('❌ Error: Start User ID missing.');
+            setUserUpdateLoading(false);
+            return;
+        }
+
+        const result = await updateUserStatus(targetId, newStatus);
+
+        if (result.success) {
+            setUserUpdateFeedback('✅ Use updated successfully!');
+
+            // Optimistic UI Update: Update local state immediately so badge reflects change
+            setSelectedUserForEdit(prev => ({
+                ...prev,
+                subscription_override: newStatus === 'reset' ? null : newStatus,
+                subscription_tier: newStatus === 'reset' ? 'free' : (newStatus === 'premium' ? 'premium' : prev.subscription_tier)
+            }));
+
+            // ALSO update the parent modal state 'selectedUser' so subsequent clicks on "Edit" have fresh data
+            if (selectedUser && (selectedUser.userId === targetId || (selectedUser.originalIds && selectedUser.originalIds.includes(targetId)))) {
+                setSelectedUser(prev => ({
+                    ...prev,
+                    subscription_override: newStatus === 'reset' ? null : newStatus,
+                    subscription_tier: newStatus === 'reset' ? 'free' : (newStatus === 'premium' ? 'premium' : prev.subscription_tier)
+                }));
+            }
+
+            // Refresh stats to show new status in list
+            fetchUserStats();
+            setTimeout(() => {
+                setUserUpdateFeedback('');
+                setShowUserEditModal(false);
+            }, 1500);
+        } else {
+            setUserUpdateFeedback(`❌ Error: ${result.error}`);
+        }
+        setUserUpdateLoading(false);
+    };
+
     if (authLoading || profileLoading) {
         return (
             <div className="stats-loading">
@@ -1848,6 +1904,17 @@ function Stats() {
                                 <div className="modal-footer-actions">
                                     <button
                                         className="secondary-action-btn"
+                                        onClick={() => {
+                                            setSelectedUserForEdit(selectedUser);
+                                            setNewStatus('');
+                                            setShowUserEditModal(true);
+                                        }}
+                                        style={{ marginRight: '10px', background: '#3b82f6' }}
+                                    >
+                                        ✏️ Edit User
+                                    </button>
+                                    <button
+                                        className="secondary-action-btn"
                                         onClick={() => deleteUserData(selectedUser.userId, false)}
                                     >
                                         🗑️ Clear History
@@ -1859,6 +1926,64 @@ function Stats() {
                                         💀 Nuke User
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+            {
+                showUserEditModal && selectedUserForEdit && (
+                    <div className="detail-modal-overlay" onClick={() => setShowUserEditModal(false)}>
+                        <div className="detail-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+                            <div className="detail-modal-header">
+                                <h3>✏️ Manage User Access</h3>
+                                <button onClick={() => setShowUserEditModal(false)}>✕</button>
+                            </div>
+                            <div className="detail-modal-body">
+                                <p><strong>Target User:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedUserForEdit.email || selectedUserForEdit.userId}</span></p>
+                                <p style={{ marginTop: '10px' }}>
+                                    <strong>Current Role: </strong>
+                                    <span style={{
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        background: selectedUserForEdit.subscription_override ? '#3b82f6' : '#555',
+                                        fontSize: '0.9em'
+                                    }}>
+                                        {selectedUserForEdit.subscription_override || selectedUserForEdit.subscription_tier || 'Free'}
+                                    </span>
+                                </p>
+
+                                <div style={{ marginTop: '20px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Assign New Status</label>
+                                    <select
+                                        value={newStatus}
+                                        onChange={(e) => setNewStatus(e.target.value)}
+                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#333', color: 'white', border: '1px solid #555' }}
+                                    >
+                                        <option value="">Select Action...</option>
+                                        <option value="premium">💎 Upgrade to Premium</option>
+                                        <option value="tester">🧪 Upgrade to Tester</option>
+                                        <option value="tester_finger">👆 Tester + Finger Quota</option>
+                                        <option value="admin">🔑 Promote to Admin</option>
+                                        <option value="reset">🚫 Reset to Free User</option>
+                                    </select>
+                                </div>
+
+                                {userUpdateFeedback && (
+                                    <div className={`feedback-message ${userUpdateFeedback.includes('✅') ? 'success' : 'error'}`} style={{ marginTop: '15px', padding: '10px', borderRadius: '6px', background: userUpdateFeedback.includes('✅') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }}>
+                                        {userUpdateFeedback}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="detail-modal-footer">
+                                <button
+                                    className="primary-action-btn"
+                                    onClick={handleUpdateUserStatus}
+                                    disabled={!newStatus || userUpdateLoading}
+                                    style={{ width: '100%', padding: '12px' }}
+                                >
+                                    {userUpdateLoading ? 'Updating...' : 'Update User Status'}
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -3,10 +3,17 @@ import { getApiUsageStats, getUserDetailsByEmail } from '../services/adminServic
 import { useSettings } from '../context/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 import './Admin.css';
+// [NEW] Import user stats service
+import { getUserStatistics } from '../services/bibleService';
 
 const Admin = () => {
     const [stats, setStats] = useState([]);
     const [loading, setLoading] = useState(false);
+    // [NEW] State for user dropdown
+    const [activeUsers, setActiveUsers] = useState([]);
+    const [selectedUserEmail, setSelectedUserEmail] = useState('');
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() - 30); // Default last 30 days
@@ -33,6 +40,7 @@ const Admin = () => {
         // Only fetch if authenticated
         if (isAuthenticated) {
             fetchStats();
+            fetchActiveUsers();
         }
     }, [isAuthenticated, startDate, endDate]);
 
@@ -48,6 +56,24 @@ const Admin = () => {
             setStats(result.data);
         }
         setLoading(false);
+    };
+
+    // [NEW] Fetch active users for dropdown
+    const fetchActiveUsers = async () => {
+        setLoadingUsers(true);
+        try {
+            const result = await getUserStatistics(30); // Last 30 days
+            if (result.success && result.data && result.data.topUsers) {
+                // Filter users with valid identifiers, sort by email/id
+                const users = result.data.topUsers
+                    .filter(u => u.email || u.userId)
+                    .sort((a, b) => (a.email || a.userId).localeCompare(b.email || b.userId));
+                setActiveUsers(users);
+            }
+        } catch (error) {
+            console.error("Failed to fetch users for dropdown", error);
+        }
+        setLoadingUsers(false);
     };
 
     // Calculate aggregations
@@ -111,9 +137,11 @@ const Admin = () => {
             }}>
                 <h3 style={{ marginTop: 0, marginBottom: '16px' }}>🔍 User Limit Lookup</h3>
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-                    <input
-                        type="email"
-                        placeholder="Enter user email (e.g. omnibible@gmail.com)"
+                    {/* [NEW] Dropdown instead of Input */}
+                    <select
+                        value={selectedUserEmail}
+                        onChange={(e) => setSelectedUserEmail(e.target.value)}
+                        disabled={loadingUsers}
                         style={{
                             flex: 1,
                             padding: '10px 16px',
@@ -123,15 +151,15 @@ const Admin = () => {
                             background: settings.theme === 'dark' ? '#1f2937' : '#f9fafb',
                             color: settings.theme === 'dark' ? '#ffffff' : '#111827'
                         }}
-                        onKeyDown={async (e) => {
-                            if (e.key === 'Enter') {
-                                const email = e.target.value;
-                                if (!email) return;
-                                const btn = e.target.nextSibling;
-                                btn.click();
-                            }
-                        }}
-                    />
+                    >
+                        <option value="">{loadingUsers ? 'Loading Users...' : 'Select a User...'}</option>
+                        {activeUsers.map((u, i) => (
+                            <option key={i} value={u.email || u.userId}>
+                                {u.email ? `${u.email} (${u.subscription_tier || 'Free'})` : `ID: ${u.userId.substring(0, 8)}...`}
+                            </option>
+                        ))}
+                    </select>
+
                     <button
                         className="btn-primary"
                         style={{
@@ -141,12 +169,13 @@ const Admin = () => {
                             border: 'none',
                             borderRadius: '8px',
                             cursor: 'pointer',
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
+                            opacity: selectedUserEmail ? 1 : 0.6
                         }}
-                        onClick={async (e) => {
-                            const input = e.target.previousSibling;
-                            if (!input.value) return;
-                            const res = await getUserDetailsByEmail(input.value);
+                        disabled={!selectedUserEmail}
+                        onClick={async () => {
+                            if (!selectedUserEmail) return;
+                            const res = await getUserDetailsByEmail(selectedUserEmail);
                             if (res.success) {
                                 let msg = `🔍 Found ${res.data.length} profile(s):\n`;
                                 res.data.forEach((p, index) => {

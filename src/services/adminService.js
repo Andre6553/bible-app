@@ -162,11 +162,10 @@ export const updateEmailTemplate = async (key, value) => {
  */
 export const getUserDetailsByEmail = async (email) => {
     try {
+        // [SECURE FETCH] Use RPC to assume Admin role and bypass RLS
         const { data: profiles, error } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .ilike('email', email)
-            .order('last_seen', { ascending: false });
+            .rpc('get_profile_by_email', { target_email: email });
+
         // Removed .limit(1) to show ALL duplicate profiles
 
         if (error) throw error;
@@ -179,5 +178,26 @@ export const getUserDetailsByEmail = async (email) => {
     } catch (error) {
         console.error('Error fetching user details:', error);
         return { success: false, error: 'User not found or error fetching details.' };
+    }
+};
+
+/**
+ * Update a user's subscription status/role (Admin Only)
+ * Uses the secure 'update_user_subscription_status' RPC
+ * @param {string} targetUserId - The ID of the user to update
+ * @param {string} newStatus - 'admin', 'premium', 'tester', 'tester_finger', or '' (reset)
+ */
+export const updateUserStatus = async (targetUserId, newStatus) => {
+    try {
+        const { data, error } = await supabase.rpc('update_user_subscription_status', {
+            target_user_id: targetUserId,
+            new_status: newStatus
+        });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error updating user status:', error);
+        return { success: false, error: error.message };
     }
 };

@@ -44,6 +44,11 @@ const AudioPlayer = ({
     const isManuallyTriggeredRef = useRef(false);
     const isPlayingRef = useRef(false);
 
+    // Background Audio Hack: Silent 5-second MP3 to trigger "Media Mode"
+    // This tricks iOS/Android into thinking we are a music app, keeping the thread alive.
+    const SILENT_AUDIO = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//OEAAABAAAAAgAAAAAA/84QAAIAAAAAyAAAAAAA//OEAAADAAAAAgAAAAAA/84QAAQAAAAAyAAAAAAA//OEAAUAAAAAAgAAAAAA/84QAAYAAAAAyAAAAAAA//OEAAcAAAAAAgAAAAAA/84QAAgAAAAAyAAAAAAA//OEAAkAAAAAAgAAAAAA/84QAAoAAAAAyAAAAAAA//OEAAsAAAAAAgAAAAAA/84QAQwAAAAAyAAAAAAA//OEAA0AAAAAAgAAAAAA/84QAA4AAAAAyAAAAAAA//OEAA8AAAAAAgAAAAAA/84QABAAAAAAyAAAAAAA';
+    const silentAudioRef = useRef(null);
+
     // Sync Ref with State for use in async callbacks (onend, timeouts)
     useEffect(() => {
         isPlayingRef.current = isPlaying;
@@ -172,6 +177,7 @@ const AudioPlayer = ({
             clearInterval(watchdog);
             clearInterval(timer);
             cancelSpeech();
+            if (silentAudioRef.current) silentAudioRef.current.pause();
         };
     }, []);
 
@@ -352,9 +358,17 @@ const AudioPlayer = ({
             }
 
             // 3. Trigger playback
+            // Start silent audio FIRST to ensure Media Session and Background capability
+            if (silentAudioRef.current) {
+                silentAudioRef.current.play().catch(e => console.warn('Silent audio play failed:', e));
+            }
+
             isManuallyTriggeredRef.current = true;
             playVerse(startAt);
         } else {
+            if (silentAudioRef.current) {
+                silentAudioRef.current.pause();
+            }
             cancelSpeech();
         }
     };
@@ -447,6 +461,9 @@ const AudioPlayer = ({
 
     return (
         <div className={`audio-player-container ${isMinimize ? 'minimized' : ''}`}>
+            {/* Hidden Silent Audio for Background Support */}
+            <audio ref={silentAudioRef} src={SILENT_AUDIO} loop muted playsInline style={{ display: 'none' }} />
+
             {/* Always show controls if synth exists, even if 0 voices (default might work) */}
             <div className="audio-controls">
                 {isMinimize && (
