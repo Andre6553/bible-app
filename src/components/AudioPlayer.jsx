@@ -368,6 +368,11 @@ const AudioPlayer = ({
         setIsPlaying(nextState);
         onPlayStateChange && onPlayStateChange(nextState);
 
+        // Explicitly update Media Session Playback State (Critical for Android)
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = nextState ? 'playing' : 'paused';
+        }
+
         if (nextState) {
             // New logic: If the user paused and scrolled, re-anchor to the top visible verse
             let startAt = currentVerseIndex;
