@@ -106,6 +106,10 @@ const SermonPrep = () => {
     const isFingerUser = user?.email?.toLowerCase().includes('finger') || profile?.subscription_override === 'tester_finger';
     const canSeeExperimental = isAdmin || profile?.subscription_override === 'tester' || user?.email === 'Andre@58078' || isFingerUser;
 
+    // Premium Check (Unified Logic)
+    const isPremium = profile?.subscription_override === 'premium' || (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
+    const canAccessTTS = isAdmin || isPremium;
+
     // Workflow State
     const [step, setStep] = useState('dashboard'); // dashboard, foundation, skeleton, laboratory
     const [sermons, setSermons] = useState([]);
@@ -2888,7 +2892,7 @@ const SermonPrep = () => {
                     <button className="action-btn secondary pdf-btn" onClick={handlePreachMode} style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}>
                         🗣️ {isAf ? 'Preek Modus' : 'Preach Mode'}
                     </button>
-                    {isAdmin && (
+                    {canAccessTTS && (
                         <button className="action-btn secondary tts-btn" onClick={handleTTSView} style={{ borderColor: '#38bdf8', color: '#38bdf8' }}>
                             🎙️ {isAf ? 'TTS PDF' : 'TTS PDF'}
                         </button>
