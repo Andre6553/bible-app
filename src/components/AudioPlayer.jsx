@@ -174,7 +174,26 @@ const AudioPlayer = ({
             }
         }, 5000);
 
+        // --- 2. Visibility & Audio Protection ---
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('👁️ App visible: Checking Audio Context');
+                if (audioCtxRef.current && audioCtxRef.current.state === 'suspended' && isPlayingRef.current) {
+                    audioCtxRef.current.resume();
+                }
+            } else {
+                console.log('🙈 App hidden: Protecting Audio Context');
+                // FORCE resume if valid and playing, just in case browser tried auto-suspend
+                if (audioCtxRef.current && isPlayingRef.current) {
+                    audioCtxRef.current.resume();
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             clearInterval(watchdog);
             clearInterval(timer);
             cancelSpeech();
