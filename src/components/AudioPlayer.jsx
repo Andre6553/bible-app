@@ -44,10 +44,10 @@ const AudioPlayer = ({
     const isManuallyTriggeredRef = useRef(false);
     const isPlayingRef = useRef(false);
 
-    // Background Audio Hack: Silent 5-second MP3 to trigger "Media Mode"
-    // This tricks iOS/Android into thinking we are a music app, keeping the thread alive.
-    const SILENT_AUDIO = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//OEAAABAAAAAgAAAAAA/84QAAIAAAAAyAAAAAAA//OEAAADAAAAAgAAAAAA/84QAAQAAAAAyAAAAAAA//OEAAUAAAAAAgAAAAAA/84QAAYAAAAAyAAAAAAA//OEAAcAAAAAAgAAAAAA/84QAAgAAAAAyAAAAAAA//OEAAkAAAAAAgAAAAAA/84QAAoAAAAAyAAAAAAA//OEAAsAAAAAAgAAAAAA/84QAQwAAAAAyAAAAAAA//OEAA0AAAAAAgAAAAAA/84QAA4AAAAAyAAAAAAA//OEAA8AAAAAAgAAAAAA/84QABAAAAAAyAAAAAAA';
-    const silentAudioRef = useRef(null);
+    // Background Audio Hack 2.0: Web Audio API Oscillator
+    // Generates a faint "noise" signal to keep Android audio drivers active.
+    // Much more robust than a silent MP3 file loop.
+    const audioCtxRef = useRef(null);
     const wakeLockRef = useRef(null);
 
     // Sync Ref with State for use in async callbacks (onend, timeouts)
@@ -178,7 +178,7 @@ const AudioPlayer = ({
             clearInterval(watchdog);
             clearInterval(timer);
             cancelSpeech();
-            if (silentAudioRef.current) silentAudioRef.current.pause();
+            if (audioCtxRef.current) audioCtxRef.current.close().catch(() => { });
             if (wakeLockRef.current) wakeLockRef.current.release().catch(() => { });
         };
     }, []);
@@ -359,14 +359,39 @@ const AudioPlayer = ({
                 setCurrentVerseIndex(topIndex);
             }
 
-            // 3. Trigger playback
-            // Start silent audio FIRST to ensure Media Session and Background capability
-            if (silentAudioRef.current) {
-                silentAudioRef.current.volume = 0.01; // Tiny volume, not 0, to look "active"
-                silentAudioRef.current.play().catch(e => console.warn('Silent audio play failed:', e));
+            // 3. Trigger playback + Background Audio Keep-Alive
+            try {
+                // Initialize Audio Context if missing
+                if (!audioCtxRef.current) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        const ctx = new AudioContext();
+                        // Create a specific 15khz tone (barely audible) - some OS's gate "silence" (0hz)
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(15000, ctx.currentTime); // High freq for less perceptibility
+                        gain.gain.setValueAtTime(0.001, ctx.currentTime); // Very low gain
+
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start();
+
+                        audioCtxRef.current = ctx;
+                        console.log('🔊 Web Audio Context Created');
+                    }
+                }
+
+                // Resume Context if suspended
+                if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+                    audioCtxRef.current.resume().then(() => console.log('🔊 Web Audio Resumed'));
+                }
+            } catch (e) {
+                console.warn('Web Audio Init Failed', e);
             }
 
-            // Request Screen Wake Lock (Backup strategy)
+            // Request Screen Wake Lock
             if ('wakeLock' in navigator) {
                 navigator.wakeLock.request('screen')
                     .then(lock => {
@@ -379,9 +404,11 @@ const AudioPlayer = ({
             isManuallyTriggeredRef.current = true;
             playVerse(startAt);
         } else {
-            if (silentAudioRef.current) {
-                silentAudioRef.current.pause();
+            // Suspend Web Audio to save battery/resources when paused
+            if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
+                audioCtxRef.current.suspend().then(() => console.log('🔇 Web Audio Suspended'));
             }
+
             // Release Wake Lock
             if (wakeLockRef.current) {
                 wakeLockRef.current.release()
@@ -481,9 +508,6 @@ const AudioPlayer = ({
 
     return (
         <div className={`audio-player-container ${isMinimize ? 'minimized' : ''}`}>
-            {/* Hidden Silent Audio for Background Support - NO MUTED PROP */}
-            <audio ref={silentAudioRef} src={SILENT_AUDIO} loop playsInline style={{ display: 'none' }} />
-
             {/* Always show controls if synth exists, even if 0 voices (default might work) */}
             <div className="audio-controls">
                 {isMinimize && (
