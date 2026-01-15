@@ -198,15 +198,20 @@ export const checkForNewJoinsAndNotify = async (currentCount) => {
             const difference = currentCount - lastCount;
             console.log(`[EmailService] 🆕 detected ${difference} new users!`);
 
-            // Notify admin of the batch jump
-            await notifyAdminOfNewUser('Multiple', `${difference} new users joined since last check.`);
-
-            // Update the count to prevent repeat notifications
-            await supabase.from('app_settings').upsert({
+            // 1. Update the count FIRST to prevent repeat notifications (Fail-Safe)
+            const { error: updateError } = await supabase.from('app_settings').upsert({
                 key: 'last_notified_user_count',
                 value: currentCount.toString(),
                 updated_at: new Date().toISOString()
             });
+
+            if (updateError) {
+                console.error('[EmailService] ❌ Failed to update notification count. Aborting email to prevent loop.', updateError);
+                return;
+            }
+
+            // 2. Notify admin only if DB update succeeded
+            await notifyAdminOfNewUser('Multiple', `${difference} new users joined since last check.`);
         }
     } catch (err) {
         console.error('[EmailService] Error in background check:', err);
