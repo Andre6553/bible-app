@@ -302,7 +302,7 @@ function VerseActionSheet({
                             <span className="action-icon">📖</span>
                             <span className="action-label">{t.study}</span>
                         </button>
-                        <button className="action-btn" id="tutorial-btn-copy" onClick={onCopy}>
+                        <button className="action-btn" id="tutorial-btn-copy" onClick={handleCopy}>
                             <span className="action-icon">{copied ? '✓' : '📋'}</span>
                             <span className="action-label">{copied ? t.copied : t.copy}</span>
                         </button>
