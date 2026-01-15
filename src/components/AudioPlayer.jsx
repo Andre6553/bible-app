@@ -48,6 +48,7 @@ const AudioPlayer = ({
     // This tricks iOS/Android into thinking we are a music app, keeping the thread alive.
     const SILENT_AUDIO = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//OEAAABAAAAAgAAAAAA/84QAAIAAAAAyAAAAAAA//OEAAADAAAAAgAAAAAA/84QAAQAAAAAyAAAAAAA//OEAAUAAAAAAgAAAAAA/84QAAYAAAAAyAAAAAAA//OEAAcAAAAAAgAAAAAA/84QAAgAAAAAyAAAAAAA//OEAAkAAAAAAgAAAAAA/84QAAoAAAAAyAAAAAAA//OEAAsAAAAAAgAAAAAA/84QAQwAAAAAyAAAAAAA//OEAA0AAAAAAgAAAAAA/84QAA4AAAAAyAAAAAAA//OEAA8AAAAAAgAAAAAA/84QABAAAAAAyAAAAAAA';
     const silentAudioRef = useRef(null);
+    const wakeLockRef = useRef(null);
 
     // Sync Ref with State for use in async callbacks (onend, timeouts)
     useEffect(() => {
@@ -178,6 +179,7 @@ const AudioPlayer = ({
             clearInterval(timer);
             cancelSpeech();
             if (silentAudioRef.current) silentAudioRef.current.pause();
+            if (wakeLockRef.current) wakeLockRef.current.release().catch(() => { });
         };
     }, []);
 
@@ -360,7 +362,18 @@ const AudioPlayer = ({
             // 3. Trigger playback
             // Start silent audio FIRST to ensure Media Session and Background capability
             if (silentAudioRef.current) {
+                silentAudioRef.current.volume = 0.01; // Tiny volume, not 0, to look "active"
                 silentAudioRef.current.play().catch(e => console.warn('Silent audio play failed:', e));
+            }
+
+            // Request Screen Wake Lock (Backup strategy)
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen')
+                    .then(lock => {
+                        wakeLockRef.current = lock;
+                        console.log('💡 Wake Lock active');
+                    })
+                    .catch(e => console.warn('Wake Lock failed:', e));
             }
 
             isManuallyTriggeredRef.current = true;
@@ -368,6 +381,13 @@ const AudioPlayer = ({
         } else {
             if (silentAudioRef.current) {
                 silentAudioRef.current.pause();
+            }
+            // Release Wake Lock
+            if (wakeLockRef.current) {
+                wakeLockRef.current.release()
+                    .then(() => console.log('💡 Wake Lock released'))
+                    .catch(e => console.warn('Wake Lock release error:', e));
+                wakeLockRef.current = null;
             }
             cancelSpeech();
         }
@@ -461,8 +481,8 @@ const AudioPlayer = ({
 
     return (
         <div className={`audio-player-container ${isMinimize ? 'minimized' : ''}`}>
-            {/* Hidden Silent Audio for Background Support */}
-            <audio ref={silentAudioRef} src={SILENT_AUDIO} loop muted playsInline style={{ display: 'none' }} />
+            {/* Hidden Silent Audio for Background Support - NO MUTED PROP */}
+            <audio ref={silentAudioRef} src={SILENT_AUDIO} loop playsInline style={{ display: 'none' }} />
 
             {/* Always show controls if synth exists, even if 0 voices (default might work) */}
             <div className="audio-controls">
