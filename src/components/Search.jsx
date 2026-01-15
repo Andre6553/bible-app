@@ -1144,7 +1144,7 @@ Here are the available shortcuts to quickly ask questions:
     };
 
     return (
-        <div className={`search - page ${showMobileResults ? 'mobile-results-open' : ''}`}>
+        <div className={`search-page ${showMobileResults ? 'mobile-results-open' : ''}`}>
             <div className="search-header">
                 <div className="header-top-row">
                     {showMobileResults ? (
@@ -1267,7 +1267,7 @@ Here are the available shortcuts to quickly ask questions:
                             )}
                             <button
                                 type="button"
-                                className={`history - toggle - btn ${showHistory ? 'active' : ''}`}
+                                className={`history-toggle-btn ${showHistory ? 'active' : ''}`}
                                 id="tutorial-history"
                                 onClick={toggleHistory}
                                 title="Search History"
@@ -1403,15 +1403,15 @@ Here are the available shortcuts to quickly ask questions:
                                     : (settings.language === 'af' ? 'Bestuur' : 'Manage')}
                             </button>
                         </div>
-                        <div className={`recent - history - bar ${isHistoryEditMode ? 'edit-mode' : ''} `}>
+                        <div className={`recent-history-bar ${isHistoryEditMode ? 'edit-mode' : ''}`}>
                             {history.map((term, i) => {
                                 const query = term && typeof term === 'object' ? term.query : (typeof term === 'string' ? term : '');
                                 const mode = term && typeof term === 'object' ? term.mode : 'exact';
                                 if (!query) return null;
                                 return (
                                     <button
-                                        key={`${i} -${query} `}
-                                        className={`history - chip ${mode === 'semantic' ? 'semantic' : ''} ${isHistoryEditMode ? 'deletable' : ''} `}
+                                        key={`${i}-${query}`}
+                                        className={`history-chip ${mode === 'semantic' ? 'semantic' : ''} ${isHistoryEditMode ? 'deletable' : ''}`}
                                         style={{ '--i': i }}
                                         onClick={() => {
                                             if (isHistoryEditMode) {
@@ -1530,7 +1530,7 @@ Here are the available shortcuts to quickly ask questions:
                                         const key = `${verse.books.id} -${verse.chapter} -${verse.verse} -${verse.version} `;
                                         const isSelected = selectedVerses.has(key);
                                         return (
-                                            <div key={index} className={`verse - card semantic - card ${isSelected ? 'selected' : ''} `} onClick={() => {
+                                            <div key={index} className={`verse-card semantic-card ${isSelected ? 'selected' : ''}`} onClick={() => {
                                                 navigate('/bible', {
                                                     state: {
                                                         bookId: verse.books.id,
@@ -1574,7 +1574,7 @@ Here are the available shortcuts to quickly ask questions:
                                         const key = `${verse.books.id} -${verse.chapter} -${verse.verse} -${verse.version} `;
                                         const isSelected = selectedVerses.has(key);
                                         return (
-                                            <div key={index} className={`verse - card ${isSelected ? 'selected' : ''} `} onClick={() => {
+                                            <div key={index} className={`verse-card ${isSelected ? 'selected' : ''}`} onClick={() => {
                                                 navigate('/bible', {
                                                     state: {
                                                         bookId: verse.books.id,
@@ -1718,14 +1718,14 @@ Here are the available shortcuts to quickly ask questions:
 
                                 {aiResponse && (
                                     <div
-                                        className={`info - section ai - response ${isAnswerExpanded ? 'expanded' : ''} `}
+                                        className={`info-section ai-response ${isAnswerExpanded ? 'expanded' : ''}`}
                                         onDoubleClick={() => setIsAnswerExpanded(!isAnswerExpanded)}
                                     >
                                         <div className="ai-response-header">
                                             <h3>{t.biblicalAnswer}</h3>
                                             <div className="ai-response-actions">
                                                 <button
-                                                    className={`copy - btn ${copyStatus === 'Copied!' ? 'success' : ''} `}
+                                                    className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         copyToClipboard();
@@ -1787,7 +1787,7 @@ Here are the available shortcuts to quickly ask questions:
                                             onClick={() => setShowAIHistory(!showAIHistory)}
                                         >
                                             {t.prevQuestions(aiHistory.length)}
-                                            <span className={`toggle - arrow ${showAIHistory ? 'open' : ''} `}>▼</span>
+                                            <span className={`toggle-arrow ${showAIHistory ? 'open' : ''}`}>▼</span>
                                         </button>
 
                                         {showAIHistory && (

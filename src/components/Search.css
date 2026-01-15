@@ -935,8 +935,8 @@
     border-left: 4px solid var(--accent-primary);
     line-height: 1.8;
     white-space: pre-wrap;
-    /* max-height: 400px; REMOVED to allow modal to handle scrolling to history */
-    /* overflow-y: auto; REMOVED */
+    max-height: 60vh;
+    overflow-y: auto;
     color: var(--text-primary);
     -webkit-overflow-scrolling: touch;
     /* Force Scrollbar Visibility for Mobile */
@@ -1352,6 +1352,7 @@
     /* AI Answer should be wider */
     .ai-answer {
         max-height: 500px;
+        overflow-y: auto;
     }
 }
 
