@@ -953,8 +953,11 @@ const SermonPrep = () => {
         preachWindow.document.close();
     };
 
-    const handleTTSView = async () => {
-        if (!currentSermon) return;
+    const handleTTSView = () => {
+        if (!currentSermon) {
+            alert("No sermon data found.");
+            return;
+        }
 
         const safe = (str) => (str || '').replace(/[`$]/g, '');
         const isAfSermon = settings.language === 'af';
@@ -999,9 +1002,17 @@ const SermonPrep = () => {
             : `<div class="tts-text">${scrubText(currentSermon.full_text || '', currentSermon.title, currentSermon.title)}</div>`;
 
         // 3. Open Window
-        const ttsWindow = window.open('', '_blank');
+        let ttsWindow = null;
+        try {
+            ttsWindow = window.open('', '_blank');
+        } catch (e) {
+            console.error(e);
+        }
+
         if (!ttsWindow) {
-            alert(isAf ? 'Laat asseblief opspring-vensters toe.' : 'Please allow popups.');
+            alert(isAf
+                ? 'Opspring-venster geblokkeer. Gaan asseblief u blaaier-instellings na.'
+                : 'Popup blocked. Please check your browser settings and allow popups for this site.');
             return;
         }
 
