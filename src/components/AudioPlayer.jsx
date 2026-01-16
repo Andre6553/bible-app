@@ -44,16 +44,25 @@ const AudioPlayer = ({
     const isManuallyTriggeredRef = useRef(false);
     const isPlayingRef = useRef(false);
     const currentVerseIndexRef = useRef(initialVerseIndex);
+    const lastEventTimeRef = useRef(Date.now());
+    const isStartingRef = useRef(false); // Mutual exclusion for playVerse
 
     // Background Audio Hack 2.0: Web Audio API Oscillator
     const audioCtxRef = useRef(null);
     const wakeLockRef = useRef(null);
+
+    // Unified Index Updater (State + Ref Sync)
+    const safeSetVerseIndex = (newIndex) => {
+        currentVerseIndexRef.current = newIndex;
+        setCurrentVerseIndex(newIndex);
+    };
 
     // Sync Refs with State for use in async callbacks (onend, timeouts, intervals)
     useEffect(() => {
         isPlayingRef.current = isPlaying;
     }, [isPlaying]);
 
+    // Keep the state in sync if external initialVerseIndex changes (rare but good for safety)
     useEffect(() => {
         currentVerseIndexRef.current = currentVerseIndex;
     }, [currentVerseIndex]);
@@ -168,13 +177,19 @@ const AudioPlayer = ({
 
         // WATCHDOG: Occasionally check if we are stuck (isPlaying=true but nothing speaking)
         const watchdog = setInterval(() => {
-            if (isPlayingRef.current && synth && !synth.speaking && !synth.pending) {
-                console.log('[Audio] Watchdog: Detected stalled playback. Attempting recovery...');
+            if (!isPlayingRef.current || !synth) return;
+
+            const timeSinceLastEvent = Date.now() - lastEventTimeRef.current;
+            const isActuallySilent = !synth.speaking && !synth.pending;
+
+            // On iOS, synth.speaking can be false even when it's actually speaking!
+            // So we rely on the TIME since the last known good event (start, boundary).
+            if (isActuallySilent && timeSinceLastEvent > 10000) {
+                console.log(`[Audio] Watchdog: Detected stalled playback (${timeSinceLastEvent}ms silent). Attempting recovery...`);
                 // Try to wake up the engine
                 if (synth.paused) synth.resume();
 
-                // If it's truly idle but we want to be playing, re-trigger the current verse
-                // Use the Ref to avoid stale closure issues
+                // Re-trigger the current verse
                 playVerse(currentVerseIndexRef.current);
             }
         }, 5000);
@@ -229,21 +244,28 @@ const AudioPlayer = ({
     }, [isPlaying, currentVerseIndex]); // Simplified deps, verses is usually stable
 
     const playVerse = (index) => {
-        if (!synth) return;
+        if (!synth || isStartingRef.current) return;
 
         console.log(`[Audio] playVerse(idx: ${index}) - isPlayingRef: ${isPlayingRef.current}`);
+
+        // Mutual exclusion lock to prevent "fishbowl" (double voices)
+        isStartingRef.current = true;
 
         // Stop any current speech
         cancelSpeech();
 
         if (index >= verses.length) {
             console.log('[Audio] Index out of bounds, end of chapter.');
+            isStartingRef.current = false;
             handleEndOfChapter();
             return;
         }
 
         const verseData = verses[index];
-        if (!verseData) return;
+        if (!verseData) {
+            isStartingRef.current = false;
+            return;
+        }
 
         const text = verseData.text.replace(/\[.*?\]/g, '');
         const utterance = new SpeechSynthesisUtterance(text);
@@ -262,11 +284,19 @@ const AudioPlayer = ({
 
         utterance.onstart = () => {
             console.log(`[Audio] START: v.${verseData.verse}`);
+            lastEventTimeRef.current = Date.now();
             setDebugInfo(prev => ({ ...prev, state: 'Speaking...' }));
+            isStartingRef.current = false;
+        };
+
+        // Track progress for the watchdog
+        utterance.onboundary = () => {
+            lastEventTimeRef.current = Date.now();
         };
 
         utterance.onend = () => {
             console.log(`[Audio] END: v.${verseData.verse}. isPlayingRef: ${isPlayingRef.current}`);
+            isStartingRef.current = false;
             // Move to next verse automatically
             if (isPlayingRef.current) {
                 const next = index + 1;
@@ -275,11 +305,10 @@ const AudioPlayer = ({
                 // Set this to true BEFORE updating state so the useEffect skips the playVerse call
                 isManuallyTriggeredRef.current = true;
 
-                // CRITICAL: Update state so UI stays in sync
-                setCurrentVerseIndex(next);
+                // CRITICAL: Update state and ref immediately so UI stays in sync
+                safeSetVerseIndex(next);
 
                 // ON IOS: Call playVerse directly to keep the audio session context alive
-                // This bypasses the React effect's async delay which often kills playback on Safari.
                 if (next < verses.length) {
                     playVerse(next);
                 } else {
@@ -289,6 +318,7 @@ const AudioPlayer = ({
         };
 
         utterance.onerror = (e) => {
+            isStartingRef.current = false;
             // Mobile browsers often flag 'interrupted' or 'canceled' during transitions
             if (e.error === 'interrupted' || e.error === 'canceled') {
                 console.log(`[Audio] Handled Error: ${e.error}`);
@@ -308,12 +338,12 @@ const AudioPlayer = ({
         if (synth.paused) synth.resume();
 
         // Final Speak trigger - Reduced delay for iOS Safari compatibility
-        // If the delay is too long, the browser loses "user activation" privilege.
         setTimeout(() => {
             if (isPlayingRef.current) {
                 console.log(`[Audio] SPEAK EXEC: v.${verseData.verse}`);
                 synth.speak(utterance);
             } else {
+                isStartingRef.current = false;
                 console.log(`[Audio] Speak cancelled (isPlayingRef is false)`);
             }
         }, 10);
@@ -341,7 +371,7 @@ const AudioPlayer = ({
         if (onNextChapter) {
             onNextChapter();
             // Reset index to 0 for new chapter
-            setCurrentVerseIndex(0);
+            safeSetVerseIndex(0);
             // Resume playing after short delay to allow load
             setTimeout(() => setIsPlaying(true), 1500);
         } else {
@@ -396,7 +426,7 @@ const AudioPlayer = ({
                 const topIndex = onGetTopVerseIndex();
                 console.log(`[Audio] Resume Sync: Paused at ${currentVerseIndex}, Scrolled to ${topIndex}`);
                 startAt = topIndex;
-                setCurrentVerseIndex(topIndex);
+                safeSetVerseIndex(topIndex);
             }
 
             // 3. Trigger playback + Background Audio Keep-Alive
@@ -410,8 +440,9 @@ const AudioPlayer = ({
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
 
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(15000, ctx.currentTime); // High freq for less perceptibility
+                        // Mobile iOS hack: Using 0Hz if it's an iOS device to avoid "fishbowl" sound
+                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                        osc.frequency.setValueAtTime(isIOS ? 0 : 15000, ctx.currentTime);
                         gain.gain.setValueAtTime(0.001, ctx.currentTime); // Very low gain
 
                         osc.connect(gain);
@@ -461,14 +492,16 @@ const AudioPlayer = ({
     };
 
     const handleNext = () => {
+        isManuallyTriggeredRef.current = isPlaying;
         const nextIndex = currentVerseIndex + 1;
-        setCurrentVerseIndex(nextIndex);
+        safeSetVerseIndex(nextIndex);
         // If we were playing, playVerse will be triggered by useEffect
     };
 
     const handlePrev = () => {
+        isManuallyTriggeredRef.current = isPlaying;
         const nextIndex = currentVerseIndex > 0 ? currentVerseIndex - 1 : 0;
-        setCurrentVerseIndex(nextIndex);
+        safeSetVerseIndex(nextIndex);
     };
 
     const handleVoiceChange = (e) => {
