@@ -586,7 +586,11 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             }
 
             if (next.length > 0) {
-                setShowActionSheet(true);
+                // For desktop (mouse), show action sheet immediately
+                // For mobile (touch), only allow selection, opening happens via longPress
+                if (e.nativeEvent.pointerType !== 'touch') {
+                    setShowActionSheet(true);
+                }
             } else {
                 setShowActionSheet(false);
             }
@@ -618,7 +622,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         isScrolling.current = false;
         longPressTimer.current = setTimeout(() => {
             handleLongPress(verse, e);
-        }, 500);
+        }, 1000); // Increased to 1 second as requested
     };
 
     const handleTouchMove = () => {
