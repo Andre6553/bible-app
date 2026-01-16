@@ -46,6 +46,7 @@ const AudioPlayer = ({
     const currentVerseIndexRef = useRef(initialVerseIndex);
     const lastEventTimeRef = useRef(Date.now());
     const isStartingRef = useRef(false); // Mutual exclusion for playVerse
+    const isAdvancingRef = useRef(false); // Only allow one advance per onend
 
     // Background Audio Hack 2.0: Web Audio API Oscillator
     const audioCtxRef = useRef(null);
@@ -162,14 +163,17 @@ const AudioPlayer = ({
             }
         }, 1000);
 
-        // SILENT PROBE
-        setTimeout(() => {
-            if (synth.getVoices().length <= 1) {
-                const probe = new SpeechSynthesisUtterance(' ');
-                probe.volume = 0;
-                synth.speak(probe);
-            }
-        }, 500);
+        // SILENT PROBE: Skip on iOS as it can cause distortion/robotic sound
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (!isIOS) {
+            setTimeout(() => {
+                if (synth.getVoices().length <= 1) {
+                    const probe = new SpeechSynthesisUtterance(' ');
+                    probe.volume = 0;
+                    synth.speak(probe);
+                }
+            }, 500);
+        }
 
         // Restore speed
         const savedRate = localStorage.getItem('audio_rate');
@@ -294,11 +298,16 @@ const AudioPlayer = ({
             lastEventTimeRef.current = Date.now();
         };
 
-        utterance.onend = () => {
+        utterance.onend = (e) => {
             console.log(`[Audio] END: v.${verseData.verse}. isPlayingRef: ${isPlayingRef.current}`);
             isStartingRef.current = false;
+
             // Move to next verse automatically
             if (isPlayingRef.current) {
+                // Safeguard against stale onend events or double-fires
+                if (isAdvancingRef.current) return;
+                isAdvancingRef.current = true;
+
                 const next = index + 1;
                 console.log(`[Audio] Next Verse (Immediate Attempt) -> ${next}`);
 
@@ -307,6 +316,9 @@ const AudioPlayer = ({
 
                 // CRITICAL: Update state and ref immediately so UI stays in sync
                 safeSetVerseIndex(next);
+
+                // Reset the guard after a short delay
+                setTimeout(() => { isAdvancingRef.current = false; }, 200);
 
                 // ON IOS: Call playVerse directly to keep the audio session context alive
                 if (next < verses.length) {
@@ -432,7 +444,8 @@ const AudioPlayer = ({
             // 3. Trigger playback + Background Audio Keep-Alive
             try {
                 // Initialize Audio Context if missing
-                if (!audioCtxRef.current) {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                if (!audioCtxRef.current && !isIOS) {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
                     if (AudioContext) {
                         const ctx = new AudioContext();
@@ -441,8 +454,7 @@ const AudioPlayer = ({
                         const gain = ctx.createGain();
 
                         // Mobile iOS hack: Using 0Hz if it's an iOS device to avoid "fishbowl" sound
-                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                        osc.frequency.setValueAtTime(isIOS ? 0 : 15000, ctx.currentTime);
+                        osc.frequency.setValueAtTime(15000, ctx.currentTime);
                         gain.gain.setValueAtTime(0.001, ctx.currentTime); // Very low gain
 
                         osc.connect(gain);
