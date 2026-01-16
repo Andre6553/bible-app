@@ -42,7 +42,12 @@ const AudioPlayer = ({
     const voicesCountRef = useRef(0);
     const selectedVoiceURIRef = useRef(localStorage.getItem('audio_voice_uri') || null);
     const isManuallyTriggeredRef = useRef(false);
+    const isPlayingRef = useRef(false);
     const currentVerseIndexRef = useRef(initialVerseIndex);
+
+    // Background Audio Hack 2.0: Web Audio API Oscillator
+    const audioCtxRef = useRef(null);
+    const wakeLockRef = useRef(null);
 
     // Sync Refs with State for use in async callbacks (onend, timeouts, intervals)
     useEffect(() => {
