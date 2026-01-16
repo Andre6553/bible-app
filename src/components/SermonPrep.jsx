@@ -229,6 +229,16 @@ const SermonPrep = () => {
         return () => window.removeEventListener('message', handleMessage);
     }, []);
 
+    // v12.6: Toggle Body Class for Overlay
+    useEffect(() => {
+        if (overlayState.isOpen) {
+            document.body.classList.add('overlay-open');
+        } else {
+            document.body.classList.remove('overlay-open');
+        }
+        return () => document.body.classList.remove('overlay-open');
+    }, [overlayState.isOpen]);
+
     const tutorialSteps = [
         {
             target: '#tutorial-new-sermon',
@@ -3522,7 +3532,7 @@ const FullPageOverlay = ({ title, onClose, content, controlsType }) => {
             top: 0,
             left: 0,
             width: '100vw',
-            height: '100vh',
+            height: '100dvh', // Use dynamic viewport height for mobile Safari
             zIndex: 99999,
             background: '#0f172a',
             display: 'flex',
@@ -3561,7 +3571,7 @@ const FullPageOverlay = ({ title, onClose, content, controlsType }) => {
             {controlsType === 'preach' && (
                 <div style={{
                     position: 'fixed',
-                    bottom: '20px',
+                    bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))', // Account for iOS home indicator
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 100002,
@@ -3662,7 +3672,7 @@ const FullPageOverlay = ({ title, onClose, content, controlsType }) => {
                     width: '100%',
                     border: 'none',
                     background: 'white',
-                    marginBottom: controlsType ? '100px' : '0'
+                    marginBottom: controlsType ? '120px' : '0' // Increased margin to ensure content clears floating controls
                 }}
                 srcDoc={content}
                 allow="screen-wake-lock; clipboard-write; clipboard-read"

@@ -18,8 +18,9 @@
     box-sizing: border-box;
 }
 
-/* Hide navigation when verse action sheet is open on mobile */
-body.action-sheet-open .bottom-nav {
+/* Hide navigation when verse action sheet or full-page overlay is open on mobile */
+body.action-sheet-open .bottom-nav,
+body.overlay-open .bottom-nav {
     display: none;
 }
 
