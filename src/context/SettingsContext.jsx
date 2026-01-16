@@ -186,7 +186,8 @@ export const SettingsProvider = ({ children }) => {
             profileLoading, // Exporting profile loading state
             manualSetUser: setUser,
             profile,
-            fetchProfile: fetchRemoteSettings
+            fetchProfile: (uid) => fetchProfile(uid || user?.id),
+            fetchRemoteSettings
         }}>
             {children}
         </SettingsContext.Provider>

@@ -266,6 +266,31 @@ const checkAndIncrementAiUsage = async () => {
     return true;
 };
 
+export const incrementSermonAuditCount = async () => {
+    try {
+        const userId = await getUserId();
+        if (!userId || userId.startsWith('user_')) return; // Skip guests
+
+        const { data: profile, error } = await supabase
+            .from('user_profiles')
+            .select('sermon_audit_count')
+            .eq('user_id', userId)
+            .single();
+
+        if (error) throw error;
+
+        await supabase.from('user_profiles').update({
+            sermon_audit_count: (profile?.sermon_audit_count || 0) + 1,
+            last_seen: new Date().toISOString()
+        }).eq('user_id', userId);
+
+        return { success: true };
+    } catch (err) {
+        console.error('Error incrementing audit count:', err);
+        return { success: false, error: err.message };
+    }
+};
+
 export const generateExegesis = async (scripture, title, audience, theme, language = 'en', plannedDuration = 90, tone) => {
     try {
         await checkAndIncrementAiUsage(); // Enforce Limit

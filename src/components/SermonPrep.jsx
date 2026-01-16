@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useNavigate } from 'react-router-dom';
-import { getMySermons, createSermon, deleteSermon, generateExegesis, updateSermon, performResearch } from '../services/sermonService';
+import { getMySermons, createSermon, deleteSermon, generateExegesis, updateSermon, performResearch, incrementSermonAuditCount } from '../services/sermonService';
 import { getBooks, getChapter, getChapterCount } from '../services/bibleService';
 import { askBibleQuestion } from '../services/aiService';
 import { getDeviceFingerprint } from '../utils/security';
@@ -106,9 +106,49 @@ const SermonPrep = () => {
     const isFingerUser = user?.email?.toLowerCase().includes('finger') || profile?.subscription_override === 'tester_finger';
     const canSeeExperimental = isAdmin || profile?.subscription_override === 'tester' || user?.email === 'Andre@58078' || isFingerUser;
 
-    // Premium Check (Unified Logic)
     const isPremium = profile?.subscription_override === 'premium' || (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
-    const canAccessTTS = isAdmin || isPremium;
+    const canAccessPremium = isAdmin || isPremium;
+
+    // Audit Quota Logic
+    const isTester = profile?.subscription_override === 'tester' || profile?.subscription_override === 'tester_finger' || isFingerUser;
+    const auditLimit = isTester ? 10 : 3;
+    const auditCount = parseInt(profile?.sermon_audit_count || 0, 10);
+    const canAccessAudit = !!profile && (canAccessPremium || auditCount < auditLimit);
+
+    // Premium Feature Descriptions
+    const premiumFeatures = {
+        podcast: {
+            name: isAf ? 'Podgooi Skrip' : 'Podcast Script',
+            desc: isAf ? 'Genereer \'n volledige podgooi-styl skrip met \'n aanbieder en kenner.' : 'Generate a full podcast-style script with a host and expert.'
+        },
+        narrator: {
+            name: isAf ? 'Verteller Skrip' : 'Narrator Script',
+            desc: isAf ? 'Genereer \'n vloeibare vertelling van jou preek vir oudio.' : 'Generate a fluid narrative of your sermon for audio.'
+        },
+        tts: {
+            name: isAf ? 'TTS Oudio' : 'TTS Audio',
+            desc: isAf ? 'Luister na jou preek met standaard KI-stemme.' : 'Listen to your sermon with AI standard voices.'
+        },
+        preach: {
+            name: isAf ? 'Preek Modus' : 'Preach Mode',
+            desc: isAf ? 'fokus-modus vir die kansel met groot teks en \'n horlosie.' : 'Focus mode for the pulpit with large text and a timer.'
+        },
+        audit: {
+            name: isAf ? 'Oudit Preek' : 'Audit Sermon',
+            desc: isAf ? (isTester ? `Jy het ${auditCount}/10 oudits gebruik.` : `Jy het ${auditCount}/3 gratis oudits gebruik.`) : (isTester ? `You've used ${auditCount}/10 audits.` : `You've used ${auditCount}/3 free audits.`)
+        }
+    };
+
+    const handlePremiumLockClick = (featureKey) => {
+        const feat = premiumFeatures[featureKey];
+        const msg = isAf
+            ? `${feat.name}: ${feat.desc}\n\nHierdie is 'n PRO funksie. Wil jy inteken om toegang te kry?`
+            : `${feat.name}: ${feat.desc}\n\nThis is a PRO feature. Would you like to subscribe to get access?`;
+
+        if (window.confirm(msg)) {
+            navigate('/subscription');
+        }
+    };
 
     // Workflow State
     const [step, setStep] = useState('dashboard'); // dashboard, foundation, skeleton, laboratory
@@ -145,6 +185,49 @@ const SermonPrep = () => {
     const [isTutorialOpen, setIsTutorialOpen] = useState(false);
     const [isTutorialMode, setIsTutorialMode] = useState(false);
     const [tutorialStepIdx, setTutorialStepIdx] = useState(0);
+
+    // v12.6: Mobile-Friendly Overlay State (Bypasses Popup Blockers)
+    const [overlayState, setOverlayState] = useState({ isOpen: false, content: '', title: '', controlsType: null });
+
+    // v12.6: Message Listener for Iframe Actions (Mobile Wake Lock / Clipboard)
+    useEffect(() => {
+        const handleMessage = async (event) => {
+            if (!event.data || !event.data.type) return;
+
+            // 1. Handle Wake Lock Request
+            if (event.data.type === 'WAKELOCK_TOGGLE') {
+                try {
+                    // We toggle screen wake lock from main thread
+                    if ('wakeLock' in navigator) {
+                        try {
+                            const lock = await navigator.wakeLock.request('screen');
+                            // Send success back to all iframes (simplest way to hit the overlay)
+                            const iframes = document.querySelectorAll('iframe');
+                            iframes.forEach(f => f.contentWindow.postMessage({ type: 'WAKELOCK_ACTIVE' }, '*'));
+                        } catch (err) {
+                            console.error('Main Thread Lock Error:', err);
+                            const iframes = document.querySelectorAll('iframe');
+                            iframes.forEach(f => f.contentWindow.postMessage({ type: 'WAKELOCK_ERROR' }, '*'));
+                        }
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            // 2. Handle Clipboard Request
+            if (event.data.type === 'COPY_TEXT') {
+                try {
+                    await navigator.clipboard.writeText(event.data.text);
+                    const iframes = document.querySelectorAll('iframe');
+                    iframes.forEach(f => f.contentWindow.postMessage({ type: 'COPY_SUCCESS' }, '*'));
+                } catch (err) {
+                    console.error('Clipboard Error:', err);
+                }
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
 
     const tutorialSteps = [
         {
@@ -605,6 +688,107 @@ const SermonPrep = () => {
         setCurrentSermon({ ...currentSermon, full_text: assembled });
     };
 
+    // v12.6: Lifted Preach Controls (MUST be at component scope, not inside handler)
+    const PreachControls = () => {
+        const [fontSize, setFontSize] = useState(22);
+        const [isDark, setIsDark] = useState(false);
+        const [isLocked, setIsLocked] = useState(false);
+        const [timer, setTimer] = useState(0);
+        const wakeLockRef = useRef(null);
+
+        // Timer
+        useEffect(() => {
+            const interval = setInterval(() => setTimer(t => t + 1), 1000);
+            return () => clearInterval(interval);
+        }, []);
+
+        const formatTime = (s) => {
+            const m = Math.floor(s / 60).toString().padStart(2, '0');
+            const sec = (s % 60).toString().padStart(2, '0');
+            return `${m}:${sec}`;
+        };
+
+        const updateIframeStyle = (property, value) => {
+            const iframe = document.getElementById('overlay-iframe');
+            if (iframe && iframe.contentDocument) {
+                iframe.contentDocument.documentElement.style.setProperty(property, value);
+            }
+        };
+
+        const handleFont = (delta) => {
+            const newSize = Math.max(16, Math.min(42, fontSize + delta));
+            setFontSize(newSize);
+            updateIframeStyle('--font-size', newSize + 'px');
+        };
+
+        const handleTheme = () => {
+            const newDark = !isDark;
+            setIsDark(newDark);
+            if (newDark) {
+                updateIframeStyle('--bg-color', '#121212');
+                updateIframeStyle('--text-color', '#e5e5e5');
+                updateIframeStyle('--highlight-color', '#3f2e00');
+                updateIframeStyle('--accent-color', '#a78bfa');
+            } else {
+                updateIframeStyle('--bg-color', '#ffffff');
+                updateIframeStyle('--text-color', '#121212');
+                updateIframeStyle('--highlight-color', '#fef9c3');
+                updateIframeStyle('--accent-color', '#7c3aed');
+            }
+        };
+
+        const handleLock = async () => {
+            if (!isLocked) {
+                try {
+                    if ('wakeLock' in navigator) {
+                        wakeLockRef.current = await navigator.wakeLock.request('screen');
+                        setIsLocked(true);
+                    }
+                } catch (e) {
+                    console.error('Lock failed', e);
+                    alert('Wake Lock failed: ' + e.message);
+                }
+            } else {
+                if (wakeLockRef.current) {
+                    await wakeLockRef.current.release();
+                    wakeLockRef.current = null;
+                }
+                setIsLocked(false);
+            }
+        };
+
+        // Auto-Lock on Mount
+        useEffect(() => { handleLock(); return () => { if (wakeLockRef.current) wakeLockRef.current.release(); } }, []);
+
+        const btnStyle = {
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.2)',
+            color: 'white',
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            fontSize: '20px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+        };
+
+        return (
+            <>
+                <button style={btnStyle} onClick={() => handleFont(-2)}>A-</button>
+                <div style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', minWidth: '60px', textAlign: 'center', alignSelf: 'center' }}>
+                    {formatTime(timer)}
+                </div>
+                <button style={btnStyle} onClick={() => handleFont(2)}>A+</button>
+                <button style={btnStyle} onClick={handleTheme}>{isDark ? '🌙' : '☀️'}</button>
+                <button style={{ ...btnStyle, color: isLocked ? '#4ade80' : '#6b7280', borderColor: isLocked ? '#4ade80' : 'rgba(255,255,255,0.2)' }} onClick={handleLock}>
+                    {isLocked ? '🔒' : '🔓'}
+                </button>
+            </>
+        );
+    };
+
     const handlePreachMode = async () => {
         // 1. Build the HTML content (similar to PDF but optimized for screens)
         const sermonTitle = currentSermon.title || (isAf ? 'Preek Konsep' : 'Sermon Draft');
@@ -614,21 +798,19 @@ const SermonPrep = () => {
 
         const formattedHtml = formatSermonHtml(textToFormat);
 
-        // 2. Open new window
-        const preachWindow = window.open('', '_blank');
-        if (!preachWindow) {
-            alert(isAf ? 'Laat asseblief opspring-vensters toe.' : 'Please allow popups.');
-            return;
-        }
-
-        // 3. Inject Preach Mode App
-        const htmlContent = `
+        // v12.6: Refactored to use In-App Overlay instead of window.open (Mobile Fix)
+        // 2. Open Overlay
+        setOverlayState({
+            isOpen: true,
+            title: isAf ? 'Preek Modus' : 'Preach Mode',
+            controlsType: 'preach',
+            content: `
             <!DOCTYPE html>
             <html lang="${isAf ? 'af' : 'en'}">
             <head>
                 <meta charset="UTF-8">
                 <link rel="icon" href="data:,">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
                 <title>🗣️ ${sermonTitle} - Preach Mode</title>
                 <style>
                     :root {
@@ -652,7 +834,7 @@ const SermonPrep = () => {
                         color: var(--text-color);
                         background: var(--bg-color);
                         margin: 0;
-                        padding: 20px 20px 100px 20px; /* Bottom padding for controls */
+                        padding: 20px 20px 200px 20px; /* Bottom padding for controls */
                         font-size: var(--font-size);
                         font-weight: bold;
                         max-width: 800px;
@@ -694,45 +876,6 @@ const SermonPrep = () => {
                         border-radius: 4px;
                     }
                     
-                    /* Controls Bar */
-                    .controls-bar {
-                        position: fixed;
-                        bottom: 20px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        background: rgba(30, 30, 30, 0.9);
-                        backdrop-filter: blur(10px);
-                        padding: 10px 20px;
-                        border-radius: 50px;
-                        display: flex;
-                        gap: 20px;
-                        align-items: center;
-                        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                        z-index: 1000;
-                    }
-                    .control-btn {
-                        background: transparent;
-                        border: 1px solid rgba(255,255,255,0.2);
-                        color: white;
-                        width: 44px;
-                        height: 44px;
-                        border-radius: 50%;
-                        font-size: 20px;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    }
-                    .close-btn { background: #ef4444; border-color: #ef4444; }
-                    .control-btn:active { background: rgba(255,255,255,0.2); }
-                    .timer-display {
-                        color: white;
-                        font-variant-numeric: tabular-nums;
-                        font-weight: bold;
-                        font-size: 18px;
-                        min-width: 60px;
-                        text-align: center;
-                    }
                 </style>
             </head>
             <body>
@@ -747,210 +890,163 @@ const SermonPrep = () => {
                     
                     ${currentSermon.full_text && !currentSermon.blocks.length ? formatSermonHtml(currentSermon.full_text) : ''}
                 </div>
-
-                <div class="controls-bar">
-                    <button class="control-btn" onclick="adjustFont(-2)">A-</button>
-                    <div class="timer-display" id="timer">00:00</div>
-                    <button class="control-btn" onclick="adjustFont(2)">A+</button>
-                    <button class="control-btn" onclick="toggleTheme()" id="themeBtn">☀️</button>
-                    <button class="control-btn" onclick="toggleWakeLock()" id="wakeLockBtn" style="color: #6b7280">🔓</button>
-                    <button class="control-btn close-btn" onclick="window.close()">❌</button>
-                </div>
-
                 <script>
-                    const STORAGE_KEY = 'preach_progress_${currentSermon.id}';
-                    const THEME_KEY = 'preach_theme_preference';
-
-                    // 0. Theme Logic
-                    let isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    const savedTheme = localStorage.getItem(THEME_KEY);
-                    if (savedTheme) {
-                        isDark = savedTheme === 'dark';
-                    }
-                    
-                    function applyTheme() {
-                        const root = document.documentElement;
-                        const btn = document.getElementById('themeBtn');
-                        if (isDark) {
-                            root.style.setProperty('--bg-color', '#121212');
-                            root.style.setProperty('--text-color', '#e5e5e5');
-                            root.style.setProperty('--highlight-color', '#3f2e00');
-                            root.style.setProperty('--accent-color', '#a78bfa');
-                            btn.innerText = '🌙';
-                        } else {
-                            root.style.setProperty('--bg-color', '#ffffff');
-                            root.style.setProperty('--text-color', '#121212');
-                            root.style.setProperty('--highlight-color', '#fef9c3');
-                            root.style.setProperty('--accent-color', '#7c3aed');
-                            btn.innerText = '☀️';
-                        }
-                    }
-                    
-                    function toggleTheme() {
-                        isDark = !isDark;
-                        localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
-                        applyTheme();
-                    }
-                    
-                    // Apply initially
-                    applyTheme();
-
-                    // Main Initialization
-                    window.addEventListener('load', () => {
-                        initPreachMode();
-                    });
-
-                    function initPreachMode(retryCount = 0) {
+                // Storage key for this sermon
+                const STORAGE_KEY = 'preach_bookmark_${currentSermon?.id || 'default'}';
+                
+                // Restore bookmark on load
+                document.addEventListener('DOMContentLoaded', function() {
+                    const savedIndex = localStorage.getItem(STORAGE_KEY);
+                    if (savedIndex !== null) {
                         const lines = document.querySelectorAll('.preach-line, li');
-                        
-                        if (lines.length === 0) {
-                            if (retryCount < 10) {
-                                setTimeout(() => initPreachMode(retryCount + 1), 500);
-                            }
-                            return;
-                        }
-                        
-                        lines.forEach((el, index) => {
-                            el.id = 'line-' + index;
-                            
-                            el.addEventListener('contextmenu', (e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                return false;
-                            });
-
-                            let pressTimer;
-                            let lastTapTime = 0;
-                            const LONG_PRESS_DURATION = 800; 
-                            const DOUBLE_TAP_DELAY = 300;
-                            let isPointerDown = false;
-
-                            // Activate Logic
-                            const activateLine = (element) => {
-                                document.querySelectorAll('.reading-active').forEach(active => {
-                                    if (active !== element) active.classList.remove('reading-active');
-                                });
-                                if (!element.classList.contains('reading-active')) {
-                                    element.classList.add('reading-active');
-                                    if (navigator.vibrate) navigator.vibrate(50);
-                                    localStorage.setItem(STORAGE_KEY, element.id);
-                                }
-                                element.style.transform = 'scale(1)';
-                                element.style.opacity = '1';
-                            };
-
-                            // Deactivate Logic
-                            const deactivateLine = (element) => {
-                                if (element.classList.contains('reading-active')) {
-                                    element.classList.remove('reading-active');
-                                    localStorage.removeItem(STORAGE_KEY);
-                                }
-                            };
-
-                            // POINTER DOWN
-                            el.addEventListener('pointerdown', (e) => {
-                                if (e.button !== 0) return;
-                                
-                                isPointerDown = true;
-                                el.style.transition = 'transform 0.2s, opacity 0.2s';
-                                el.style.transform = 'scale(0.98)';
-                                el.style.opacity = '0.7';
-
-                                pressTimer = setTimeout(() => {
-                                    if (isPointerDown) {
-                                        activateLine(el);
-                                        isPointerDown = false; 
-                                    }
-                                }, LONG_PRESS_DURATION);
-                            });
-
-                            // POINTER UP / LEAVE / CANCEL
-                            const handlePointerEnd = (e) => {
-                                if (isPointerDown) {
-                                    el.style.transform = 'scale(1)';
-                                    el.style.opacity = '1';
-                                    clearTimeout(pressTimer);
-                                    isPointerDown = false;
-                                    
-                                    const currentTime = new Date().getTime();
-                                    const tapLength = currentTime - lastTapTime;
-                                    
-                                    if (tapLength < DOUBLE_TAP_DELAY && tapLength > 0) {
-                                        deactivateLine(el);
-                                        e.preventDefault();
-                                    }
-                                    lastTapTime = currentTime;
-                                }
-                            };
-
-                            el.addEventListener('pointerup', handlePointerEnd);
-                            el.addEventListener('pointercancel', handlePointerEnd);
-                            el.addEventListener('pointerleave', handlePointerEnd);
-                        });
-
-                        // Restore Progress
-                        const savedId = localStorage.getItem(STORAGE_KEY);
-                        if (savedId) {
+                        const idx = parseInt(savedIndex);
+                        if (lines[idx]) {
+                            lines[idx].classList.add('reading-active');
                             setTimeout(() => {
-                                const savedEl = document.getElementById(savedId);
-                                if (savedEl) {
-                                    savedEl.classList.add('reading-active');
-                                    savedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }
-                            }, 300);
+                                lines[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 100);
                         }
                     }
-
-                    // 2. Font Size Logic
-                    let currentSize = 22;
-                    function adjustFont(delta) {
-                        currentSize = Math.max(16, Math.min(42, currentSize + delta));
-                        document.documentElement.style.setProperty('--font-size', currentSize + 'px');
-                    }
-
-                    // 3. Timer Logic
-                    let seconds = 0;
-                    setInterval(() => {
-                        seconds++;
-                        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-                        const s = (seconds % 60).toString().padStart(2, '0');
-                        document.getElementById('timer').innerText = \`\${m}:\${s}\`;
-                    }, 1000);
-
-                    // 4. Wake Lock Logic
-                    let wakeLock = null;
-                    async function toggleWakeLock() {
-                        const btn = document.getElementById('wakeLockBtn');
-                        if (!wakeLock) {
-                            // Check support silently
-                            if ('wakeLock' in navigator) {
-                                try {
-                                    wakeLock = await navigator.wakeLock.request('screen');
-                                    btn.innerText = '🔒';
-                                    btn.style.color = '#4ade80'; // Green
-                                } catch (err) {
-                                    console.log('Wake Lock request failed:', err);
-                                    // Fail silently on UI, maybe just keep icon unlocked
-                                }
-                            } else {
-                                console.log('Wake Lock API not supported.');
-                            }
-                        } else {
-                            wakeLock.release();
-                            wakeLock = null;
-                            btn.innerText = '🔓';
-                            btn.style.color = '#6b7280'; // Gray
+                });
+                
+                // Save bookmark on click
+                document.addEventListener('click', function(e) {
+                    const target = e.target.closest('.preach-line') || e.target.closest('li');
+                    if (target) {
+                        // Toggle active state
+                        document.querySelectorAll('.reading-active').forEach(el => el.classList.remove('reading-active'));
+                        target.classList.add('reading-active');
+                        
+                        // Save index to localStorage
+                        const lines = document.querySelectorAll('.preach-line, li');
+                        const idx = Array.from(lines).indexOf(target);
+                        if (idx >= 0) {
+                            localStorage.setItem(STORAGE_KEY, idx.toString());
                         }
                     }
-                    
-                    // Auto-request with no alert
-                    toggleWakeLock();
+                });
                 </script>
             </body>
             </html>
-        `;
-        preachWindow.document.write(htmlContent);
-        preachWindow.document.close();
+            `
+        });
+    };
+
+    // v12.6: Lifted TTS Controls
+    const TTSControls = () => {
+        const [voices, setVoices] = useState([]);
+        const [selectedVoiceIndex, setSelectedVoiceIndex] = useState('');
+        const [isPlaying, setIsPlaying] = useState(false);
+        const [isPaused, setIsPaused] = useState(false);
+
+        useEffect(() => {
+            const load = () => {
+                const allVoices = window.speechSynthesis.getVoices();
+                const langPref = settings.language === 'af' || isAf ? 'af' : 'en';
+                // Basic filtering
+                let filtered = allVoices.filter(v => v.lang.startsWith(langPref));
+                if (filtered.length === 0) filtered = allVoices;
+                setVoices(filtered);
+                // Default selection
+                if (filtered.length > 0) setSelectedVoiceIndex(0);
+            };
+
+            load();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = load;
+            }
+        }, []);
+
+        const handlePlay = () => {
+            if (window.speechSynthesis.speaking && !isPaused) {
+                window.speechSynthesis.pause();
+                setIsPaused(true);
+                setIsPlaying(false);
+            } else if (isPaused) {
+                window.speechSynthesis.resume();
+                setIsPaused(false);
+                setIsPlaying(true);
+            } else {
+                // New Playback
+                // We need to get text content from iframe. This requires the iframe to be accessible.
+                const iframe = document.getElementById('overlay-iframe');
+                if (!iframe || !iframe.contentDocument) return;
+
+                const content = iframe.contentDocument.getElementById('tts-content').innerText;
+                const utterance = new SpeechSynthesisUtterance(content);
+                const voice = voices[selectedVoiceIndex];
+                if (voice) utterance.voice = voice;
+                utterance.rate = 0.95;
+
+                utterance.onstart = () => { setIsPlaying(true); setIsPaused(false); };
+                utterance.onend = () => { setIsPlaying(false); setIsPaused(false); };
+
+                window.speechSynthesis.speak(utterance);
+            }
+        };
+
+        const handleStop = () => {
+            window.speechSynthesis.cancel();
+            setIsPlaying(false);
+            setIsPaused(false);
+        };
+
+        const handleCopy = async () => {
+            const iframe = document.getElementById('overlay-iframe');
+            if (!iframe || !iframe.contentDocument) return;
+
+            const text = iframe.contentDocument.getElementById('tts-content').innerText;
+            try {
+                await navigator.clipboard.writeText(text);
+                alert(isAf ? 'Gekopieer!' : 'Copied!');
+            } catch (e) {
+                alert('Error copying: ' + e.message);
+            }
+        };
+
+        const btnStyle = {
+            background: '#7c3aed',
+            color: 'black',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '25px',
+            fontWeight: '700',
+            fontSize: '15px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            whiteSpace: 'nowrap'
+        };
+
+        return (
+            <>
+                <select
+                    style={{
+                        background: '#334155', color: 'white', border: '1px solid #475569',
+                        borderRadius: '12px', padding: '8px 12px', outline: 'none', maxWidth: '150px'
+                    }}
+                    value={selectedVoiceIndex}
+                    onChange={(e) => setSelectedVoiceIndex(e.target.value)}
+                >
+                    {voices.map((v, i) => (
+                        <option key={i} value={i}>{v.name.slice(0, 20)}...</option>
+                    ))}
+                </select>
+
+                <button style={{ ...btnStyle, background: '#f59e0b', color: 'white' }} onClick={handlePlay}>
+                    {isPlaying && !isPaused ? (isAf ? '⏸️ Pause' : '⏸️ Pause') : (isPaused ? (isAf ? '▶️ Hervat' : '▶️ Resume') : (isAf ? '▶️ Speel' : '▶️ Play'))}
+                </button>
+
+                <button style={{ ...btnStyle, background: '#64748b', color: 'white' }} onClick={handleStop} disabled={!isPlaying && !isPaused}>
+                    ⏹️
+                </button>
+
+                <button style={{ ...btnStyle, background: '#10b981', color: 'white' }} onClick={handleCopy}>
+                    📋 {isAf ? 'Kopieer' : 'Copy'}
+                </button>
+            </>
+        );
     };
 
     const handleTTSView = () => {
@@ -961,38 +1057,19 @@ const SermonPrep = () => {
 
         const safe = (str) => (str || '').replace(/[`$]/g, '');
         const isAfSermon = settings.language === 'af';
-        const isWindows = typeof window !== 'undefined' && window.navigator.userAgent.indexOf("Win") !== -1;
-        const isAdmin = profile?.subscription_override === 'admin';
         const sermonTitle = safe(currentSermon.title || (isAf ? 'Preek' : 'Sermon')) + " - TTS";
-
-        // Localized Strings for v9
         const L = {
             converting: isAfSermon ? 'Besig met omskakeling...' : 'Converting Audio...',
             preparing: isAfSermon ? 'Berei voor...' : 'Preparing content...',
             downloads: isAfSermon ? 'Kontroleer asseblief u "Downloads" gids na voltooiing.' : 'Please check your "Downloads" folder after completion.',
-            genLinks: isAfSermon ? 'v12: Berei 4 dele voor...' : 'v12: Preparing 4 parts...',
             audioParts: isAfSermon ? 'Klank Dele (4)' : 'Audio Parts (4)',
             downloadAll: isAfSermon ? 'Laai Alles Af' : 'Download All Parts',
             openSave: isAfSermon ? 'Deel' : 'Part',
             ready: isAfSermon ? 'v12: 4 klank dele is gereed.' : 'v12: 4 audio parts are ready.',
-            confirmPrefix: isAfSermon ? 'Dit sal ' : 'This will open ',
-            confirmSuffix: isAfSermon ? ' dele begin aflaai. Voortgaan?' : ' parts for download. Continue?',
-            finished: isAfSermon ? 'Alle dele is afgehandel.' : 'All parts have been processed.',
-            play: isAfSermon ? 'Speel' : 'Play',
-            resume: isAfSermon ? 'Hervat' : 'Resume',
-            pause: isAfSermon ? 'Pause' : 'Pause',
-            copy: isAfSermon ? 'Kopieer' : 'Copy',
-            copied: isAfSermon ? 'Gekopieer!' : 'Copied!',
-            voices: isAfSermon ? 'Laai stemme...' : 'Loading voices...',
-            noVoices: isAfSermon ? 'Geen stemme gevind' : 'No voices found',
-            joining: isAfSermon ? 'Kombineer deel...' : 'Joining part...',
-            downloadNow: isAfSermon ? 'Laai Deel Af' : 'Download Part'
         };
-
 
         const ttsBody = currentSermon.blocks && currentSermon.blocks.length > 0
             ? currentSermon.blocks.map(block => {
-                // v12.4: Removed block title injection to ensure clean reading
                 return `
                     <div class="block-section">
                         <div class="tts-text">${scrubText(block.notes || '', block.title, currentSermon.title)}</div>
@@ -1001,20 +1078,6 @@ const SermonPrep = () => {
             }).join('')
             : `<div class="tts-text">${scrubText(currentSermon.full_text || '', currentSermon.title, currentSermon.title)}</div>`;
 
-        // 3. Open Window
-        let ttsWindow = null;
-        try {
-            ttsWindow = window.open('', '_blank');
-        } catch (e) {
-            console.error(e);
-        }
-
-        if (!ttsWindow) {
-            alert(isAf
-                ? 'Opspring-venster geblokkeer. Gaan asseblief u blaaier-instellings na.'
-                : 'Popup blocked. Please check your browser settings and allow popups for this site.');
-            return;
-        }
 
         const htmlContent = `
             <!DOCTYPE html>
@@ -1022,14 +1085,12 @@ const SermonPrep = () => {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-                <meta name="referrer" content="no-referrer">
                 <title>🎙️ TTS v12 - ${sermonTitle}</title>
                 <style>
                     :root {
                         --bg-color: #0f172a;
                         --text-color: #f8fafc;
                         --accent-color: #38bdf8;
-                        --secondary-btn: #64748b;
                         --card-bg: #1e293b;
                         --font-size: 24px;
                     }
@@ -1039,13 +1100,12 @@ const SermonPrep = () => {
                         color: var(--text-color);
                         background: var(--bg-color);
                         margin: 0;
-                        padding: 20px 20px 140px 20px;
+                        padding: 20px 20px 200px 20px; /* Big padding for lifted controls */
                         font-size: var(--font-size);
                         max-width: 900px;
                         margin: 0 auto;
                     }
                     h1 { color: var(--accent-color); text-align: center; font-size: 1.5em; margin-bottom: 30px; border-bottom: 2px solid var(--accent-color); padding-bottom: 15px; }
-                    .tts-header { font-size: 1.1em; color: #94a3b8; margin-top: 40px; text-transform: uppercase; letter-spacing: 1px; }
                     .tts-text { 
                         background: var(--card-bg); 
                         padding: 30px; 
@@ -1055,567 +1115,31 @@ const SermonPrep = () => {
                         border-left: 4px solid var(--accent-color);
                         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
                     }
-                    
-                    /* Controls */
-                    .floating-actions {
-                        position: fixed;
-                        bottom: 30px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        display: flex;
-                        gap: 12px;
-                        background: rgba(15, 23, 42, 0.9);
-                        backdrop-filter: blur(12px);
-                        padding: 15px 25px;
-                        border-radius: 50px;
-                        border: 1px solid rgba(255,255,255,0.1);
-                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-                        z-index: 1000;
-                        flex-wrap: wrap;
-                        justify-content: center;
-                        width: max-content;
-                        max-width: 95vw;
-                    }
-                    .btn {
-                        background: var(--accent-color);
-                        color: #000;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 25px;
-                        font-weight: 700;
-                        font-size: 15px;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        transition: all 0.2s;
-                        white-space: nowrap;
-                    }
-                    .btn:active { transform: scale(0.95); }
-                    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                    .btn.secondary { background: var(--secondary-btn); color: white; }
-                    .btn.copy-btn { background: #10b981; color: white; }
-                    .btn.audio-btn { background: #f59e0b; color: white; }
-                    .btn.download-btn { background: #6366f1; color: white; }
-                    
-                    .voice-selector {
-                        background: #334155;
-                        color: white;
-                        border: 1px solid #475569;
-                        border-radius: 12px;
-                        padding: 8px 12px;
-                        font-size: 14px;
-                        outline: none;
-                        max-width: 150px;
-                    }
-
-                    .overlay {
-                        display: none;
-                        position: fixed;
-                        top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(0,0,0,0.85);
-                        z-index: 2000;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        text-align: center;
-                        padding: 40px;
-                    }
-                    .progress-container {
-                        width: 300px;
-                        height: 10px;
-                        background: #334155;
-                        border-radius: 5px;
-                        margin: 20px 0;
-                        overflow: hidden;
-                    }
-                    .progress-bar {
-                        width: 0%;
-                        height: 100%;
-                        background: var(--accent-color);
-                        transition: width 0.3s;
-                    }
-
-                    .download-list {
-                        display: none;
-                        margin-top: 30px;
-                        background: var(--card-bg);
-                        padding: 20px;
-                        border-radius: 16px;
-                        border: 1px solid rgba(255,255,255,0.1);
-                    }
-                    .download-list h3 { margin-top: 0; color: var(--accent-color); font-size: 1.2em; }
-                    .download-item {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 12px;
-                        border-bottom: 1px solid rgba(255,255,255,0.05);
-                        font-size: 16px;
-                    }
-                    .download-item:last-child { border-bottom: none; }
-                    .part-link {
-                        color: var(--accent-color);
-                        text-decoration: none;
-                        background: rgba(56, 189, 248, 0.1);
-                        padding: 4px 12px;
-                        border-radius: 8px;
-                        transition: all 0.2s;
-                    }
-                    .part-link:hover { background: var(--accent-color); color: #000; }
-
-                    @media print {
-                        .floating-actions, .overlay, .download-list { display: none !important; }
-                        body { background: white; color: black; padding: 0; }
-                        .tts-text { background: transparent; border: none; color: black; box-shadow: none; padding: 0; }
-                    }
                 </style>
             </head>
             <body>
-                <div class="overlay" id="conversionOverlay">
-                    <h2 id="overlayTitle">🎙️ ${L.converting}</h2>
-                    <div class="progress-container">
-                        <div class="progress-bar" id="progressBar"></div>
-                    </div>
-                    <p id="overlayStatus" style="font-size: 18px; color: #94a3b8;">${L.preparing}</p>
-                    <p style="font-size: 14px; color: #64748b; margin-top:20px;">${L.downloads}</p>
-                </div>
-
                 <div id="tts-content">
                     <div class="block-section">
                         <h1>${sermonTitle.replace(' - TTS', '')}</h1>
                     </div>
                     ${ttsBody}
                 </div>
-
-                <div id="downloadList" class="download-list">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="margin:0;">📂 ${L.audioParts}</h3>
-                        <button class="btn audio-btn" onclick="downloadAllLinks()" id="downloadAllBtn">📥 ${L.downloadAll}</button>
-                    </div>
-                    <div id="linksContainer"></div>
-                </div>
-
-                <div class="floating-actions">
-                    <button class="btn" onclick="window.clearAppCache()" style="background: #ef4444; color: white;">🔄 Update App (v12.4)</button>
-                    <select id="voiceSelect" class="voice-selector">
-                        <option value="">${L.voices}</option>
-                    </select>
-                    
-                    <button class="btn audio-btn" id="playBtn" onclick="togglePlay()">▶️ ${L.play}</button>
-                    <button class="btn secondary" id="stopBtn" onclick="stopAudio()" disabled style="opacity:0.5">⏹️</button>
-                    
-                    <button class="btn copy-btn" onclick="copyAll()">📋 ${L.copy}</button>
-                    <button class="btn" onclick="openTextSplitter()" style="background: #8b5cf6;">✂️ Split (500)</button>
-                    ${isWindows ? `<button class="btn download-btn" onclick="downloadAudio()">📥 Audio</button>` : ''}
-                    ${isAdmin ? `<button class="btn" onclick="window.print()">🖨️ PDF</button>` : ''}
-                    <button class="btn secondary" onclick="window.close()">✕</button>
-                </div>
-
-                <!-- Text Splitter Overlay -->
-                <div id="splitOverlay" class="overlay" style="display:none; justify-content:center; align-items:flex-start; padding-top: 50px;">
-                    <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-                            <h3 style="margin:0; color: var(--accent-color);">✂️ Split Text</h3>
-                            <div style="display:flex; align-items:center; gap: 10px;">
-                                <label style="color:#cbd5e1; font-size:0.9em;">Batch Size:</label>
-                                <input type="number" id="splitSizeInput" value="500" min="100" max="5000" style="width: 80px; padding: 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);">
-                                <button class="btn" id="refreshSplitBtn" style="font-size: 0.8em; padding: 5px 10px;">🔄 Apply</button>
-                            </div>
-                        </div>
-                        <div id="splitList" style="overflow-y: auto; flex: 1; padding-right: 10px; display: flex; flex-direction: column; gap: 15px;"></div>
-                        <div style="margin-top: 20px; text-align: right;">
-                            <button class="btn secondary" onclick="document.getElementById('splitOverlay').style.display='none'">Close</button>
-                        </div>
-                    </div>
-                </div>
-
-                <script>
-                    const synth = window.speechSynthesis;
-                    let utterance = null;
-                    let isPaused = false;
-                    let voices = [];
-
-                    function loadVoices() {
-                        voices = synth.getVoices();
-                        const voiceSelect = document.getElementById('voiceSelect');
-                        voiceSelect.innerHTML = '';
-                        
-                        const langPref = '${isAfSermon ? 'af' : 'en'}';
-                        const filtered = voices.filter(v => v.lang.startsWith(langPref));
-                        const displayVoices = filtered.length > 0 ? filtered : voices;
-
-                        displayVoices.forEach((voice, i) => {
-                            const option = document.createElement('option');
-                            option.value = i;
-                            option.textContent = voice.name + ' (' + voice.lang + ')';
-                            if (voice.default) option.selected = true;
-                            voiceSelect.appendChild(option);
-                        });
-                        
-                        if (displayVoices.length === 0) {
-                            const option = document.createElement('option');
-                            option.textContent = '${L.noVoices}';
-                            voiceSelect.appendChild(option);
-                        }
-                    }
-
-                    if (synth.onvoiceschanged !== undefined) {
-                        synth.onvoiceschanged = loadVoices;
-                    }
-                    loadVoices();
-
-                    function togglePlay() {
-                        const playBtn = document.getElementById('playBtn');
-                        const stopBtn = document.getElementById('stopBtn');
-
-                        if (synth.speaking && !isPaused) {
-                            synth.pause();
-                            isPaused = true;
-                            playBtn.innerHTML = '▶️ ${L.resume}';
-                        } else if (isPaused) {
-                            synth.resume();
-                            isPaused = false;
-                            playBtn.innerHTML = '⏸️ ${L.pause}';
-                        } else {
-                            startNewPlayback();
-                        }
-                    }
-
-                    function startNewPlayback() {
-                        const content = document.getElementById('tts-content').innerText;
-                        utterance = new SpeechSynthesisUtterance(content);
-                        
-                        const voiceSelect = document.getElementById('voiceSelect');
-                        const selectedVoice = voices.filter(v => v.lang.startsWith('${isAfSermon ? 'af' : 'en'}'))[voiceSelect.value] || voices[voiceSelect.value];
-                        if (selectedVoice) utterance.voice = selectedVoice;
-                        
-                        utterance.rate = 0.95;
-                        utterance.pitch = 1.0;
-
-                        utterance.onstart = () => {
-                            document.getElementById('playBtn').innerHTML = '⏸️ ${L.pause}';
-                            document.getElementById('stopBtn').disabled = false;
-                            document.getElementById('stopBtn').style.opacity = '1';
-                        };
-
-                        utterance.onend = () => {
-                            stopAudio();
-                        };
-
-                        synth.speak(utterance);
-                    }
-
-                    function stopAudio() {
-                        synth.cancel();
-                        isPaused = false;
-                        utterance = null;
-                        document.getElementById('playBtn').innerHTML = '▶️ ${L.play}';
-                        document.getElementById('stopBtn').disabled = true;
-                        document.getElementById('stopBtn').style.opacity = '0.5';
-                    }
-
-                    async function copyAll() {
-                        const content = document.getElementById('tts-content');
-                        const text = content.innerText.trim();
-                        try {
-                            if (navigator.clipboard) {
-                                await navigator.clipboard.writeText(text);
-                                alert('${L.copied}');
-                            }
-                        } catch (err) {}
-                    }
-
-                    // v12 Logic: 4 Major Parts with Proxy
-                    window.downloadAudio = async function() {
-                        const overlay = document.getElementById('conversionOverlay');
-                        const status = document.getElementById('overlayStatus');
-                        const list = document.getElementById('downloadList');
-                        const container = document.getElementById('linksContainer');
-                        
-                        overlay.style.display = 'flex';
-                        status.innerText = 'v12: Split into 4 segments...';
-
-                        try {
-                            const fullText = document.getElementById('tts-content').innerText;
-                            const totalLen = fullText.length;
-                            const segmentSize = Math.ceil(totalLen / 4);
-                            
-                            container.innerHTML = '';
-                            
-                            for (let p = 0; p < 4; p++) {
-                                const start = p * segmentSize;
-                                const end = (p + 1) * segmentSize;
-                                const segmentText = fullText.substring(start, end);
-                                if (!segmentText.trim()) continue;
-
-                                const div = document.createElement('div');
-                                div.className = 'download-item';
-                                
-                                const span = document.createElement('span');
-                                span.textContent = '${L.openSave} ' + (p + 1) + ' (' + Math.round((segmentText.length/totalLen)*100) + '%)';
-                                
-                                const btn = document.createElement('button');
-                                btn.className = 'part-link';
-                                btn.textContent = '📥 Build & Download';
-                                btn.onclick = () => downloadSegment(segmentText, p + 1);
-                                
-                                div.appendChild(span);
-                                div.appendChild(btn);
-                                container.appendChild(div);
-                            }
-
-                            overlay.style.display = 'none';
-                            list.style.display = 'block';
-                            list.scrollIntoView({ behavior: 'smooth' });
-                            
-                            alert('${L.ready}');
-                        } catch (err) {
-                            console.error(err);
-                            overlay.style.display = 'none';
-                        }
-                    }
-
-                    async function downloadSegment(text, partNum) {
-                        const overlay = document.getElementById('conversionOverlay');
-                        const status = document.getElementById('overlayStatus');
-                        overlay.style.display = 'flex';
-                        
-                        // v12.4: Clean Text & Label Scrubbing
-                        console.log('TTS Engine: v12.4 Active');
-                        
-                        function segmentText(str, max) {
-                            const chunks = [];
-                            let current = "";
-                            const words = str.split(' ');
-                            for (let w of words) {
-                                if ((current + w).length > max) {
-                                    if (current) chunks.push(current.trim());
-                                    current = w + " ";
-                                } else {
-                                    current += w + " ";
-                                }
-                            }
-                            if (current) chunks.push(current.trim());
-                            return chunks;
-                        }
-
-
-
-                        async function copySplitChunk(text, btn) {
-                            try {
-                                await navigator.clipboard.writeText(text);
-                                const originalText = btn.innerText;
-                                btn.innerText = '✅ Copied!';
-                                btn.style.background = '#22c55e';
-                                setTimeout(() => {
-                                    btn.innerText = originalText;
-                                    btn.style.background = '';
-                                }, 1500);
-                            } catch (err) {
-                                alert('Failed to copy');
-                            }
-                        }
-
-                        const chunks = segmentText(text, 160);
-                        let totalBufferLength = 0;
-                        const buffers = [];
-                        
-                        for (let i = 0; i < chunks.length; i++) {
-                            status.innerText = 'v12.3 Progress: ' + (i+1) + '/' + chunks.length;
-                            try {
-                                const url = '/tts-proxy/translate_tts?ie=UTF-8&tl=${isAfSermon ? 'af' : 'en'}&client=tw-ob&q=' + 
-                                            encodeURIComponent(chunks[i]);
-                                const res = await fetch(url);
-                                if (!res.ok) throw new Error('Proxy error: ' + res.status);
-                                
-                                const arrayBuffer = await res.arrayBuffer();
-                                if (arrayBuffer.byteLength === 0) continue;
-
-                                // MPEG Check: First byte should be 0xFF (Sync word start)
-                                const firstByte = new Uint8Array(arrayBuffer)[0];
-                                if (firstByte !== 255) {
-                                    // It's likely HTML (byte 60 = <)
-                                    const decoder = new TextDecoder('utf-8');
-                                    const snippet = decoder.decode(arrayBuffer.slice(0, 200));
-                                    console.error('v12.3 Invalid Data (Chunk ' + i + '):', snippet);
-                                    
-                                    // If we got a Google error/captcha, we should stop and tell the user
-                                    if (snippet.includes('Google') || snippet.includes('captcha')) {
-                                        throw new Error('Google flagged the request. Try again in a few minutes or use a different network.');
-                                    }
-                                    continue;
-                                }
-
-                                buffers.push(arrayBuffer);
-                                totalBufferLength += arrayBuffer.byteLength;
-                                await new Promise(r => setTimeout(r, 400)); // Safer delay
-                            } catch (e) {
-                                console.error('Aborted join:', e);
-                                overlay.style.display = 'none';
-                                alert('v12.3 Error: ' + e.message);
-                                return;
-                            }
-                        }
-
-                        if (totalBufferLength === 0) {
-                            overlay.style.display = 'none';
-                            alert('v12.2: No audio data was collected. Please check your internet/proxy.');
-                            return;
-                        }
-
-                        const combinedArray = new Uint8Array(totalBufferLength);
-                        let offset = 0;
-                        for (const buffer of buffers) {
-                            combinedArray.set(new Uint8Array(buffer), offset);
-                            offset += buffer.byteLength;
-                        }
-
-                        const mergedBlob = new Blob([combinedArray], { type: 'audio/mpeg' });
-                        const finalUrl = URL.createObjectURL(mergedBlob);
-                        const a = document.createElement('a');
-                        a.href = finalUrl;
-                        a.download = '${sermonTitle.replace(/ /g, '_')}_Part_' + partNum + '.mp3';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        overlay.style.display = 'none';
-                    }
-
-                    window.clearAppCache = async function() {
-                        if (!confirm('This will clear the app cache and force a restart. Continue?')) return;
-                        if ('serviceWorker' in navigator) {
-                            const regs = await navigator.serviceWorker.getRegistrations();
-                            for(let reg of regs) await reg.unregister();
-                        }
-                        const cacheKeys = await caches.keys();
-                        for(let key of cacheKeys) await caches.delete(key);
-                        window.location.reload(true);
-                    }
-
-                    window.downloadAllLinks = async function() {
-                        const btns = document.querySelectorAll('.download-item .part-link');
-                        if (!confirm('${L.confirmPrefix}' + btns.length + '${L.confirmSuffix}')) return;
-                        for (let btn of btns) {
-                            btn.click();
-                            await new Promise(r => setTimeout(r, 5000)); // Longer delay for joint processing
-                        }
-                    }
-
-                    // v12.5: Text Splitter Logic (Global Scope)
-                    window.openTextSplitter = function() {
-                        // Reset input to 500 default on open
-                        document.getElementById('splitSizeInput').value = 500;
-                        renderSplitChunks(500);
-                        document.getElementById('splitOverlay').style.display = 'flex';
-                        
-                        // Bind events
-                        document.getElementById('refreshSplitBtn').onclick = function() {
-                            const size = parseInt(document.getElementById('splitSizeInput').value) || 500;
-                            renderSplitChunks(size);
-                        };
-                    };
-
-                    window.renderSplitChunks = function(maxSize) {
-                        const fullText = document.getElementById('tts-content').innerText;
-                        const list = document.getElementById('splitList');
-                        list.innerHTML = '';
-                        
-                        const parts = splitTextByLength(fullText, maxSize);
-                        
-                        parts.forEach((part, idx) => {
-                            const div = document.createElement('div');
-                            div.id = 'split-chunk-' + idx; // ID for scrolling
-                            div.style.cssText = 'background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;';
-                            
-                            const header = document.createElement('div');
-                            header.style.cssText = 'display:flex; justify-content:space-between; margin-bottom: 8px; font-size: 0.9em; color: #94a3b8;';
-                            
-                            // Safe string concat
-                            const headerHtml = '<span>Part ' + (idx + 1) + ' (' + part.length + ' chars)</span>';
-                            header.innerHTML = headerHtml;
-                            
-                            const btn = document.createElement('button');
-                            btn.className = 'btn';
-                            btn.innerText = '📋 Copy';
-                            btn.style.fontSize = '0.8em';
-                            btn.style.padding = '4px 8px';
-                            btn.onclick = function() { copySplitChunk(part, this, idx); };
-                            
-                            header.appendChild(btn);
-                            
-                            const p = document.createElement('p');
-                            p.innerText = part;
-                            p.style.cssText = 'margin:0; font-size: 0.95em; color: #e2e8f0; white-space: pre-wrap;';
-                            
-                            div.appendChild(header);
-                            div.appendChild(p);
-                            list.appendChild(div);
-                        });
-                    };
-
-                    function splitTextByLength(text, max) {
-                        const words = text.split(' ');
-                        const chunks = [];
-                        let current = "";
-                        
-                        for (let w of words) {
-                            if ((current + w).length > max) {
-                                if (current) chunks.push(current.trim());
-                                current = w + " ";
-                            } else {
-                                current += w + " ";
-                            }
-                        }
-                        if (current) chunks.push(current.trim());
-                        return chunks;
-                    }
-
-                    async function copySplitChunk(text, btn, idx) {
-                        try {
-                            await navigator.clipboard.writeText(text);
-                            
-                            // 1. Persistent "Copied" State
-                            btn.innerText = '✅ Copied';
-                            btn.style.background = '#22c55e';
-                            btn.style.color = 'white';
-                            
-                            // Dim the container to show it's done
-                            const container = document.getElementById('split-chunk-' + idx);
-                            if (container) {
-                                container.style.opacity = '0.5';
-                                container.style.borderColor = '#22c55e';
-                            }
-                            
-                            // 2. Auto-scroll to next
-                            const nextIdx = idx + 1;
-                            const nextContainer = document.getElementById('split-chunk-' + nextIdx);
-                            if (nextContainer) {
-                                nextContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                            
-                        } catch (err) {
-                            alert('Failed to copy');
-                        }
-                    }
-
-                    window.onbeforeunload = () => synth.cancel();
-                </script>
-        </body>
-        </html>
+            </body>
+            </html>
         `;
 
-        ttsWindow.document.write(htmlContent);
-        ttsWindow.document.close();
+        setOverlayState({
+            isOpen: true,
+            title: isAf ? 'TTS PDF' : 'TTS Reader',
+            controlsType: 'tts',
+            content: htmlContent
+        });
     };
 
     const handleExportPDF = () => {
         if (!currentSermon) return;
 
-        // Create a printable window
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return alert('Please allow popups to export PDF');
-
+        // v12.6: Use Overlay for PDF Preview
         // Helper to format text for HTML print
         const formatTextForPrint = (text) => {
             if (!text) return '';
@@ -1656,8 +1180,8 @@ const SermonPrep = () => {
         };
 
         const content = `
-            <!DOCTYPE html>
-            <html>
+    <!DOCTYPE html>
+        <html>
             <head>
                 <title>${currentSermon.title}</title>
                 <style>
@@ -1668,85 +1192,84 @@ const SermonPrep = () => {
                     .block-title { font-weight: bold; font-size: 1.55rem; margin-bottom: 5px; border-bottom: 1px dotted #ef4444; display: flex; justify-content: space-between; color: #ef4444; }
                     .block-duration { font-size: 1.25rem; font-weight: normal; color: #ef4444; }
                     .block-content { white-space: pre-wrap; font-size: 1.5rem; color: #000; }
-                    
+
                     /* Custom Formatting for PDF */
                     .instruction-text {
                         color: #ef4444 !important; /* Red */
-                        font-weight: bold !important;
+                    font-weight: bold !important;
                     }
                     .scripture-text {
                         color: #2563eb !important; /* Bright Blue */
-                        font-weight: bold !important;
+                    font-weight: bold !important;
                     }
                     .objective-text {
                         color: #ef4444 !important; /* Red */
-                        font-weight: bold !important;
+                    font-weight: bold !important;
                     }
                     .highlight-text {
-                         color: #ef4444 !important; /* Red */
-                         font-weight: bold !important;
+                        color: #ef4444 !important; /* Red */
+                    font-weight: bold !important;
                     }
 
                     .pdf-nav-header {
                         display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        background: #f8fafc;
-                        padding: 15px 20px;
-                        border-bottom: 1px solid #e2e8f0;
-                        margin: -40px -20px 40px -20px;
-                        position: sticky;
-                        top: -40px;
-                        z-index: 100;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: #f8fafc;
+                    padding: 15px 20px;
+                    border-bottom: 1px solid #e2e8f0;
+                    margin: -40px -20px 40px -20px;
+                    position: sticky;
+                    top: -40px;
+                    z-index: 100;
                     }
 
                     .nav-btn {
                         padding: 10px 18px;
-                        border-radius: 8px;
-                        font-family: sans-serif;
-                        font-weight: 600;
-                        font-size: 0.9rem;
-                        cursor: pointer;
-                        border: none;
-                        transition: all 0.2s;
+                    border-radius: 8px;
+                    font-family: sans-serif;
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    border: none;
+                    transition: all 0.2s;
                     }
 
-                    .back-btn { background: #64748b; color: white; }
-                    .print-btn { background: #2563eb; color: white; }
+                    .back-btn {background: #64748b; color: white; }
+                    .print-btn {background: #2563eb; color: white; }
 
                     @page {
                         size: auto;
-                        margin: 20mm;
+                    margin: 20mm;
                     }
 
                     @media print {
                         html, body {
-                            height: auto !important;
-                            overflow: visible !important;
-                            max-width: none !important;
-                            width: 100% !important;
-                            margin: 0 !important;
-                            padding: 0 !important;
+                        height: auto !important;
+                    overflow: visible !important;
+                    max-width: none !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
                         }
-                        body { 
-                            -webkit-print-color-adjust: exact; 
-                            print-color-adjust: exact; 
+                    body {
+                        -webkit - print - color - adjust: exact;
+                    print-color-adjust: exact; 
                         }
-                        .no-print, .pdf-nav-header { display: none !important; }
-                        .block { page-break-inside: auto; margin-bottom: 30px; }
+                    .no-print, .pdf-nav-header {display: none !important; }
+                    .block {page -break-inside: auto; margin-bottom: 30px; }
                     }
                 </style>
             </head>
             <body>
                 <div class="pdf-nav-header no-print">
-                    <button class="nav-btn back-btn" onclick="window.close()">← ${isAf ? 'Toe & Terug' : 'Close & Back'}</button>
                     <button class="nav-btn print-btn" onclick="window.print()">🖨️ ${isAf ? 'Druk / Stoor PDF' : 'Print / Save PDF'}</button>
                 </div>
 
                 <h1>${currentSermon.title}</h1>
                 <div class="meta">
-                    <strong>Scripture:</strong> ${currentSermon.main_scripture} | 
-                    <strong>Audience:</strong> ${currentSermon.audience} | 
+                    <strong>Scripture:</strong> ${currentSermon.main_scripture} |
+                    <strong>Audience:</strong> ${currentSermon.audience} |
                     <strong>Date:</strong> ${new Date().toLocaleDateString()}
                 </div>
 
@@ -1771,16 +1294,14 @@ const SermonPrep = () => {
                     Generated by Bible App Sermon Suite
                 </div>
             </body>
-            </html>
-        `;
+        </html>
+`;
 
-        printWindow.document.write(content);
-        printWindow.document.close();
-
-        // Wait for styles to load then print
-        printWindow.onload = () => {
-            printWindow.print();
-        };
+        setOverlayState({
+            isOpen: true,
+            title: isAf ? 'PDF Voorskou' : 'PDF Preview',
+            content: content
+        });
     };
 
 
@@ -2005,7 +1526,7 @@ const SermonPrep = () => {
                         <div className="budget-edit-wrapper">
                             <input
                                 type="number"
-                                className={`time-value budget-input ${isOverBudget ? 'over-budget' : ''}`}
+                                className={`time - value budget - input ${isOverBudget ? 'over-budget' : ''} `}
                                 value={plannedDuration}
                                 onChange={(e) => setPlannedDuration(parseInt(e.target.value) || 0)}
                                 onBlur={(e) => rebalanceBlocks(parseInt(e.target.value) || 0)}
@@ -2017,14 +1538,14 @@ const SermonPrep = () => {
 
                     <div className="auto-gen-header-stat">
                         <button
-                            className={`auto-gen-all-btn ${isAutoGenerating ? 'processing' : ''}`}
+                            className={`auto - gen - all - btn ${isAutoGenerating ? 'processing' : ''} `}
                             onClick={handleAutoGenerateBlocks}
                             disabled={isAutoGenerating}
                         >
                             {isAutoGenerating ? (
                                 <>
                                     <span className="spinner">⏳</span>
-                                    {isAf ? `Besig... (${autoGenerateProgress}/${currentSermon.blocks.length})` : `Processing... (${autoGenerateProgress}/${currentSermon.blocks.length})`}
+                                    {isAf ? `Besig... (${autoGenerateProgress} /${currentSermon.blocks.length})` : `Processing... (${autoGenerateProgress}/${currentSermon.blocks.length})`}
                                 </>
                             ) : (
                                 <>✨ {isAf ? 'Outomatiese Generasie' : 'Auto Generate All'}</>
@@ -2207,7 +1728,7 @@ const SermonPrep = () => {
 
                                         const duration = parseInt(block.duration) || 5;
                                         const targetWords = duration * 120; // 120 WPM
-                                        const context = `Sermon: ${currentSermon.title}. Scripture: ${currentSermon.main_scripture}. Block: ${block.title}. Audience: ${currentSermon.audience}. Style/Tone: ${currentSermon.tone || 'balanced'}. Duration: ${duration} min. TARGET LENGTH: ~${targetWords} spoken words.`;
+                                        const context = `Sermon: ${currentSermon.title}.Scripture: ${currentSermon.main_scripture}.Block: ${block.title}.Audience: ${currentSermon.audience}.Style / Tone: ${currentSermon.tone || 'balanced'}.Duration: ${duration} min.TARGET LENGTH: ~${targetWords} spoken words.`;
                                         const result = await performResearch('suggest_content', block.title, context, settings.language);
 
                                         if (result.success) {
@@ -2272,6 +1793,12 @@ const SermonPrep = () => {
             }
         }
 
+        // Special check for polish_all quota
+        if (tool === 'polish_all' && !canAccessAudit) {
+            handlePremiumLockClick('audit');
+            return;
+        }
+
         setAiLoading(true);
         const context = `Sermon Title: ${currentSermon.title}.Block: ${currentSermon.blocks[activeBlockIndex]?.title || 'Final Polish'} `;
 
@@ -2285,19 +1812,19 @@ const SermonPrep = () => {
 
         // Custom logic for polish_all, generate_podcast, or generate_narrative: gather all blocks
         if (effectiveTool === 'polish_all' || effectiveTool === 'generate_podcast' || effectiveTool === 'generate_narrative') {
-            const allNotes = currentSermon.blocks.map((b, i) => `Point ${i + 1} (${b.title}):\n${b.notes || ''}`).join('\n\n');
-            const finalPolish = currentSermon.full_text ? `\n\nFinal Polish:\n${currentSermon.full_text}` : '';
+            const allNotes = currentSermon.blocks.map((b, i) => `Point ${i + 1} (${b.title}): \n${b.notes || ''} `).join('\n\n');
+            const finalPolish = currentSermon.full_text ? `\n\nFinal Polish: \n${currentSermon.full_text} ` : '';
 
             if (effectiveTool === 'polish_all') {
                 // Calculate Time Budget
                 const totalMinutes = currentSermon.blocks.reduce((acc, b) => acc + (parseInt(b.duration) || 0), 0);
                 const targetWords = totalMinutes * 120; // 120 WPM
-                const timeContext = `\n\nTIME BUDGET: ${totalMinutes} minutes.\nTARGET WORD COUNT: ~${targetWords} words (Aim to strictly maintain this length).`;
+                const timeContext = `\n\nTIME BUDGET: ${totalMinutes} minutes.\nTARGET WORD COUNT: ~${targetWords} words(Aim to strictly maintain this length).`;
 
-                finalQuery = `TITLE: ${currentSermon.title}${timeContext}\n\n${allNotes}${finalPolish}`;
+                finalQuery = `TITLE: ${currentSermon.title}${timeContext} \n\n${allNotes}${finalPolish} `;
             } else {
                 // generate_podcast or generate_narrative
-                finalQuery = `TITLE: ${currentSermon.title}\n\n${allNotes}${finalPolish}`;
+                finalQuery = `TITLE: ${currentSermon.title} \n\n${allNotes}${finalPolish} `;
             }
         }
 
@@ -2399,6 +1926,12 @@ const SermonPrep = () => {
                         setStep('sermon-audit');
                         setIsAiPanelOpen(false);
                         alert(isAf ? `Preek gepoleer! Graad: ${auditData.rating || 0}/100` : `Sermon polished! Rating: ${auditData.rating || 0}/100`);
+
+                        // Increment Quota
+                        if (!canAccessPremium) {
+                            await incrementSermonAuditCount();
+                            fetchProfile(); // Refresh profile to update count UI
+                        }
                     } catch (err) {
                         console.error('Audit JSON Parse Error:', err, result.data);
                         const snippet = result.data ? result.data.substring(0, 100) : 'EMPTY';
@@ -2853,22 +2386,26 @@ const SermonPrep = () => {
                                     <span className="ai-tool-icon">💡</span>
                                     <span className="ai-tool-label">{isAf ? 'Illustrasie' : 'Illustration'}</span>
                                 </button>
-                                <button className="ai-tool-btn" onClick={() => handleRunAiTool('polish_all')}>
-                                    <span className="ai-tool-icon">⚖️</span>
+                                <button
+                                    className="ai-tool-btn"
+                                    onClick={() => canAccessPremium ? handleRunAiTool('generate_podcast') : handlePremiumLockClick('podcast')}
+                                    style={{ borderColor: '#ec4899', color: '#ec4899' }}
+                                >
+                                    <span className="ai-tool-icon">{canAccessPremium ? '🎙️' : '🔒'}</span>
+                                    <span className="ai-tool-label">{isAf ? 'Podgooi Skrip' : 'Podcast Script'}</span>
+                                </button>
+                                <button className="ai-tool-btn" onClick={() => canAccessAudit ? handleRunAiTool('polish_all') : handlePremiumLockClick('audit')}>
+                                    <span className="ai-tool-icon">{canAccessAudit ? '⚖️' : '🔒'}</span>
                                     <span className="ai-tool-label">{isAf ? 'Oudit Preek' : 'Audit Sermon'}</span>
                                 </button>
-                                {canSeeExperimental && (
-                                    <>
-                                        <button className="ai-tool-btn" onClick={() => handleRunAiTool('generate_podcast')} style={{ borderColor: '#ec4899', color: '#ec4899' }}>
-                                            <span className="ai-tool-icon">🎙️</span>
-                                            <span className="ai-tool-label">{isAf ? 'Podgooi Skrip' : 'Podcast Script'}</span>
-                                        </button>
-                                        <button className="ai-tool-btn" onClick={() => handleRunAiTool('generate_narrative')} style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }}>
-                                            <span className="ai-tool-icon">📄</span>
-                                            <span className="ai-tool-label">{isAf ? 'Verteller Skrip' : 'Narrator Script'}</span>
-                                        </button>
-                                    </>
-                                )}
+                                <button
+                                    className="ai-tool-btn"
+                                    onClick={() => canAccessPremium ? handleRunAiTool('generate_narrative') : handlePremiumLockClick('narrator')}
+                                    style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }}
+                                >
+                                    <span className="ai-tool-icon">{canAccessPremium ? '📄' : '🔒'}</span>
+                                    <span className="ai-tool-label">{isAf ? 'Verteller Skrip' : 'Narrator Script'}</span>
+                                </button>
                             </div>
                         </>
 
@@ -2900,14 +2437,20 @@ const SermonPrep = () => {
                     <button className="action-btn secondary pdf-btn" onClick={handleExportPDF}>
                         📄 {isAf ? 'PDF' : 'PDF'}
                     </button>
-                    <button className="action-btn secondary pdf-btn" onClick={handlePreachMode} style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}>
-                        🗣️ {isAf ? 'Preek Modus' : 'Preach Mode'}
+                    <button
+                        className="action-btn secondary pdf-btn"
+                        onClick={() => canAccessPremium ? handlePreachMode() : handlePremiumLockClick('preach')}
+                        style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
+                    >
+                        {canAccessPremium ? '🗣️' : '🔒'} {isAf ? 'Preek Modus' : 'Preach Mode'}
                     </button>
-                    {canAccessTTS && (
-                        <button className="action-btn secondary tts-btn" onClick={handleTTSView} style={{ borderColor: '#38bdf8', color: '#38bdf8' }}>
-                            🎙️ {isAf ? 'TTS PDF' : 'TTS PDF'}
-                        </button>
-                    )}
+                    <button
+                        className="action-btn secondary tts-btn"
+                        onClick={() => canAccessPremium ? handleTTSView() : handlePremiumLockClick('tts')}
+                        style={{ borderColor: '#38bdf8', color: '#38bdf8' }}
+                    >
+                        {canAccessPremium ? '🎙️' : '🔒'} {isAf ? 'TTS PDF' : 'TTS PDF'}
+                    </button>
                 </div>
             </div>
         );
@@ -3345,6 +2888,7 @@ const SermonPrep = () => {
 
     return (
         <div className="sermon-prep-container">
+
             {!user ? renderAuthGate() : (
                 <>
                     {error === 'TRIAL_EXPIRED' ? renderTrialGate() : (
@@ -3464,6 +3008,16 @@ const SermonPrep = () => {
                     localStorage.setItem('tutorial_completed', 'true');
                 }}
             />
+
+            {/* v12.6: Mobile Overlay */}
+            {overlayState.isOpen && (
+                <FullPageOverlay
+                    title={overlayState.title}
+                    content={overlayState.content}
+                    controlsType={overlayState.controlsType}
+                    onClose={() => setOverlayState({ ...overlayState, isOpen: false })}
+                />
+            )}
         </div>
     );
 };
@@ -3554,6 +3108,566 @@ function extremeRescueJSON(str) {
         result = result.trim().replace(/,\s*$/, "");
         result += closing;
     }
-
-    return result;
 }
+
+
+
+// v12.6: Full Page Overlay Component for Mobile Robustness
+const FullPageOverlay = ({ title, onClose, content, controlsType }) => {
+    // Inline Preach Controls State
+    const [fontSize, setFontSize] = React.useState(22);
+    const [isDark, setIsDark] = React.useState(false);
+    const [isLocked, setIsLocked] = React.useState(false);
+    const [timer, setTimer] = React.useState(0);
+    const wakeLockRef = React.useRef(null);
+
+    // Inline TTS Controls State
+    const [voices, setVoices] = React.useState([]);
+    const [selectedVoiceIndex, setSelectedVoiceIndex] = React.useState(0);
+    const [isPlaying, setIsPlaying] = React.useState(false);
+    const [isPaused, setIsPaused] = React.useState(false);
+
+    // Refs for async callback safety (prevents GC and state staleness)
+    const isPlayingRef = React.useRef(false);
+    const utteranceRef = React.useRef(null);
+    const audioCtxRef = React.useRef(null);
+
+    // Text chunking refs for mobile compatibility (max 500 chars per chunk)
+    const textChunksRef = React.useRef([]);
+    const currentChunkRef = React.useRef(0);
+    const fullTextRef = React.useRef('');
+    const selectedLangRef = React.useRef('en-US');
+
+    // TTS Voice Loading Effect with aggressive polling (mobile-compatible)
+    React.useEffect(() => {
+        if (controlsType !== 'tts') return;
+        const synth = window.speechSynthesis;
+        if (!synth) return;
+
+        const loadVoices = () => {
+            const allVoices = synth.getVoices();
+
+            if (allVoices.length > 0) {
+                // Filter for English and Afrikaans voices only
+                let filtered = allVoices.filter(v =>
+                    v.lang.startsWith('en') || v.lang.startsWith('af') || v.lang.startsWith('nl')
+                );
+
+                // If no English/Afrikaans voices, use all voices
+                if (filtered.length === 0) {
+                    filtered = allVoices;
+                }
+
+                setVoices(filtered);
+
+                // Select best default voice (prefer English, then Afrikaans)
+                const defaultVoice = filtered.find(v => v.lang.startsWith('en')) ||
+                    filtered.find(v => v.lang.startsWith('af')) ||
+                    filtered[0];
+                if (defaultVoice) {
+                    const idx = filtered.indexOf(defaultVoice);
+                    setSelectedVoiceIndex(idx >= 0 ? idx : 0);
+                }
+            }
+        };
+
+        loadVoices();
+
+        // Browser event for voice list updates
+        if (synth.onvoiceschanged !== undefined) {
+            synth.onvoiceschanged = loadVoices;
+        }
+
+        // AGGRESSIVE POLLING for mobile (same as AudioPlayer)
+        let pollCount = 0;
+        const timer = setInterval(() => {
+            pollCount++;
+            const currentVoices = synth.getVoices();
+            if (currentVoices.length > 0) {
+                loadVoices();
+                clearInterval(timer);
+                return;
+            }
+            if (pollCount >= 10) clearInterval(timer);
+        }, 500);
+
+        // SILENT PROBE to wake up speech engine on mobile
+        setTimeout(() => {
+            if (synth.getVoices().length <= 1) {
+                const probe = new SpeechSynthesisUtterance(' ');
+                probe.volume = 0;
+                synth.speak(probe);
+            }
+        }, 300);
+
+        return () => clearInterval(timer);
+    }, [controlsType]);
+
+    // Sync ref with state for use in async callbacks
+    React.useEffect(() => {
+        isPlayingRef.current = isPlaying;
+    }, [isPlaying]);
+
+    // TTS Control Handlers (mobile-compatible with Web Audio keep-alive)
+    const handlePlay = () => {
+        const synth = window.speechSynthesis;
+        if (!synth) {
+            return;
+        }
+
+        if (synth.speaking && !isPaused) {
+            synth.pause();
+            setIsPaused(true);
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+        } else if (isPaused) {
+            synth.resume();
+            setIsPaused(false);
+            setIsPlaying(true);
+            isPlayingRef.current = true;
+        } else {
+            // New playback - FIRST cancel any existing speech to prevent race condition
+            synth.cancel();
+
+            const iframe = document.getElementById('overlay-iframe');
+            if (!iframe || !iframe.contentDocument) {
+                return;
+            }
+            const contentEl = iframe.contentDocument.getElementById('tts-content');
+            if (!contentEl) {
+                return;
+            }
+
+            const text = contentEl.innerText;
+
+            // Split text into chunks (max 500 chars each, try to break at sentence/word boundaries)
+            const CHUNK_SIZE = 500;
+            const chunks = [];
+            let remaining = text;
+            while (remaining.length > 0) {
+                if (remaining.length <= CHUNK_SIZE) {
+                    chunks.push(remaining);
+                    break;
+                }
+                // Find a good break point (sentence end, period, or space)
+                let breakAt = CHUNK_SIZE;
+                const lastPeriod = remaining.lastIndexOf('.', CHUNK_SIZE);
+                const lastSpace = remaining.lastIndexOf(' ', CHUNK_SIZE);
+                if (lastPeriod > CHUNK_SIZE - 100) breakAt = lastPeriod + 1;
+                else if (lastSpace > CHUNK_SIZE - 50) breakAt = lastSpace;
+
+                chunks.push(remaining.substring(0, breakAt));
+                remaining = remaining.substring(breakAt).trim();
+            }
+
+            textChunksRef.current = chunks;
+            currentChunkRef.current = 0;
+            fullTextRef.current = text;
+            // Store selected language
+            const voice = voices[selectedVoiceIndex];
+            selectedLangRef.current = voice ? voice.lang : 'en-US';
+
+            // Initialize Web Audio Context for Android keep-alive
+            try {
+                if (!audioCtxRef.current) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        const ctx = new AudioContext();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(15000, ctx.currentTime);
+                        gain.gain.setValueAtTime(0.001, ctx.currentTime);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start();
+                        audioCtxRef.current = ctx;
+                    }
+                }
+                if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+                    audioCtxRef.current.resume();
+                }
+            } catch (e) {
+                console.warn('Web Audio error:', e);
+            }
+
+            // Request Screen Wake Lock to keep screen on during playback
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen')
+                    .then(lock => {
+                        wakeLockRef.current = lock;
+                    })
+                    .catch(e => console.warn('Wake Lock error:', e));
+            }
+
+            // Start speaking first chunk
+            speakCurrentChunk();
+        }
+    };
+
+    // Helper function to speak the current chunk
+    const speakCurrentChunk = () => {
+        const synth = window.speechSynthesis;
+        const chunks = textChunksRef.current;
+        const idx = currentChunkRef.current;
+
+        if (idx >= chunks.length) {
+            setIsPlaying(false);
+            setIsPaused(false);
+            isPlayingRef.current = false;
+            // Release Wake Lock and suspend Web Audio
+            if (wakeLockRef.current) {
+                wakeLockRef.current.release().catch(() => { });
+                wakeLockRef.current = null;
+            }
+            if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
+                audioCtxRef.current.suspend();
+            }
+            return;
+        }
+
+        const chunkText = chunks[idx];
+
+        const utterance = new SpeechSynthesisUtterance(chunkText);
+        utterance.lang = selectedLangRef.current;
+        utterance.rate = 0.95;
+
+        // Keep reference to prevent GC
+        window._activeUtterance = utterance;
+        utteranceRef.current = utterance;
+
+        utterance.onstart = () => {
+            setIsPlaying(true);
+            setIsPaused(false);
+            isPlayingRef.current = true;
+        };
+
+        utterance.onend = () => {
+            // Move to next chunk
+            currentChunkRef.current = idx + 1;
+            if (isPlayingRef.current) {
+                // Small delay between chunks
+                setTimeout(() => {
+                    if (isPlayingRef.current) {
+                        speakCurrentChunk();
+                    }
+                }, 50);
+            }
+        };
+
+        utterance.onerror = (e) => {
+            if (e.error !== 'interrupted' && e.error !== 'canceled') {
+                setIsPlaying(false);
+                setIsPaused(false);
+                isPlayingRef.current = false;
+            }
+        };
+
+        // Speak with delay
+        setTimeout(() => {
+            if (isPlayingRef.current || idx === 0) {
+                synth.speak(utterance);
+            }
+        }, idx === 0 ? 100 : 30);
+    };
+
+    const handleStop = () => {
+        window.speechSynthesis.cancel();
+        setIsPlaying(false);
+        setIsPaused(false);
+        isPlayingRef.current = false;
+        // Suspend Web Audio to save resources
+        if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
+            audioCtxRef.current.suspend();
+        }
+        // Release Wake Lock
+        if (wakeLockRef.current) {
+            wakeLockRef.current.release().catch(() => { });
+            wakeLockRef.current = null;
+        }
+    };
+
+    const handleCopy = async () => {
+        const iframe = document.getElementById('overlay-iframe');
+        if (!iframe || !iframe.contentDocument) {
+            alert('Cannot access content');
+            return;
+        }
+        const contentEl = iframe.contentDocument.getElementById('tts-content');
+        if (!contentEl) {
+            alert('Content not found');
+            return;
+        }
+
+        const text = contentEl.innerText;
+
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(text);
+                alert('Copied!');
+                return;
+            } catch (e) {
+                // Fall through to legacy method
+            }
+        }
+
+        // Fallback: Create temporary textarea and use execCommand
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Copied!');
+        } catch (e) {
+            alert('Copy failed. Please select and copy manually.');
+        }
+    };
+
+    // Timer Effect
+    React.useEffect(() => {
+        if (controlsType !== 'preach') return;
+        const interval = setInterval(() => setTimer(t => t + 1), 1000);
+        return () => clearInterval(interval);
+    }, [controlsType]);
+
+    // Wake Lock Effect
+    React.useEffect(() => {
+        if (controlsType !== 'preach') return;
+        const requestLock = async () => {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLockRef.current = await navigator.wakeLock.request('screen');
+                    setIsLocked(true);
+                }
+            } catch (e) { console.error('Lock failed', e); }
+        };
+        requestLock();
+        return () => { if (wakeLockRef.current) wakeLockRef.current.release(); };
+    }, [controlsType]);
+
+    const formatTime = (s) => {
+        const m = Math.floor(s / 60).toString().padStart(2, '0');
+        const sec = (s % 60).toString().padStart(2, '0');
+        return `${m}:${sec}`;
+    };
+
+    const updateIframeStyle = (property, value) => {
+        const iframe = document.getElementById('overlay-iframe');
+        if (iframe && iframe.contentDocument) {
+            iframe.contentDocument.documentElement.style.setProperty(property, value);
+        }
+    };
+
+    const handleFont = (delta) => {
+        const newSize = Math.max(16, Math.min(42, fontSize + delta));
+        setFontSize(newSize);
+        updateIframeStyle('--font-size', newSize + 'px');
+    };
+
+    const handleTheme = () => {
+        const newDark = !isDark;
+        setIsDark(newDark);
+        if (newDark) {
+            updateIframeStyle('--bg-color', '#121212');
+            updateIframeStyle('--text-color', '#e5e5e5');
+            updateIframeStyle('--highlight-color', '#3f2e00');
+            updateIframeStyle('--accent-color', '#a78bfa');
+        } else {
+            updateIframeStyle('--bg-color', '#ffffff');
+            updateIframeStyle('--text-color', '#121212');
+            updateIframeStyle('--highlight-color', '#fef9c3');
+            updateIframeStyle('--accent-color', '#7c3aed');
+        }
+    };
+
+    const handleLock = async () => {
+        if (!isLocked) {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLockRef.current = await navigator.wakeLock.request('screen');
+                    setIsLocked(true);
+                }
+            } catch (e) { console.error('Lock failed', e); alert('Wake Lock failed: ' + e.message); }
+        } else {
+            if (wakeLockRef.current) {
+                await wakeLockRef.current.release();
+                wakeLockRef.current = null;
+            }
+            setIsLocked(false);
+        }
+    };
+
+    const btnStyle = {
+        background: 'transparent',
+        border: '1px solid rgba(255,255,255,0.2)',
+        color: 'white',
+        width: '44px',
+        height: '44px',
+        borderRadius: '50%',
+        fontSize: '20px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+    };
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 99999,
+            background: '#0f172a',
+            display: 'flex',
+            flexDirection: 'column'
+        }}>
+            <div style={{
+                height: '60px',
+                background: '#1e293b',
+                borderBottom: '1px solid #334155',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 15px',
+                flexShrink: 0,
+                zIndex: 100001
+            }}>
+                <span style={{ color: '#f8fafc', fontWeight: 'bold', fontSize: '1.1rem' }}>{title}</span>
+                <button
+                    onClick={onClose}
+                    style={{
+                        padding: '8px 16px',
+                        background: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        fontSize: '14px'
+                    }}
+                >
+                    ✕ {title === 'Teks na Spraak' || title === 'Text to Speech' ? 'STOP' : 'CLOSE'}
+                </button>
+            </div>
+
+            {/* Lifted Controls Layer - Preach Mode */}
+            {controlsType === 'preach' && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 100002,
+                    display: 'flex',
+                    gap: '12px',
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    backdropFilter: 'blur(12px)',
+                    padding: '12px 24px',
+                    borderRadius: '50px',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    width: 'max-content',
+                    maxWidth: '95vw',
+                    flexWrap: 'wrap',
+                    justifyContent: 'center'
+                }}>
+                    <button style={btnStyle} onClick={() => handleFont(-2)}>A-</button>
+                    <div style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', minWidth: '60px', textAlign: 'center', alignSelf: 'center' }}>
+                        {formatTime(timer)}
+                    </div>
+                    <button style={btnStyle} onClick={() => handleFont(2)}>A+</button>
+                    <button style={btnStyle} onClick={handleTheme}>{isDark ? '🌙' : '☀️'}</button>
+                    <button style={{ ...btnStyle, color: isLocked ? '#4ade80' : '#6b7280', borderColor: isLocked ? '#4ade80' : 'rgba(255,255,255,0.2)' }} onClick={handleLock}>
+                        {isLocked ? '🔒' : '🔓'}
+                    </button>
+                </div>
+            )}
+
+            {/* Lifted Controls Layer - TTS Mode */}
+            {controlsType === 'tts' && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 100002,
+                    display: 'flex',
+                    gap: '12px',
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    backdropFilter: 'blur(12px)',
+                    padding: '12px 24px',
+                    borderRadius: '50px',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    width: 'max-content',
+                    maxWidth: '95vw',
+                    flexWrap: 'wrap',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                }}>
+                    <select
+                        style={{
+                            background: '#334155', color: 'white', border: '1px solid #475569',
+                            borderRadius: '12px', padding: '8px 12px', outline: 'none', maxWidth: '250px', fontSize: '14px'
+                        }}
+                        value={selectedVoiceIndex}
+                        onChange={(e) => setSelectedVoiceIndex(Number(e.target.value))}
+                    >
+                        {voices.map((v, i) => {
+                            const langCode = v.lang.split('-')[0].toUpperCase();
+                            return (
+                                <option key={i} value={i}>
+                                    [{langCode}] {v.name.replace('Microsoft ', '').replace('Desktop', '')}
+                                </option>
+                            );
+                        })}
+                    </select>
+
+                    <button
+                        style={{ background: '#f59e0b', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '25px', fontWeight: '700', fontSize: '15px', cursor: 'pointer' }}
+                        onClick={handlePlay}
+                    >
+                        {isPlaying && !isPaused ? '⏸️ Pause' : (isPaused ? '▶️ Resume' : '▶️ Play')}
+                    </button>
+
+                    <button
+                        style={{ background: '#64748b', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '25px', fontWeight: '700', fontSize: '15px', cursor: 'pointer' }}
+                        onClick={handleStop}
+                        disabled={!isPlaying && !isPaused}
+                    >
+                        ⏹️
+                    </button>
+
+                    <button
+                        style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '25px', fontWeight: '700', fontSize: '15px', cursor: 'pointer' }}
+                        onClick={handleCopy}
+                    >
+                        📋 Copy
+                    </button>
+                </div>
+            )}
+
+            <iframe
+                id="overlay-iframe"
+                title="overlay-content"
+                style={{
+                    flex: 1,
+                    width: '100%',
+                    border: 'none',
+                    background: 'white',
+                    marginBottom: controlsType ? '100px' : '0'
+                }}
+                srcDoc={content}
+                allow="screen-wake-lock; clipboard-write; clipboard-read"
+            />
+        </div>
+    );
+};
+
