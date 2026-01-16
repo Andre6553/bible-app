@@ -96,6 +96,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [isReaderMode, setIsReaderMode] = useState(false);
     const [showReaderControls, setShowReaderControls] = useState(true);
     const [isFirstSyncDone, setIsFirstSyncDone] = useState(false); // Robust cloud-check protection
+    const [isScrolled, setIsScrolled] = useState(false);
 
     // Manage body classes for UI visibility
     useEffect(() => {
@@ -153,8 +154,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const lastScrollCall = useRef(0);
 
     const handleScroll = (sourceName, source, target) => {
-        if (!isSplitView) return;
-        if (!source.current || !target.current) return;
+        if (!source.current) return;
+
+        // Track scrolled state for floating navigation (Reader Mode)
+        const currentScroll = source.current.scrollTop;
+        if (currentScroll > 100 && !isScrolled) setIsScrolled(true);
+        else if (currentScroll <= 100 && isScrolled) setIsScrolled(false);
+
+        if (!isSplitView || !target.current) return;
 
         // Throttle to keep it performant
         const now = Date.now();
@@ -1038,27 +1045,27 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         return result;
     };
 
+    const handleSummaryClick = async () => {
+        const uid = await getUserId();
+        if (uid && uid.startsWith('user_')) {
+            const promptMsg = settings.language === 'af'
+                ? 'Om Hoofstuk Opsommings te sien, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To see Chapter Summaries, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+
+            if (window.confirm(promptMsg)) {
+                navigate('/auth');
+            }
+            return;
+        }
+        setShowChapterSummary(true);
+    };
+
     return (
         <div className="bible-reader">
             {/* Header */}
             <div className="bible-header">
                 <div className="header-top">
                     <div className="header-left">
-                        <button className="info-btn icon-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
-                        <button className="info-btn icon-btn" onClick={async () => {
-                            const uid = await getUserId();
-                            if (uid && uid.startsWith('user_')) {
-                                const promptMsg = settings.language === 'af'
-                                    ? 'Om Hoofstuk Opsommings te sien, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
-                                    : 'To see Chapter Summaries, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
-
-                                if (window.confirm(promptMsg)) {
-                                    navigate('/auth');
-                                }
-                                return;
-                            }
-                            setShowChapterSummary(true);
-                        }} title={settings.language === 'af' ? 'Hoofstuk Opsoming' : 'Chapter Summary'}>📝</button>
                         <button className="info-btn icon-btn" onClick={() => setShowInfo(true)} title="App Info">ℹ️</button>
                         <h1
                             className="app-title"
@@ -1081,13 +1088,6 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 {showAudioPlayer ? '🎧' : '🔈'}
                             </button>
                         )}
-                        <button
-                            className={`info-btn icon-btn expand-toggle ${isReaderMode ? 'active' : ''}`}
-                            onClick={() => setIsReaderMode(!isReaderMode)}
-                            title={isReaderMode ? "Exit Reader Mode" : "Expand to Reader Mode"}
-                        >
-                            {isReaderMode ? '🤏' : '↔️'}
-                        </button>
                         <select
                             className="version-selector select"
                             value={currentVersion?.id || ''}
@@ -1150,25 +1150,25 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             ›
                         </button>
 
+                        <div className="nav-divider"></div>
+
+                        <button className="nav-quick-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
+                        <button className="nav-quick-btn" onClick={handleSummaryClick} title="Chapter Summary">📝</button>
                         <button
                             className={`split-view-toggle ${isSplitView ? 'active' : ''}`}
                             onClick={toggleSplitView}
                             title={settings.language === 'af' ? 'Parallelle Lees' : 'Parallel Reading'}
-                            style={{ marginLeft: '8px' }}
                         >
                             {isSplitView ? '📖📖' : '📖'}
                         </button>
 
-                        {isSplitView && (
-                            <select
-                                className="second-version-select"
-                                value={secondVersion?.id}
-                                onChange={handleSecondVersionChange}
-                                style={{ marginLeft: '8px' }}
-                            >
-                                {renderVersionOptions()}
-                            </select>
-                        )}
+                        <button
+                            className={`expand-toggle-btn ${isReaderMode ? 'active' : ''}`}
+                            onClick={() => setIsReaderMode(!isReaderMode)}
+                            title={isReaderMode ? "Exit Reader Mode" : "Expand to Reader Mode"}
+                        >
+                            {isReaderMode ? '🤏' : '↔️'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1348,14 +1348,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
                                 {/* Reader Mode Navigation Buttons */}
                                 {isReaderMode && (
-                                    <div className="reader-nav-top">
+                                    <div className={`reader-nav-top ${isScrolled ? 'floating' : ''}`}>
                                         <button
                                             className="reader-nav-btn prev"
                                             onClick={(e) => { e.stopPropagation(); handlePrevChapter(); }}
                                             disabled={selectedChapter <= 1}
                                             title="Previous Chapter"
                                         >
-                                            Previous
+                                            ‹
                                         </button>
                                         <button
                                             className="reader-nav-btn next"
@@ -1363,8 +1363,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             disabled={selectedChapter >= chapterCount}
                                             title="Next Chapter"
                                         >
-                                            Next
+                                            ›
                                         </button>
+                                        <div className="reader-nav-divider"></div>
+                                        <button className="reader-nav-btn icon" onClick={(e) => { e.stopPropagation(); setShowSettings(true); }} title="Settings">⚙️</button>
+                                        <button className="reader-nav-btn icon" onClick={(e) => { e.stopPropagation(); handleSummaryClick(); }} title="Chapter Summary">📝</button>
+                                        <button className="reader-nav-btn icon exit" onClick={(e) => { e.stopPropagation(); setIsReaderMode(false); }} title="Exit Reader Mode">🤏</button>
                                     </div>
                                 )}
                             </h1>

@@ -1340,34 +1340,85 @@ body.reader-mode-active .verses-container {
 
 .reader-nav-top {
     display: flex;
-    gap: 12px;
+    align-items: center;
+    gap: 8px;
     margin-left: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px 8px;
+    border-radius: 30px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+}
+
+.reader-nav-top.floating {
+    position: fixed;
+    bottom: 110px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-left: 0;
+    background: var(--bg-primary);
+    /* Use a solid background for floating for visibility */
+    border: 1px solid var(--accent-primary);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    animation: slideUpFloating 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUpFloating {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+.reader-nav-divider {
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 0 4px;
 }
 
 .reader-nav-btn {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-subtle);
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--text-primary);
-    padding: 6px 16px;
-    border-radius: 8px;
-    font-size: 0.85rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 90px;
+}
+
+.reader-nav-btn.icon {
+    padding: 6px 8px;
+    font-size: 1.2rem;
+}
+
+.reader-nav-btn.exit {
+    background: rgba(var(--accent-primary-rgb), 0.2);
+    border-color: rgba(var(--accent-primary-rgb), 0.3);
 }
 
 .reader-nav-btn:hover:not(:disabled) {
-    background: var(--accent-primary);
-    color: white;
-    border-color: var(--accent-primary);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+
+.reader-nav-btn:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    transform: none;
 }
 
 .reader-nav-btn:active:not(:disabled) {
