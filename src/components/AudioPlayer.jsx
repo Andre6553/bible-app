@@ -273,12 +273,16 @@ const AudioPlayer = ({
         const text = verseData.text.replace(/\[.*?\]/g, '');
         const utterance = new SpeechSynthesisUtterance(text);
 
-        if (selectedVoice) {
+        // iOS FIX: Do not set the specific voice object, as it causes distortion.
+        // Instead, just set the language and let iOS pick its default high-quality voice.
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+        if (selectedVoice && !isIOS) {
             utterance.voice = selectedVoice;
-        } else {
-            utterance.lang = selectedLang;
         }
-        utterance.rate = rate;
+
+        // Always set the language (uses selected voice's lang if available, or fallback)
+        utterance.lang = selectedVoice ? selectedVoice.lang : selectedLang;
         utterance.pitch = 1.0;
 
         // CRITICAL: Keep a reference to the utterance to prevent Garbage Collection
