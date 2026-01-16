@@ -1172,6 +1172,9 @@ export const getLastReadState = async (userId) => {
     try {
         if (!userId) userId = await getUserId();
 
+        // Skip cloud sync for guest users
+        if (userId.startsWith('user_')) return { success: true, state: null };
+
         const { data, error } = await supabase
             .from('user_profiles')
             .select('last_read_state')

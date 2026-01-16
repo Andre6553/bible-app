@@ -23,6 +23,13 @@ const getCapturedIp = () => {
  */
 const getRecentDevotionalHistory = async (userId) => {
     try {
+        if (!userId) userId = await getUserId();
+
+        // Return empty history for guest users (skips failing DB call)
+        if (userId.startsWith('user_')) {
+            return { themes: [], scriptures: [], hashes: [] };
+        }
+
         const oneYearAgo = new Date();
         oneYearAgo.setDate(oneYearAgo.getDate() - 365);
 
@@ -54,6 +61,11 @@ const getRecentDevotionalHistory = async (userId) => {
  */
 const saveDevotionalToHistory = async (userId, theme, scriptureRef, title) => {
     try {
+        if (!userId) userId = await getUserId();
+
+        // Skip cloud saving for guest users (currently fails with 404/uuid mismatch)
+        if (userId.startsWith('user_')) return;
+
         const titleHash = title ? simpleHash(title) : null;
 
         await supabase
@@ -212,6 +224,12 @@ export const toggleRateLimit = async (enabled) => {
 export const analyzeUserInterests = async (userId) => {
     // If no userId provided, get current one
     if (!userId) userId = await getUserId();
+
+    // Return empty topics for guest users to avoid failing DB queries
+    if (userId.startsWith('user_')) {
+        return { success: true, topics: [] };
+    }
+
     try {
         // Get user's recent searches
         const { data: searches, error: searchError } = await supabase
@@ -687,6 +705,27 @@ const isCacheValid = (lastRefresh, expiryMs) => {
 export const checkRefreshCooldown = async (userId) => {
     try {
         if (!userId) userId = await getUserId();
+
+        if (userId.startsWith('user_')) {
+            const guestCache = localStorage.getItem('omni_guest_devotional_cache');
+            if (guestCache) {
+                const parsed = JSON.parse(guestCache);
+                if (parsed.last_refresh) {
+                    const elapsed = Date.now() - new Date(parsed.last_refresh).getTime();
+                    const remaining = expiryMs - elapsed;
+                    if (remaining > 0) {
+                        const remainingMinutes = Math.ceil(remaining / (60 * 1000));
+                        const remainingHours = Math.floor(remainingMinutes / 60);
+                        let message = rateLimited
+                            ? (remainingHours > 0 ? `Can only refresh once per day. Refreshes in ${remainingHours}h ${remainingMinutes % 60}m` : `Can only refresh once per day. Refreshes in ${remainingMinutes} minutes`)
+                            : `Can only refresh once every hour. Refreshes in ${remainingMinutes} minutes`;
+                        return { canRefresh: false, remainingMinutes, message };
+                    }
+                }
+            }
+            return { canRefresh: true, remainingMinutes: 0, message: null };
+        }
+
         // Super users always bypass rate limits
         const isSuper = await isSuperUser(userId);
         console.log(`Checking cooldown for ${userId}. Super User: ${isSuper}`);
@@ -757,28 +796,46 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
         // if user switches freq. 
         // Let's pass language to generateFreshArticle either way.
         if (!forceGenerate) {
-            const { data: cached, error: cacheError } = await supabase
-                .from('user_devotionals')
-                .select('recommended_articles, last_refresh, topics')
-                .eq('user_id', userId)
-                .order('last_refresh', { ascending: false })
-                .limit(1)
-                .single();
+            // [GUEST CACHE] Check local storage for guests
+            if (userId.startsWith('user_')) {
+                const guestCache = localStorage.getItem('omni_guest_articles_cache');
+                if (guestCache) {
+                    const parsed = JSON.parse(guestCache);
+                    if (parsed.language === language && isCacheValid(parsed.last_refresh, expiryMs)) {
+                        console.log(`Returning GUEST cached recommended articles (${language})`);
+                        return {
+                            success: true,
+                            posts: parsed.articles,
+                            personalized: true,
+                            cached: true
+                        };
+                    }
+                }
+            } else {
+                // [CLOUD CACHE] Check Supabase for logged-in users
+                const { data: cached, error: cacheError } = await supabase
+                    .from('user_devotionals')
+                    .select('recommended_articles, last_refresh, topics')
+                    .eq('user_id', userId)
+                    .order('last_refresh', { ascending: false })
+                    .limit(1)
+                    .single();
 
-            // Return cached articles ONLY if valid and language matches
-            if (!cacheError && cached?.recommended_articles && cached?.last_refresh) {
-                // Check if language matches (we store 'af' or 'en' as the first topic in the cache)
-                const cacheLang = cached.topics?.[0];
-                const isLangMatch = cacheLang === language;
+                // Return cached articles ONLY if valid and language matches
+                if (!cacheError && cached?.recommended_articles && cached?.last_refresh) {
+                    // Check if language matches (we store 'af' or 'en' as the first topic in the cache)
+                    const cacheLang = cached.topics?.[0];
+                    const isLangMatch = cacheLang === language;
 
-                if (isLangMatch && isCacheValid(cached.last_refresh, expiryMs)) {
-                    console.log(`Returning cached recommended articles (${language})`);
-                    return {
-                        success: true,
-                        posts: cached.recommended_articles,
-                        personalized: true,
-                        cached: true
-                    };
+                    if (isLangMatch && isCacheValid(cached.last_refresh, expiryMs)) {
+                        console.log(`Returning cached recommended articles (${language})`);
+                        return {
+                            success: true,
+                            posts: cached.recommended_articles,
+                            personalized: true,
+                            cached: true
+                        };
+                    }
                 }
             }
         }
@@ -800,6 +857,22 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
         );
 
         const successfulArticles = articles.filter(a => a !== null);
+
+        // [GUEST PROTECTION] Save to local storage and skip cloud caching for guest users
+        if (userId.startsWith('user_')) {
+            console.log('[Blog] caching articles locally for guest user');
+            localStorage.setItem('omni_guest_articles_cache', JSON.stringify({
+                articles: successfulArticles,
+                last_refresh: new Date().toISOString(),
+                language
+            }));
+            return {
+                success: true,
+                posts: successfulArticles,
+                personalized: finalTopics.length > 0,
+                cached: false
+            };
+        }
 
         // Save to cache - try update first, then insert if needed
         const now = new Date().toISOString();
@@ -975,30 +1048,50 @@ export const getDailyDevotional = async (userId, forceGenerate = false, language
 
         // Check for cached devotional if not forcing fresh generation
         if (!forceGenerate) {
-            const { data: existing, error: existingError } = await supabase
-                .from('user_devotionals')
-                .select('*')
-                .eq('user_id', userId)
-                .order('last_refresh', { ascending: false })
-                .limit(1)
-                .single();
+            // [GUEST CACHE] Check local storage for guests
+            if (userId.startsWith('user_')) {
+                const guestCache = localStorage.getItem('omni_guest_devotional_cache');
+                if (guestCache) {
+                    const parsed = JSON.parse(guestCache);
+                    if (parsed.language === language && isCacheValid(parsed.last_refresh, expiryMs)) {
+                        console.log(`Returning GUEST cached devotional (${language})`);
+                        return {
+                            success: true,
+                            devotional: parsed.devotional,
+                            cached: true,
+                            message: expiryMs > 60 * 60 * 1000
+                                ? (language === 'af' ? 'Jou daaglikse oordenking (limiet: 1/dag)' : 'Showing your daily devotional (limit: 1/day)')
+                                : (language === 'af' ? 'Gekasde oordenking (verfris uurliks)' : 'Showing cached devotional (refreshes hourly)')
+                        };
+                    }
+                }
+            } else {
+                // [CLOUD CACHE] Check Supabase for logged-in users
+                const { data: existing, error: existingError } = await supabase
+                    .from('user_devotionals')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('last_refresh', { ascending: false })
+                    .limit(1)
+                    .single();
 
-            // Return cached ONLY if valid and language matches
-            if (!existingError && existing && existing.content && existing.last_refresh) {
-                // Check language tag stored in topics[0]
-                const cacheLang = existing.topics?.[0];
-                const isLangMatch = cacheLang === language;
+                // Return cached ONLY if valid and language matches
+                if (!existingError && existing && existing.content && existing.last_refresh) {
+                    // Check language tag stored in topics[0]
+                    const cacheLang = existing.topics?.[0];
+                    const isLangMatch = cacheLang === language;
 
-                if (isLangMatch && isCacheValid(existing.last_refresh, expiryMs)) {
-                    console.log(`Returning cached devotional (${language})`);
-                    return {
-                        success: true,
-                        devotional: existing,
-                        cached: true,
-                        message: expiryMs > 60 * 60 * 1000
-                            ? (language === 'af' ? 'Jou daaglikse oordenking (limiet: 1/dag)' : 'Showing your daily devotional (limit: 1/day)')
-                            : (language === 'af' ? 'Gekasde oordenking (verfris uurliks)' : 'Showing cached devotional (refreshes hourly)')
-                    };
+                    if (isLangMatch && isCacheValid(existing.last_refresh, expiryMs)) {
+                        console.log(`Returning cached devotional (${language})`);
+                        return {
+                            success: true,
+                            devotional: existing,
+                            cached: true,
+                            message: expiryMs > 60 * 60 * 1000
+                                ? (language === 'af' ? 'Jou daaglikse oordenking (limiet: 1/dag)' : 'Showing your daily devotional (limit: 1/day)')
+                                : (language === 'af' ? 'Gekasde oordenking (verfris uurliks)' : 'Showing cached devotional (refreshes hourly)')
+                        };
+                    }
                 }
             }
         }
@@ -1040,6 +1133,30 @@ export const getDailyDevotional = async (userId, forceGenerate = false, language
         );
 
         // Save to database with timestamp and language tag
+        // [GUEST PROTECTION] Save to local storage and skip cloud caching for guest users
+        if (userId.startsWith('user_')) {
+            console.log('[Blog] caching devotional locally for guest user');
+            const guestDevo = {
+                user_id: userId,
+                title: devotionalContent.title,
+                content: devotionalContent.content,
+                topics: [language, ...finalTopics],
+                generated_date: today,
+                last_refresh: new Date().toISOString()
+            };
+            localStorage.setItem('omni_guest_devotional_cache', JSON.stringify({
+                devotional: guestDevo,
+                last_refresh: guestDevo.last_refresh,
+                language
+            }));
+            return {
+                success: true,
+                devotional: guestDevo,
+                cached: false,
+                topics: devotionalTopics
+            };
+        }
+
         const { data: saved, error: saveError } = await supabase
             .from('user_devotionals')
             .upsert({
@@ -1052,7 +1169,6 @@ export const getDailyDevotional = async (userId, forceGenerate = false, language
             }, {
                 onConflict: 'user_id,generated_date'
             })
-
             .select()
             .single();
 
