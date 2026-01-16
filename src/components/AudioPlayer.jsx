@@ -165,12 +165,13 @@ const AudioPlayer = ({
 
         // WATCHDOG: Occasionally check if we are stuck (isPlaying=true but nothing speaking)
         const watchdog = setInterval(() => {
-            if (synth && !synth.speaking && !synth.pending) {
-                // If we think we should be playing, but the engine is silent
-                // This usually means a transition failed or was GC-ed
-                // We don't auto-advance here to avoid skipping, but we log the state
-                // and we will let the useEffect handle the restart if needed
-                // console.log('[Audio] Watchdog: Engine Idle');
+            if (isPlayingRef.current && synth && !synth.speaking && !synth.pending) {
+                console.log('[Audio] Watchdog: Detected stalled playback. Attempting recovery...');
+                // Try to wake up the engine
+                if (synth.paused) synth.resume();
+
+                // If it's truly idle but we want to be playing, re-trigger the current verse
+                playVerse(currentVerseIndex);
             }
         }, 5000);
 
@@ -264,12 +265,19 @@ const AudioPlayer = ({
             console.log(`[Audio] END: v.${verseData.verse}. isPlayingRef: ${isPlayingRef.current}`);
             // Move to next verse automatically
             if (isPlayingRef.current) {
-                // Faster check: Update state and trigger next verse immediately
-                setCurrentVerseIndex(prev => {
-                    const next = prev + 1;
-                    console.log(`[Audio] Next Verse -> ${next}`);
-                    return next;
-                });
+                const next = index + 1;
+                console.log(`[Audio] Next Verse (Immediate) -> ${next}`);
+
+                // CRITICAL: Update state so UI stays in sync
+                setCurrentVerseIndex(next);
+
+                // ON IOS: Call playVerse directly to keep the audio session context alive
+                // This bypasses the React effect's async delay which often kills playback on Safari.
+                if (next < verses.length) {
+                    playVerse(next);
+                } else {
+                    handleEndOfChapter();
+                }
             }
         };
 
@@ -292,7 +300,8 @@ const AudioPlayer = ({
         // Resume if paused (browser safety)
         if (synth.paused) synth.resume();
 
-        // Final Speak trigger
+        // Final Speak trigger - Reduced delay for iOS Safari compatibility
+        // If the delay is too long, the browser loses "user activation" privilege.
         setTimeout(() => {
             if (isPlayingRef.current) {
                 console.log(`[Audio] SPEAK EXEC: v.${verseData.verse}`);
@@ -300,7 +309,7 @@ const AudioPlayer = ({
             } else {
                 console.log(`[Audio] Speak cancelled (isPlayingRef is false)`);
             }
-        }, 50); // Slightly longer delay for PC stability
+        }, 10);
 
         // Update UI & External State
         if (onHighlightVerse) {

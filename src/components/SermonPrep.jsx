@@ -3539,13 +3539,13 @@ const FullPageOverlay = ({ title, onClose, content, controlsType }) => {
             flexDirection: 'column'
         }}>
             <div style={{
-                height: '60px',
+                height: 'calc(60px + env(safe-area-inset-top, 0px))',
                 background: '#1e293b',
                 borderBottom: '1px solid #334155',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '0 15px',
+                padding: 'env(safe-area-inset-top, 0px) 15px 0 15px',
                 flexShrink: 0,
                 zIndex: 100001
             }}>
