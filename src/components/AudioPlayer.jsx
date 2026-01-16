@@ -244,16 +244,18 @@ const AudioPlayer = ({
         }
     }, [isPlaying, currentVerseIndex]); // Simplified deps, verses is usually stable
 
-    const playVerse = (index) => {
+    const playVerse = (index, isAutoAdvance = false) => {
         if (!synth || isStartingRef.current) return;
 
-        console.log(`[Audio] playVerse(idx: ${index}) - isPlayingRef: ${isPlayingRef.current}`);
+        console.log(`[Audio] playVerse(idx: ${index}, auto: ${isAutoAdvance}) - isPlayingRef: ${isPlayingRef.current}`);
 
         // Mutual exclusion lock to prevent "fishbowl" (double voices)
         isStartingRef.current = true;
 
-        // Stop any current speech
-        cancelSpeech();
+        // Stop any current speech ONLY if manual trigger (prevent session flapping on iOS)
+        if (!isAutoAdvance) {
+            cancelSpeech();
+        }
 
         if (index >= verses.length) {
             console.log('[Audio] Index out of bounds, end of chapter.');
@@ -322,7 +324,8 @@ const AudioPlayer = ({
                     if (isPlayingRef.current) {
                         // ON IOS: Call playVerse directly to keep the audio session context alive
                         if (next < verses.length) {
-                            playVerse(next);
+                            // Pass true to skip cancelSpeech
+                            playVerse(next, true);
                         } else {
                             handleEndOfChapter();
                         }
