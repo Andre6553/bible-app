@@ -163,17 +163,14 @@ const AudioPlayer = ({
             }
         }, 1000);
 
-        // SILENT PROBE: Skip on iOS as it can cause distortion/robotic sound
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        if (!isIOS) {
-            setTimeout(() => {
-                if (synth.getVoices().length <= 1) {
-                    const probe = new SpeechSynthesisUtterance(' ');
-                    probe.volume = 0;
-                    synth.speak(probe);
-                }
-            }, 500);
-        }
+        // SILENT PROBE: Wake up engine (SermonPrep pattern)
+        setTimeout(() => {
+            if (synth.getVoices().length <= 1) {
+                const probe = new SpeechSynthesisUtterance(' ');
+                probe.volume = 0;
+                synth.speak(probe);
+            }
+        }, 300);
 
         // Restore speed
         const savedRate = localStorage.getItem('audio_rate');
@@ -309,7 +306,7 @@ const AudioPlayer = ({
                 isAdvancingRef.current = true;
 
                 const next = index + 1;
-                console.log(`[Audio] Next Verse (Immediate Attempt) -> ${next}`);
+                console.log(`[Audio] Next Verse (Sequence) -> ${next}`);
 
                 // Set this to true BEFORE updating state so the useEffect skips the playVerse call
                 isManuallyTriggeredRef.current = true;
@@ -320,12 +317,17 @@ const AudioPlayer = ({
                 // Reset the guard after a short delay
                 setTimeout(() => { isAdvancingRef.current = false; }, 200);
 
-                // ON IOS: Call playVerse directly to keep the audio session context alive
-                if (next < verses.length) {
-                    playVerse(next);
-                } else {
-                    handleEndOfChapter();
-                }
+                // MATCH SERMONPREP TIMING: 50ms delay between chunks
+                setTimeout(() => {
+                    if (isPlayingRef.current) {
+                        // ON IOS: Call playVerse directly to keep the audio session context alive
+                        if (next < verses.length) {
+                            playVerse(next);
+                        } else {
+                            handleEndOfChapter();
+                        }
+                    }
+                }, 50);
             }
         };
 
@@ -349,7 +351,7 @@ const AudioPlayer = ({
         // Resume if paused (browser safety)
         if (synth.paused) synth.resume();
 
-        // Final Speak trigger - Reduced delay for iOS Safari compatibility
+        // Final Speak trigger - MATCH SERMONPREP TIMING (30ms)
         setTimeout(() => {
             if (isPlayingRef.current) {
                 console.log(`[Audio] SPEAK EXEC: v.${verseData.verse}`);
@@ -358,7 +360,7 @@ const AudioPlayer = ({
                 isStartingRef.current = false;
                 console.log(`[Audio] Speak cancelled (isPlayingRef is false)`);
             }
-        }, 10);
+        }, 30);
 
         // Update UI & External State
         if (onHighlightVerse) {
@@ -444,18 +446,17 @@ const AudioPlayer = ({
             // 3. Trigger playback + Background Audio Keep-Alive
             try {
                 // Initialize Audio Context if missing
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                if (!audioCtxRef.current && !isIOS) {
+                if (!audioCtxRef.current) {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
                     if (AudioContext) {
                         const ctx = new AudioContext();
-                        // Create a specific 15khz tone (barely audible) - some OS's gate "silence" (0hz)
+                        // SermonPrep Pattern: 15kHz tone at 0.001 gain
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
 
-                        // Mobile iOS hack: Using 0Hz if it's an iOS device to avoid "fishbowl" sound
+                        osc.type = 'sine';
                         osc.frequency.setValueAtTime(15000, ctx.currentTime);
-                        gain.gain.setValueAtTime(0.001, ctx.currentTime); // Very low gain
+                        gain.gain.setValueAtTime(0.001, ctx.currentTime);
 
                         osc.connect(gain);
                         gain.connect(ctx.destination);
