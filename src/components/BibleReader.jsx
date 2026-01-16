@@ -561,6 +561,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     // Touch Handling State
     const isScrolling = useRef(false);
+    const lastTouchTime = useRef(0);
     const longPressTimer = useRef(null);
 
     // Initial tap handler
@@ -588,7 +589,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             if (next.length > 0) {
                 // For desktop (mouse), show action sheet immediately
                 // For mobile (touch), only allow selection, opening happens via longPress
-                if (e.nativeEvent.pointerType !== 'touch') {
+                const isRecentTouch = Date.now() - lastTouchTime.current < 500;
+                if (!isRecentTouch) {
                     setShowActionSheet(true);
                 }
             } else {
@@ -603,10 +605,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         // If scrolling, do not trigger long press
         if (isScrolling.current) return;
 
-        if (e.cancelable && e.preventDefault) {
+        if (e && e.preventDefault) {
             e.preventDefault();
         }
-        e.stopPropagation();
+        if (e && e.stopPropagation) {
+            e.stopPropagation();
+        }
 
         // Auto-select this verse and show action sheet
         setSelectedVerses([verse]);
@@ -620,9 +624,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     const handleTouchStart = (verse, e) => {
         isScrolling.current = false;
+        lastTouchTime.current = Date.now();
         longPressTimer.current = setTimeout(() => {
             handleLongPress(verse, e);
-        }, 1000); // Increased to 1 second as requested
+        }, 1000);
     };
 
     const handleTouchMove = () => {
@@ -1388,7 +1393,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             key={verse.id || `verse-${verse.verse}`}
                                             id={`verse-${verse.verse}`}
                                             className={`verse-item ${selectedVerses.some(v => v.verse === verse.verse) ? 'verse-selected' : ''}`}
-                                            onContextMenu={(e) => handleLongPress(verse, e)}
+                                            onContextMenu={(e) => { e.preventDefault(); handleLongPress(verse, e); }}
 
                                             onTouchStart={(e) => handleTouchStart(verse, e)}
                                             onTouchMove={handleTouchMove}
