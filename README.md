@@ -28,6 +28,18 @@
 
 ---
 
+## 📱 Device Compatibility
+
+Omni Bible is a modern Progressive Web App (PWA) that provides a seamless, native-like experience across all your devices.
+
+*   **💻 Windows**: Install via Chrome or Edge for a full desktop experience.
+*   **🤖 Android**: Add to Home Screen for a high-performance native-feel app.
+*   **🍎 iOS**: Use "Add to Home Screen" on Safari for full iPhone and iPad compatibility.
+
+---
+
+---
+
 ## 🚀 What Makes Omni Bible Different?
 
 Omni Bible is not just another Bible reading app. It's a **complete Bible study and sermon preparation platform** with AI capabilities that no other app offers.
@@ -36,6 +48,7 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 |------------|-------------------|
 | 🤖 AI Sermon Builder | Build full sermons with AI assistance |
 | 📚 3 Afrikaans Translations | AFR53, AFR83, AFR NLV |
+| 🇿🇦 Xhosa Translation | XHO22 (Xhosa 2022) |
 | 🌍 Global Pricing | Just $5/month worldwide |
 | 📖 AI Word Study | Greek/Hebrew analysis on any word |
 | 💬 AI Bible Q&A | Ask questions, get scripture-backed answers |
@@ -47,13 +60,13 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 ### 📖 Bible Reading
 | Feature | Description |
 |---------|-------------|
-| **6 Translations** | AFR53, AFR83, AFR NLV, KJV, NLT, AMP |
+| **10 Translations** | **Afrikaans**: AFR53, AFR83, AFR NLV <br> **English**: KJV, NKJV, NIV, ESV, NLT, AMP <br> **Xhosa**: XHO22 |
 | **Split View** | Compare two translations side-by-side |
-| **Red Letter** | Words of Jesus highlighted in red |
 | **Offline Reading** | Download translations for offline use |
 | **Verse Highlighting** | 20+ colors with custom categories |
 | **Personal Notes** | Add notes to any verse |
 | **Cloud Sync** | Sync highlights and notes across devices |
+| **Cross-Device Sync** | Remembers your reading position (book/chapter) as you switch devices |
 
 ### 🔍 Search & Discovery
 | Feature | Description |
@@ -104,15 +117,34 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 
 ### 👥 User Roles & Permissions
 
-Omni Bible has a distinct role system to manage access and privileges.
+Omni Bible uses a tiered access system to ensure platform sustainability while providing powerful tools for ministry.
 
-| Role | Access Level | Type | Description |
-|------|--------------|------|-------------|
-| **Free User** | 🟢 Basic | Public | Full access to Bible Reading & Search. Limited AI usage (daily quota) and Sermon Builder (trial mode). |
-| **Premium** | 💎 Full | Paid | **Unlimited** AI interactions, Sermon Builder access, and advanced study tools. Supports the platform. |
-| **Tester** | 🧪 Full | Internal | Grants **Premium-level** access for internal testing or beta users without payment processing. |
-| **Tester + Finger** | 👆 Dev | Internal | **High Quota Access**. Designed for stress-testing generation limits ("Finger of God" mode). Resets usage limits for debugging. |
-| **Admin** | 🔑 Master | Internal | Complete control. Access to **Stats Dashboard**, ability to edit other users' roles, view global analytics, and manage settings. |
+| Feature | Regular (Free) | Subscriber (Premium) |
+|---------|----------------|-----------------------|
+| **Bible Reading** | ✅ Unlimited | ✅ Unlimited |
+| **Translations** | ✅ 6 Versions | ✅ 6 Versions |
+| **Search (Exact)**| ✅ Unlimited | ✅ Unlimited |
+| **AI Q&A & Research** | 📊 50 calls / cycle | 💎 Unlimited |
+| **Sermon Creator** | 📝 3 Trial Sermons | 🚀 Unlimited |
+| **Sermon Audit AI** | ⚖️ 3 AI Reviews | 🛡️ Unlimited |
+| **Podcast Script** | 🔒 Prompt to Upgrade | ✅ Full Access |
+| **Narrator Script** | 🔒 Prompt to Upgrade | ✅ Full Access |
+| **TTS Audio** | 🔒 Prompt to Upgrade | ✅ Full Access |
+| **Preach Mode** | 🔒 Prompt to Upgrade | ✅ Full Access |
+| **PDF Export** | ✅ Standard | ✅ Full Formatted |
+
+#### 📊 Usage Quotas & Rate Limits
+
+The platform enforces the following quotas to manage AI costs:
+
+*   **Regular (Free) Users**:
+    *   **AI interactions**: 50 total requests per cycle (tracked via `ai_usage_count`). This covers Word Study, Commentary, and Bible Q&A.
+    *   **Sermon Building**: 3 total sermons can be created (tracked via `sermon_trial_count`).
+    *   **Sermon Auditing**: 3 structural AI reviews (tracked via `sermon_audit_count`).
+*   **Subscribers (Premium)**:
+    *   **AI interactions**: Unlimited access to all generation and research tools.
+    *   **High-Value Features**: Full access to Podcast generation, Narrator scripts, and pulpit Preach Mode.
+
 
 ---
 
@@ -136,7 +168,7 @@ Omni Bible has a distinct role system to manage access and privileges.
 | **PDF Export** | ✅ Formatted | ❌ | ✅ | ✅ | ❌ |
 | **Reading Plans** | ❌ Coming | ✅ | ✅ | ✅ | ✅ |
 | **Social Features** | ❌ Coming | ✅ | ⚠️ | ❌ | ❌ |
-| **Price** | 🆓 Free / $5/mo | 🆓 Free / $$ | 💰 $149+ | 💰 $30+ | 🆓 Free / $$ |
+| **Price** | 🆓 Free / $5/mo 50% discount for first month | 🆓 Free / $$ | 💰 $149+ | 💰 $30+ | 🆓 Free / $$ |
 
 ### Our Unique Advantages
 
