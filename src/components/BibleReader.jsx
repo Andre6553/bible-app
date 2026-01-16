@@ -1342,12 +1342,32 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             ref={primaryScrollRef}
                             onScroll={() => handleScroll('primary', primaryScrollRef, secondaryScrollRef)}
                         >
-                            {!isSplitView && (
-                                <h1 className="chapter-title">
-                                    {getLocalizedBookName(selectedBook?.name_full, currentVersion?.id)} {selectedChapter}
-                                    <span className="version-badge">{currentVersion?.abbreviation}</span>
-                                </h1>
-                            )}
+                            <h1 className="chapter-title">
+                                {getLocalizedBookName(selectedBook?.name_full, currentVersion?.id)} {selectedChapter}
+                                <span className="version-badge">{currentVersion?.abbreviation}</span>
+
+                                {/* Reader Mode Navigation Buttons */}
+                                {isReaderMode && (
+                                    <div className="reader-nav-top">
+                                        <button
+                                            className="reader-nav-btn prev"
+                                            onClick={(e) => { e.stopPropagation(); handlePrevChapter(); }}
+                                            disabled={selectedChapter <= 1}
+                                            title="Previous Chapter"
+                                        >
+                                            Previous
+                                        </button>
+                                        <button
+                                            className="reader-nav-btn next"
+                                            onClick={(e) => { e.stopPropagation(); handleNextChapter(); }}
+                                            disabled={selectedChapter >= chapterCount}
+                                            title="Next Chapter"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
+                            </h1>
 
                             <div className="verses-list">
                                 {/* Uniqueness filter to prevent duplications seen in some versions */}

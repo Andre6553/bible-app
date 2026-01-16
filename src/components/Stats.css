@@ -1,6 +1,5 @@
 .stats-page {
-    padding: 2rem;
-    padding-bottom: 120px;
+    padding: var(--header-top-padding) 2rem 120px;
     max-width: 1200px;
     margin: 0 auto;
     color: var(--text-primary);

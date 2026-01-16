@@ -29,7 +29,8 @@
 .bible-header {
     background: var(--bg-secondary);
     padding: var(--spacing-lg);
-    padding-top: calc(var(--spacing-lg) + var(--safe-top));
+    /* Extra padding for safe areas, especially on iOS notched devices */
+    padding-top: var(--header-top-padding);
     border-bottom: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
@@ -1263,7 +1264,7 @@ body.reader-mode-active .bible-header {
 }
 
 body.reader-mode-active .verses-container {
-    padding-top: var(--safe-top, 20px) !important;
+    padding-top: var(--header-top-padding) !important;
     padding-bottom: 110px !important;
     height: 100vh !important;
 }
@@ -1333,7 +1334,69 @@ body.reader-mode-active .verses-container {
 }
 
 .show-controls .nav-handle {
-    opacity: 0.6;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.reader-nav-top {
+    display: flex;
+    gap: 12px;
+    margin-left: 15px;
+}
+
+.reader-nav-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 90px;
+}
+
+.reader-nav-btn:hover:not(:disabled) {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.reader-nav-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.reader-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    filter: grayscale(1);
+}
+
+/* Adjust title for better button alignment */
+.chapter-title {
+    align-items: center;
+}
+
+@media (max-width: 600px) {
+    .reader-nav-top {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .reader-nav-btn {
+        flex: 1;
+        max-width: 120px;
+    }
 }
 
 .expand-toggle.active {

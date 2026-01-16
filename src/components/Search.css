@@ -18,7 +18,7 @@
 .search-header {
     background: var(--bg-secondary);
     padding: var(--spacing-lg);
-    padding-top: calc(var(--spacing-lg) + var(--safe-top));
+    padding-top: var(--header-top-padding);
     border-bottom: 1px solid var(--border-subtle);
     box-shadow: var(--shadow-md);
     flex-shrink: 0;
