@@ -1265,7 +1265,7 @@ body.reader-mode-active .bible-header {
 
 body.reader-mode-active .verses-container {
     padding-top: var(--header-top-padding) !important;
-    padding-bottom: 110px !important;
+    padding-bottom: 180px !important;
     height: 100vh !important;
 }
 
@@ -1354,7 +1354,7 @@ body.reader-mode-active .verses-container {
 
 .reader-nav-top.floating {
     position: fixed;
-    bottom: 110px;
+    bottom: 140px;
     left: 50%;
     transform: translateX(-50%);
     margin-left: 0;
