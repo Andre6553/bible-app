@@ -8,7 +8,7 @@ import './SubscriptionPage.css';
 
 const SubscriptionPage = () => {
     const navigate = useNavigate();
-    const { settings, fetchProfile } = useSettings();
+    const { settings, fetchProfile, user: contextUser, profile: contextProfile } = useSettings();
     const isAf = settings.language === 'af';
 
     const [loading, setLoading] = React.useState(false);
@@ -139,27 +139,48 @@ const SubscriptionPage = () => {
 
     const handlePayment = async () => {
         setLoading(true);
+        console.log('[Subscription] Initiating payment flow...');
+
+        // [SAFETY] Auto-reset loading after 15 seconds if nothing happens 
+        // (to prevent sticking on mobile if browser blocks the redirect)
+        const safetyTimeout = setTimeout(() => setLoading(false), 15000);
+
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            // Use context user/profile if already available to avoid network awaits
+            let user = contextUser;
             if (!user) {
+                console.log('[Subscription] Fetching user from auth...');
+                const { data } = await supabase.auth.getUser();
+                user = data.user;
+            }
+
+            if (!user) {
+                clearTimeout(safetyTimeout);
                 alert(isAf ? 'Teken asseblief eers in.' : 'Please log in first.');
                 navigate('/auth');
                 return;
             }
 
-            const { data: profile } = await supabase
-                .from('user_profiles')
-                .select('subscription_override, subscription_expiry')
-                .eq('user_id', user.id)
-                .single();
+            let profile = contextProfile;
+            if (!profile) {
+                console.log('[Subscription] Fetching user profile...');
+                const { data } = await supabase
+                    .from('user_profiles')
+                    .select('subscription_override, subscription_expiry')
+                    .eq('user_id', user.id)
+                    .single();
+                profile = data;
+            }
 
             const isPremium = profile?.subscription_override === 'premium' ||
                 profile?.subscription_override === 'admin' ||
-                profile?.subscription_override === 'tester';
+                profile?.subscription_override === 'tester' ||
+                profile?.subscription_tier === 'premium'; // Check both fields
 
             const hasValidExpiry = profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date();
 
             if (isPremium || hasValidExpiry) {
+                clearTimeout(safetyTimeout);
                 const expiry = profile?.subscription_expiry
                     ? new Date(profile.subscription_expiry).toLocaleDateString(undefined, { dateStyle: 'long' })
                     : 'Lifetime/Admin';
@@ -178,9 +199,9 @@ const SubscriptionPage = () => {
 
             // Apply 50% discount if eligible
             let finalPrice = randPrice;
-            if (isDiscountEligible && randPrice) {
+            if (isDiscountEligible && randPrice && !isNaN(parseInt(randPrice))) {
                 finalPrice = Math.floor(parseInt(randPrice) * 0.5).toString();
-            } else if (!randPrice) {
+            } else if (!randPrice || isNaN(parseInt(randPrice))) {
                 finalPrice = '85'; // Fallback
             }
 
@@ -190,7 +211,9 @@ const SubscriptionPage = () => {
             const cancel_url = `${window.location.origin}/subscription?payment=cancelled`;
             const custom_str1 = user.id;
 
-            // [NEW] Log checkout initiation
+            console.log(`[Subscription] Redirecting to PayFast with amount: ${amount}`);
+
+            // Log checkout initiation
             logEvent('begin_checkout', {
                 value: finalPrice,
                 currency: 'ZAR',
@@ -212,10 +235,13 @@ const SubscriptionPage = () => {
                 merchant_key: merchantKey
             });
 
+            // Fast redirect
             window.location.href = `${baseUrl}?${payParams.toString()}`;
         } catch (error) {
             console.error('Payment Error:', error);
+            clearTimeout(safetyTimeout);
             setLoading(false);
+            alert(isAf ? 'Betaling misluk. Probeer asseblief weer.' : 'Payment failed. Please try again.');
         }
     };
 
