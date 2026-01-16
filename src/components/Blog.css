@@ -4,7 +4,7 @@
     min-height: 100vh;
     min-height: 100dvh;
     background: var(--bg-primary);
-    padding: var(--header-top-padding) 20px var(--spacing-xl, 20px);
+    padding: var(--header-top-padding) 20px var(--spacing-xl, 20px) !important;
     padding-bottom: calc(120px + var(--safe-bottom, 0px));
     color: var(--text-primary);
     overflow-y: auto;

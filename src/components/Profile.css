@@ -3,8 +3,8 @@
 .profile-page {
     min-height: 100vh;
     background: var(--bg-primary);
+    padding-top: var(--header-top-padding) !important;
     padding-bottom: calc(500px + var(--safe-bottom, 0px));
-    /* Extra large padding for mobile safe area and nav bar */
 }
 
 /* Header */
@@ -12,7 +12,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: var(--header-top-padding) 20px 30px;
+    padding: 20px 20px 30px;
     background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
     border-bottom: 1px solid var(--border-subtle);
 }

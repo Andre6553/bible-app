@@ -1,7 +1,8 @@
 .bible-reader {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100dvh;
+    padding-top: var(--header-top-padding) !important;
     width: 100%;
     overflow: hidden;
     position: relative;
@@ -28,9 +29,8 @@
 /* Header Styling */
 .bible-header {
     background: var(--bg-secondary);
-    padding: var(--spacing-lg);
     /* Extra padding for safe areas, especially on iOS notched devices */
-    padding-top: var(--header-top-padding);
+    padding-top: 0;
     border-bottom: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;

@@ -60,8 +60,8 @@
     --safe-right: env(safe-area-inset-right, 0px);
 
     /* Standardized Header Padding for iOS Notch support */
-    /* iPhone 12 notch is ~47px. 60px is a safe minimum fallback. */
-    --header-top-padding: calc(max(env(safe-area-inset-top, 0px), 50px) + 10px);
+    /* iPhone 12/13/14/15 Notch is ~40-60px. 80px is a guaranteed safe zone. */
+    --header-top-padding: calc(max(env(safe-area-inset-top, 0px), 60px) + 20px);
 }
 
 /* Light Theme Variables */
