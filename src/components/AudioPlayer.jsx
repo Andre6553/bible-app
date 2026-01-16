@@ -42,18 +42,16 @@ const AudioPlayer = ({
     const voicesCountRef = useRef(0);
     const selectedVoiceURIRef = useRef(localStorage.getItem('audio_voice_uri') || null);
     const isManuallyTriggeredRef = useRef(false);
-    const isPlayingRef = useRef(false);
+    const currentVerseIndexRef = useRef(initialVerseIndex);
 
-    // Background Audio Hack 2.0: Web Audio API Oscillator
-    // Generates a faint "noise" signal to keep Android audio drivers active.
-    // Much more robust than a silent MP3 file loop.
-    const audioCtxRef = useRef(null);
-    const wakeLockRef = useRef(null);
-
-    // Sync Ref with State for use in async callbacks (onend, timeouts)
+    // Sync Refs with State for use in async callbacks (onend, timeouts, intervals)
     useEffect(() => {
         isPlayingRef.current = isPlaying;
     }, [isPlaying]);
+
+    useEffect(() => {
+        currentVerseIndexRef.current = currentVerseIndex;
+    }, [currentVerseIndex]);
 
     // --- 1. Initialization & Voice Loading ---
     const loadVoices = () => {
@@ -171,7 +169,8 @@ const AudioPlayer = ({
                 if (synth.paused) synth.resume();
 
                 // If it's truly idle but we want to be playing, re-trigger the current verse
-                playVerse(currentVerseIndex);
+                // Use the Ref to avoid stale closure issues
+                playVerse(currentVerseIndexRef.current);
             }
         }, 5000);
 
@@ -266,7 +265,10 @@ const AudioPlayer = ({
             // Move to next verse automatically
             if (isPlayingRef.current) {
                 const next = index + 1;
-                console.log(`[Audio] Next Verse (Immediate) -> ${next}`);
+                console.log(`[Audio] Next Verse (Immediate Attempt) -> ${next}`);
+
+                // Set this to true BEFORE updating state so the useEffect skips the playVerse call
+                isManuallyTriggeredRef.current = true;
 
                 // CRITICAL: Update state so UI stays in sync
                 setCurrentVerseIndex(next);
