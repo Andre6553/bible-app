@@ -320,14 +320,17 @@ This will generate a `dist` folder ready to be served by any static hosting prov
 ---
 
 
-## 🗺️ Roadmap
+## � Future Improvements & Roadmap
 
-- [ ] Reading Plans
-- [ ] Social/Community Features
-- [ ] Audio Bible
-- [ ] Native Mobile Apps (iOS/Android)
-- [ ] More Translations
-- [ ] Church Group Features
+We are constantly working to make Omni Bible the ultimate tool for spiritual growth and ministry.
+
+- [ ] **Sermon-to-Voice**: Convert your written sermons into high-quality AI speech to listen as a personal podcast.
+- [ ] **Social Media Integration**: Share insights, sermon snippets, and devotionals directly to your social platforms.
+- [ ] **Reading Plans**: Guided paths through scripture for individuals and church groups.
+- [ ] **Church Community Features**: Connect with your congregation and share study materials.
+- [ ] **Native Mobile Apps**: Dedicated iOS and Android applications for an even smoother experience.
+- [ ] **Audio Bibles**: Listen to your favorite translations on the go.
+- [ ] **More Translations**: Continually adding more languages and versions.
 
 ---
 
