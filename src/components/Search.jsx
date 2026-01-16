@@ -1364,11 +1364,35 @@ Here are the available shortcuts to quickly ask questions:
                             onChange={(e) => handleFilterChange('version', e.target.value)}
                         >
                             <option value="all">All Versions</option>
-                            {versions.map(version => (
-                                <option key={version.id} value={version.id}>
-                                    {version.abbreviation} - {version.name}
-                                </option>
-                            ))}
+
+                            {/* Grouped Versions */}
+                            {(() => {
+                                const groups = {
+                                    English: [],
+                                    Afrikaans: [],
+                                    Xhosa: []
+                                };
+
+                                versions.forEach(v => {
+                                    const lang = (v.language || '').toLowerCase();
+                                    if (lang.startsWith('af')) groups.Afrikaans.push(v);
+                                    else if (lang.startsWith('xh')) groups.Xhosa.push(v);
+                                    else groups.English.push(v);
+                                });
+
+                                return Object.entries(groups).map(([lang, groupVersions]) => {
+                                    if (groupVersions.length === 0) return null;
+                                    return (
+                                        <optgroup key={lang} label={lang}>
+                                            {groupVersions.map(v => (
+                                                <option key={v.id} value={v.id}>
+                                                    {v.abbreviation} - {v.name}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    );
+                                });
+                            })()}
                         </select>
                     </label>
 

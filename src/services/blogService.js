@@ -829,9 +829,22 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
                     last_refresh: now
                 });
 
-
+            // Handle race condition: If another process (like getDailyDevotional) 
+            // inserted the row between our update check and insert attempt.
             if (insertError) {
-                console.warn('Could not save article cache:', insertError);
+                if (insertError.code === '23505') {
+                    console.log('🔄 Conflict detected in getRecommendedPosts: Row created by another process. Falling back to update.');
+                    await supabase
+                        .from('user_devotionals')
+                        .update({
+                            recommended_articles: successfulArticles,
+                            last_refresh: now
+                        })
+                        .eq('user_id', userId)
+                        .eq('generated_date', today);
+                } else {
+                    console.warn('Could not save article cache:', insertError);
+                }
             }
         }
 
