@@ -207,7 +207,6 @@ The platform enforces the following quotas to manage AI costs:
 
 ---
 
-## 🏗️ Architecture Overview
 
 Omni Bible is a **Modern Serverless Web Application** (PWA) with a multi-layered data strategy.
 
@@ -320,11 +319,11 @@ This will generate a `dist` folder ready to be served by any static hosting prov
 ---
 
 
-## � Future Improvements & Roadmap
+## �Future Improvements & Roadmap
 
 We are constantly working to make Omni Bible the ultimate tool for spiritual growth and ministry.
 
-- [ ] **Sermon-to-Voice**: Convert your written sermons into high-quality AI speech to listen as a personal podcast.
+- [ ] **Sermon-to-Voice**: Convert your written sermons into AI speech to listen as a personal podcast.
 - [ ] **Social Media Integration**: Share insights, sermon snippets, and devotionals directly to your social platforms.
 - [ ] **Reading Plans**: Guided paths through scripture for individuals and church groups.
 - [ ] **Church Community Features**: Connect with your congregation and share study materials.
