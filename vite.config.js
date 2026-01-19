@@ -7,17 +7,19 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+            includeAssets: ['bible-icon.svg', 'icon-192.png', 'icon-512.png'],
             manifest: {
+                id: 'com.omnibible.online',
                 name: 'Omni Bible',
                 short_name: 'Omni Bible',
                 description: 'AI-Powered Bible Study Application',
-                theme_color: '#ffffff',
-                background_color: '#ffffff',
+                theme_color: '#1a1a2e',
+                background_color: '#050510',
                 display: 'standalone',
                 scope: '/',
                 start_url: '/',
                 orientation: 'portrait',
+                categories: ['books', 'education', 'lifestyle'],
                 icons: [
                     {
                         src: 'icon-192.png',
