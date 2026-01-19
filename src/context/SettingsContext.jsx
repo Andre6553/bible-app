@@ -169,6 +169,39 @@ export const SettingsProvider = ({ children }) => {
                 .single();
 
             if (error && error.code !== 'PGRST116') throw error;
+
+            // [LAZY EXPIRATION] Check if expired but still marked premium
+            if (data && data.subscription_expiry) {
+                const expiry = new Date(data.subscription_expiry);
+                const now = new Date();
+
+                // key check: is Tier 'premium' OR is Override 'premium'?
+                const isMarkedPremium = data.subscription_tier === 'premium' || data.subscription_override === 'premium';
+
+                if (expiry < now && isMarkedPremium) {
+                    console.log("[Profile] 📉 Subscription Expired. Downgrading to Free.");
+
+                    const updates = { subscription_tier: 'free' };
+                    // Only clear override if it is 'premium' (preserve admin/tester)
+                    if (data.subscription_override === 'premium') {
+                        updates.subscription_override = null;
+                        data.subscription_override = null; // Update local
+                    }
+
+                    // Fire and forget update
+                    supabase
+                        .from('user_profiles')
+                        .update(updates)
+                        .eq('user_id', userId)
+                        .then(({ error }) => {
+                            if (error) console.error("Failed to downgrade expired user:", error);
+                        });
+
+                    // Update local state immediately
+                    data.subscription_tier = 'free';
+                }
+            }
+
             setProfile(data);
         } catch (err) {
             console.error("[Settings] ❌ Profile fetch error:", err.message);

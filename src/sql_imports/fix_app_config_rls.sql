@@ -1,65 +1,33 @@
--- ============================================
--- FIX: app_config RLS Policy for Admin Access
--- Run this in Supabase SQL Editor
--- ============================================
 
--- Enable RLS on app_config
+-- 1. Ensure app_config table exists
+CREATE TABLE IF NOT EXISTS public.app_config (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    description TEXT
+);
+
+-- 2. Insert the subscription price if missing
+INSERT INTO public.app_config (key, value, description)
+VALUES ('base_subscription_price_usd', '5.00', 'Base monthly subscription price in USD')
+ON CONFLICT (key) DO NOTHING;
+
+-- 3. Enable RLS
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies to avoid conflicts
-DROP POLICY IF EXISTS "Anyone can read app_config" ON public.app_config;
-DROP POLICY IF EXISTS "Admins can read app_config" ON public.app_config;
-DROP POLICY IF EXISTS "Admins can insert app_config" ON public.app_config;
-DROP POLICY IF EXISTS "Admins can update app_config" ON public.app_config;
-DROP POLICY IF EXISTS "Admins can delete app_config" ON public.app_config;
+-- 4. Allow PUBLIC read access (needed for Subscription Page)
+DROP POLICY IF EXISTS "Allow public read access" ON public.app_config;
+CREATE POLICY "Allow public read access" ON public.app_config
+    FOR SELECT
+    USING (true);
 
--- Policy 1: Anyone can READ app_config (needed for subscription price display)
-CREATE POLICY "Anyone can read app_config"
-ON public.app_config
-FOR SELECT
-TO authenticated, anon
-USING (true);
-
--- Policy 2: Only Admins can INSERT
-CREATE POLICY "Admins can insert app_config"
-ON public.app_config
-FOR INSERT
-TO authenticated
-WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM public.user_profiles
-        WHERE user_id = auth.uid()::text
-        AND subscription_override = 'admin'
-    )
-);
-
--- Policy 3: Only Admins can UPDATE
-CREATE POLICY "Admins can update app_config"
-ON public.app_config
-FOR UPDATE
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM public.user_profiles
-        WHERE user_id = auth.uid()::text
-        AND subscription_override = 'admin'
-    )
-);
-
--- Policy 4: Only Admins can DELETE
-CREATE POLICY "Admins can delete app_config"
-ON public.app_config
-FOR DELETE
-TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM public.user_profiles
-        WHERE user_id = auth.uid()::text
-        AND subscription_override = 'admin'
-    )
-);
-
--- Verify the policies were created
-SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual
-FROM pg_policies
-WHERE tablename = 'app_config';
+-- 5. Allow Admin write access
+DROP POLICY IF EXISTS "Allow admin write access" ON public.app_config;
+CREATE POLICY "Allow admin write access" ON public.app_config
+    FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.user_profiles 
+            WHERE user_profiles.user_id = auth.uid()::text 
+            AND user_profiles.subscription_override = 'admin'
+        )
+    );

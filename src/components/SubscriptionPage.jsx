@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
+// import { getDeviceFingerprint } from '../utils/appUtils'; // Removed to fix crash
 import md5 from 'crypto-js/md5';
 import { logEvent } from '../services/analyticsService';
 import './SubscriptionPage.css';
@@ -11,12 +12,25 @@ const SubscriptionPage = () => {
     const { settings, fetchProfile, user: contextUser, profile: contextProfile } = useSettings();
     const isAf = settings.language === 'af';
 
+    // [NEW] Promo Visibility State
+    const [isPromoEnabled, setIsPromoEnabled] = React.useState(true);
+    const [promoDuration, setPromoDuration] = React.useState(30); // Default to 30
+
     const [loading, setLoading] = React.useState(false);
     const [randPrice, setRandPrice] = React.useState(null);
     const [basePriceUsd, setBasePriceUsd] = React.useState(5);
+    const [promoCode, setPromoCode] = React.useState(''); // [NEW] Promo Code State
+    const [promoLoading, setPromoLoading] = React.useState(false); // [NEW] Promo Loading State
     const [countryCode, setCountryCode] = React.useState('ZA'); // Default to ZA
     const [userIP, setUserIP] = React.useState(null);
     const [isDiscountEligible, setIsDiscountEligible] = React.useState(true); // Default to Eligible (Optimistic)
+
+    // Calculate Premium Status for UI
+    const isPremium = contextProfile?.subscription_override === 'premium' ||
+        contextProfile?.subscription_override === 'admin' ||
+        contextProfile?.subscription_override === 'tester' ||
+        contextProfile?.subscription_tier === 'premium' ||
+        (contextProfile?.subscription_expiry && new Date(contextProfile.subscription_expiry) > new Date());
 
     React.useEffect(() => {
         const detectLocationAndIP = async () => {
@@ -90,8 +104,26 @@ const SubscriptionPage = () => {
             }
         };
 
+        const fetchPromoSettings = async () => {
+            const { data } = await supabase
+                .from('app_config')
+                .select('value')
+                .eq('key', 'promo_codes_enabled')
+                .single();
+            if (data) setIsPromoEnabled(data.value === 'true');
+
+            // Fetch BIBLE30 duration
+            const { data: codeData } = await supabase
+                .from('promo_codes')
+                .select('duration_days')
+                .eq('code', 'BIBLE30')
+                .maybeSingle();
+            if (codeData) setPromoDuration(codeData.duration_days);
+        };
+
         detectLocationAndIP();
         fetchPricing();
+        fetchPromoSettings(); // [NEW] Fetch config & duration
 
         const checkPaymentStatus = async () => {
             const params = new URLSearchParams(window.location.search);
@@ -174,8 +206,7 @@ const SubscriptionPage = () => {
 
             const isPremium = profile?.subscription_override === 'premium' ||
                 profile?.subscription_override === 'admin' ||
-                profile?.subscription_override === 'tester' ||
-                profile?.subscription_tier === 'premium'; // Check both fields
+                profile?.subscription_override === 'tester';
 
             const hasValidExpiry = profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date();
 
@@ -242,6 +273,56 @@ const SubscriptionPage = () => {
             clearTimeout(safetyTimeout);
             setLoading(false);
             alert(isAf ? 'Betaling misluk. Probeer asseblief weer.' : 'Payment failed. Please try again.');
+        }
+    };
+
+    // [NEW] Handle Promo Code Redemption
+    const handleRedeemPromo = async (e) => {
+        e.preventDefault();
+        if (!promoCode.trim()) return;
+
+        setPromoLoading(true);
+        try {
+            // 1. Get Device Fingerprint (Simple Browser-Based)
+            // If getDeviceFingerprint utility is missing, we use a basic fallback inline for now
+            let fingerprint = 'unknown_device';
+            try {
+                // Combine user agent, screen res, and timezone for a basic fingerprint
+                const raw = [
+                    navigator.userAgent,
+                    navigator.language,
+                    new Date().getTimezoneOffset(),
+                    window.screen.width + 'x' + window.screen.height
+                ].join('|');
+                // Use existing md5 import
+                fingerprint = md5(raw).toString();
+            } catch (err) {
+                console.warn('Fingerprinting failed:', err);
+            }
+
+            // 2. Call Secure RPC
+            const { data, error } = await supabase.rpc('redeem_promo_code_v2', {
+                code_input: promoCode.trim().toUpperCase(),
+                fingerprint_input: fingerprint,
+                ip_input: userIP
+            });
+
+            if (error) throw error;
+
+            if (data.success) {
+                alert(isAf ? 'Promosie kode suksesvol toegepas!' : data.message);
+                setPromoCode('');
+                // Refresh profile to update UI immediately
+                if (contextUser) fetchProfile(contextUser.id);
+            } else {
+                alert(isAf ? 'Fout: ' + data.error : 'Error: ' + data.error);
+            }
+
+        } catch (err) {
+            console.error('Promo Redemption Error:', err);
+            alert(isAf ? 'Kon nie kode toepas nie. Probeer weer.' : 'Failed to apply code. Please try again.');
+        } finally {
+            setPromoLoading(false);
         }
     };
 
@@ -359,9 +440,84 @@ const SubscriptionPage = () => {
                             {isAf ? 'Onbeperkte Preek Skeppings' : 'Unlimited Sermon creations'}
                         </li>
                     </ul>
-                    <button className="upgrade-btn" onClick={handlePayment} disabled={loading}>
-                        {loading ? (isAf ? 'Verwerk...' : 'Processing...') : (isAf ? 'Gradeer Nou Op' : 'Upgrade Now')}
-                    </button>
+
+
+                    {/* [NEW] Promo Code Input Section - Only show if not Premium AND enabled globally */}
+                    {!isPremium && isPromoEnabled && (
+                        <div style={{ marginBottom: '15px', marginTop: '10px' }}>
+                            {/* [NEW] New User Nudge */}
+                            {isDiscountEligible && (
+                                <div style={{
+                                    background: 'rgba(99, 102, 241, 0.2)',
+                                    border: '1px border #6366f1',
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    marginBottom: '8px',
+                                    textAlign: 'center',
+                                    fontSize: '0.85rem',
+                                    color: '#a5b4fc'
+                                }}>
+                                    ✨ {isAf ? 'Nuwe gebruiker?' : 'New user?'} {isAf ? 'Gebruik kode' : 'Use code'} <strong style={{ color: 'white', cursor: 'pointer' }} onClick={() => setPromoCode('BIBLE30')}>BIBLE30</strong> {isAf ? `vir ${promoDuration} Dae gratis!` : `for ${promoDuration} Days Free!`}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleRedeemPromo}>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input
+                                        type="text"
+                                        value={promoCode}
+                                        onChange={(e) => setPromoCode(e.target.value)}
+                                        placeholder={isAf ? "Promosie Kode" : "Enter Promo Code"}
+                                        style={{
+                                            flex: 1,
+                                            padding: '10px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #334155',
+                                            background: '#1e293b',
+                                            color: 'white',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={promoLoading || !promoCode.trim()}
+                                        style={{
+                                            padding: '0 15px',
+                                            borderRadius: '8px',
+                                            background: '#6366f1',
+                                            color: 'white',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold',
+                                            fontSize: '0.9rem',
+                                            opacity: (promoLoading || !promoCode.trim()) ? 0.7 : 1
+                                        }}
+                                    >
+                                        {promoLoading ? '...' : (isAf ? 'Pas Toe' : 'Apply')}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+
+                    {!isPremium ? (
+                        <button className="upgrade-btn" onClick={handlePayment} disabled={loading}>
+                            {loading ? (isAf ? 'Verwerk...' : 'Processing...') : (isAf ? 'Gradeer Nou Op' : 'Upgrade Now')}
+                        </button>
+                    ) : (
+                        <div className="active-plan-badge" style={{
+                            textAlign: 'center',
+                            padding: '12px',
+                            background: '#10b981',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            borderRadius: '8px',
+                            marginTop: '15px'
+                        }}>
+                            {isAf ? 'U Lidmaatskap is Aktief' : 'Membership Active'}
+                        </div>
+                    )}
                     {countryCode !== 'ZA' && (
                         <p style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '12px', color: '#9ca3af', textAlign: 'center' }}>
                             {isAf
@@ -371,6 +527,7 @@ const SubscriptionPage = () => {
                     )}
                 </div>
             </div>
+
             {/* Footer Spacer to ensure clearance */}
             <div style={{ height: '150px', width: '100%' }} className="footer-padding-spacer" />
         </div>

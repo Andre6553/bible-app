@@ -148,6 +148,14 @@ function Stats() {
     const [secretCode, setSecretCode] = useState('');
     const [secretCodeLoading, setSecretCodeLoading] = useState(false);
 
+    // [NEW] Promo Code Manager State
+    const [promoCodes, setPromoCodes] = useState([]);
+    const [isPromoEnabled, setIsPromoEnabled] = useState(true);
+    const [promoCodeLoading, setPromoCodeLoading] = useState(false);
+    const [newPromoCode, setNewPromoCode] = useState({ code: '', duration: 30, expiry: '' });
+    const [isCreatingPromo, setIsCreatingPromo] = useState(false);
+    const [editingPromo, setEditingPromo] = useState(null); // [NEW] For Edit Mode
+
     // User Management (Admin Edit)
     const [userUpdateLoading, setUserUpdateLoading] = useState(false);
     const [userUpdateFeedback, setUserUpdateFeedback] = useState('');
@@ -180,8 +188,137 @@ function Stats() {
             fetchEmailSettings();
             fetchEmailTemplates();
             fetchSubscriptionPrice();
+            fetchPromoCodes();
+            fetchPromoSettings();
         }
     }, [isAuthenticated]);
+
+    const fetchPromoSettings = async () => {
+        const { data } = await supabase
+            .from('app_config')
+            .select('value')
+            .eq('key', 'promo_codes_enabled')
+            .single();
+
+        if (data) setIsPromoEnabled(data.value === 'true');
+    };
+
+    const handleTogglePromoGlobal = async () => {
+        const newValue = !isPromoEnabled;
+        const { error } = await supabase
+            .from('app_config')
+            .upsert({ key: 'promo_codes_enabled', value: String(newValue) });
+
+        if (error) alert('Error updating settings: ' + error.message);
+        else setIsPromoEnabled(newValue);
+    };
+
+
+
+    const fetchPromoCodes = async () => {
+        const { data, error } = await supabase
+            .from('promo_codes')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (data) setPromoCodes(data);
+        if (error) console.error('Error fetching promo codes:', error);
+    };
+
+    const handleCreatePromoCode = async (e) => {
+        e.preventDefault();
+        if (!newPromoCode.code || !newPromoCode.duration) return;
+        setPromoCodeLoading(true);
+
+        try {
+            const { data, error } = await supabase
+                .from('promo_codes')
+                .insert({
+                    code: newPromoCode.code,
+                    action: 'premium', // Standard premium access
+                    description: `${newPromoCode.duration} Days Premium Access`,
+                    duration_days: parseInt(newPromoCode.duration),
+                    valid_until: null,
+                    max_uses: 1000000,
+                    is_active: true,
+                    is_admin_only: newPromoCode.isAdminOnly || false
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            setPromoCodes(prev => [data, ...prev]);
+            setNewPromoCode({ code: '', duration: 30, expiry: '' });
+            setIsCreatingPromo(false);
+            alert('✅ Promo Code Created!');
+        } catch (err) {
+            alert('Error creating code: ' + err.message);
+        } finally {
+            setPromoCodeLoading(false);
+        }
+    };
+
+    const handleUpdatePromoCode = async (e) => {
+        e.preventDefault();
+        if (!editingPromo || !editingPromo.duration_days) return;
+        setPromoCodeLoading(true);
+
+        try {
+            const { error } = await supabase
+                .from('promo_codes')
+                .update({
+                    duration_days: parseInt(editingPromo.duration_days),
+                    max_uses: parseInt(editingPromo.max_uses),
+                    description: `${editingPromo.duration_days} Days Premium Access`
+                })
+                .eq('id', editingPromo.id);
+
+            if (error) throw error;
+
+            setPromoCodes(prev => prev.map(c => c.id === editingPromo.id ? { ...c, ...editingPromo } : c));
+            setEditingPromo(null);
+            alert('✅ Promo Code Updated!');
+        } catch (err) {
+            alert('Error updating code: ' + err.message);
+        } finally {
+            setPromoCodeLoading(false);
+        }
+    };
+
+    const handleTogglePromoStatus = async (codeId, currentStatus) => {
+        const { error } = await supabase
+            .from('promo_codes')
+            .update({ is_active: !currentStatus })
+            .eq('id', codeId);
+
+        if (error) {
+            alert('Error updating status: ' + error.message);
+        } else {
+            setPromoCodes(prev => prev.map(c =>
+                c.id === codeId ? { ...c, is_active: !currentStatus } : c
+            ));
+        }
+    };
+
+    const handleDeletePromoCode = async (id) => {
+        if (!window.confirm('Are you sure you want to PERMANENTLY delete this code? IF IT HAS BEEN USED, THIS WILL FAIL (Deactivate it instead).')) return;
+
+        const { error } = await supabase
+            .from('promo_codes')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            if (error.code === '23503') { // Foreign Key Violation
+                alert('Cannot delete this code because it has already been redeemed by users. Please DEACTIVATE it instead to stop future use.');
+            } else {
+                alert('Error deleting code: ' + error.message);
+            }
+        } else {
+            setPromoCodes(prev => prev.filter(c => c.id !== id));
+        }
+    };
 
     const fetchSubscriptionPrice = async () => {
         setPriceLoading(true);
@@ -240,7 +377,7 @@ function Stats() {
                 .select('*')
                 .eq('code', code)
                 .eq('is_active', true)
-                .single();
+                .maybeSingle();
 
             if (promoError || !promo) {
                 alert('Invalid or expired secret code.');
@@ -1544,6 +1681,237 @@ function Stats() {
                         </div>
                     </div>
 
+                    {/* [NEW] PROMO CODE MANAGER SECTION */}
+                    <div className="full-width-card" style={{ marginTop: '20px' }}>
+                        <div className="settings-card">
+                            <h3>🎟️ Promo Code Manager</h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <p style={{ opacity: 0.7, fontSize: '0.9rem', margin: 0 }}>
+                                    Create codes for marketing campaigns. (1 Use per User/Device)
+                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <label className="switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={isPromoEnabled}
+                                            onChange={handleTogglePromoGlobal}
+                                        />
+                                        <span className="slider round"></span>
+                                    </label>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: isPromoEnabled ? '#10b981' : '#ef4444' }}>
+                                        {isPromoEnabled ? 'Promos ON' : 'Promos OFF'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {!isCreatingPromo ? (
+                                <button
+                                    className="action-btn"
+                                    onClick={() => setIsCreatingPromo(true)}
+                                    style={{ marginBottom: '15px' }}
+                                >
+                                    + Create New Code
+                                </button>
+                            ) : (
+                                <form onSubmit={handleCreatePromoCode} style={{ background: 'var(--bg-tertiary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--border-color)' }}>
+                                    <div style={{ display: 'grid', gap: '10px', gridTemplateColumns: '1fr 1fr' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Code (e.g. LAUNCH2026)</label>
+                                            <input
+                                                type="text"
+                                                value={newPromoCode.code}
+                                                onChange={e => setNewPromoCode({ ...newPromoCode, code: e.target.value.toUpperCase() })}
+                                                placeholder="CODE"
+                                                required
+                                                style={{ width: '100%', padding: '8px', borderRadius: '4px' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Duration (Days)</label>
+                                            <input
+                                                type="number"
+                                                value={newPromoCode.duration}
+                                                onChange={e => setNewPromoCode({ ...newPromoCode, duration: e.target.value })}
+                                                required
+                                                style={{ width: '100%', padding: '8px', borderRadius: '4px' }}
+                                            />
+                                        </div>
+                                        {/* Expires On Input Removed as User Requested */}
+                                        <div style={{ gridColumn: 'span 2' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '5px 0' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={newPromoCode.isAdminOnly || false}
+                                                    onChange={e => setNewPromoCode({ ...newPromoCode, isAdminOnly: e.target.checked })}
+                                                    style={{ width: '16px', height: '16px' }}
+                                                />
+                                                <span>🔒 Admin Only (Manual Apply Only)</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                                        <button type="submit" className="action-btn" disabled={promoCodeLoading}>
+                                            {promoCodeLoading ? 'Creating...' : 'Create Code'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="secondary-action-btn"
+                                            onClick={() => setIsCreatingPromo(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+
+                            <div style={{ overflowX: 'auto' }}>
+                                {/* [NEW] EDIT PROMO MODAL/FORM */}
+                                {editingPromo && (
+                                    <div className="modal-overlay" onClick={() => setEditingPromo(null)} style={{
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        backgroundColor: 'rgba(0,0,0,0.7)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 1000
+                                    }}>
+                                        <div className="modal-content" onClick={e => e.stopPropagation()} style={{
+                                            maxWidth: '400px',
+                                            width: '100%',
+                                            background: '#1e293b',
+                                            padding: '20px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #334155',
+                                            boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                                        }}>
+                                            <h3 style={{ marginTop: 0 }}>✏️ Edit Promo Code: {editingPromo.code}</h3>
+                                            <form onSubmit={handleUpdatePromoCode}>
+                                                <div style={{ marginBottom: '15px' }}>
+                                                    <label style={{ display: 'block', marginBottom: '5px' }}>Duration (Days)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={editingPromo.duration_days}
+                                                        onChange={e => setEditingPromo({ ...editingPromo, duration_days: e.target.value })}
+                                                        className="modal-input"
+                                                        required
+                                                        style={{ width: '100%', padding: '10px', borderRadius: '4px', background: '#0f172a', border: '1px solid #334155', color: 'white' }}
+                                                    />
+                                                </div>
+                                                <div style={{ marginBottom: '15px' }}>
+                                                    <label style={{ display: 'block', marginBottom: '5px' }}>Max Uses</label>
+                                                    <input
+                                                        type="number"
+                                                        value={editingPromo.max_uses}
+                                                        onChange={e => setEditingPromo({ ...editingPromo, max_uses: e.target.value })}
+                                                        className="modal-input"
+                                                        required
+                                                        style={{ width: '100%', padding: '10px', borderRadius: '4px', background: '#0f172a', border: '1px solid #334155', color: 'white' }}
+                                                    />
+                                                </div>
+                                                <div className="modal-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                                    <button type="button" onClick={() => setEditingPromo(null)} className="secondary-action-btn" style={{ padding: '8px 15px', borderRadius: '4px', background: 'transparent', border: '1px solid #334155', color: 'white', cursor: 'pointer' }}>Cancel</button>
+                                                    <button type="submit" className="action-btn" disabled={promoCodeLoading} style={{ padding: '8px 15px', borderRadius: '4px', background: '#6366f1', border: 'none', color: 'white', cursor: 'pointer' }}>
+                                                        {promoCodeLoading ? 'Saving...' : 'Save Changes'}
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                )}
+
+
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                                            <th style={{ padding: '8px' }}>Code</th>
+                                            <th style={{ padding: '8px' }}>Status</th>
+                                            <th style={{ padding: '8px' }}>Type</th>
+                                            <th style={{ padding: '8px' }}>Duration</th>
+                                            <th style={{ padding: '8px' }}>Used</th>
+                                            <th style={{ padding: '8px' }}>Expires</th>
+                                            <th style={{ padding: '8px' }}>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {promoCodes.map(code => (
+                                            <tr key={code.id} style={{ borderBottom: '1px solid var(--border-subtle)', opacity: code.is_active ? 1 : 0.6 }}>
+                                                <td style={{ padding: '8px', fontWeight: 'bold', color: code.is_active ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                                                    {code.code}
+                                                </td>
+                                                <td style={{ padding: '8px' }}>
+                                                    <button
+                                                        onClick={() => handleTogglePromoStatus(code.id, code.is_active)}
+                                                        style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.8rem',
+                                                            background: code.is_active ? '#10b981' : '#334155',
+                                                            color: 'white'
+                                                        }}
+                                                    >
+                                                        {code.is_active ? 'ACTIVE' : 'INACTIVE'}
+                                                    </button>
+                                                </td>
+                                                <td style={{ padding: '8px' }}>
+                                                    <button
+                                                        onClick={() => handleToggleAdminOnly(code.id, code.is_admin_only)}
+                                                        style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.8rem',
+                                                            background: code.is_admin_only ? '#8b5cf6' : 'transparent',
+                                                            border: code.is_admin_only ? 'none' : '1px solid #555',
+                                                            color: 'white'
+                                                        }}
+                                                        title={code.is_admin_only ? "Click to make Public" : "Click to make Admin Only"}
+                                                    >
+                                                        {code.is_admin_only ? '🔒 Admin Only' : '🌍 Public'}
+                                                    </button>
+                                                </td>
+                                                <td style={{ padding: '8px' }}>{code.duration_days} days</td>
+                                                <td style={{ padding: '8px' }}>{code.current_uses} / {code.max_uses > 9999 ? '∞' : code.max_uses}</td>
+                                                <td style={{ padding: '8px' }}>
+                                                    {code.valid_until ? new Date(code.valid_until).toLocaleDateString() : 'Never'}
+                                                </td>
+                                                <td style={{ padding: '8px', display: 'flex', gap: '8px' }}>
+                                                    <button
+                                                        onClick={() => setEditingPromo(code)}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}
+                                                        title="Edit Settings"
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeletePromoCode(code.id)}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5 }}
+                                                        title="Delete Code (Only if unused)"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {promoCodes.length === 0 && (
+                                            <tr>
+                                                <td colSpan="5" style={{ padding: '15px', textAlign: 'center', opacity: 0.6 }}>
+                                                    No promo codes created yet.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="setting-divider" style={{ margin: '15px 0', borderTop: '1px solid var(--border-subtle)', opacity: 0.3 }}></div>
 
                     <h3>📧 Email Notifications</h3>
@@ -1952,6 +2320,51 @@ function Stats() {
                                         {selectedUserForEdit.subscription_override || selectedUserForEdit.subscription_tier || 'Free'}
                                     </span>
                                 </p>
+
+                                {/* [NEW] Admin Apply Promo Section */}
+                                <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #444' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>🎁 Apply Promo Code</label>
+                                    <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '8px' }}>
+                                        Manually apply an "Admin Only" code to this user.
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter Code (e.g. VISIP01)"
+                                            id="admin-promo-input"
+                                            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #555', background: '#222', color: 'white' }}
+                                        />
+                                        <button
+                                            className="action-btn"
+                                            onClick={async () => {
+                                                const input = document.getElementById('admin-promo-input');
+                                                if (!input.value) return;
+
+                                                try {
+                                                    const { data, error } = await supabase.rpc('admin_apply_promo_code', {
+                                                        target_user_id: selectedUserForEdit.userId,
+                                                        code_input: input.value.trim()
+                                                    });
+
+                                                    if (error) throw error;
+                                                    if (data.success) {
+                                                        alert('✅ ' + data.message);
+                                                        input.value = '';
+                                                        handleRefreshData(); // Refresh user data to show new plan
+                                                        setShowUserEditModal(false);
+                                                    } else {
+                                                        alert('❌ Error: ' + data.error);
+                                                    }
+                                                } catch (err) {
+                                                    alert('Failed: ' + err.message);
+                                                }
+                                            }}
+                                            style={{ padding: '8px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '4px' }}
+                                        >
+                                            Apply
+                                        </button>
+                                    </div>
+                                </div>
 
                                 <div style={{ marginTop: '20px' }}>
                                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Assign New Status</label>

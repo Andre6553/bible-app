@@ -28,25 +28,41 @@ if (!serviceRoleKey) {
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-async function testRemoteSql() {
-    console.log('Testing Remote SQL Execution...');
+const sqlFile = process.argv[2];
+
+async function runSql() {
+    if (!sqlFile) {
+        console.error('Usage: node verify_remote_sql.js <path_to_sql_file>');
+        process.exit(1);
+    }
+
+    const filePath = path.resolve(process.cwd(), sqlFile);
+    if (!fs.existsSync(filePath)) {
+        console.error(`❌ File not found: ${filePath}`);
+        process.exit(1);
+    }
+
+    const sqlContent = fs.readFileSync(filePath, 'utf8');
+    console.log(`📂 Executing SQL from: ${sqlFile}`);
+
     try {
-        // Attempt to create a temp table using the new RPC
-        const { error } = await supabase.rpc('exec_sql', {
-            sql: 'CREATE TABLE IF NOT EXISTS temp_agent_check (id serial primary key, check_time timestamptz default now());'
+        const { data, error } = await supabase.rpc('exec_sql', {
+            sql: sqlContent
         });
 
-        if (error) throw error;
-
-        console.log(`✅ SUCCESS! Created table via remote 'exec_sql'.`);
-
-        // Cleanup
-        await supabase.rpc('exec_sql', { sql: 'DROP TABLE temp_agent_check;' });
-        console.log(`✅ SUCCESS! Cleaned up table.`);
+        if (error) {
+            console.error('❌ SQL Execution Failed:', error.message);
+            console.error('Details:', error);
+        } else {
+            console.log('✅ SQL Executed Successfully');
+            if (data) {
+                console.log('📄 Output:', JSON.stringify(data, null, 2));
+            }
+        }
 
     } catch (err) {
-        console.error('❌ Remote SQL Failed:', err.message);
+        console.error('❌ Unexpected Error:', err.message);
     }
 }
 
-testRemoteSql();
+runSql();
