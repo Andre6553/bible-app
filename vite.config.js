@@ -13,10 +13,19 @@ export default defineConfig({
                 short_name: 'Omni Bible',
                 description: 'AI-Powered Bible Study Application',
                 theme_color: '#ffffff',
+                background_color: '#ffffff',
+                display: 'standalone',
+                scope: '/',
+                start_url: '/',
+                orientation: 'portrait',
                 icons: [
                     {
-                        src: 'pwa-192x192.png',
+                        src: 'icon-192.png',
                         sizes: '192x192',
+                        type: 'image/png',
+                        purpose: 'any maskable'
+                    },
+                    {
                         src: 'icon-512.png',
                         sizes: '512x512',
                         type: 'image/png',
@@ -25,18 +34,25 @@ export default defineConfig({
                 ],
                 screenshots: [
                     {
-                        src: 'icon-512.png', // Temporary: Replace with actual screenshot of your app
-                        sizes: '512x512',
-                        type: 'image/png',
-                        form_factor: 'wide',
-                        label: 'Desktop View'
-                    },
-                    {
-                        src: 'icon-512.png', // Temporary: Replace with actual screenshot of your app
-                        sizes: '512x512',
+                        src: 'screenshots/for_you.png',
+                        sizes: '1080x1920',
                         type: 'image/png',
                         form_factor: 'narrow',
-                        label: 'Mobile View'
+                        label: 'Home Feed'
+                    },
+                    {
+                        src: 'screenshots/bible_reader.png',
+                        sizes: '1080x1920',
+                        type: 'image/png',
+                        form_factor: 'narrow',
+                        label: 'Bible Reader'
+                    },
+                    {
+                        src: 'screenshots/sermon_prep.png',
+                        sizes: '1920x1080',
+                        type: 'image/png',
+                        form_factor: 'wide',
+                        label: 'Sermon Prep Tools'
                     }
                 ]
             },

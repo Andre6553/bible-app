@@ -1864,7 +1864,7 @@ function Stats() {
                                                         style={{
                                                             padding: '4px 8px',
                                                             borderRadius: '4px',
-                                                            border: 'none',
+
                                                             cursor: 'pointer',
                                                             fontSize: '0.8rem',
                                                             background: code.is_admin_only ? '#8b5cf6' : 'transparent',
