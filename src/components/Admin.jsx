@@ -99,11 +99,11 @@ const Admin = () => {
     // If not authenticated, show Access Denied screen
     if (!isAuthenticated) {
         return (
-            <div className="stats-login-container" style={{ textAlign: 'center', padding: '100px 20px', minHeight: '100vh', background: settings.theme === 'dark' ? '#1a1a2e' : '#f5f5f5' }}>
-                <div className="stats-login-card" style={{ maxWidth: '400px', margin: '0 auto', background: settings.theme === 'dark' ? '#333' : '#fff', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+            <div className="stats-login-container" style={{ textAlign: 'center', padding: '100px 20px', minHeight: '100vh', background: settings.themeMode === 'dark' ? '#0f172a' : '#f5f5f5' }}>
+                <div className="stats-login-card" style={{ maxWidth: '400px', margin: '0 auto', background: settings.themeMode === 'dark' ? '#333' : '#fff', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
                     <h2 style={{ fontSize: '3rem', marginBottom: '20px' }}>🔒</h2>
-                    <h2 style={{ marginBottom: '10px', color: settings.theme === 'dark' ? '#fff' : '#333' }}>Access Denied</h2>
-                    <p style={{ opacity: 0.7, marginBottom: '30px', color: settings.theme === 'dark' ? '#ccc' : '#666' }}>
+                    <h2 style={{ marginBottom: '10px', color: settings.themeMode === 'dark' ? '#fff' : '#333' }}>Access Denied</h2>
+                    <p style={{ opacity: 0.7, marginBottom: '30px', color: settings.themeMode === 'dark' ? '#ccc' : '#666' }}>
                         This area is restricted to administrators. Please log in with an authorized account to continue.
                     </p>
                     <button
@@ -118,18 +118,21 @@ const Admin = () => {
     }
 
     return (
-        <div className={`admin-container ${settings.theme === 'dark' ? 'dark-mode' : 'light-mode'}`}>
+        <div className={`admin-container ${settings.themeMode === 'dark' ? 'dark-mode' : 'light-mode'}`}>
             <div className="admin-header">
                 <h1>API Usage Dashboard</h1>
                 <div className="admin-header-buttons">
-                    <button className="btn-back" onClick={() => navigate('/')}>
-                        Back to App
+                    <button className="btn-nav btn-secondary" onClick={() => navigate('/stats')}>
+                        📊 Return to Stats
+                    </button>
+                    <button className="btn-nav btn-primary" onClick={() => navigate('/')}>
+                        🏠 Back to App
                     </button>
                 </div>
             </div>
 
             <div className="admin-controls user-lookup-section" style={{
-                background: settings.theme === 'dark' ? '#2d2d44' : '#fff',
+                background: settings.themeMode === 'dark' ? '#1e293b' : '#fff',
                 padding: '24px',
                 borderRadius: '12px',
                 marginBottom: '30px',
@@ -148,8 +151,8 @@ const Admin = () => {
                             borderRadius: '8px',
                             border: '1px solid var(--border-color)',
                             fontSize: '1rem',
-                            background: settings.theme === 'dark' ? '#1f2937' : '#f9fafb',
-                            color: settings.theme === 'dark' ? '#ffffff' : '#111827'
+                            background: settings.themeMode === 'dark' ? '#0f172a' : '#f9fafb',
+                            color: settings.themeMode === 'dark' ? '#ffffff' : '#111827'
                         }}
                     >
                         <option value="">{loadingUsers ? 'Loading Users...' : 'Select a User...'}</option>

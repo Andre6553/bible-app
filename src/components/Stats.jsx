@@ -1714,8 +1714,8 @@ function Stats() {
                                 </button>
                             ) : (
                                 <form onSubmit={handleCreatePromoCode} style={{ background: 'var(--bg-tertiary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--border-color)' }}>
-                                    <div style={{ display: 'grid', gap: '10px', gridTemplateColumns: '1fr 1fr' }}>
-                                        <div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                        <div style={{ flex: '1 1 200px' }}>
                                             <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Code (e.g. LAUNCH2026)</label>
                                             <input
                                                 type="text"
@@ -1726,7 +1726,7 @@ function Stats() {
                                                 style={{ width: '100%', padding: '8px', borderRadius: '4px' }}
                                             />
                                         </div>
-                                        <div>
+                                        <div style={{ flex: '1 1 200px' }}>
                                             <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Duration (Days)</label>
                                             <input
                                                 type="number"
@@ -1737,7 +1737,7 @@ function Stats() {
                                             />
                                         </div>
                                         {/* Expires On Input Removed as User Requested */}
-                                        <div style={{ gridColumn: 'span 2' }}>
+                                        <div style={{ flex: '1 1 100%' }}>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '5px 0' }}>
                                                 <input
                                                     type="checkbox"
@@ -1824,585 +1824,666 @@ function Stats() {
                                 )}
 
 
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                                    <thead>
-                                        <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                                            <th style={{ padding: '8px' }}>Code</th>
-                                            <th style={{ padding: '8px' }}>Status</th>
-                                            <th style={{ padding: '8px' }}>Type</th>
-                                            <th style={{ padding: '8px' }}>Duration</th>
-                                            <th style={{ padding: '8px' }}>Used</th>
-                                            <th style={{ padding: '8px' }}>Expires</th>
-                                            <th style={{ padding: '8px' }}>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {promoCodes.map(code => (
-                                            <tr key={code.id} style={{ borderBottom: '1px solid var(--border-subtle)', opacity: code.is_active ? 1 : 0.6 }}>
-                                                <td style={{ padding: '8px', fontWeight: 'bold', color: code.is_active ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+
+
+
+
+                                {/* Mobile Card View */}
+                                <div className="stats-mobile-card-view">
+                                    {promoCodes.filter(c => !['MASTER@12345', 'SUB', 'FINGER', 'TEST', 'EXPIREME'].includes(c.code.toUpperCase())).map(code => (
+                                        <div key={code.id} style={{
+                                            background: 'var(--bg-tertiary)',
+                                            padding: '15px',
+                                            borderRadius: '8px',
+                                            border: '1px solid var(--border-subtle)',
+                                            position: 'relative'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                                <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: code.is_active ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
                                                     {code.code}
-                                                </td>
-                                                <td style={{ padding: '8px' }}>
-                                                    <button
-                                                        onClick={() => handleTogglePromoStatus(code.id, code.is_active)}
-                                                        style={{
-                                                            padding: '4px 8px',
-                                                            borderRadius: '4px',
-                                                            border: 'none',
-                                                            cursor: 'pointer',
-                                                            fontSize: '0.8rem',
-                                                            background: code.is_active ? '#10b981' : '#334155',
-                                                            color: 'white'
-                                                        }}
-                                                    >
-                                                        {code.is_active ? 'ACTIVE' : 'INACTIVE'}
-                                                    </button>
-                                                </td>
-                                                <td style={{ padding: '8px' }}>
-                                                    <button
-                                                        onClick={() => handleToggleAdminOnly(code.id, code.is_admin_only)}
-                                                        style={{
-                                                            padding: '4px 8px',
-                                                            borderRadius: '4px',
+                                                </span>
+                                                <span style={{
+                                                    fontSize: '0.75rem',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    background: code.is_active ? '#10b98120' : '#ef444420',
+                                                    color: code.is_active ? '#10b981' : '#ef4444',
+                                                    border: `1px solid ${code.is_active ? '#10b98140' : '#ef444440'}`
+                                                }}>
+                                                    {code.is_active ? 'ACTIVE' : 'INACTIVE'}
+                                                </span>
+                                            </div>
 
-                                                            cursor: 'pointer',
-                                                            fontSize: '0.8rem',
-                                                            background: code.is_admin_only ? '#8b5cf6' : 'transparent',
-                                                            border: code.is_admin_only ? 'none' : '1px solid #555',
-                                                            color: 'white'
-                                                        }}
-                                                        title={code.is_admin_only ? "Click to make Public" : "Click to make Admin Only"}
-                                                    >
-                                                        {code.is_admin_only ? '🔒 Admin Only' : '🌍 Public'}
-                                                    </button>
-                                                </td>
-                                                <td style={{ padding: '8px' }}>{code.duration_days} days</td>
-                                                <td style={{ padding: '8px' }}>{code.current_uses} / {code.max_uses > 9999 ? '∞' : code.max_uses}</td>
-                                                <td style={{ padding: '8px' }}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem', marginBottom: '15px' }}>
+                                                <div>
+                                                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Type</span>
+                                                    {code.is_admin_only ? '🔒 Admin Only' : '🌍 Public'}
+                                                </div>
+                                                <div>
+                                                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Duration</span>
+                                                    {code.duration_days} Days
+                                                </div>
+                                                <div>
+                                                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Uses</span>
+                                                    {code.current_uses} / {code.max_uses > 9999 ? '∞' : code.max_uses}
+                                                </div>
+                                                <div>
+                                                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Expires</span>
                                                     {code.valid_until ? new Date(code.valid_until).toLocaleDateString() : 'Never'}
-                                                </td>
-                                                <td style={{ padding: '8px', display: 'flex', gap: '8px' }}>
-                                                    <button
-                                                        onClick={() => setEditingPromo(code)}
-                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}
-                                                        title="Edit Settings"
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeletePromoCode(code.id)}
-                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5 }}
-                                                        title="Delete Code (Only if unused)"
-                                                    >
-                                                        🗑️
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {promoCodes.length === 0 && (
-                                            <tr>
-                                                <td colSpan="5" style={{ padding: '15px', textAlign: 'center', opacity: 0.6 }}>
-                                                    No promo codes created yet.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                                                </div>
+                                            </div>
 
-                    <div className="setting-divider" style={{ margin: '15px 0', borderTop: '1px solid var(--border-subtle)', opacity: 0.3 }}></div>
-
-                    <h3>📧 Email Notifications</h3>
-                    <div className="setting-row">
-                        <p>Notify Admin on new Join: <strong>{emailAdminNotify ? 'ON' : 'OFF'}</strong></p>
-                        <label className="switch">
-                            <input type="checkbox" checked={emailAdminNotify} onChange={handleToggleEmailAdmin} disabled={emailSettingsLoading} />
-                            <span className="slider"></span>
-                        </label>
-                    </div>
-                    <div className="setting-row">
-                        <p>Send Welcome Email to Users: <strong>{emailUserWelcome ? 'ON' : 'OFF'}</strong></p>
-                        <label className="switch">
-                            <input type="checkbox" checked={emailUserWelcome} onChange={handleToggleEmailWelcome} disabled={emailSettingsLoading} />
-                            <span className="slider"></span>
-                        </label>
-                    </div>
-
-                    <div className="test-system-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button
-                                className="test-btn secondary-action-btn"
-                                style={{ flex: 1, fontSize: '0.8rem', padding: '8px' }}
-                                onClick={() => handleSendTestEmail('admin')}
-                                disabled={emailTestLoading}
-                            >
-                                🧪 Test Admin Alert
-                            </button>
-                            <button
-                                className="test-btn secondary-action-btn"
-                                style={{ flex: 1, fontSize: '0.8rem', padding: '8px' }}
-                                onClick={() => handleSendTestEmail('welcome')}
-                                disabled={emailTestLoading}
-                            >
-                                🧪 Test Welcome Email
-                            </button>
-                        </div>
-                        {emailTestFeedback && (
-                            <p style={{ margin: '5px 0 0', fontSize: '0.8rem', color: emailTestFeedback.includes('✅') ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
-                                {emailTestFeedback}
-                            </p>
-                        )}
-                        <p style={{ margin: '5px 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                            * Tests bypass the toggle check and output to the browser console.
-                        </p>
-                    </div>
-
-                    <div className="template-editor-section" style={{ marginTop: '25px', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                            <h3 style={{ margin: 0 }}>📝 Edit Email Content</h3>
-                            <button
-                                className="secondary-action-btn"
-                                style={{ fontSize: '0.75rem', padding: '4px 10px' }}
-                                onClick={() => setShowTemplateEditor(!showTemplateEditor)}
-                            >
-                                {showTemplateEditor ? '🔼 Hide Editor' : '🔽 Manage Templates'}
-                            </button>
-                        </div>
-
-                        {showTemplateEditor && (
-                            <div className="template-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                <div className="template-field">
-                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                                        Welcome Email Body
-                                    </label>
-                                    <textarea
-                                        style={{
-                                            width: '100%',
-                                            minHeight: '200px',
-                                            padding: '12px',
-                                            borderRadius: '8px',
-                                            backgroundColor: 'rgba(255,255,255,0.05)',
-                                            color: 'var(--text-primary)',
-                                            border: '1px solid var(--border-subtle)',
-                                            fontFamily: 'inherit',
-                                            fontSize: '0.85rem',
-                                            lineHeight: '1.5',
-                                            resize: 'vertical'
-                                        }}
-                                        value={emailTemplates.welcome}
-                                        onChange={(e) => setEmailTemplates(prev => ({ ...prev, welcome: e.target.value }))}
-                                        placeholder="Enter the welcome message for new members..."
-                                    />
-                                    <button
-                                        className="primary-action-btn"
-                                        style={{ marginTop: '8px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem' }}
-                                        onClick={() => handleUpdateTemplate('welcome', emailTemplates.welcome)}
-                                        disabled={emailTemplatesSaving}
-                                    >
-                                        {emailTemplatesSaving ? 'Saving...' : '💾 Save Welcome Template'}
-                                    </button>
-                                    <button
-                                        className="secondary-action-btn"
-                                        style={{ marginTop: '8px', marginLeft: '10px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem', border: '1px dashed var(--border-subtle)' }}
-                                        onClick={() => handleResetTemplate('welcome')}
-                                    >
-                                        🔄 Reset to Default
-                                    </button>
-                                </div>
-
-                                <div className="template-field">
-                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                                        Admin Notification Body
-                                    </label>
-                                    <div style={{ marginBottom: '8px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                                        Placeholders: <code>{`{{userId}}`}</code>, <code>{`{{userEmail}}`}</code>, <code>{`{{time}}`}</code>
-                                    </div>
-                                    <textarea
-                                        style={{
-                                            width: '100%',
-                                            minHeight: '150px',
-                                            padding: '12px',
-                                            borderRadius: '8px',
-                                            backgroundColor: 'rgba(255,255,255,0.05)',
-                                            color: 'var(--text-primary)',
-                                            border: '1px solid var(--border-subtle)',
-                                            fontFamily: 'inherit',
-                                            fontSize: '0.85rem',
-                                            lineHeight: '1.5',
-                                            resize: 'vertical'
-                                        }}
-                                        value={emailTemplates.admin}
-                                        onChange={(e) => setEmailTemplates(prev => ({ ...prev, admin: e.target.value }))}
-                                        placeholder="Enter the alert message for yourself..."
-                                    />
-                                    <button
-                                        className="primary-action-btn"
-                                        style={{ marginTop: '8px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem' }}
-                                        onClick={() => handleUpdateTemplate('admin', emailTemplates.admin)}
-                                        disabled={emailTemplatesSaving}
-                                    >
-                                        {emailTemplatesSaving ? 'Saving...' : '💾 Save Admin Template'}
-                                    </button>
-                                    <button
-                                        className="secondary-action-btn"
-                                        style={{ marginTop: '8px', marginLeft: '10px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem', border: '1px dashed var(--border-subtle)' }}
-                                        onClick={() => handleResetTemplate('admin')}
-                                    >
-                                        🔄 Reset to Default
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <h2 className="section-title">🚨 System Health</h2>
-            <div className="stats-grid">
-                <div className="stat-card summary-card error-summary">
-                    <h3>Total Crashes</h3>
-                    <div className="big-number">{errorLogs.length}</div>
-                    <button className="clear-all-btn" onClick={confirmClearErrors}>🗑️ Clear All</button>
-                    <button className="date-range-btn" onClick={sendTestError}>⚡ Send Test</button>
-                </div>
-
-                <div className="stat-card recent-list full-width-card">
-                    <h3>🛑 Crash Reports</h3>
-                    <div className="log-table-wrapper">
-                        <table className="log-table desktop-only">
-                            <thead>
-                                <tr><th>Time</th><th>Message</th><th>Device</th></tr>
-                            </thead>
-                            <tbody>
-                                {errorLogs.slice(0, 10).map((err) => (
-                                    <tr key={err.id} className="clickable-row error-row" onClick={() => { setSelectedItem(err); setItemType('error'); }}>
-                                        <td>{new Date(err.created_at).toLocaleString()}</td>
-                                        <td>{err.error_message.substring(0, 50)}...</td>
-                                        <td>{err.device_info?.os || 'Unknown'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <h2 className="section-title">🔑 Project Credentials</h2>
-            <div className="stats-grid">
-                <div className="stat-card credentials-card full-width-card">
-                    <p><strong>GitHub:</strong> Andre6553/bible-app</p>
-                    <p><strong>Supabase:</strong> {supabaseUrl}</p>
-                    <p><strong>Vercel:</strong> https://bible-app-phi-one.vercel.app</p>
-                    <p><strong>Google AI:</strong> https://aistudio.google.com/</p>
-                    <p><strong>API Key:</strong> <span style={{ fontFamily: 'monospace' }}>{import.meta.env.VITE_GEMINI_API_KEY ? `${import.meta.env.VITE_GEMINI_API_KEY.substring(0, 10)}...` : 'Not Set'}</span></p>
-                </div>
-            </div>
-
-            {/* Modals */}
-            {
-                selectedItem && (
-                    <div className="detail-modal-overlay" onClick={() => setSelectedItem(null)}>
-                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="detail-modal-header">
-                                <h3>Details</h3>
-                                <button onClick={() => setSelectedItem(null)}>✕</button>
-                            </div>
-                            <div className="detail-modal-body">
-                                <pre>{JSON.stringify(selectedItem, null, 2)}</pre>
-                            </div>
-                            <div className="detail-modal-footer">
-                                <button className="delete-entry-btn" onClick={deleteSingleEntry}>🗑️ Delete</button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {
-                showDateRangeModal && (
-                    <div className="detail-modal-overlay" onClick={() => setShowDateRangeModal(false)}>
-                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-                            <h3>Delete by Date</h3>
-                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                            <button onClick={deleteByDateRange}>Confirm Delete</button>
-                        </div>
-                    </div>
-                )
-            }
-
-            {
-                showCodeInfo && (
-                    <div className="detail-modal-overlay" onClick={() => setShowCodeInfo(false)}>
-                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="detail-modal-header">
-                                <h3>🗝️ Available Secret Codes</h3>
-                                <button onClick={() => setShowCodeInfo(false)}>✕</button>
-                            </div>
-                            <div className="detail-modal-body">
-                                <div style={{ marginBottom: '20px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                                    <strong>How to Use:</strong>
-                                    <p style={{ margin: '5px 0 0', fontSize: '0.9rem', opacity: 0.9 }}>
-                                        Enter one of the codes below into the text box and click <strong>"Apply Code"</strong>.
-                                        The app will refresh your status immediately.
-                                    </p>
-                                </div>
-
-                                <table className="log-table" style={{ width: '100%' }}>
-                                    <thead>
-                                        <tr>
-                                            <th style={{ textAlign: 'left', padding: '8px' }}>Code</th>
-                                            <th style={{ textAlign: 'left', padding: '8px' }}>Effect & Usage</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>SUB</td>
-                                            <td style={{ padding: '8px' }}>
-                                                <strong>Promote to Premium</strong><br />
-                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Upgrades the current account to the Paid Tier for testing purposes.</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>Finger</td>
-                                            <td style={{ padding: '8px' }}>
-                                                <strong>Reset Sermon Quota</strong><br />
-                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Resets artificial trial limits for debugging generation flows.</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>ExpireMe</td>
-                                            <td style={{ padding: '8px' }}>
-                                                <strong>Clear All Overrides</strong><br />
-                                                <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Resets the profile to standard "Free" status.</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {
-                selectedUser && (
-                    <div className="detail-modal-overlay" onClick={() => setSelectedUser(null)}>
-                        <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="detail-modal-header">
-                                <h3>👤 User Analysis</h3>
-                                <div className="header-actions">
-                                    <button
-                                        className={`refresh-modal-btn ${historyLoading ? 'spinning' : ''}`}
-                                        onClick={handleRefreshData}
-                                        title="Refresh Data"
-                                    >
-                                        🔄
-                                    </button>
-                                    <button onClick={() => setSelectedUser(null)}>✕</button>
-                                </div>
-                            </div>
-                            <div className="detail-modal-body">
-                                <p><strong>ID:</strong> {selectedUser.userId}</p>
-                                {(selectedUser.ip_address || selectedUser.last_ip) && <p><strong>Last IP:</strong> {selectedUser.ip_address || selectedUser.last_ip}</p>}
-                                <p><strong>Actions:</strong> {selectedUser.count}</p>
-                                <p><strong>Blog Visits:</strong> {selectedUserHistory.blogViews.length > 0
-                                    ? `${selectedUserHistory.blogViews.length} visits (Last: ${new Date(selectedUserHistory.blogViews[0].created_at).toLocaleDateString()})`
-                                    : 'No visits recorded'}
-                                </p>
-                                <p><strong>Saved Sermons:</strong> {selectedUserHistory.sermonCount !== undefined
-                                    ? `${selectedUserHistory.sermonCount} sermon${selectedUserHistory.sermonCount !== 1 ? 's' : ''}`
-                                    : 'Loading...'}
-                                </p>
-                                <div className="super-user-toggle">
-                                    <label>
-                                        <input
-                                            type="checkbox"
-                                            checked={isUserSuper}
-                                            onChange={() => toggleSuperUser(selectedUser.originalIds || [selectedUser.userId], isUserSuper)}
-                                        />
-                                        ⭐ Super User
-                                    </label>
-                                </div>
-                                <div className="history-lists">
-                                    <h5>Recent History</h5>
-                                    {historyLoading ? <p>Loading...</p> : (
-                                        <ul>
-                                            {selectedUserHistory.searches
-                                                .filter((s, i, self) => i === 0 || s.query !== self[i - 1].query || Math.abs(new Date(s.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .map(s => <li key={s.id}>🔍 {s.query} <span className="history-time">({new Date(s.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
-
-                                            {selectedUserHistory.aiQuestions
-                                                .filter((q, i, self) => i === 0 || q.question !== self[i - 1].question || Math.abs(new Date(q.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .map(q => <li key={q.id}>🤖 {q.question.substring(0, 30)}... <span className="history-time">({new Date(q.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
-
-                                            {selectedUserHistory.bibleReadings
-                                                .filter((r, i, self) => i === 0 || r.book_id !== self[i - 1].book_id || r.chapter !== self[i - 1].chapter || Math.abs(new Date(r.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .map(r => <li key={r.id}>📖 Read {r.books?.name_full || `Book ${r.book_id}`} {r.chapter} <span className="history-time">({new Date(r.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
-
-                                            {selectedUserHistory.blogViews
-                                                .filter((v, i, self) => i === 0 || v.post_id !== self[i - 1].post_id || Math.abs(new Date(v.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .map(v => <li key={v.id}>📰 Visited Blog <span className="history-time">({new Date(v.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
-
-                                            {selectedUserHistory.activities
-                                                .filter((a, i, self) => i === 0 || a.activity_type !== self[i - 1].activity_type || Math.abs(new Date(a.created_at) - new Date(self[i - 1].created_at)) > 60000)
-                                                .map(a => {
-
-                                                    const typeMap = {
-                                                        'study_page_visit': 'Visited Study Page',
-                                                        'inductive_study': 'Inductive Study',
-                                                        'inductive_study_saved': 'Saved Inductive Study',
-                                                        'notes_visit': 'Visited Notes',
-                                                        'note_created': 'Created Note',
-                                                        'word_study_visit': 'Visited Word Study',
-                                                        'verse_highlight': 'Highlighted verse',
-                                                        'blog_visit': 'Visited "For You" Blog',
-                                                        'blog_post_open': 'Opened Blog Post',
-                                                        'uncategorized': 'General Activity'
-                                                    };
-                                                    return <li key={a.id}>📰 {typeMap[a.activity_type] || a.activity_type} <span className="history-time">({new Date(a.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>;
-                                                })}
-                                        </ul>
+                                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+                                                <button
+                                                    onClick={() => handleTogglePromoStatus(code.id, code.is_active)}
+                                                    style={{ flex: 1, padding: '8px', borderRadius: '4px', background: 'var(--bg-elevated)', border: 'none', color: 'white', cursor: 'pointer' }}
+                                                >
+                                                    {code.is_active ? 'Deactivate' : 'Activate'}
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingPromo(code)}
+                                                    style={{ padding: '8px 12px', borderRadius: '4px', background: '#6366f1', border: 'none', color: 'white', cursor: 'pointer' }}
+                                                >
+                                                    ✏️ Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeletePromoCode(code.id)}
+                                                    style={{ padding: '8px 12px', borderRadius: '4px', background: '#ef4444', border: 'none', color: 'white', cursor: 'pointer' }}
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {promoCodes.filter(c => !['MASTER@12345', 'SUB', 'FINGER', 'TEST', 'EXPIREME'].includes(c.code.toUpperCase())).length === 0 && (
+                                        <div style={{ padding: '20px', textAlign: 'center', opacity: 0.6, fontStyle: 'italic' }}>
+                                            No promo codes found.
+                                        </div>
                                     )}
                                 </div>
+
+                                <div className="stats-table-view" style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                                                <th style={{ padding: '8px' }}>Code</th>
+                                                <th style={{ padding: '8px' }}>Status</th>
+                                                <th style={{ padding: '8px' }}>Type</th>
+                                                <th style={{ padding: '8px' }}>Duration</th>
+                                                <th style={{ padding: '8px' }}>Used</th>
+                                                <th style={{ padding: '8px' }}>Expires</th>
+                                                <th style={{ padding: '8px' }}>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {promoCodes.filter(c => !['MASTER@12345', 'SUB', 'FINGER', 'TEST', 'EXPIREME'].includes(c.code.toUpperCase())).map(code => (
+                                                <tr key={code.id} style={{ borderBottom: '1px solid var(--border-subtle)', opacity: code.is_active ? 1 : 0.6 }}>
+                                                    <td style={{ padding: '8px', fontWeight: 'bold', color: code.is_active ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                                                        {code.code}
+                                                    </td>
+                                                    <td style={{ padding: '8px' }}>
+                                                        <button
+                                                            onClick={() => handleTogglePromoStatus(code.id, code.is_active)}
+                                                            style={{
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.8rem',
+                                                                background: code.is_active ? '#10b981' : '#334155',
+                                                                color: 'white'
+                                                            }}
+                                                        >
+                                                            {code.is_active ? 'ACTIVE' : 'INACTIVE'}
+                                                        </button>
+                                                    </td>
+                                                    <td style={{ padding: '8px' }}>
+                                                        <button
+                                                            onClick={() => handleToggleAdminOnly(code.id, code.is_admin_only)}
+                                                            style={{
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.8rem',
+                                                                background: code.is_admin_only ? '#8b5cf6' : 'transparent',
+                                                                border: code.is_admin_only ? 'none' : '1px solid #555',
+                                                                color: 'white'
+                                                            }}
+                                                            title={code.is_admin_only ? "Click to make Public" : "Click to make Admin Only"}
+                                                        >
+                                                            {code.is_admin_only ? '🔒 Admin Only' : '🌍 Public'}
+                                                        </button>
+                                                    </td>
+                                                    <td style={{ padding: '8px' }}>{code.duration_days} days</td>
+                                                    <td style={{ padding: '8px' }}>{code.current_uses} / {code.max_uses > 9999 ? '∞' : code.max_uses}</td>
+                                                    <td style={{ padding: '8px' }}>
+                                                        {code.valid_until ? new Date(code.valid_until).toLocaleDateString() : 'Never'}
+                                                    </td>
+                                                    <td style={{ padding: '8px', display: 'flex', gap: '8px' }}>
+                                                        <button
+                                                            onClick={() => setEditingPromo(code)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}
+                                                            title="Edit Settings"
+                                                        >
+                                                            ✏️
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeletePromoCode(code.id)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5 }}
+                                                            title="Delete Code (Only if unused)"
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {promoCodes.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="5" style={{ padding: '15px', textAlign: 'center', opacity: 0.6 }}>
+                                                        No promo codes created yet.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
                             </div>
-                            <div className="detail-modal-footer">
-                                <div className="modal-footer-actions">
+
+                            <div className="setting-divider" style={{ margin: '15px 0', borderTop: '1px solid var(--border-subtle)', opacity: 0.3 }}></div>
+
+                            <h3>📧 Email Notifications</h3>
+                            <div className="setting-row">
+                                <p>Notify Admin on new Join: <strong>{emailAdminNotify ? 'ON' : 'OFF'}</strong></p>
+                                <label className="switch">
+                                    <input type="checkbox" checked={emailAdminNotify} onChange={handleToggleEmailAdmin} disabled={emailSettingsLoading} />
+                                    <span className="slider"></span>
+                                </label>
+                            </div>
+                            <div className="setting-row">
+                                <p>Send Welcome Email to Users: <strong>{emailUserWelcome ? 'ON' : 'OFF'}</strong></p>
+                                <label className="switch">
+                                    <input type="checkbox" checked={emailUserWelcome} onChange={handleToggleEmailWelcome} disabled={emailSettingsLoading} />
+                                    <span className="slider"></span>
+                                </label>
+                            </div>
+
+                            <div className="test-system-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', flexDirection: 'column' }}>
+                                <div style={{ display: 'flex', gap: '10px' }}>
                                     <button
-                                        className="secondary-action-btn"
-                                        onClick={() => {
-                                            setSelectedUserForEdit(selectedUser);
-                                            setNewStatus('');
-                                            setShowUserEditModal(true);
-                                        }}
-                                        style={{ marginRight: '10px', background: '#3b82f6' }}
+                                        className="test-btn secondary-action-btn"
+                                        style={{ flex: 1, fontSize: '0.8rem', padding: '8px' }}
+                                        onClick={() => handleSendTestEmail('admin')}
+                                        disabled={emailTestLoading}
                                     >
-                                        ✏️ Edit User
+                                        🧪 Test Admin Alert
                                     </button>
                                     <button
-                                        className="secondary-action-btn"
-                                        onClick={() => deleteUserData(selectedUser.userId, false)}
+                                        className="test-btn secondary-action-btn"
+                                        style={{ flex: 1, fontSize: '0.8rem', padding: '8px' }}
+                                        onClick={() => handleSendTestEmail('welcome')}
+                                        disabled={emailTestLoading}
                                     >
-                                        🗑️ Clear History
-                                    </button>
-                                    <button
-                                        className="danger-action-btn"
-                                        onClick={() => handleDeleteUserFully(selectedUser.userId)}
-                                    >
-                                        💀 Nuke User
+                                        🧪 Test Welcome Email
                                     </button>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-            {
-                showUserEditModal && selectedUserForEdit && (
-                    <div className="detail-modal-overlay" onClick={() => setShowUserEditModal(false)}>
-                        <div className="detail-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-                            <div className="detail-modal-header">
-                                <h3>✏️ Manage User Access</h3>
-                                <button onClick={() => setShowUserEditModal(false)}>✕</button>
-                            </div>
-                            <div className="detail-modal-body">
-                                <p><strong>Target User:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedUserForEdit.email || selectedUserForEdit.userId}</span></p>
-                                <p style={{ marginTop: '10px' }}>
-                                    <strong>Current Role: </strong>
-                                    <span style={{
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        background: selectedUserForEdit.subscription_override ? '#3b82f6' : '#555',
-                                        fontSize: '0.9em'
-                                    }}>
-                                        {selectedUserForEdit.subscription_override || selectedUserForEdit.subscription_tier || 'Free'}
-                                    </span>
-                                </p>
-
-                                {/* [NEW] Admin Apply Promo Section */}
-                                <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #444' }}>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>🎁 Apply Promo Code</label>
-                                    <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '8px' }}>
-                                        Manually apply an "Admin Only" code to this user.
+                                {emailTestFeedback && (
+                                    <p style={{ margin: '5px 0 0', fontSize: '0.8rem', color: emailTestFeedback.includes('✅') ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+                                        {emailTestFeedback}
                                     </p>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter Code (e.g. VISIP01)"
-                                            id="admin-promo-input"
-                                            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #555', background: '#222', color: 'white' }}
-                                        />
-                                        <button
-                                            className="action-btn"
-                                            onClick={async () => {
-                                                const input = document.getElementById('admin-promo-input');
-                                                if (!input.value) return;
+                                )}
+                                <p style={{ margin: '5px 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                    * Tests bypass the toggle check and output to the browser console.
+                                </p>
+                            </div>
 
-                                                try {
-                                                    const { data, error } = await supabase.rpc('admin_apply_promo_code', {
-                                                        target_user_id: selectedUserForEdit.userId,
-                                                        code_input: input.value.trim()
-                                                    });
-
-                                                    if (error) throw error;
-                                                    if (data.success) {
-                                                        alert('✅ ' + data.message);
-                                                        input.value = '';
-                                                        handleRefreshData(); // Refresh user data to show new plan
-                                                        setShowUserEditModal(false);
-                                                    } else {
-                                                        alert('❌ Error: ' + data.error);
-                                                    }
-                                                } catch (err) {
-                                                    alert('Failed: ' + err.message);
-                                                }
-                                            }}
-                                            style={{ padding: '8px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '4px' }}
-                                        >
-                                            Apply
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: '20px' }}>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Assign New Status</label>
-                                    <select
-                                        value={newStatus}
-                                        onChange={(e) => setNewStatus(e.target.value)}
-                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#333', color: 'white', border: '1px solid #555' }}
+                            <div className="template-editor-section" style={{ marginTop: '25px', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                    <h3 style={{ margin: 0 }}>📝 Edit Email Content</h3>
+                                    <button
+                                        className="secondary-action-btn"
+                                        style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                                        onClick={() => setShowTemplateEditor(!showTemplateEditor)}
                                     >
-                                        <option value="">Select Action...</option>
-                                        <option value="premium">💎 Upgrade to Premium</option>
-                                        <option value="tester">🧪 Upgrade to Tester</option>
-                                        <option value="tester_finger">👆 Tester + Finger Quota</option>
-                                        <option value="admin">🔑 Promote to Admin</option>
-                                        <option value="reset">🚫 Reset to Free User</option>
-                                    </select>
+                                        {showTemplateEditor ? '🔼 Hide Editor' : '🔽 Manage Templates'}
+                                    </button>
                                 </div>
 
-                                {userUpdateFeedback && (
-                                    <div className={`feedback-message ${userUpdateFeedback.includes('✅') ? 'success' : 'error'}`} style={{ marginTop: '15px', padding: '10px', borderRadius: '6px', background: userUpdateFeedback.includes('✅') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }}>
-                                        {userUpdateFeedback}
+                                {showTemplateEditor && (
+                                    <div className="template-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div className="template-field">
+                                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                                Welcome Email Body
+                                            </label>
+                                            <textarea
+                                                style={{
+                                                    width: '100%',
+                                                    minHeight: '200px',
+                                                    padding: '12px',
+                                                    borderRadius: '8px',
+                                                    backgroundColor: 'rgba(255,255,255,0.05)',
+                                                    color: 'var(--text-primary)',
+                                                    border: '1px solid var(--border-subtle)',
+                                                    fontFamily: 'inherit',
+                                                    fontSize: '0.85rem',
+                                                    lineHeight: '1.5',
+                                                    resize: 'vertical'
+                                                }}
+                                                value={emailTemplates.welcome}
+                                                onChange={(e) => setEmailTemplates(prev => ({ ...prev, welcome: e.target.value }))}
+                                                placeholder="Enter the welcome message for new members..."
+                                            />
+                                            <button
+                                                className="primary-action-btn"
+                                                style={{ marginTop: '8px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem' }}
+                                                onClick={() => handleUpdateTemplate('welcome', emailTemplates.welcome)}
+                                                disabled={emailTemplatesSaving}
+                                            >
+                                                {emailTemplatesSaving ? 'Saving...' : '💾 Save Welcome Template'}
+                                            </button>
+                                            <button
+                                                className="secondary-action-btn"
+                                                style={{ marginTop: '8px', marginLeft: '10px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem', border: '1px dashed var(--border-subtle)' }}
+                                                onClick={() => handleResetTemplate('welcome')}
+                                            >
+                                                🔄 Reset to Default
+                                            </button>
+                                        </div>
+
+                                        <div className="template-field">
+                                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                                Admin Notification Body
+                                            </label>
+                                            <div style={{ marginBottom: '8px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                                Placeholders: <code>{`{{userId}}`}</code>, <code>{`{{userEmail}}`}</code>, <code>{`{{time}}`}</code>
+                                            </div>
+                                            <textarea
+                                                style={{
+                                                    width: '100%',
+                                                    minHeight: '150px',
+                                                    padding: '12px',
+                                                    borderRadius: '8px',
+                                                    backgroundColor: 'rgba(255,255,255,0.05)',
+                                                    color: 'var(--text-primary)',
+                                                    border: '1px solid var(--border-subtle)',
+                                                    fontFamily: 'inherit',
+                                                    fontSize: '0.85rem',
+                                                    lineHeight: '1.5',
+                                                    resize: 'vertical'
+                                                }}
+                                                value={emailTemplates.admin}
+                                                onChange={(e) => setEmailTemplates(prev => ({ ...prev, admin: e.target.value }))}
+                                                placeholder="Enter the alert message for yourself..."
+                                            />
+                                            <button
+                                                className="primary-action-btn"
+                                                style={{ marginTop: '8px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem' }}
+                                                onClick={() => handleUpdateTemplate('admin', emailTemplates.admin)}
+                                                disabled={emailTemplatesSaving}
+                                            >
+                                                {emailTemplatesSaving ? 'Saving...' : '💾 Save Admin Template'}
+                                            </button>
+                                            <button
+                                                className="secondary-action-btn"
+                                                style={{ marginTop: '8px', marginLeft: '10px', width: 'auto', padding: '6px 15px', fontSize: '0.8rem', border: '1px dashed var(--border-subtle)' }}
+                                                onClick={() => handleResetTemplate('admin')}
+                                            >
+                                                🔄 Reset to Default
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                            <div className="detail-modal-footer">
-                                <button
-                                    className="primary-action-btn"
-                                    onClick={handleUpdateUserStatus}
-                                    disabled={!newStatus || userUpdateLoading}
-                                    style={{ width: '100%', padding: '12px' }}
-                                >
-                                    {userUpdateLoading ? 'Updating...' : 'Update User Status'}
-                                </button>
+                        </div>
+                    </div>
+
+                    <h2 className="section-title">🚨 System Health</h2>
+                    <div className="stats-grid">
+                        <div className="stat-card summary-card error-summary">
+                            <h3>Total Crashes</h3>
+                            <div className="big-number">{errorLogs.length}</div>
+                            <button className="clear-all-btn" onClick={confirmClearErrors}>🗑️ Clear All</button>
+                            <button className="date-range-btn" onClick={sendTestError}>⚡ Send Test</button>
+                        </div>
+
+                        <div className="stat-card recent-list full-width-card">
+                            <h3>🛑 Crash Reports</h3>
+                            <div className="log-table-wrapper">
+                                <table className="log-table desktop-only">
+                                    <thead>
+                                        <tr><th>Time</th><th>Message</th><th>Device</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {errorLogs.slice(0, 10).map((err) => (
+                                            <tr key={err.id} className="clickable-row error-row" onClick={() => { setSelectedItem(err); setItemType('error'); }}>
+                                                <td>{new Date(err.created_at).toLocaleString()}</td>
+                                                <td>{err.error_message.substring(0, 50)}...</td>
+                                                <td>{err.device_info?.os || 'Unknown'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
-                )
-            }
-        </div >
+
+                    <h2 className="section-title">🔑 Project Credentials</h2>
+                    <div className="stats-grid">
+                        <div className="stat-card credentials-card full-width-card">
+                            <p><strong>GitHub:</strong> Andre6553/bible-app</p>
+                            <p><strong>Supabase:</strong> {supabaseUrl}</p>
+                            <p><strong>Vercel:</strong> https://bible-app-phi-one.vercel.app</p>
+                            <p><strong>Google AI:</strong> https://aistudio.google.com/</p>
+                            <p><strong>API Key:</strong> <span style={{ fontFamily: 'monospace' }}>{import.meta.env.VITE_GEMINI_API_KEY ? `${import.meta.env.VITE_GEMINI_API_KEY.substring(0, 10)}...` : 'Not Set'}</span></p>
+                        </div>
+                    </div>
+
+                    {/* Modals */}
+                    {
+                        selectedItem && (
+                            <div className="detail-modal-overlay" onClick={() => setSelectedItem(null)}>
+                                <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                                    <div className="detail-modal-header">
+                                        <h3>Details</h3>
+                                        <button onClick={() => setSelectedItem(null)}>✕</button>
+                                    </div>
+                                    <div className="detail-modal-body">
+                                        <pre>{JSON.stringify(selectedItem, null, 2)}</pre>
+                                    </div>
+                                    <div className="detail-modal-footer">
+                                        <button className="delete-entry-btn" onClick={deleteSingleEntry}>🗑️ Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    }
+
+                    {
+                        showDateRangeModal && (
+                            <div className="detail-modal-overlay" onClick={() => setShowDateRangeModal(false)}>
+                                <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                                    <h3>Delete by Date</h3>
+                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                                    <button onClick={deleteByDateRange}>Confirm Delete</button>
+                                </div>
+                            </div>
+                        )
+                    }
+
+                    {
+                        showCodeInfo && (
+                            <div className="detail-modal-overlay" onClick={() => setShowCodeInfo(false)}>
+                                <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                                    <div className="detail-modal-header">
+                                        <h3>🗝️ Available Secret Codes</h3>
+                                        <button onClick={() => setShowCodeInfo(false)}>✕</button>
+                                    </div>
+                                    <div className="detail-modal-body">
+                                        <div style={{ marginBottom: '20px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                                            <strong>How to Use:</strong>
+                                            <p style={{ margin: '5px 0 0', fontSize: '0.9rem', opacity: 0.9 }}>
+                                                Enter one of the codes below into the text box and click <strong>"Apply Code"</strong>.
+                                                The app will refresh your status immediately.
+                                            </p>
+                                        </div>
+
+                                        <table className="log-table" style={{ width: '100%' }}>
+                                            <thead>
+                                                <tr>
+                                                    <th style={{ textAlign: 'left', padding: '8px' }}>Code</th>
+                                                    <th style={{ textAlign: 'left', padding: '8px' }}>Effect & Usage</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>SUB</td>
+                                                    <td style={{ padding: '8px' }}>
+                                                        <strong>Promote to Premium</strong><br />
+                                                        <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Upgrades the current account to the Paid Tier for testing purposes.</span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>Finger</td>
+                                                    <td style={{ padding: '8px' }}>
+                                                        <strong>Reset Sermon Quota</strong><br />
+                                                        <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Resets artificial trial limits for debugging generation flows.</span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>ExpireMe</td>
+                                                    <td style={{ padding: '8px' }}>
+                                                        <strong>Clear All Overrides</strong><br />
+                                                        <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>Resets the profile to standard "Free" status.</span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    }
+
+                    {
+                        selectedUser && (
+                            <div className="detail-modal-overlay" onClick={() => setSelectedUser(null)}>
+                                <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+                                    <div className="detail-modal-header">
+                                        <h3>👤 User Analysis</h3>
+                                        <div className="header-actions">
+                                            <button
+                                                className={`refresh-modal-btn ${historyLoading ? 'spinning' : ''}`}
+                                                onClick={handleRefreshData}
+                                                title="Refresh Data"
+                                            >
+                                                🔄
+                                            </button>
+                                            <button onClick={() => setSelectedUser(null)}>✕</button>
+                                        </div>
+                                    </div>
+                                    <div className="detail-modal-body">
+                                        <p><strong>ID:</strong> {selectedUser.userId}</p>
+                                        {(selectedUser.ip_address || selectedUser.last_ip) && <p><strong>Last IP:</strong> {selectedUser.ip_address || selectedUser.last_ip}</p>}
+                                        <p><strong>Actions:</strong> {selectedUser.count}</p>
+                                        <p><strong>Blog Visits:</strong> {selectedUserHistory.blogViews.length > 0
+                                            ? `${selectedUserHistory.blogViews.length} visits (Last: ${new Date(selectedUserHistory.blogViews[0].created_at).toLocaleDateString()})`
+                                            : 'No visits recorded'}
+                                        </p>
+                                        <p><strong>Saved Sermons:</strong> {selectedUserHistory.sermonCount !== undefined
+                                            ? `${selectedUserHistory.sermonCount} sermon${selectedUserHistory.sermonCount !== 1 ? 's' : ''}`
+                                            : 'Loading...'}
+                                        </p>
+                                        <div className="super-user-toggle">
+                                            <label>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isUserSuper}
+                                                    onChange={() => toggleSuperUser(selectedUser.originalIds || [selectedUser.userId], isUserSuper)}
+                                                />
+                                                ⭐ Super User
+                                            </label>
+                                        </div>
+                                        <div className="history-lists">
+                                            <h5>Recent History</h5>
+                                            {historyLoading ? <p>Loading...</p> : (
+                                                <ul>
+                                                    {selectedUserHistory.searches
+                                                        .filter((s, i, self) => i === 0 || s.query !== self[i - 1].query || Math.abs(new Date(s.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                        .map(s => <li key={s.id}>🔍 {s.query} <span className="history-time">({new Date(s.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                                    {selectedUserHistory.aiQuestions
+                                                        .filter((q, i, self) => i === 0 || q.question !== self[i - 1].question || Math.abs(new Date(q.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                        .map(q => <li key={q.id}>🤖 {q.question.substring(0, 30)}... <span className="history-time">({new Date(q.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                                    {selectedUserHistory.bibleReadings
+                                                        .filter((r, i, self) => i === 0 || r.book_id !== self[i - 1].book_id || r.chapter !== self[i - 1].chapter || Math.abs(new Date(r.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                        .map(r => <li key={r.id}>📖 Read {r.books?.name_full || `Book ${r.book_id}`} {r.chapter} <span className="history-time">({new Date(r.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                                    {selectedUserHistory.blogViews
+                                                        .filter((v, i, self) => i === 0 || v.post_id !== self[i - 1].post_id || Math.abs(new Date(v.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                        .map(v => <li key={v.id}>📰 Visited Blog <span className="history-time">({new Date(v.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                                    {selectedUserHistory.activities
+                                                        .filter((a, i, self) => i === 0 || a.activity_type !== self[i - 1].activity_type || Math.abs(new Date(a.created_at) - new Date(self[i - 1].created_at)) > 60000)
+                                                        .map(a => {
+
+                                                            const typeMap = {
+                                                                'study_page_visit': 'Visited Study Page',
+                                                                'inductive_study': 'Inductive Study',
+                                                                'inductive_study_saved': 'Saved Inductive Study',
+                                                                'notes_visit': 'Visited Notes',
+                                                                'note_created': 'Created Note',
+                                                                'word_study_visit': 'Visited Word Study',
+                                                                'verse_highlight': 'Highlighted verse',
+                                                                'blog_visit': 'Visited "For You" Blog',
+                                                                'blog_post_open': 'Opened Blog Post',
+                                                                'uncategorized': 'General Activity'
+                                                            };
+                                                            return <li key={a.id}>📰 {typeMap[a.activity_type] || a.activity_type} <span className="history-time">({new Date(a.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>;
+                                                        })}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="detail-modal-footer">
+                                        <div className="modal-footer-actions">
+                                            <button
+                                                className="secondary-action-btn"
+                                                onClick={() => {
+                                                    setSelectedUserForEdit(selectedUser);
+                                                    setNewStatus('');
+                                                    setShowUserEditModal(true);
+                                                }}
+                                                style={{ marginRight: '10px', background: '#3b82f6' }}
+                                            >
+                                                ✏️ Edit User
+                                            </button>
+                                            <button
+                                                className="secondary-action-btn"
+                                                onClick={() => deleteUserData(selectedUser.userId, false)}
+                                            >
+                                                🗑️ Clear History
+                                            </button>
+                                            <button
+                                                className="danger-action-btn"
+                                                onClick={() => handleDeleteUserFully(selectedUser.userId)}
+                                            >
+                                                💀 Nuke User
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    }
+                    {
+                        showUserEditModal && selectedUserForEdit && (
+                            <div className="detail-modal-overlay" onClick={() => setShowUserEditModal(false)}>
+                                <div className="detail-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+                                    <div className="detail-modal-header">
+                                        <h3>✏️ Manage User Access</h3>
+                                        <button onClick={() => setShowUserEditModal(false)}>✕</button>
+                                    </div>
+                                    <div className="detail-modal-body">
+                                        <p><strong>Target User:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedUserForEdit.email || selectedUserForEdit.userId}</span></p>
+                                        <p style={{ marginTop: '10px' }}>
+                                            <strong>Current Role: </strong>
+                                            <span style={{
+                                                padding: '2px 8px',
+                                                borderRadius: '4px',
+                                                background: selectedUserForEdit.subscription_override ? '#3b82f6' : '#555',
+                                                fontSize: '0.9em'
+                                            }}>
+                                                {selectedUserForEdit.subscription_override || selectedUserForEdit.subscription_tier || 'Free'}
+                                            </span>
+                                        </p>
+
+                                        {/* [NEW] Admin Apply Promo Section */}
+                                        <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #444' }}>
+                                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>🎁 Apply Promo Code</label>
+                                            <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '8px' }}>
+                                                Manually apply an "Admin Only" code to this user.
+                                            </p>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Enter Code (e.g. VISIP01)"
+                                                    id="admin-promo-input"
+                                                    style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #555', background: '#222', color: 'white' }}
+                                                />
+                                                <button
+                                                    className="action-btn"
+                                                    onClick={async () => {
+                                                        const input = document.getElementById('admin-promo-input');
+                                                        if (!input.value) return;
+
+                                                        try {
+                                                            const { data, error } = await supabase.rpc('admin_apply_promo_code', {
+                                                                target_user_id: selectedUserForEdit.userId,
+                                                                code_input: input.value.trim()
+                                                            });
+
+                                                            if (error) throw error;
+                                                            if (data.success) {
+                                                                alert('✅ ' + data.message);
+                                                                input.value = '';
+                                                                handleRefreshData(); // Refresh user data to show new plan
+                                                                setShowUserEditModal(false);
+                                                            } else {
+                                                                alert('❌ Error: ' + data.error);
+                                                            }
+                                                        } catch (err) {
+                                                            alert('Failed: ' + err.message);
+                                                        }
+                                                    }}
+                                                    style={{ padding: '8px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '4px' }}
+                                                >
+                                                    Apply
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ marginTop: '20px' }}>
+                                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Assign New Status</label>
+                                            <select
+                                                value={newStatus}
+                                                onChange={(e) => setNewStatus(e.target.value)}
+                                                style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#333', color: 'white', border: '1px solid #555' }}
+                                            >
+                                                <option value="">Select Action...</option>
+                                                <option value="premium">💎 Upgrade to Premium</option>
+                                                <option value="tester">🧪 Upgrade to Tester</option>
+                                                <option value="tester_finger">👆 Tester + Finger Quota</option>
+                                                <option value="admin">🔑 Promote to Admin</option>
+                                                <option value="reset">🚫 Reset to Free User</option>
+                                            </select>
+                                        </div>
+
+                                        {userUpdateFeedback && (
+                                            <div className={`feedback-message ${userUpdateFeedback.includes('✅') ? 'success' : 'error'}`} style={{ marginTop: '15px', padding: '10px', borderRadius: '6px', background: userUpdateFeedback.includes('✅') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }}>
+                                                {userUpdateFeedback}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="detail-modal-footer">
+                                        <button
+                                            className="primary-action-btn"
+                                            onClick={handleUpdateUserStatus}
+                                            disabled={!newStatus || userUpdateLoading}
+                                            style={{ width: '100%', padding: '12px' }}
+                                        >
+                                            {userUpdateLoading ? 'Updating...' : 'Update User Status'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    }
+                </div>
+            </div>
+        </div>
     );
 }
 

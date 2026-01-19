@@ -247,3 +247,25 @@
         /* Ensure content takes full height minus nothing */
     }
 }
+
+/* Mobile Responsive Stats Utilities */
+.stats-table-view {
+    display: table;
+    width: 100%;
+}
+
+.stats-mobile-card-view {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .stats-table-view {
+        display: none;
+    }
+
+    .stats-mobile-card-view {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+}

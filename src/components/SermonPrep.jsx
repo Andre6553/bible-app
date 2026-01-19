@@ -295,6 +295,21 @@ const SermonPrep = () => {
         }
     }, [user]);
 
+    // v12.7: Auto-Scroll to Top on Step Change (Robust Version targeting main container)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            // Target the actual scrolling container if it exists
+            const appContent = document.querySelector('.app-content');
+            if (appContent) {
+                appContent.scrollTo({ top: 0, behavior: 'instant' });
+            }
+            // Fallbacks
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTo(0, 0);
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [step]);
+
     const loadSermons = async () => {
         setIsLoading(true);
         const result = await getMySermons();
@@ -1546,22 +1561,6 @@ const SermonPrep = () => {
                         </div>
                     </div>
 
-                    <div className="auto-gen-header-stat">
-                        <button
-                            className={`auto - gen - all - btn ${isAutoGenerating ? 'processing' : ''} `}
-                            onClick={handleAutoGenerateBlocks}
-                            disabled={isAutoGenerating}
-                        >
-                            {isAutoGenerating ? (
-                                <>
-                                    <span className="spinner">⏳</span>
-                                    {isAf ? `Besig... (${autoGenerateProgress} /${currentSermon.blocks.length})` : `Processing... (${autoGenerateProgress}/${currentSermon.blocks.length})`}
-                                </>
-                            ) : (
-                                <>✨ {isAf ? 'Outomatiese Generasie' : 'Auto Generate All'}</>
-                            )}
-                        </button>
-                    </div>
 
                     <div className="time-stat" style={{ textAlign: 'right' }}>
                         <span className="time-label">{isAf ? 'Tyd Oor' : 'Time Left'}</span>
@@ -2905,9 +2904,29 @@ const SermonPrep = () => {
                         <>
                             {step !== 'dashboard' && (
                                 <div className="step-nav">
-                                    <button className="back-to-dash" onClick={() => setStep('dashboard')}>
-                                        ← {isAf ? 'Paneel' : 'Dashboard'}
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                        <button className="back-to-dash" onClick={() => setStep('dashboard')} style={{ marginTop: 0 }}>
+                                            ← {isAf ? 'Paneel' : 'Dashboard'}
+                                        </button>
+
+                                        {step === 'skeleton' && currentSermon?.blocks?.length > 0 && (
+                                            <button
+                                                className={`auto-gen-all-btn header-btn ${isAutoGenerating ? 'processing' : ''}`}
+                                                onClick={handleAutoGenerateBlocks}
+                                                disabled={isAutoGenerating}
+                                                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                                            >
+                                                {isAutoGenerating ? (
+                                                    <>
+                                                        <span className="spinner">⏳</span>
+                                                        {isAf ? 'Besig...' : 'Processing...'}
+                                                    </>
+                                                ) : (
+                                                    <>✨ {isAf ? 'Outomatiese Generasie' : 'Auto Generate'}</>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="step-dots">
                                         <div className={`step-dot ${step === 'foundation' ? 'active' : ''}`}></div>
                                         <div className={`step-dot ${step === 'skeleton' ? 'active' : ''}`}></div>
@@ -2936,50 +2955,52 @@ const SermonPrep = () => {
             )}
 
             {/* iOS Copy Modal - for when clipboard APIs fail */}
-            {copyModal && (
-                <div className="copy-modal-overlay" onClick={() => { setCopyModal(null); setIsAiPanelOpen(false); }}>
-                    <div className="copy-modal-content" onClick={(e) => e.stopPropagation()}>
-                        <h3>{isAf ? '📋 Kopieer Teks Handmatig' : '📋 Copy Text Manually'}</h3>
-                        <p style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
-                            {isAf
-                                ? 'Hou die teks lank ingedruk → Kies Alles → Kopieer'
-                                : 'Long-press the text → Select All → Copy'}
-                        </p>
-                        <textarea
-                            className="copy-modal-textarea"
-                            value={copyModal.content}
-                            readOnly
-                            onClick={(e) => e.target.select()}
-                            style={{
-                                width: '100%',
-                                height: '300px',
-                                padding: '16px',
-                                fontSize: '16px',
-                                border: '2px solid var(--accent-primary)',
-                                borderRadius: '12px',
-                                resize: 'none',
-                                fontFamily: 'inherit'
-                            }}
-                        />
-                        <button
-                            className="copy-modal-close-btn"
-                            onClick={() => { setCopyModal(null); setIsAiPanelOpen(false); }}
-                            style={{
-                                marginTop: '16px',
-                                padding: '12px 24px',
-                                background: 'var(--accent-primary)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontSize: '16px',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            {isAf ? 'Sluit' : 'Close'}
-                        </button>
+            {
+                copyModal && (
+                    <div className="copy-modal-overlay" onClick={() => { setCopyModal(null); setIsAiPanelOpen(false); }}>
+                        <div className="copy-modal-content" onClick={(e) => e.stopPropagation()}>
+                            <h3>{isAf ? '📋 Kopieer Teks Handmatig' : '📋 Copy Text Manually'}</h3>
+                            <p style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
+                                {isAf
+                                    ? 'Hou die teks lank ingedruk → Kies Alles → Kopieer'
+                                    : 'Long-press the text → Select All → Copy'}
+                            </p>
+                            <textarea
+                                className="copy-modal-textarea"
+                                value={copyModal.content}
+                                readOnly
+                                onClick={(e) => e.target.select()}
+                                style={{
+                                    width: '100%',
+                                    height: '300px',
+                                    padding: '16px',
+                                    fontSize: '16px',
+                                    border: '2px solid var(--accent-primary)',
+                                    borderRadius: '12px',
+                                    resize: 'none',
+                                    fontFamily: 'inherit'
+                                }}
+                            />
+                            <button
+                                className="copy-modal-close-btn"
+                                onClick={() => { setCopyModal(null); setIsAiPanelOpen(false); }}
+                                style={{
+                                    marginTop: '16px',
+                                    padding: '12px 24px',
+                                    background: 'var(--accent-primary)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    fontSize: '16px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {isAf ? 'Sluit' : 'Close'}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
             {/* Script Copy Notification */}
             {scriptCopyNote && renderScriptCopyNote()}
 
@@ -3020,15 +3041,17 @@ const SermonPrep = () => {
             />
 
             {/* v12.6: Mobile Overlay */}
-            {overlayState.isOpen && (
-                <FullPageOverlay
-                    title={overlayState.title}
-                    content={overlayState.content}
-                    controlsType={overlayState.controlsType}
-                    onClose={() => setOverlayState({ ...overlayState, isOpen: false })}
-                />
-            )}
-        </div>
+            {
+                overlayState.isOpen && (
+                    <FullPageOverlay
+                        title={overlayState.title}
+                        content={overlayState.content}
+                        controlsType={overlayState.controlsType}
+                        onClose={() => setOverlayState({ ...overlayState, isOpen: false })}
+                    />
+                )
+            }
+        </div >
     );
 };
 

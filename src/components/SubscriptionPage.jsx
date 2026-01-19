@@ -374,7 +374,7 @@ const SubscriptionPage = () => {
                             borderRadius: '20px',
                             marginBottom: '10px'
                         }}>
-                            🎉 50% OFF First Month
+                            🎉 {isAf ? '1ste Maand is op ons GRATIS' : '1st Month is on Us FREE'}
                         </div>
                     )}
                     <div className="card-header">
