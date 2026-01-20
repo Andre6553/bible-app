@@ -311,7 +311,7 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
             1. **SOURCE OF TRUTH**: The answer must be found **VERBATIM** in the single verse you cite.
             2. **NO EXTERNAL KNOWLEDGE**: Do NOT use common knowledge. If the text says "wise men" but not "3", do NOT ask "How many?".
             3. **NO CONTEXT LEAKAGE**: Do not ask about events in previous/next verses. The Answer must be in THIS specific verse.
-            4. **COUNTING BANS**: Do NOT ask "How many..." unless the number is explicitly written in the verse.
+            4. **NO NUMERIC ANSWERS**: Do NOT ask questions where the answer is a number (e.g., "7", "12") or a number word (e.g., "seven", "twelve"). Answers must be names, places, objects, or concepts.
             5. **BOOK CONSISTENCY**: The book mentioned in the question must match the reference.
             6. **SPELLING**: Use the EXACT spelling found in the verse text.
             7. **CONTEXT MATCHING**: Ensure the cited Verse Reference *actually contains* the names/events in your question. (e.g. Do not cite Judges 8 for a question about Barak if Barak isn't in Judges 8).

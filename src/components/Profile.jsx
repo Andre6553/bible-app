@@ -877,7 +877,7 @@ function Profile() {
                 </button>
                 <button
                     className="profile-tab sermon-prep-btn"
-                    style={{ background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', color: '#000', marginLeft: '10px' }}
+                    style={{ marginLeft: '10px' }}
                     onClick={() => navigate('/trivia')}
                 >
                     🧠 {settings.language === 'af' ? 'Bybel Vasvra' : 'Bible Trivia'}

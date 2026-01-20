@@ -221,7 +221,7 @@ function TriviaSection() {
         if (!currentQuestion) return;
 
         const debugInfo = `
-QUESTION DEBUG INFO:
+QUESTION :
 -------------------
 Question: ${currentQuestion.text}
 Options:
@@ -230,8 +230,6 @@ ${currentQuestion.options.map((opt, i) => `${i + 1}. ${opt} ${i === currentQuest
 Verse Ref: ${currentQuestion.debug?.verseRef || 'N/A'}
 Verification Logic: 
 ${currentQuestion.debug?.verification || 'N/A'}
-
-ID: ${currentQuestion.id}
 -------------------
 `;
         navigator.clipboard.writeText(debugInfo);
