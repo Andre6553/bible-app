@@ -25,6 +25,7 @@ const SermonPrep = lazy(() => import('./components/SermonPrep'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const SubscriptionPage = lazy(() => import('./components/SubscriptionPage'));
 const Legal = lazy(() => import('./components/Legal'));
+const TriviaSection = lazy(() => import('./components/TriviaSection'));
 
 function App() {
     const [currentVersion, setCurrentVersion] = useState(null);
@@ -165,6 +166,10 @@ function App() {
                                     <Route
                                         path="/terms"
                                         element={<Legal type="terms" />}
+                                    />
+                                    <Route
+                                        path="/trivia"
+                                        element={<TriviaSection />}
                                     />
                                     <Route path="/" element={<Navigate to="/bible" replace />} />
                                 </Routes>

@@ -1,0 +1,439 @@
+/* Trivia.css */
+
+.trivia-page {
+    padding: 20px;
+    padding-bottom: 80px;
+    /* Bottom nav space */
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+}
+
+.trivia-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.back-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+}
+
+.trivia-stats-badge {
+    background: rgba(255, 215, 0, 0.15);
+    color: #ffd700;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+/* SETUP SCREEN */
+.trivia-setup-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    padding: 24px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 40px;
+}
+
+.trivia-title {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
+.trivia-subtitle {
+    color: #a0a0a0;
+    margin-bottom: 30px;
+    font-size: 0.95rem;
+}
+
+.selector-group {
+    margin-bottom: 25px;
+    text-align: left;
+}
+
+.selector-label {
+    display: block;
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.difficulty-options,
+.testament-options {
+    display: flex;
+    gap: 10px;
+}
+
+.option-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccc;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.option-btn.active {
+    background: rgba(0, 123, 255, 0.2);
+    border-color: #007bff;
+    color: #fff;
+    box-shadow: 0 0 15px rgba(0, 123, 255, 0.3);
+}
+
+.start-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(90deg, #00C6FF, #0072FF);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+    box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+    transition: transform 0.2s;
+}
+
+.start-btn:active {
+    transform: scale(0.98);
+}
+
+/* QUESTION SCREEN */
+.question-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 80vh;
+}
+
+.question-meta {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    margin-bottom: 20px;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.question-card {
+    background: rgba(255, 255, 255, 0.08);
+    /* Slightly lighter */
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 30px 20px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.question-text {
+    font-size: 1.3rem;
+    line-height: 1.5;
+    font-weight: 600;
+}
+
+.answers-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.answer-btn {
+    padding: 18px;
+    border-radius: 16px;
+    background: rgba(30, 30, 45, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+    font-size: 1rem;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Feedback States */
+.answer-btn.correct {
+    background: rgba(46, 204, 113, 0.2);
+    border-color: #2ecc71;
+    color: #2ecc71;
+}
+
+.answer-btn.wrong {
+    background: rgba(231, 76, 60, 0.2);
+    border-color: #e74c3c;
+    color: #e74c3c;
+    opacity: 0.7;
+}
+
+.answer-btn.correct-highlight {
+    background: rgba(46, 204, 113, 0.2);
+    border-color: #2ecc71;
+    color: #2ecc71;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+}
+
+/* RESULT / NEXT OVERLAY */
+.result-overlay {
+    margin-top: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 16px;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.correct-msg {
+    color: #2ecc71;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.wrong-msg {
+    color: #e74c3c;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.verse-ref {
+    font-style: italic;
+    color: #aaa;
+    margin-bottom: 15px;
+    display: block;
+    font-size: 0.9rem;
+}
+
+.next-btn {
+    width: 100%;
+    padding: 14px;
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* LIMIT REACHED */
+.limit-reached-card {
+    text-align: center;
+    padding: 40px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    margin-top: 40px;
+}
+
+.lock-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.upgrade-btn {
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+    color: #000;
+    font-weight: bold;
+    padding: 12px 24px;
+    border-radius: 24px;
+    border: none;
+    margin-top: 20px;
+    cursor: pointer;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* CLICKABLE REF */
+.verse-ref.clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    color: #00C6FF;
+    transition: color 0.2s;
+}
+
+.verse-ref.clickable:hover {
+    color: #fff;
+    text-shadow: 0 0 10px rgba(0, 198, 255, 0.5);
+}
+
+/* POPUP MODAL */
+.verse-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.verse-popup-content {
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 30px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.close-popup-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.close-popup-btn:hover {
+    color: #fff;
+}
+
+.verse-body {
+    margin-top: 10px;
+}
+
+.verse-text {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    color: #fff;
+    font-style: italic;
+    margin-bottom: 15px;
+}
+
+.verse-version {
+    display: block;
+    text-align: right;
+    color: #666;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+/* SCORE POPUP STYLES */
+.trivia-stats-badge.clickable {
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    border: 1px solid rgba(255, 215, 0, 0.5);
+}
+
+.trivia-stats-badge.clickable:active {
+    transform: scale(0.95);
+}
+
+.score-popup {
+    text-align: center;
+}
+
+.score-title {
+    color: #fff;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+}
+
+.score-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 4px solid #FFD700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    background: rgba(255, 215, 0, 0.1);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+.score-percent {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #FFD700;
+}
+
+.score-details {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.score-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ccc;
+}
+
+.score-row:last-child {
+    border-bottom: none;
+}
+
+.highlight-green {
+    color: #2ecc71;
+    font-weight: bold;
+}
+
+.reset-btn {
+    width: 100%;
+    padding: 12px;
+    background: rgba(231, 76, 60, 0.2);
+    border: 1px solid rgba(231, 76, 60, 0.5);
+    color: #e74c3c;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.reset-btn:hover {
+    background: rgba(231, 76, 60, 0.4);
+    color: white;
+}

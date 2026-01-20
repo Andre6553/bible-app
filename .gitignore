@@ -6,3 +6,5 @@ dist-ssr
 .env.local
 .env.production
 .DS_Store
+trivia_test_log.txt
+

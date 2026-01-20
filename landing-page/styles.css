@@ -1,0 +1,635 @@
+/* 
+  Omni Bible Landing Page - Design System
+  Theme: Royal Gold Premium Dark
+*/
+
+:root {
+    /* Color Palette */
+    --bg-deep: #050510;
+    --bg-card: #0f0f1a;
+    --bg-accent: #181824;
+
+    --gold-primary: #D4AF37;
+    --gold-bright: #F59E0B;
+    --gold-dark: #B4941F;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+
+    --border: rgba(212, 175, 55, 0.1);
+    --border-hover: rgba(212, 175, 55, 0.3);
+
+    /* Spacing */
+    --padding-lg: 4rem;
+    --padding-md: 2rem;
+    --padding-sm: 1rem;
+
+    /* Shadows */
+    --shadow-gold: 0 10px 30px -10px rgba(212, 175, 55, 0.15);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    /* Smooth scroll for iOS but good for mobile in general */
+}
+
+h1,
+h2,
+h3 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    line-height: 1.2;
+    background: linear-gradient(135deg, #fff 0%, var(--gold-primary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Typography for Bible Quotes */
+.bible-font {
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    color: var(--gold-primary);
+}
+
+/* Layout Utilities */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--padding-md);
+}
+
+.section {
+    padding: var(--padding-lg) 0;
+}
+
+/* Glassmorphism Components */
+.glass {
+    background: rgba(15, 15, 26, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border: none;
+}
+
+.btn-gold {
+    background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+    color: #fff;
+    box-shadow: var(--shadow-gold);
+}
+
+.btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 35px -12px rgba(212, 175, 55, 0.3);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--gold-primary);
+    color: var(--gold-primary);
+}
+
+.btn-outline:hover {
+    background: rgba(212, 175, 55, 0.05);
+    border-color: var(--gold-bright);
+}
+
+/* Hamburger Menu */
+.menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+    z-index: 1001;
+    padding: 10px;
+}
+
+.menu-toggle span {
+    display: block;
+    width: 25px;
+    height: 2px;
+    background-color: var(--gold-primary);
+    transition: all 0.3s ease;
+}
+
+/* Header - Ultra Fixed Always Visible */
+header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    z-index: 99999 !important;
+    padding: 1.5rem 0 !important;
+    /* Constant padding to avoid scroll shifts */
+    background: #050510 !important;
+    border-bottom: 2px solid var(--gold-primary) !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transition: none !important;
+    /* No transitions to ensure it stays locked */
+    will-change: transform, top;
+    transform: translateZ(0);
+    /* Hardware acceleration hint */
+}
+
+/* Remove JS scroll effect class reliance */
+header.scrolled {
+    padding: 1.5rem 0 !important;
+    background: #050510 !important;
+}
+
+main {
+    padding-top: 130px !important;
+    /* Fixed space for the fixed header */
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    /* Allow wrapping on very small screens */
+    gap: 1.5rem;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+    text-decoration: none;
+    letter-spacing: -1px;
+}
+
+.logo span {
+    color: var(--gold-primary);
+}
+
+.nav-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.nav-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: var(--gold-primary);
+}
+
+/* Hero Section */
+.hero {
+    padding: 80px 0 100px;
+    /* Reduced since header is now static/larger */
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.05) 0%, rgba(5, 5, 16, 0) 70%);
+    z-index: -1;
+}
+
+.hero h1 {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.hero p {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto 2.5rem;
+}
+
+.hero-ctas {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+/* Feature Grid Visual Upgrade */
+.feature-section {
+    position: relative;
+    padding: 8rem 0;
+}
+
+.feature-section::after {
+    content: '';
+    position: absolute;
+    bottom: -10%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.03) 0%, transparent 70%);
+    z-index: -1;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 3rem;
+    /* Increased gap */
+    margin-top: 5rem;
+}
+
+.feature-card {
+    padding: 3rem 2rem;
+    text-align: left;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    z-index: 1;
+}
+
+.feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: -1;
+}
+
+.feature-card:hover {
+    transform: translateY(-12px) scale(1.02);
+    border-color: var(--gold-primary);
+    box-shadow: 0 20px 40px -15px rgba(212, 175, 55, 0.2);
+}
+
+.feature-card:hover::before {
+    opacity: 1;
+}
+
+.feature-card h3 {
+    font-size: 1.6rem;
+    margin-bottom: 1.2rem;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+
+.feature-card p {
+    font-size: 1rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+}
+
+.feature-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(212, 175, 55, 0.1);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover .feature-icon {
+    background: var(--gold-primary);
+    transform: rotate(-5deg) scale(1.1);
+}
+
+.highlight-text {
+    color: var(--gold-primary);
+    font-weight: 700;
+}
+
+/* Comparison Table */
+.comparison-container {
+    overflow-x: auto;
+    margin-top: 3rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th,
+td {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+th {
+    color: var(--gold-primary);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+
+td {
+    color: var(--text-secondary);
+}
+
+.check {
+    color: #10b981;
+}
+
+.cross {
+    color: #ef4444;
+}
+
+.unique {
+    color: var(--gold-bright);
+    font-weight: 700;
+}
+
+/* Pricing Section */
+.pricing-cards {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 3rem;
+}
+
+.pricing-card {
+    flex: 1;
+    min-width: 320px;
+    max-width: 400px;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.pricing-card.premium {
+    border-color: var(--gold-primary);
+    background: radial-gradient(circle at top right, rgba(212, 175, 55, 0.1), transparent 70%), var(--bg-card);
+}
+
+.price {
+    font-size: 3rem;
+    font-weight: 800;
+    margin: 1.5rem 0;
+}
+
+.price span {
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.features-list {
+    list-style: none;
+    margin: 2rem 0;
+}
+
+.features-list li {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.features-list li::before {
+    content: '✓';
+    color: var(--gold-primary);
+}
+
+.badge {
+    position: absolute;
+    top: 1.5rem;
+    right: -2.5rem;
+    background: var(--gold-primary);
+    color: #fff;
+    padding: 0.5rem 3rem;
+    transform: rotate(45deg);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Social Icons */
+.social-icon.whatsapp {
+    color: #25D366;
+}
+
+.social-icon.facebook {
+    color: #1877F2;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 var(--padding-sm);
+    }
+
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+
+    /* Mobile Nav Refresh */
+    .menu-toggle {
+        display: none !important;
+    }
+
+    header {
+        padding: 1rem 0 !important;
+        /* Force smaller padding on mobile from start */
+    }
+
+    .nav-links {
+        position: static;
+        width: 100%;
+        height: auto;
+        background: transparent;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+        /* Tighter gap */
+        box-shadow: none;
+        border: none;
+        padding: 0.5rem 0 0;
+        /* Add a bit of space below logo */
+    }
+
+    .nav-links a {
+        font-size: 0.75rem;
+        /* Smaller text to fit in one row if possible */
+        white-space: nowrap;
+    }
+
+    .nav-links .btn-gold {
+        padding: 0.4rem 1rem !important;
+        /* Smaller button */
+        font-size: 0.75rem;
+    }
+
+    main {
+        padding-top: 140px !important;
+        /* Ensure enough space for two-row header */
+    }
+
+    .nav-links.active {
+        right: 0;
+    }
+
+    .nav-links a {
+        font-size: 1.2rem;
+    }
+
+    .hero-ctas {
+        flex-direction: column;
+    }
+
+    .section {
+        padding: 3rem 0;
+    }
+
+    /* Comparison Table Refresh (No Scroll) */
+    .comparison-container {
+        padding: 1rem !important;
+    }
+
+    table,
+    head,
+    tbody,
+    th,
+    td,
+    tr {
+        display: block;
+    }
+
+    thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    tr {
+        margin-bottom: 2rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+    }
+
+    td {
+        border: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+        padding-left: 50% !important;
+        text-align: right;
+        min-height: 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    td:last-child {
+        border-bottom: 0;
+    }
+
+    td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 1rem;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align: left;
+        font-weight: 700;
+        color: var(--gold-primary);
+        font-size: 0.8rem;
+    }
+
+    td[data-label="Feature"] {
+        background: rgba(212, 175, 55, 0.05);
+        justify-content: center;
+        padding-left: 1rem !important;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #fff;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    td[data-label="Feature"]::before {
+        display: none;
+    }
+
+    /* Animation for Hamburger */
+    .menu-toggle.active span:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+    }
+
+    .menu-toggle.active span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .menu-toggle.active span:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
+    }
+}
+
+/* Animations */
+.reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+}

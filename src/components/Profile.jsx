@@ -875,6 +875,13 @@ function Profile() {
                 >
                     ⛪ {settings.language === 'af' ? 'Preek Voorbereiding' : 'Sermon Preparation'}
                 </button>
+                <button
+                    className="profile-tab sermon-prep-btn"
+                    style={{ background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', color: '#000', marginLeft: '10px' }}
+                    onClick={() => navigate('/trivia')}
+                >
+                    🧠 {settings.language === 'af' ? 'Bybel Vasvra' : 'Bible Trivia'}
+                </button>
             </div>
 
             {/* Content */}
