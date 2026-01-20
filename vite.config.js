@@ -36,25 +36,32 @@ export default defineConfig({
                 ],
                 screenshots: [
                     {
-                        src: 'screenshots/for_you.png',
-                        sizes: '1080x1920',
-                        type: 'image/png',
-                        form_factor: 'narrow',
-                        label: 'Home Feed'
-                    },
-                    {
-                        src: 'screenshots/bible_reader.png',
-                        sizes: '1080x1920',
-                        type: 'image/png',
-                        form_factor: 'narrow',
-                        label: 'Bible Reader'
-                    },
-                    {
-                        src: 'screenshots/sermon_prep.png',
+                        src: 'screenshots/processed_1.png',
                         sizes: '1920x1080',
                         type: 'image/png',
                         form_factor: 'wide',
-                        label: 'Sermon Prep Tools'
+                        label: 'Dashboard'
+                    },
+                    {
+                        src: 'screenshots/processed_2.png',
+                        sizes: '1920x1080',
+                        type: 'image/png',
+                        form_factor: 'wide',
+                        label: 'Sermon Manager'
+                    },
+                    {
+                        src: 'screenshots/processed_3.png',
+                        sizes: '1920x1080',
+                        type: 'image/png',
+                        form_factor: 'wide',
+                        label: 'Editor'
+                    },
+                    {
+                        src: 'screenshots/processed_4.png',
+                        sizes: '1920x1080',
+                        type: 'image/png',
+                        form_factor: 'wide',
+                        label: 'Studio'
                     }
                 ]
             },
