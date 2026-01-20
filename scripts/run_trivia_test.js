@@ -49,7 +49,7 @@ const CONFIG = {
     baseUrl: 'http://localhost:3005',
     email: 'andre.ecprint@gmail.com',
     password: 'Andre@58078',
-    durationMs: 30 * 60 * 1000, // 30 minutes
+    durationMs: 24 * 60 * 60 * 1000, // 24 hours (effectively "until stop")
     questionsPerRound: 5,
 };
 

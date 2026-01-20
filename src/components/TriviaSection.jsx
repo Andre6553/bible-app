@@ -217,8 +217,40 @@ function TriviaSection() {
         startGame(); // Re-fetch
     };
 
-    const handleCopyDebug = () => {
+    const handleCopyDebug = async () => {
         if (!currentQuestion) return;
+
+        let verseText = "Loading...";
+        try {
+            // Fetch English Verse Text
+            const ref = currentQuestion.debug?.verseRef?.en;
+            if (ref) {
+                const lastSpaceIndex = ref.lastIndexOf(' ');
+                const bookName = ref.substring(0, lastSpaceIndex);
+                const chapterVerse = ref.substring(lastSpaceIndex + 1);
+                const [chapter, verse] = chapterVerse.split(':');
+
+                const { data } = await supabase
+                    .from('verses')
+                    .select(`
+                        text,
+                        books!inner(name_full)
+                    `)
+                    .eq('books.name_full', bookName)
+                    .eq('chapter', chapter)
+                    .eq('verse', verse)
+                    .eq('version', 'NKJV')
+                    .maybeSingle();
+
+                if (data) verseText = data.text;
+                else verseText = "Text not found";
+            } else {
+                verseText = "N/A";
+            }
+        } catch (e) {
+            verseText = "Error fetching text";
+            console.error(e);
+        }
 
         const debugInfo = `
 QUESTION :
@@ -227,9 +259,8 @@ Question: ${currentQuestion.text}
 Options:
 ${currentQuestion.options.map((opt, i) => `${i + 1}. ${opt} ${i === currentQuestion.debug?.correctIndex ? '(CORRECT)' : ''}`).join('\n')}
 
-Verse Ref: ${currentQuestion.debug?.verseRef || 'N/A'}
-Verification Logic: 
-${currentQuestion.debug?.verification || 'N/A'}
+Verse Ref: ${currentQuestion.debug?.verseRef?.en || 'N/A'}
+Verse Text: "${verseText}"
 -------------------
 `;
         navigator.clipboard.writeText(debugInfo);

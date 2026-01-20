@@ -278,7 +278,9 @@ const formatQuestionForClient = (dbQuestion, language) => {
 
 const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTexts = [], language) => {
     let attempts = 0;
-    while (attempts < 3) {
+    let feedback = ""; // [NEW] Feedback for retry loop
+
+    while (attempts < 5) { // Increased from 3 to 5
         attempts++;
         try {
             console.log(`🤖 AI Generation Attempt ${attempts}...`);
@@ -297,6 +299,11 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
                 ? `CRITICAL EXCLUSION LIST (Do NOT generate similar questions):\n- ${avoidList}\n\nRule: Do not ask about the same specific event or fact as the questions above.`
                 : "";
 
+            // [NEW] Inject feedback if previous attempt failed
+            const retryInstruction = feedback
+                ? `\n\n⚠️ PREVIOUS ATTEMPT REJECTED: ${feedback} \nYOU MUST CORRECT THIS VIOLATION.`
+                : "";
+
 
             const prompt = `Generate a UNIQUE Bible trivia question.
             parameters:
@@ -306,15 +313,23 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
             - VERSIONS: Use 'New King James Version' (NKJV) for English and 'Afrikaans 1953' (AFR53) for Afrikaans. Ensure names/facts match these specific translations.
             
             ${avoidInstruction}
+            ${retryInstruction}
             
             CRITICAL RULES (STRICT ADHERENCE REQUIRED):
             1. **SOURCE OF TRUTH**: The answer must be found **VERBATIM** in the single verse you cite.
             2. **NO EXTERNAL KNOWLEDGE**: Do NOT use common knowledge. If the text says "wise men" but not "3", do NOT ask "How many?".
             3. **NO CONTEXT LEAKAGE**: Do not ask about events in previous/next verses. The Answer must be in THIS specific verse.
-            4. **NO NUMERIC ANSWERS**: Do NOT ask questions where the answer is a number (e.g., "7", "12") or a number word (e.g., "seven", "twelve"). Answers must be names, places, objects, or concepts.
-            5. **BOOK CONSISTENCY**: The book mentioned in the question must match the reference.
+            4. **NO COUNTING / NO NUMBERS**: ABSOLUTE BAN on questions where the answer is a quantity, number, or digit. 
+               - BAD: "How many..." -> Answer: "6" (REJECT THIS)
+               - BAD: "What was the height..." -> Answer: "6 cubits" (REJECT THIS)
+               - GOOD: "Who...", "Where...", "What object..." -> Answer: "David", "Jerusalem", "Staff"
+            5. **LOGICAL CONSISTENCY**: The Question Type MUST match the Reference content. 
+               - If the verse describes an ACTION (e.g., "He built an altar"), ask "What did he do?". Do NOT ask "What did he name it?" unless a name is explicitly written.
+               - Don't force a "Who" question if the verse only details an event.
+            6. **BOOK CONSISTENCY**: The book mentioned in the question must match the reference.
             6. **SPELLING**: Use the EXACT spelling found in the verse text.
             7. **CONTEXT MATCHING**: Ensure the cited Verse Reference *actually contains* the names/events in your question. (e.g. Do not cite Judges 8 for a question about Barak if Barak isn't in Judges 8).
+            8. **SIMPLE LANGUAGE**: Use Grade 6 reading level. Simplify the **Question Text** syntax. Avoid archaic words (e.g., 'vouchsafe', 'lest', 'hath', 'thou') in the question phrasing. Use standard, modern English/Afrikaans.
 
             Requirements:
             - Question Text: Clear, concise.
@@ -343,6 +358,28 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
             // Validation: Verify correct_index is 0-2
             if (data.correct_index < 0 || data.correct_index > 2) data.correct_index = 0;
 
+            // [STRICT VALIDATION] Reject ANY question with numeric-only answers
+            // Filters out: "6", "100", "six", "one hundred"
+            const numRegex = /^(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)\b/i;
+            const hasNumericAnswer = [...data.options_en, ...data.options_af].some(opt =>
+                !isNaN(opt) || numRegex.test(opt.trim())
+            );
+
+            if (hasNumericAnswer) {
+                console.warn("⚠️ AI generated numeric answers despite rules. RETRYING...");
+                feedback = "You generated NUMERIC answers (digits or number words). This is BANNED. Generate a question about a PERSON, PLACE, or OBJECT instead.";
+                continue; // Skip this iteration and try again
+            }
+
+            // [STRICT VALIDATION] Reject "How many" questions (Counting)
+            // Filters out: "How many sons...", "Hoeveel seuns..."
+            const countRegex = /(how many|quantity|number of|hoeveel)/i;
+            if (countRegex.test(data.question_en) || countRegex.test(data.question_af)) {
+                console.warn("⚠️ AI generated a 'How many' question. RETRYING...");
+                feedback = "You asked 'How many'. This is BANNED. Do NOT ask for counts. Ask 'Who', 'What', or 'Where'.";
+                continue;
+            }
+
             // CHECK IF EXISTS (Prevent Duplicates / Reuse)
             const { data: existing } = await supabase
                 .from('trivia_questions')
@@ -355,6 +392,7 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
                 // If user has already seen this specific question ID, we must retry
                 if (excludeIds.includes(existing.id)) {
                     console.log("♻️ User has seen this duplicate. Retrying generation...");
+                    feedback = "That question already exists. Generate a totally different one.";
                     continue; // RETRY LOOP
                 }
                 // If exists but user hasn't seen it, Reuse it! (Saves DB space)
