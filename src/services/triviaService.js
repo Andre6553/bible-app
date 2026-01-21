@@ -291,7 +291,20 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
                 effectiveTestament = Math.random() < 0.5 ? 'OT' : 'NT';
             }
 
-            const difficultyDesc = difficulty === 'hard' ? "challenging and obscure" : difficulty === 'medium' ? "moderately difficult" : "simple and well-known";
+            let difficultyDesc = "";
+            let gradeLevel = "Grade 6";
+
+            if (difficulty === 'easy') {
+                difficultyDesc = "EXTREMELY SIMPLE and BROADLY KNOWN. Focus on major Bible characters (Noah, David, Jesus, Moses) and famous events. The question should be suitable for a 10-year-old child (Grade 4).";
+                gradeLevel = "Grade 4";
+            } else if (difficulty === 'medium') {
+                difficultyDesc = "MODERATELY CHALLENGING. Requires a good understanding of main Bible stories and secondary characters. Suitable for a teenager (Grade 8).";
+                gradeLevel = "Grade 8";
+            } else {
+                difficultyDesc = "ADVANCED and OBSCURE. Can include theological nuances, minor characters, or specific details found in the text. Suitable for a high school graduate or theologian (Grade 12 and above).";
+                gradeLevel = "Grade 12+";
+            }
+
             const testamentDesc = effectiveTestament === 'OT' ? "Old Testament" : "New Testament";
 
             const avoidList = recentTexts.join('\n- ');
@@ -307,7 +320,8 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
 
             const prompt = `Generate a UNIQUE Bible trivia question.
             parameters:
-            - Difficulty: ${difficultyDesc}
+            - Difficulty Level: ${difficultyDesc}
+            - Targeted Complexity: ${gradeLevel}
             - Testament: ${testamentDesc}
             - Language: Create both English and Afrikaans versions.
             - VERSIONS: Use 'New King James Version' (NKJV) for English and 'Afrikaans 1953' (AFR53) for Afrikaans. Ensure names/facts match these specific translations.
@@ -329,7 +343,7 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
             6. **BOOK CONSISTENCY**: The book mentioned in the question must match the reference.
             6. **SPELLING**: Use the EXACT spelling found in the verse text.
             7. **CONTEXT MATCHING**: Ensure the cited Verse Reference *actually contains* the names/events in your question. (e.g. Do not cite Judges 8 for a question about Barak if Barak isn't in Judges 8).
-            8. **SIMPLE LANGUAGE**: Use Grade 6 reading level. Simplify the **Question Text** syntax. Avoid archaic words (e.g., 'vouchsafe', 'lest', 'hath', 'thou') in the question phrasing. Use standard, modern English/Afrikaans.
+            8. **SIMPLE LANGUAGE**: Use ${gradeLevel} reading level. Simplify the **Question Text** syntax. Avoid archaic words in the question phrasing. Use standard, modern English/Afrikaans.
 
             Requirements:
             - Question Text: Clear, concise.

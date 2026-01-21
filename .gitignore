@@ -7,4 +7,6 @@ dist-ssr
 .env.production
 .DS_Store
 trivia_test_log.txt
+.google-play-creds
+signing.keystore
 
