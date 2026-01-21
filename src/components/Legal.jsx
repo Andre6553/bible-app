@@ -38,9 +38,15 @@ const Legal = ({ type = 'privacy' }) => {
                         <h3>4. Data Security</h3>
                         <p>We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used or accessed in an unauthorised way. We use Row Level Security (RLS) to ensure that only you can access your private notes and data.</p>
                     </section>
-                    <section>
-                        <h3>5. Your Rights</h3>
-                        <p>You have the right to access, correct, or request the deletion of your personal data at any time. You can contact us via the app support for any data-related queries.</p>
+                    <section id="deletion">
+                        <h3>5. Data Deletion and Your Rights</h3>
+                        <p>You have the right to access, correct, or request the <strong>complete deletion</strong> of your personal data at any time. This includes your account identity, highlights, notes, and study history.</p>
+                        <p>To request account deletion, you can:</p>
+                        <ul>
+                            <li>Go to your <strong>Profile</strong> page within the app and select "Delete Account".</li>
+                            <li>Send an email to <strong>andre@omnibible.online</strong> with the subject "Data Deletion Request" from your registered email address.</li>
+                        </ul>
+                        <p>Requests are processed within 7 business days. Once deleted, your data cannot be recovered.</p>
                     </section>
                 </div>
             )

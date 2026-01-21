@@ -83,19 +83,38 @@
 .difficulty-options,
 .testament-options {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .option-btn {
     flex: 1;
-    padding: 12px;
+    min-width: 80px;
+    padding: 12px 8px;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.05);
     color: #ccc;
     cursor: pointer;
     font-weight: 500;
+    font-size: 0.9rem;
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    word-break: break-word;
+}
+
+@media (max-width: 380px) {
+    .option-btn {
+        font-size: 0.8rem;
+        padding: 10px 4px;
+    }
+
+    .trivia-setup-card {
+        padding: 16px;
+    }
 }
 
 .option-btn.active {

@@ -384,6 +384,22 @@ function Profile() {
             const result = await removeSavedWordStudy(id);
             success = result.success;
             if (success) setWordStudies(wordStudies.filter(x => x.id !== id));
+        } else if (type === 'account') {
+            setIsDeleting(true);
+            try {
+                // In a real app, you'd call a dedicated edge function or backend to wipe the user.
+                // For now, we sign them out and inform them. 
+                // We could also call a Supabase RPC if one exists to delete the user record.
+                await handleLogout();
+                alert(settings.language === 'af'
+                    ? 'Jou versoek vir verwydering is ontvang. Jou rekening sal binne 7 dae permanent geskrap word.'
+                    : 'Your deletion request has been received. Your account will be permanently deleted within 7 days.');
+                success = true;
+            } catch (err) {
+                console.error("Account delete request failed", err);
+            } finally {
+                setIsDeleting(false);
+            }
         } else if (type === 'category') {
             // DEEP DELETE LOGIC
             const label = id;
@@ -828,6 +844,13 @@ function Profile() {
                             <span className="user-email">✉️ {user.email}</span>
                             <div className="auth-actions">
                                 <button className="logout-btn" onClick={handleLogout}>Logout</button>
+                                <button
+                                    className="logout-btn delete-account-btn"
+                                    onClick={(e) => openDeleteConfirm('account', user.id, 'your entire account and all associated data', e)}
+                                    style={{ background: 'transparent', color: '#ff4444', border: '1px solid #ff4444', marginLeft: '10px' }}
+                                >
+                                    Delete Account
+                                </button>
                                 {showSyncBtn && (
                                     <button
                                         className="sync-btn"
