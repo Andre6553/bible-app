@@ -21,7 +21,8 @@ import {
     getEmailTemplates,
     updateEmailTemplate,
     getUserDetailsByEmail,
-    updateUserStatus
+    updateUserStatus,
+    getTriviaDashboardStats
 } from '../services/adminService';
 import { checkForNewJoinsAndNotify, notifyAdminOfNewUser, sendWelcomeEmail } from '../services/emailService';
 import './Stats.css';
@@ -163,6 +164,16 @@ function Stats() {
     const [selectedUserForEdit, setSelectedUserForEdit] = useState(null);
     const [newStatus, setNewStatus] = useState('');
 
+    // [NEW] Trivia Stats State
+    const [triviaStats, setTriviaStats] = useState({
+        totalQuestions: 0,
+        totalCorrect: 0,
+        uniqueUsers: 0,
+        activityByDate: {},
+        dbQuestionsCount: 0
+    });
+    const [triviaLoading, setTriviaLoading] = useState(false);
+
     useEffect(() => {
         // [PRODUCTION HARDENING] Use Identity-Based Access instead of PIN
         if (profile?.subscription_override === 'admin') {
@@ -190,6 +201,7 @@ function Stats() {
             fetchSubscriptionPrice();
             fetchPromoCodes();
             fetchPromoSettings();
+            fetchTriviaStats();
         }
     }, [isAuthenticated]);
 
@@ -705,6 +717,15 @@ function Stats() {
         setErrorLogs(data);
     };
 
+    const fetchTriviaStats = async () => {
+        setTriviaLoading(true);
+        const result = await getTriviaDashboardStats();
+        if (result.success) {
+            setTriviaStats(result.data);
+        }
+        setTriviaLoading(false);
+    };
+
     const handleUserClick = async (user) => {
         setIsUserSuper(false);
         setSelectedUser(user);
@@ -795,7 +816,7 @@ function Stats() {
             }
 
             // 2. Refresh raw logs (for the local filters)
-            await Promise.all([fetchLogs(), fetchAIQuestions()]);
+            await Promise.all([fetchLogs(), fetchAIQuestions(), fetchTriviaStats()]);
 
             // 3. Refresh specific user history
             const history = await getUserHistory(selectedUser.userId);
@@ -1397,6 +1418,70 @@ function Stats() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            {/* NEW TRIVIA STATS CARD */}
+            <div className="full-width-card" style={{ marginTop: '0px', marginBottom: '30px' }}>
+                <div className="settings-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <h3>🧠 Bible Trivia Usage</h3>
+                        {triviaLoading && <div className="loading-spinner-tiny"></div>}
+                    </div>
+
+                    <div className="stats-grid-mini" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+                        <div className="mini-stat-box" style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <div style={{ opacity: 0.6, fontSize: '0.9rem', marginBottom: '5px' }}>Total Questions Played</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{triviaStats.totalQuestions}</div>
+                        </div>
+                        <div className="mini-stat-box" style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <div style={{ opacity: 0.6, fontSize: '0.9rem', marginBottom: '5px' }}>Overall Accuracy</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                                {triviaStats.totalQuestions > 0
+                                    ? Math.round((triviaStats.totalCorrect / triviaStats.totalQuestions) * 100)
+                                    : 0}%
+                            </div>
+                        </div>
+                        <div className="mini-stat-box" style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <div style={{ opacity: 0.6, fontSize: '0.9rem', marginBottom: '5px' }}>Active Players</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{triviaStats.uniqueUsers}</div>
+                        </div>
+                        <div className="mini-stat-box" style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <div style={{ opacity: 0.6, fontSize: '0.9rem', marginBottom: '5px' }}>AI Questions in DB</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#8b5cf6' }}>{triviaStats.dbQuestionsCount}</div>
+                        </div>
+                    </div>
+
+                    {/* Simple Date Chart for Trivia */}
+                    <div style={{ marginTop: '10px' }}>
+                        <h4 style={{ marginBottom: '10px', opacity: 0.8 }}>Daily Activity (Last 10 Active Days)</h4>
+                        <div className="activity-chart-container" style={{ minHeight: '100px' }}>
+                            {Object.entries(triviaStats.activityByDate || {})
+                                .sort((a, b) => b[0].localeCompare(a[0])) // Date descending
+                                .slice(0, 10) // Show last 10 days of active data
+                                .map(([date, count]) => {
+                                    const max = Math.max(...Object.values(triviaStats.activityByDate || [1]));
+                                    const percent = (count / (max || 1)) * 100;
+                                    return (
+                                        <div key={date} className="chart-item">
+                                            <div className="chart-label">
+                                                <span className="label-text">{date}</span>
+                                            </div>
+                                            <div className="chart-bar-container">
+                                                <div
+                                                    className="chart-bar-fill"
+                                                    style={{ width: `${percent}%`, backgroundColor: 'var(--accent-primary)' }}
+                                                />
+                                            </div>
+                                            <span className="chart-count">{count}</span>
+                                        </div>
+                                    );
+                                })}
+                            {Object.keys(triviaStats.activityByDate || {}).length === 0 && (
+                                <p style={{ opacity: 0.5, textAlign: 'center', padding: '20px' }}>No recent activity data.</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabaseClient';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logApiCall } from './adminService';
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -365,6 +366,11 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
             `;
 
             const result = await model.generateContent(prompt);
+            await logApiCall('trivia_generation', 'success', 'gemini-2.0-flash', {
+                difficulty,
+                testament: effectiveTestament,
+                attempt: attempts
+            });
             const text = result.response.text();
             const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
             const data = JSON.parse(jsonStr);

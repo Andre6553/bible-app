@@ -90,6 +90,8 @@ const Admin = () => {
             key = `AI: ${curr.metadata.tool}`;
         } else if (curr.endpoint === 'generateExegesis') {
             key = 'AI: Sermon Skeleton';
+        } else if (curr.endpoint === 'trivia_generation') {
+            key = 'AI: Bible Trivia';
         }
 
         acc[key] = (acc[key] || 0) + 1;
@@ -251,9 +253,12 @@ const Admin = () => {
                         <h3>📊 API Ecosystem Distribution</h3>
                         {(() => {
                             const sermonApiCount = stats.filter(s => s.endpoint === 'generateExegesis' || s.endpoint === 'performResearch').length;
-                            const appApiCount = totalCalls - sermonApiCount;
+                            const triviaApiCount = stats.filter(s => s.endpoint === 'trivia_generation').length;
+                            const appApiCount = totalCalls - sermonApiCount - triviaApiCount;
+
                             const sermonPercent = totalCalls > 0 ? Math.round((sermonApiCount / totalCalls) * 100) : 0;
-                            const appPercent = totalCalls > 0 ? 100 - sermonPercent : 0;
+                            const triviaPercent = totalCalls > 0 ? Math.round((triviaApiCount / totalCalls) * 100) : 0;
+                            const appPercent = totalCalls > 0 ? Math.max(0, 100 - sermonPercent - triviaPercent) : 0;
 
                             return (
                                 <>
@@ -261,14 +266,21 @@ const Admin = () => {
                                         <div style={{ width: `${sermonPercent}%`, background: 'linear-gradient(90deg, #8b5cf6, #d946ef)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem', transition: 'width 0.5s ease' }}>
                                             {sermonPercent > 5 && `${sermonPercent}%`}
                                         </div>
+                                        <div style={{ width: `${triviaPercent}%`, background: 'linear-gradient(90deg, #f59e0b, #ed4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem', transition: 'width 0.5s ease' }}>
+                                            {triviaPercent > 5 && `${triviaPercent}%`}
+                                        </div>
                                         <div style={{ width: `${appPercent}%`, background: 'linear-gradient(90deg, #3b82f6, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem', transition: 'width 0.5s ease' }}>
                                             {appPercent > 5 && `${appPercent}%`}
                                         </div>
                                     </div>
-                                    <div className="distribution-legend" style={{ display: 'flex', justifyContent: 'center', gap: '40px', fontSize: '1rem' }}>
+                                    <div className="distribution-legend" style={{ display: 'flex', justifyContent: 'center', gap: '40px', fontSize: '1rem', flexWrap: 'wrap' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(90deg, #8b5cf6, #d946ef)' }}></span>
                                             <span><strong>Sermon API:</strong> {sermonApiCount}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(90deg, #f59e0b, #ed4899)' }}></span>
+                                            <span><strong>Trivia API:</strong> {triviaApiCount}</span>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(90deg, #3b82f6, #06b6d4)' }}></span>

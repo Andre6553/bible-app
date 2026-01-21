@@ -201,3 +201,67 @@ export const updateUserStatus = async (targetUserId, newStatus) => {
         return { success: false, error: error.message };
     }
 };
+
+/**
+ * Get overall Trivia statistics for the dashboard
+ */
+export const getTriviaDashboardStats = async () => {
+    try {
+        // 1. Total Questions Answered
+        const { count: totalQuestions, error: qError } = await supabase
+            .from('user_trivia_history')
+            .select('*', { count: 'exact', head: true });
+
+        // 2. Total Correct
+        const { count: totalCorrect, error: cError } = await supabase
+            .from('user_trivia_history')
+            .select('*', { count: 'exact', head: true })
+            .eq('is_correct', true);
+
+        // 3. Unique Users
+        // Since Supabase doesn't easily support 'distinct' count on a column via JS without RPC, 
+        // we'll fetch the user_ids and count unique ones manually for now (assuming smallish history)
+        // Optimization: Use a view or RPC for this later.
+        const { data: userHistory, error: uError } = await supabase
+            .from('user_trivia_history')
+            .select('user_id');
+
+        const uniqueUsers = new Set(userHistory?.map(h => h.user_id)).size;
+
+        // 4. Activity per day (Last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const { data: dailyActivity, error: dError } = await supabase
+            .from('user_trivia_history')
+            .select('answered_at')
+            .gte('answered_at', thirtyDaysAgo.toISOString());
+
+        // Process daily activity
+        const activityMap = {};
+        dailyActivity?.forEach(item => {
+            const date = item.answered_at.split('T')[0];
+            activityMap[date] = (activityMap[date] || 0) + 1;
+        });
+
+        // 5. Total Questions in DB
+        const { count: dbQuestionsCount } = await supabase
+            .from('trivia_questions')
+            .select('*', { count: 'exact', head: true });
+
+        return {
+            success: true,
+            data: {
+                totalQuestions: totalQuestions || 0,
+                totalCorrect: totalCorrect || 0,
+                uniqueUsers,
+                activityByDate: activityMap,
+                dbQuestionsCount: dbQuestionsCount || 0
+            }
+        };
+
+    } catch (error) {
+        console.error('Error fetching trivia dashboard stats:', error);
+        return { success: false, error: error.message };
+    }
+};
