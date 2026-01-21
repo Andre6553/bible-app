@@ -133,29 +133,13 @@ const Admin = () => {
                 </div>
             </div>
 
-            <div className="admin-controls user-lookup-section" style={{
-                background: settings.themeMode === 'dark' ? '#1e293b' : '#fff',
-                padding: '24px',
-                borderRadius: '12px',
-                marginBottom: '30px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-            }}>
-                <h3 style={{ marginTop: 0, marginBottom: '16px' }}>🔍 User Limit Lookup</h3>
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-                    {/* [NEW] Dropdown instead of Input */}
+            <div className="admin-controls user-lookup-section">
+                <h3 className="section-subtitle">🔍 User Limit Lookup</h3>
+                <div className="lookup-controls">
                     <select
                         value={selectedUserEmail}
                         onChange={(e) => setSelectedUserEmail(e.target.value)}
                         disabled={loadingUsers}
-                        style={{
-                            flex: 1,
-                            padding: '10px 16px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border-color)',
-                            fontSize: '1rem',
-                            background: settings.themeMode === 'dark' ? '#0f172a' : '#f9fafb',
-                            color: settings.themeMode === 'dark' ? '#ffffff' : '#111827'
-                        }}
                     >
                         <option value="">{loadingUsers ? 'Loading Users...' : 'Select a User...'}</option>
                         {activeUsers.map((u, i) => (
@@ -167,17 +151,8 @@ const Admin = () => {
 
                     <button
                         className="btn-primary"
-                        style={{
-                            padding: '10px 20px',
-                            background: '#7c3aed',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold',
-                            opacity: selectedUserEmail ? 1 : 0.6
-                        }}
                         disabled={!selectedUserEmail}
+                        style={{ opacity: selectedUserEmail ? 1 : 0.6 }}
                         onClick={async () => {
                             if (!selectedUserEmail) return;
                             const res = await getUserDetailsByEmail(selectedUserEmail);
@@ -249,7 +224,7 @@ const Admin = () => {
                     </div>
 
                     {/* API Distribution Section */}
-                    <div className="stat-card distribution-card" style={{ marginTop: '20px', padding: '20px' }}>
+                    <div className="stat-card distribution-container">
                         <h3>📊 API Ecosystem Distribution</h3>
                         {(() => {
                             const sermonApiCount = stats.filter(s => s.endpoint === 'generateExegesis' || s.endpoint === 'performResearch').length;
@@ -262,29 +237,29 @@ const Admin = () => {
 
                             return (
                                 <>
-                                    <div className="distribution-bar" style={{ display: 'flex', height: '30px', borderRadius: '15px', overflow: 'hidden', margin: '20px 0', background: '#333' }}>
-                                        <div style={{ width: `${sermonPercent}%`, background: 'linear-gradient(90deg, #8b5cf6, #d946ef)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem', transition: 'width 0.5s ease' }}>
-                                            {sermonPercent > 5 && `${sermonPercent}%`}
+                                    <div className="distribution-bar">
+                                        <div className="distribution-segment" style={{ width: `${sermonPercent}%`, background: 'linear-gradient(90deg, #8b5cf6, #d946ef)' }}>
+                                            {sermonPercent > 8 && `${sermonPercent}%`}
                                         </div>
-                                        <div style={{ width: `${triviaPercent}%`, background: 'linear-gradient(90deg, #f59e0b, #ed4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem', transition: 'width 0.5s ease' }}>
-                                            {triviaPercent > 5 && `${triviaPercent}%`}
+                                        <div className="distribution-segment" style={{ width: `${triviaPercent}%`, background: 'linear-gradient(90deg, #f59e0b, #ed4899)' }}>
+                                            {triviaPercent > 8 && `${triviaPercent}%`}
                                         </div>
-                                        <div style={{ width: `${appPercent}%`, background: 'linear-gradient(90deg, #3b82f6, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem', transition: 'width 0.5s ease' }}>
-                                            {appPercent > 5 && `${appPercent}%`}
+                                        <div className="distribution-segment" style={{ width: `${appPercent}%`, background: 'linear-gradient(90deg, #3b82f6, #06b6d4)' }}>
+                                            {appPercent > 8 && `${appPercent}%`}
                                         </div>
                                     </div>
-                                    <div className="distribution-legend" style={{ display: 'flex', justifyContent: 'center', gap: '40px', fontSize: '1rem', flexWrap: 'wrap' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(90deg, #8b5cf6, #d946ef)' }}></span>
-                                            <span><strong>Sermon API:</strong> {sermonApiCount}</span>
+                                    <div className="distribution-legend">
+                                        <div className="legend-item">
+                                            <span className="legend-color" style={{ background: 'linear-gradient(90deg, #8b5cf6, #d946ef)' }}></span>
+                                            <span><strong>Sermon:</strong> {sermonApiCount}</span>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(90deg, #f59e0b, #ed4899)' }}></span>
-                                            <span><strong>Trivia API:</strong> {triviaApiCount}</span>
+                                        <div className="legend-item">
+                                            <span className="legend-color" style={{ background: 'linear-gradient(90deg, #f59e0b, #ed4899)' }}></span>
+                                            <span><strong>Trivia:</strong> {triviaApiCount}</span>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(90deg, #3b82f6, #06b6d4)' }}></span>
-                                            <span><strong>App API:</strong> {appApiCount}</span>
+                                        <div className="legend-item">
+                                            <span className="legend-color" style={{ background: 'linear-gradient(90deg, #3b82f6, #06b6d4)' }}></span>
+                                            <span><strong>App:</strong> {appApiCount}</span>
                                         </div>
                                     </div>
                                 </>
@@ -324,13 +299,29 @@ const Admin = () => {
                                                 <td>{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                                                 <td>
                                                     {log.endpoint}
-                                                    {log.metadata?.tool && <span style={{ fontSize: '0.8em', opacity: 0.7, display: 'block' }}>Goal: {log.metadata.tool}</span>}
+                                                    {log.metadata?.tool && <span className="log-meta">Goal: {log.metadata.tool}</span>}
                                                 </td>
                                                 <td className={`status-${log.status}`}>{log.status}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+
+                            {/* Mobile-only Cards */}
+                            <div className="mobile-logs-list">
+                                {stats.slice(0, 25).map((log) => (
+                                    <div key={log.id} className="log-card">
+                                        <div className="log-card-header">
+                                            <span>{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            <span className={`status-${log.status}`} style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{log.status}</span>
+                                        </div>
+                                        <div className="log-card-body">
+                                            <span className="log-endpoint">{log.endpoint}</span>
+                                            {log.metadata?.tool && <span className="log-meta">Goal: {log.metadata.tool}</span>}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
