@@ -85,7 +85,7 @@ function TriviaSection() {
     const [loading, setLoading] = useState(false);
 
     // Stats
-    const [stats, setStats] = useState({ totalCorrect: 0, totalAnswered: 0, todayCount: 0 });
+    const [stats, setStats] = useState({ totalCorrect: 0, totalAnswered: 0, todayCount: 0, currentStreak: 0 });
     const [limitInfo, setLimitInfo] = useState(null);
     const [showScorePopup, setShowScorePopup] = useState(false);
 
@@ -188,11 +188,13 @@ function TriviaSection() {
 
             const newCount = (stats.todayCount || 0) + 1;
             const newTotal = (stats.totalCorrect || 0) + (subRes.isCorrect ? 1 : 0);
+            const newStreak = subRes.isCorrect ? (stats.currentStreak || 0) + 1 : 0;
 
             setStats(prev => ({
                 ...prev,
                 todayCount: newCount,
-                totalCorrect: newTotal
+                totalCorrect: newTotal,
+                currentStreak: newStreak
             }));
 
             // Sync condition: Every 5 questions OR if limit reached
@@ -407,7 +409,7 @@ Verse Text: "${verseText}"
                 <div className="trivia-header">
                     <button className="back-btn" onClick={() => setView('menu')}>✕</button>
                     <span className="trivia-stats-badge">
-                        Streak: {stats.totalCorrect}
+                        Streak: {stats.currentStreak || 0}
                     </span>
                 </div>
 

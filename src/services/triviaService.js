@@ -456,28 +456,60 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
 export const getTriviaStats = async (userId) => {
     if (!userId) return null;
 
-    // Get total correct / total answered
-    const { count: total, error: tError } = await supabase
-        .from('user_trivia_history')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+    try {
+        // 1. Get total correct / total answered
+        const { count: total } = await supabase
+            .from('user_trivia_history')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
 
-    const { count: correct, error: cError } = await supabase
-        .from('user_trivia_history')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_correct', true);
+        const { count: correct } = await supabase
+            .from('user_trivia_history')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_correct', true);
 
-    const { data: daily } = await supabase
-        .from('user_trivia_daily')
-        .select('count')
-        .eq('user_id', userId)
-        .eq('date', new Date().toISOString().split('T')[0])
-        .single();
+        // 2. Calculate Current Consecutive Streak
+        // Fetch up to 100 most recent records
+        const { data: history } = await supabase
+            .from('user_trivia_history')
+            .select('is_correct')
+            .eq('user_id', userId)
+            .order('answered_at', { ascending: false })
+            .limit(100);
 
-    return {
-        totalAnswered: total || 0,
-        totalCorrect: correct || 0,
-        todayCount: daily?.count || 0
-    };
+        let currentStreak = 0;
+        if (history && history.length > 0) {
+            for (const record of history) {
+                if (record.is_correct) {
+                    currentStreak++;
+                } else {
+                    break; // Stop at first incorrect
+                }
+            }
+        }
+
+        // 3. Get Today's Count
+        const { data: daily } = await supabase
+            .from('user_trivia_daily')
+            .select('count')
+            .eq('user_id', userId)
+            .eq('date', new Date().toISOString().split('T')[0])
+            .maybeSingle();
+
+        return {
+            totalAnswered: total || 0,
+            totalCorrect: correct || 0,
+            currentStreak: currentStreak,
+            todayCount: daily?.count || 0
+        };
+    } catch (err) {
+        console.error("Error fetching trivia stats:", err);
+        return {
+            totalAnswered: 0,
+            totalCorrect: 0,
+            currentStreak: 0,
+            todayCount: 0
+        };
+    }
 };
