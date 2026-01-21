@@ -49,6 +49,13 @@ export const logError = async (error, context = {}) => {
         const errorMsg = error instanceof Error ? error.message : String(error);
         const stackTrace = error instanceof Error ? error.stack : null;
 
+        // [NEW] Squelch Noise: Don't log "Mitigated" chunk errors as separate crashes
+        // if they've already been tagged by the handler below.
+        if (context.metadata?.mitigated && context.metadata?.type === 'chunk_load_failure') {
+            console.log('🔇 Suppressing redundant cloud-sync log (handled by reload)');
+            // Optional: We could still log to a different "system_events" table if we wanted
+        }
+
         const payload = {
             user_id: userId,
             error_message: errorMsg,
@@ -94,38 +101,41 @@ export const initGlobalErrorListeners = () => {
         });
     };
 
-    // 3. VITE CHUNK LOADING ERRORS (Mitigation for "Failed to fetch dynamically imported module")
+    // 3. VITE CHUNK LOADING ERRORS
     // This happens frequently on Vercel after a new deployment when user has an old session open.
-    window.addEventListener('vite:preloadError', (event) => {
-        console.warn('Vite preload error detected. Forcing reload to get latest chunks...');
-        logError('Vite Preload Error', { metadata: { type: 'vite_preload_error', url: window.location.href } });
-
-        // Don't loop infinitely - only reload if we haven't reloaded in the last 10s
+    const triggerMitigatedReload = (type, msg) => {
         const lastReload = sessionStorage.getItem('last_chunk_reload');
         const now = Date.now();
-        if (!lastReload || now - parseInt(lastReload) > 10000) {
+
+        // 1. Log a specialized "Mitigated" event once so we know it's happening, 
+        // but avoid a full-blown crash report cluttering the UI.
+        logError(`Update Required: ${type}`, {
+            metadata: { type: 'chunk_load_failure', detail: msg, mitigated: true }
+        });
+
+        // 2. Perform the reload if not done recently
+        if (!lastReload || now - parseInt(lastReload) > 20000) { // 20s guard
+            console.warn(`[Mitigation] ${type} detected. Refreshing for latest version...`);
             sessionStorage.setItem('last_chunk_reload', now.toString());
             window.location.reload();
         }
+    };
+
+    window.addEventListener('vite:preloadError', (event) => {
+        triggerMitigatedReload('Vite Preload Error', 'New chunks available');
     });
 
-    // 4. MIME type errors & generic script failure detection
     window.addEventListener('error', (e) => {
         const msg = e.message || '';
-        if (msg.includes('Failed to fetch dynamically imported module') ||
+        const isChunkError =
+            msg.includes('Failed to fetch dynamically imported module') ||
             msg.includes('text/html is not a valid JavaScript MIME type') ||
-            msg.includes('Importing a module script failed')) {
+            msg.includes('Importing a module script failed');
 
-            console.warn('Chunk loading error detected via observer. Reloading...', msg);
-
-            const lastReload = sessionStorage.getItem('last_chunk_reload');
-            const now = Date.now();
-            if (!lastReload || now - parseInt(lastReload) > 10000) {
-                sessionStorage.setItem('last_chunk_reload', now.toString());
-                window.location.reload();
-            }
+        if (isChunkError) {
+            triggerMitigatedReload('Cloud Sync Error', msg);
         }
     }, true);
 
-    console.log('✅ Global Error Reporting Initialized');
+    console.log('✅ Global Error Mitigator Initialized');
 };
