@@ -160,6 +160,7 @@ function Stats() {
     // User Management (Admin Edit)
     const [userUpdateLoading, setUserUpdateLoading] = useState(false);
     const [userUpdateFeedback, setUserUpdateFeedback] = useState('');
+    const [crashCopied, setCrashCopied] = useState(false);
     const [showUserEditModal, setShowUserEditModal] = useState(false);
     const [selectedUserForEdit, setSelectedUserForEdit] = useState(null);
     const [newStatus, setNewStatus] = useState('');
@@ -964,6 +965,26 @@ function Stats() {
         }
     };
 
+    const copyCrashReports = () => {
+        if (errorLogs.length === 0) return;
+
+        const report = errorLogs.map(err => {
+            const time = new Date(err.created_at).toLocaleString();
+            const device = JSON.stringify(err.device_info || {}, null, 2);
+            const context = JSON.stringify(err.context || {}, null, 2);
+            return `[${time}] ${err.error_message}\nDEVICE: ${device}\nCONTEXT: ${context}\n-------------------`;
+        }).join('\n\n');
+
+        navigator.clipboard.writeText(report).then(() => {
+            setCrashCopied(true);
+            setTimeout(() => setCrashCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy reports:', err);
+            alert('Clipboard access failed. See console for data (F12).');
+            console.log('CRASH REPORTS:', report);
+        });
+    };
+
     // Copy Error Logic
     const longPressTimer = useRef(null);
 
@@ -1319,6 +1340,8 @@ function Stats() {
                                             'word_study_ai': { label: 'Word Study', icon: '🅰️', color: '#06b6d4' },
                                             'semantic_search': { label: 'Semantic Search', icon: '🧠', color: '#f43f5e' },
                                             'sermon_creation': { label: 'Sermon Created', icon: '⛪', color: '#8b5cf6' },
+                                            'trivia_play': { label: 'Trivia Plays', icon: '🎮', color: '#ec4899' },
+                                            'trivia_correct': { label: 'Correct Trivia', icon: '⭐', color: '#fbbf24' },
 
                                             'uncategorized': { label: 'General Activity', icon: '⚡', color: '#94a3b8' },
                                             'unknown_action': { label: 'Unknown Action', icon: '❓', color: '#cbd5e1' }
@@ -2233,7 +2256,25 @@ function Stats() {
                         </div>
 
                         <div className="stat-card recent-list full-width-card">
-                            <h3>🛑 Crash Reports</h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                <h3 style={{ margin: 0 }}>🛑 Crash Reports</h3>
+                                <button
+                                    onClick={copyCrashReports}
+                                    style={{
+                                        padding: '5px 12px',
+                                        background: crashCopied ? '#10b981' : 'var(--accent-primary)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    disabled={errorLogs.length === 0}
+                                >
+                                    {crashCopied ? '✅ Copied!' : '📋 Copy All'}
+                                </button>
+                            </div>
                             <div className="log-table-wrapper">
                                 <table className="log-table desktop-only">
                                     <thead>
@@ -2409,6 +2450,9 @@ function Stats() {
                                                     {selectedUserHistory.blogViews
                                                         .filter((v, i, self) => i === 0 || v.post_id !== self[i - 1].post_id || Math.abs(new Date(v.created_at) - new Date(self[i - 1].created_at)) > 60000)
                                                         .map(v => <li key={v.id}>📰 Visited Blog <span className="history-time">({new Date(v.created_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
+
+                                                    {(selectedUserHistory.trivia || [])
+                                                        .map(t => <li key={t.id}>{t.is_correct ? '✅' : '❌'} Trivia: {t.difficulty} ({t.testament}) <span className="history-time">({new Date(t.answered_at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span></li>)}
 
                                                     {selectedUserHistory.activities
                                                         .filter((a, i, self) => i === 0 || a.activity_type !== self[i - 1].activity_type || Math.abs(new Date(a.created_at) - new Date(self[i - 1].created_at)) > 60000)

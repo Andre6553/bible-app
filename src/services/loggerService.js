@@ -94,5 +94,38 @@ export const initGlobalErrorListeners = () => {
         });
     };
 
+    // 3. VITE CHUNK LOADING ERRORS (Mitigation for "Failed to fetch dynamically imported module")
+    // This happens frequently on Vercel after a new deployment when user has an old session open.
+    window.addEventListener('vite:preloadError', (event) => {
+        console.warn('Vite preload error detected. Forcing reload to get latest chunks...');
+        logError('Vite Preload Error', { metadata: { type: 'vite_preload_error', url: window.location.href } });
+
+        // Don't loop infinitely - only reload if we haven't reloaded in the last 10s
+        const lastReload = sessionStorage.getItem('last_chunk_reload');
+        const now = Date.now();
+        if (!lastReload || now - parseInt(lastReload) > 10000) {
+            sessionStorage.setItem('last_chunk_reload', now.toString());
+            window.location.reload();
+        }
+    });
+
+    // 4. MIME type errors & generic script failure detection
+    window.addEventListener('error', (e) => {
+        const msg = e.message || '';
+        if (msg.includes('Failed to fetch dynamically imported module') ||
+            msg.includes('text/html is not a valid JavaScript MIME type') ||
+            msg.includes('Importing a module script failed')) {
+
+            console.warn('Chunk loading error detected via observer. Reloading...', msg);
+
+            const lastReload = sessionStorage.getItem('last_chunk_reload');
+            const now = Date.now();
+            if (!lastReload || now - parseInt(lastReload) > 10000) {
+                sessionStorage.setItem('last_chunk_reload', now.toString());
+                window.location.reload();
+            }
+        }
+    }, true);
+
     console.log('✅ Global Error Reporting Initialized');
 };

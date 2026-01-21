@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
 import { getTriviaStats, checkDailyLimit, fetchQuestion, submitAnswer, syncDailyProgress } from '../services/triviaService';
+import { logActivity } from '../services/bibleService';
 import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
 import './Trivia.css';
 
@@ -181,6 +182,8 @@ function TriviaSection() {
 
         if (subRes.success) {
             setResult(subRes);
+            logActivity('trivia_play');
+            if (subRes.isCorrect) logActivity('trivia_correct');
 
             // OPTIMIZATION: Track count locally and sync periodically
             // We do NOT fetch getTriviaStats every time to save reads.

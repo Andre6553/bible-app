@@ -483,6 +483,134 @@ export const logActivity = async (activityType) => {
 };
 
 /**
+ * Get global sermon statistics (count per user)
+ */
+export async function getGlobalSermonStats() {
+    try {
+        // 1. Try RPC First (Secure Global Stats)
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_sermon_counts_v5');
+
+        if (!rpcError && rpcData) {
+            return rpcData.map(s => ({
+                userId: s.user_id,
+                email: s.email,
+                count: s.count
+            }));
+        }
+
+        // 2. Fallback (Legacy Client-side grouping)
+        const { data, error } = await supabase
+            .from('sermons')
+            .select('user_id')
+            .limit(5000);
+
+        if (error) throw error;
+
+        const counts = {};
+        data.forEach(s => {
+            counts[s.user_id] = (counts[s.user_id] || 0) + 1;
+        });
+
+        return Object.entries(counts).map(([userId, count]) => ({
+            userId: userId,
+            count
+        }));
+    } catch (error) {
+        console.error('Error getting global sermon stats:', error);
+        return [];
+    }
+}
+
+/**
+ * Get distribution of all user activities for global chart
+ */
+export async function getGlobalActivityCounts() {
+    try {
+        // 1. Get raw AI logs to parse types
+        const { data: aiLogs, error: aiError } = await supabase
+            .from('ai_questions')
+            .select('question'); // We need the text to categorize
+
+        // 2. Get Bible reading count
+        const { count: bibleCount, error: bibleError } = await supabase
+            .from('bible_reading_logs')
+            .select('id', { count: 'exact', head: true });
+
+        // 3. Get generic activity logs
+        const { data: activityLogs, error: activityError } = await supabase
+            .from('user_activity_logs')
+            .select('activity_type');
+
+        if (aiError || bibleError || activityError) throw new Error('Failed to fetch stats');
+
+        const counts = {
+            bible: bibleCount || 0,
+            ai: 0,
+            search: 0,
+            // Granular AI types
+            inductive_hint_1: 0,
+            inductive_hint_2: 0,
+            inductive_hint_3: 0,
+            word_study_ai: 0,
+            semantic_search: 0
+        };
+
+        // Parse AI Logs
+        (aiLogs || []).forEach(log => {
+            const q = log.question || '';
+            if (q.startsWith('Inductive Hint Step 1')) {
+                counts.inductive_hint_1++;
+            } else if (q.startsWith('Inductive Hint Step 2')) {
+                counts.inductive_hint_2++;
+            } else if (q.startsWith('Inductive Hint Step 3')) {
+                counts.inductive_hint_3++;
+            } else if (q.startsWith('Word Study:')) {
+                counts.word_study_ai++;
+            } else if (q.startsWith('Semantic Search:')) {
+                counts.semantic_search++;
+            } else {
+                counts.ai++; // Generic AI
+            }
+        });
+
+        // Parse Generic Activity Logs
+        (activityLogs || []).forEach(log => {
+            const type = log.activity_type || 'uncategorized';
+            counts[type] = (counts[type] || 0) + 1;
+        });
+
+        // 4. Get Search Logs count separately (Legacy Search)
+        const { count: searchCount } = await supabase
+            .from('search_logs')
+            .select('id', { count: 'exact', head: true });
+
+        // 5. Get Sermon Count (Use Global RPC helper to match the list)
+        const globalSermonStats = await getGlobalSermonStats();
+        const sermonCount = globalSermonStats.reduce((sum, s) => sum + s.count, 0);
+
+        // 6. Get Trivia Count
+        const { count: triviaCount } = await supabase
+            .from('user_trivia_history')
+            .select('id', { count: 'exact', head: true });
+
+        const { count: correctCount } = await supabase
+            .from('user_trivia_history')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_correct', true);
+
+        counts.search = (counts.search || 0) + (searchCount || 0);
+        counts.sermon_creation = sermonCount || 0;
+        counts.trivia_play = triviaCount || 0;
+        counts.trivia_correct = correctCount || 0;
+
+        return { success: true, data: counts };
+    } catch (err) {
+        console.error('Error getting global activity:', err);
+        return { success: false, data: {} };
+    }
+}
+
+/**
  * Get User Statistics (Total Users, Most Active)
  */
 export const getUserStatistics = async () => {
@@ -511,20 +639,8 @@ export const getUserStatistics = async () => {
                 originalIds: [u.user_id] // Helper for existing logic
             }));
 
-            // Calculate global activity counts for the chart
-            const globalActivityCounts = {
-                search: 0,
-                ai: 0,
-                sermon_creation: 0,
-                total: 0
-            };
-
-            users.forEach(u => {
-                globalActivityCounts.search += (u.search_count || 0);
-                globalActivityCounts.ai += (u.ai_count || 0);
-                globalActivityCounts.sermon_creation += (u.sermon_count || 0);
-            });
-            globalActivityCounts.total = globalActivityCounts.search + globalActivityCounts.ai + globalActivityCounts.sermon_creation;
+            // [FIX] Always use the comprehensive aggregation for the chart, not just the RPC subset
+            const { data: globalActivityCounts } = await getGlobalActivityCounts();
 
             // [NEW] Fetch Subscription Status via SECURE RPC (Bypasses RLS for Admins)
             const userIds = users.map(u => u.user_id);
@@ -711,81 +827,6 @@ export const getUserStatistics = async () => {
         /**
          * Get distribution of all user activities for global chart
          */
-        const getGlobalActivityCounts = async () => {
-            try {
-                // 1. Get raw AI logs to parse types
-                const { data: aiLogs, error: aiError } = await supabase
-                    .from('ai_questions')
-                    .select('question'); // We need the text to categorize
-
-                // 2. Get Bible reading count
-                const { count: bibleCount, error: bibleError } = await supabase
-                    .from('bible_reading_logs')
-                    .select('id', { count: 'exact', head: true });
-
-                // 3. Get generic activity logs
-                const { data: activityLogs, error: activityError } = await supabase
-                    .from('user_activity_logs')
-                    .select('activity_type');
-
-                if (aiError || bibleError || activityError) throw new Error('Failed to fetch stats');
-
-                const counts = {
-                    bible: bibleCount || 0,
-                    ai: 0,
-                    search: 0,
-                    // Granular AI types
-                    inductive_hint_1: 0,
-                    inductive_hint_2: 0,
-                    inductive_hint_3: 0,
-                    word_study_ai: 0,
-                    semantic_search: 0
-                };
-
-                // Parse AI Logs
-                (aiLogs || []).forEach(log => {
-                    const q = log.question || '';
-                    if (q.startsWith('Inductive Hint Step 1')) {
-                        counts.inductive_hint_1++;
-                    } else if (q.startsWith('Inductive Hint Step 2')) {
-                        counts.inductive_hint_2++;
-                    } else if (q.startsWith('Inductive Hint Step 3')) {
-                        counts.inductive_hint_3++;
-                    } else if (q.startsWith('Word Study:')) {
-                        counts.word_study_ai++;
-                    } else if (q.startsWith('Semantic Search:')) {
-                        counts.semantic_search++;
-                    } else {
-                        counts.ai++; // Generic AI
-                    }
-                });
-
-                // Parse Generic Activity Logs
-                (activityLogs || []).forEach(log => {
-                    const type = log.activity_type || 'uncategorized';
-                    // Search is special (Legacy: search logs might be separate, but we aren't fetching search_logs table count here anymore? 
-                    // Wait, previous code fetched search_logs count. Let's restore that.)
-                    counts[type] = (counts[type] || 0) + 1;
-                });
-
-                // 4. Get Search Logs count separately (Legacy Search)
-                const { count: searchCount } = await supabase
-                    .from('search_logs')
-                    .select('id', { count: 'exact', head: true });
-
-                // 5. Get Sermon Count (Use Global RPC helper to match the list)
-                const globalSermonStats = await getGlobalSermonStats();
-                const sermonCount = globalSermonStats.reduce((sum, s) => sum + s.count, 0);
-
-                counts.search = (counts.search || 0) + (searchCount || 0);
-                counts.sermon_creation = sermonCount || 0;
-
-                return { success: true, data: counts };
-            } catch (err) {
-                console.error('Error getting global activity:', err);
-                return { success: false, data: {} };
-            }
-        };
         const { data: globalActivityCounts } = await getGlobalActivityCounts();
 
         return {
@@ -873,7 +914,16 @@ export const getUserHistory = async (userId) => {
                 .in('user_id', validUuids);
         })();
 
-        const [searchRes, aiRes, blogRes, readingRes, activityRes, sermonCountRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq, sermonCountReq]);
+        const triviaReq = supabase
+            .from('user_trivia_history')
+            .select('*')
+            .in('user_id', userIdsToFetch)
+            .order('answered_at', { ascending: false })
+            .limit(100);
+
+        const [searchRes, aiRes, blogRes, readingRes, activityRes, triviaRes, sermonCountRes] = await Promise.all([
+            searchReq, aiReq, blogReq, readingReq, activityReq, triviaReq, sermonCountReq
+        ]);
 
         let searches = searchRes.data || [];
         let aiQuestions = aiRes.data || [];
@@ -962,6 +1012,7 @@ export const getUserHistory = async (userId) => {
             blogViews,
             bibleReadings,
             activities,
+            trivia: triviaRes.data || [],
             sermonCount
         };
     } catch (error) {
@@ -1190,48 +1241,3 @@ export const getLastReadState = async (userId) => {
     }
 };
 
-/**
- * Get global sermon statistics (count per user)
- */
-export const getGlobalSermonStats = async () => {
-    try {
-        // 1. Try RPC First (Secure Global Stats)
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_sermon_counts_v5');
-
-        if (rpcError) {
-            if (rpcError.status !== 404) console.warn('Sermon Stats RPC Missing:', rpcError);
-        }
-
-        if (!rpcError && rpcData) {
-            return rpcData.map(d => ({
-                userId: d.user_id,
-                count: d.count
-            }));
-        }
-
-        // 2. Fallback: RLS-limited Select (Legacy)
-        const { data, error } = await supabase
-            .from('sermons')
-            .select('user_id');
-
-        if (error) throw error;
-
-        const stats = {};
-        if (data) {
-            data.forEach(s => {
-                const uid = s.user_id || 'unknown';
-                stats[uid] = (stats[uid] || 0) + 1;
-            });
-        }
-
-        // Convert to array
-        return Object.keys(stats).map(userId => ({
-            userId,
-            count: stats[userId]
-        })).sort((a, b) => b.count - a.count);
-
-    } catch (error) {
-        console.error('Error getting global sermon stats:', error);
-        return [];
-    }
-};
