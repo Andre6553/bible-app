@@ -10,5 +10,18 @@
                 "YOUR_SHA256_FINGERPRINT_HERE"
             ]
         }
+    },
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls",
+            "delegate_permission/common.get_login_creds"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.omnibible.online",
+            "sha256_cert_fingerprints": [
+                "16:71:C5:A2:8D:E2:01:2B:7D:4A:47:59:C9:6A:12:C4:63:16:0C:11:3F:5A:6A:55:30:6A:CE:51:EE:64:B7:44"
+            ]
+        }
     }
 ]
