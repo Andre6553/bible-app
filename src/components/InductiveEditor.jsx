@@ -480,7 +480,7 @@ function InductiveEditor() {
                         </div>
                         <div className="field-group standout">
                             <label>{t.action}</label>
-                            <input className="editor-input action-input" value={study.application.action || ''} onChange={(e) => updateApplication('action', e.target.value)} placeholder="Today I will..." />
+                            <textarea className="editor-textarea action-input" value={study.application.action || ''} onChange={(e) => updateApplication('action', e.target.value)} placeholder="Today I will..." />
                         </div>
                     </div>
                 )}
