@@ -67,6 +67,31 @@ function WordStudyModal({
         hydrateVerse();
     }, []); // Run once on mount
 
+    // Navigation History for Android Back Button behavior
+    useEffect(() => {
+        // Push a dummy state to intercept the back button
+        const state = { modal: 'word-study' };
+        window.history.pushState(state, '', window.location.href);
+
+        const handlePopState = (event) => {
+            // If back button pressed (popstate), close the modal
+            // (The state is already popped by the browser)
+            onClose();
+        };
+
+        window.addEventListener('popstate', handlePopState);
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            // If we are cleaning up (closing) but the state is still ours,
+            // (meaning user clicked 'Close' button, not 'Back' button)
+            // we must manually pop the state to keep history clean.
+            if (window.history.state?.modal === 'word-study') {
+                window.history.back();
+            }
+        };
+    }, []); // Run ONCE on mount
+
     useEffect(() => {
         const loadCount = async () => {
             if (currentVerse.verse?.book_id && currentVerse.verse?.chapter) {
