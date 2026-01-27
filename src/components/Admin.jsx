@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUsageStats, getUserDetailsByEmail } from '../services/adminService';
+import { getApiUsageStats, getUserDetailsByEmail, updateUserStatus } from '../services/adminService';
 import { useSettings } from '../context/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 import './Admin.css';
@@ -13,6 +13,14 @@ const Admin = () => {
     const [activeUsers, setActiveUsers] = useState([]);
     const [selectedUserEmail, setSelectedUserEmail] = useState('');
     const [loadingUsers, setLoadingUsers] = useState(false);
+
+    // [NEW] State for User Lookup Modal
+    const [showLookupModal, setShowLookupModal] = useState(false);
+    const [lookupProfiles, setLookupProfiles] = useState([]);
+    const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+    const [updateFeedback, setUpdateFeedback] = useState('');
+    const [editingUserId, setEditingUserId] = useState(null);
+    const [editForm, setEditForm] = useState({ status: '', expiry: '' });
 
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
@@ -144,7 +152,7 @@ const Admin = () => {
                         <option value="">{loadingUsers ? 'Loading Users...' : 'Select a User...'}</option>
                         {activeUsers.map((u, i) => (
                             <option key={i} value={u.email || u.userId}>
-                                {u.email ? `${u.email} (${u.subscription_tier || 'Free'})` : `ID: ${u.userId.substring(0, 8)}...`}
+                                {u.email ? `${u.email} (${(u.subscription_override || u.subscription_tier || 'Free').charAt(0).toUpperCase() + (u.subscription_override || u.subscription_tier || 'Free').slice(1)})` : `ID: ${u.userId.substring(0, 8)}...`}
                             </option>
                         ))}
                     </select>
@@ -157,17 +165,9 @@ const Admin = () => {
                             if (!selectedUserEmail) return;
                             const res = await getUserDetailsByEmail(selectedUserEmail);
                             if (res.success) {
-                                let msg = `🔍 Found ${res.data.length} profile(s):\n`;
-                                res.data.forEach((p, index) => {
-                                    msg += `\n-----------------------\n`;
-                                    msg += `Profile #${index + 1}\n`;
-                                    msg += `🆔 ID: ${p.user_id}\n`;
-                                    msg += `💎 Tier: ${p.subscription_tier || 'Free'}\n`;
-                                    msg += `🔑 Override: ${p.subscription_override || 'None'}\n`;
-                                    msg += `📊 Usage: ${p.ai_usage_count || 0}\n`;
-                                    msg += `📅 Last Seen: ${p.last_seen ? new Date(p.last_seen).toLocaleDateString() : 'N/A'}`;
-                                });
-                                alert(msg);
+                                setLookupProfiles(res.data);
+                                setShowLookupModal(true);
+                                setUpdateFeedback('');
                             } else {
                                 alert(res.error);
                             }
@@ -323,6 +323,120 @@ const Admin = () => {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* [NEW] User Lookup & Edit Modal */}
+            {showLookupModal && (
+                <div className="admin-modal-overlay" onClick={() => setShowLookupModal(false)}>
+                    <div className="admin-modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>🔍 User Profile Details</h2>
+                            <button className="close-btn" onClick={() => setShowLookupModal(false)}>×</button>
+                        </div>
+
+                        <div className="modal-body">
+                            {lookupProfiles.map((p, index) => (
+                                <div key={p.user_id} className="profile-detail-card">
+                                    <div className="profile-header">
+                                        <h3>Profile #{index + 1}</h3>
+                                        {editingUserId === p.user_id ? (
+                                            <button className="btn-cancel" onClick={() => setEditingUserId(null)}>Cancel</button>
+                                        ) : (
+                                            <button className="btn-edit" onClick={() => {
+                                                setEditingUserId(p.user_id);
+                                                setEditForm({
+                                                    status: p.subscription_override || '',
+                                                    expiry: p.subscription_expiry ? p.subscription_expiry.split('T')[0] : ''
+                                                });
+                                            }}>✎ Edit</button>
+                                        )}
+                                    </div>
+
+                                    <div className="detail-row">
+                                        <span className="label">🆔 User ID:</span>
+                                        <span className="value code">{p.user_id}</span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="label">📧 Email:</span>
+                                        <span className="value">{p.email}</span>
+                                    </div>
+
+                                    {editingUserId === p.user_id ? (
+                                        <div className="edit-form-inline">
+                                            <div className="input-group">
+                                                <label>Subscription Mode:</label>
+                                                <select
+                                                    value={editForm.status}
+                                                    onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                                                >
+                                                    <option value="">Reset (Free)</option>
+                                                    <option value="premium">Premium</option>
+                                                    <option value="admin">Admin</option>
+                                                    <option value="tester">Tester</option>
+                                                    <option value="tester_finger">Tester Finger</option>
+                                                </select>
+                                            </div>
+                                            <div className="input-group">
+                                                <label>Expiry Date:</label>
+                                                <input
+                                                    type="date"
+                                                    value={editForm.expiry}
+                                                    onChange={e => setEditForm({ ...editForm, expiry: e.target.value })}
+                                                />
+                                            </div>
+                                            <button
+                                                className="btn-save"
+                                                disabled={isUpdatingUser}
+                                                onClick={async () => {
+                                                    setIsUpdatingUser(true);
+                                                    const res = await updateUserStatus(p.user_id, editForm.status, editForm.expiry || null);
+                                                    if (res.success) {
+                                                        setUpdateFeedback('✅ Success! Refreshing...');
+                                                        setTimeout(async () => {
+                                                            const fresh = await getUserDetailsByEmail(selectedUserEmail);
+                                                            if (fresh.success) setLookupProfiles(fresh.data);
+                                                            setEditingUserId(null);
+                                                            setUpdateFeedback('');
+                                                        }, 1000);
+                                                    } else {
+                                                        alert('Error: ' + res.error);
+                                                    }
+                                                    setIsUpdatingUser(false);
+                                                }}
+                                            >
+                                                {isUpdatingUser ? 'Saving...' : 'Save Changes'}
+                                            </button>
+                                            {updateFeedback && <p className="feedback-msg">{updateFeedback}</p>}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="detail-row">
+                                                <span className="label">💎 Tier/Override:</span>
+                                                <span className="value badge">
+                                                    {p.subscription_override ? `${p.subscription_override.toUpperCase()} (Override)` : (p.subscription_tier || 'Free').toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div className="detail-row">
+                                                <span className="label">📅 Subscription Expiry:</span>
+                                                <span className={`value ${p.subscription_expiry && new Date(p.subscription_expiry) < new Date() ? 'expired' : ''}`}>
+                                                    {p.subscription_expiry ? new Date(p.subscription_expiry).toLocaleDateString() : 'Never'}
+                                                </span>
+                                            </div>
+                                            <div className="detail-row">
+                                                <span className="label">📊 AI Usage:</span>
+                                                <span className="value">{p.ai_usage_count || 0}</span>
+                                            </div>
+                                            <div className="detail-row">
+                                                <span className="label">🕒 Last Seen:</span>
+                                                <span className="value">{p.last_seen ? new Date(p.last_seen).toLocaleString() : 'N/A'}</span>
+                                            </div>
+                                        </>
+                                    )}
+                                    {lookupProfiles.length > 1 && index < lookupProfiles.length - 1 && <hr className="profile-separator" />}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>

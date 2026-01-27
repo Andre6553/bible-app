@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.omnibible.online",
+        "sha256_cert_fingerprints": ["6E:5D:4F:97:04:67:39:31:A6:E6:28:BE:8D:96:01:DF:E5:1B:11:92:C0:04:41:AD:C0:91:C8:0D:2F:9F:7D:E9"]
+      }
+    }]

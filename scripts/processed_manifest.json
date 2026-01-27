@@ -1,0 +1,30 @@
+[
+  {
+    "src": "screenshots/processed_1.png",
+    "sizes": "1920x1080",
+    "type": "image/png",
+    "form_factor": "wide",
+    "label": "Screenshot 1"
+  },
+  {
+    "src": "screenshots/processed_2.png",
+    "sizes": "1920x1080",
+    "type": "image/png",
+    "form_factor": "wide",
+    "label": "Screenshot 2"
+  },
+  {
+    "src": "screenshots/processed_3.png",
+    "sizes": "1920x1080",
+    "type": "image/png",
+    "form_factor": "wide",
+    "label": "Screenshot 3"
+  },
+  {
+    "src": "screenshots/processed_4.png",
+    "sizes": "1920x1080",
+    "type": "image/png",
+    "form_factor": "wide",
+    "label": "Screenshot 4"
+  }
+]

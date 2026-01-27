@@ -475,3 +475,199 @@
         padding: 16px;
     }
 }
+
+/* Admin Modal Styles */
+.admin-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.admin-modal-content {
+    width: 90%;
+    max-width: 600px;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.dark-mode .admin-modal-content {
+    background: #1e293b;
+    color: #f1f5f9;
+    border: 1px solid #334155;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: #94a3b8;
+    line-height: 1;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.profile-detail-card {
+    padding: 15px;
+    background: rgba(148, 163, 184, 0.05);
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.profile-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #6366f1;
+}
+
+.detail-row {
+    display: flex;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+}
+
+.detail-row .label {
+    width: 150px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.detail-row .value {
+    flex: 1;
+}
+
+.value.code {
+    font-family: monospace;
+    font-size: 0.85rem;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.value.badge {
+    background: #6366f1;
+    color: white;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.value.expired {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.profile-separator {
+    margin: 20px 0;
+    border: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* Edit Form Styles */
+.edit-form-inline {
+    background: rgba(99, 102, 241, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px dashed #6366f1;
+    margin-top: 10px;
+}
+
+.edit-form-inline .input-group {
+    margin-bottom: 15px;
+}
+
+.edit-form-inline label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.edit-form-inline select,
+.edit-form-inline input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+}
+
+.dark-mode .edit-form-inline select,
+.dark-mode .edit-form-inline input {
+    background: #0f172a;
+    color: #f1f5f9;
+    border-color: #334155;
+}
+
+.btn-edit,
+.btn-cancel,
+.btn-save {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.btn-edit {
+    background: #6366f1;
+    color: white;
+}
+
+.btn-cancel {
+    background: #94a3b8;
+    color: white;
+}
+
+.btn-save {
+    background: #10b981;
+    color: white;
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+}
+
+.feedback-msg {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #10b981;
+}

@@ -187,11 +187,12 @@ export const getUserDetailsByEmail = async (email) => {
  * @param {string} targetUserId - The ID of the user to update
  * @param {string} newStatus - 'admin', 'premium', 'tester', 'tester_finger', or '' (reset)
  */
-export const updateUserStatus = async (targetUserId, newStatus) => {
+export const updateUserStatus = async (targetUserId, newStatus, expiryDate = null) => {
     try {
         const { data, error } = await supabase.rpc('update_user_subscription_status', {
             target_user_id: targetUserId,
-            new_status: newStatus
+            new_status: newStatus,
+            expiry_date: expiryDate
         });
 
         if (error) throw error;

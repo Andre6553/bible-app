@@ -97,6 +97,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [showReaderControls, setShowReaderControls] = useState(true);
     const [isFirstSyncDone, setIsFirstSyncDone] = useState(false); // Robust cloud-check protection
     const [isScrolled, setIsScrolled] = useState(false);
+    const [currentScrollVerse, setCurrentScrollVerse] = useState(1); // Track top visible verse
 
     // Manage body classes for UI visibility
     useEffect(() => {
@@ -161,8 +162,6 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         if (currentScroll > 100 && !isScrolled) setIsScrolled(true);
         else if (currentScroll <= 100 && isScrolled) setIsScrolled(false);
 
-        if (!isSplitView || !target.current) return;
-
         // Throttle to keep it performant
         const now = Date.now();
         if (now - lastScrollCall.current < 16) return;
@@ -174,7 +173,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
         if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
 
-        // SYNC LOGIC: Find the FIRST visible verse at the top
+        // SYNC LOGIC & TRACKING: Find the FIRST visible verse at the top
         const sourceRect = source.current.getBoundingClientRect();
         const verseElements = source.current.querySelectorAll('.verse-item');
 
@@ -191,29 +190,41 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
         if (anchorVerse) {
             const parts = anchorVerse.id.split('-');
-            const verseNum = parts[parts.length - 1];
-            const targetIdPrefix = sourceName === 'primary' ? 'v2-' : 'verse-';
-            const targetElement = target.current.querySelector(`#${targetIdPrefix}${verseNum}`);
+            const verseNum = parseInt(parts[parts.length - 1], 10);
 
-            if (targetElement) {
-                const anchorRect = anchorVerse.getBoundingClientRect();
-                const targetRectCurrent = targetElement.getBoundingClientRect();
-                const targetContainerRect = target.current.getBoundingClientRect();
-
-                // Alignment matching math
-                const sourceRelativeY = anchorRect.top - sourceRect.top;
-                const targetRelativeY = targetRectCurrent.top - targetContainerRect.top;
-                const correction = targetRelativeY - sourceRelativeY;
-
-                if (Math.abs(correction) > 0.5) {
-                    // Update: Perform immediate update to avoid smooth-scroll lag
-                    target.current.scrollTop += correction;
-                }
-            } else {
-                // Fallback percentage
-                const scrollPct = source.current.scrollTop / (source.current.scrollHeight - source.current.clientHeight);
-                target.current.scrollTop = scrollPct * (target.current.scrollHeight - target.current.clientHeight);
+            // Update tracking state (debounced by React batching mostly, effectively throttled by the scroll logic)
+            if (sourceName === 'primary') {
+                setCurrentScrollVerse(verseNum);
             }
+
+            // --- Split View Sync Logic Below ---
+            if (isSplitView && target.current) {
+                const targetIdPrefix = sourceName === 'primary' ? 'v2-' : 'verse-';
+                const targetElement = target.current.querySelector(`#${targetIdPrefix}${verseNum}`);
+
+                if (targetElement) {
+                    const anchorRect = anchorVerse.getBoundingClientRect();
+                    const targetRectCurrent = targetElement.getBoundingClientRect();
+                    const targetContainerRect = target.current.getBoundingClientRect();
+
+                    // Alignment matching math
+                    const sourceRelativeY = anchorRect.top - sourceRect.top;
+                    const targetRelativeY = targetRectCurrent.top - targetContainerRect.top;
+                    const correction = targetRelativeY - sourceRelativeY;
+
+                    if (Math.abs(correction) > 0.5) {
+                        target.current.scrollTop += correction;
+                    }
+                } else {
+                    // Fallback percentage
+                    const scrollPct = source.current.scrollTop / (source.current.scrollHeight - source.current.clientHeight);
+                    target.current.scrollTop = scrollPct * (target.current.scrollHeight - target.current.clientHeight);
+                }
+            }
+        } else if (sourceName === 'primary' && !scrollDriver.current) {
+            // Fallback if anchorVerse logic above fails but we need to track local read
+            const idx = getTopVerseIndex();
+            if (verses[idx]) setCurrentScrollVerse(verses[idx].verse);
         }
 
         scrollTimeout.current = setTimeout(() => {
@@ -315,11 +326,87 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 return;
             }
 
-            console.log('📡 Saving reading position to cloud:', selectedBook.name_full, selectedChapter);
+            // [FIX] Checking existing storage to preserve 'verse' property if we are just reloading/switching versions
+            // but staying in the same Chapter. This prevents the initial load (where currentScrollVerse might be 1)
+            // from wiping out the saved verse before the scroll-restoration happens.
+            let verseToSave = currentScrollVerse;
+            const existingRaw = localStorage.getItem('lastReadPosition');
+            if (existingRaw) {
+                try {
+                    const existing = JSON.parse(existingRaw);
+                    if (existing.bookId == selectedBook.id && existing.chapter == selectedChapter && existing.verse) {
+                        // If state thinks we are at different verse than storage (likely 1 vs 50 on load), keep storage
+                        // UNLESS we are sure user has moved? (Hard to know, safer to preserve)
+                        // Actually, if we preserve, we might be safe.
+                        if (verseToSave === 1 && existing.verse > 1) {
+                            verseToSave = existing.verse;
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            const newState = {
+                bookId: selectedBook.id,
+                chapter: selectedChapter,
+                version: currentVersion.id,
+                secondaryVersion: secondVersion?.id,
+                isSplitView,
+                verse: verseToSave, // Include verse in the main save
+                last_updated: now
+            };
+
+            localStorage.setItem('lastReadPosition', JSON.stringify(newState));
+
+            console.log('📡 Saving reading position to cloud:', selectedBook.name_full, selectedChapter, 'v.' + verseToSave);
             logBibleReading(selectedBook.id, selectedChapter);
             loadCategories();
         }
     }, [selectedBook, selectedChapter, currentVersion, secondVersion, isSplitView, isFirstSyncDone, syncPrompt]);
+
+    // Separate effect to save VERSE position locally without triggering cloud syncs
+    useEffect(() => {
+        if (!currentScrollVerse || !selectedBook || !selectedChapter) return;
+
+        const existingRaw = localStorage.getItem('lastReadPosition');
+        let shouldSave = true;
+        let dataToSave = {};
+
+        if (existingRaw) {
+            try {
+                const existing = JSON.parse(existingRaw);
+                // If we are on the same book/chapter
+                if (existing.bookId == selectedBook.id && existing.chapter == selectedChapter) {
+
+                    // ANTI-CORRUPTION CHECK:
+                    // If state says "1" (default) but storage has something else (e.g. 50),
+                    // ignore this update. It's likely the initial render before restoration.
+                    if (currentScrollVerse === 1 && existing.verse > 1) {
+                        shouldSave = false;
+                    }
+
+                    dataToSave = existing;
+                } else {
+                    // Changing books - safe to overwrite or start fresh, 
+                    // but we should probably keep the rest of the state structure
+                    dataToSave = existing; // Effectively we will overwrite the props we need
+                }
+            } catch (e) {
+                console.warn('Failed to read local storage for update', e);
+            }
+        }
+
+        if (shouldSave) {
+            dataToSave.bookId = selectedBook.id;
+            dataToSave.chapter = selectedChapter;
+            dataToSave.verse = currentScrollVerse;
+            dataToSave.last_updated = Date.now();
+
+            // Ensure other fields are present if we started from scratch
+            if (!dataToSave.version) dataToSave.version = currentVersion.id;
+
+            localStorage.setItem('lastReadPosition', JSON.stringify(dataToSave));
+        }
+    }, [currentScrollVerse, selectedBook, selectedChapter]);
 
     // Check for Cloud Sync Continuity (Pick up where you left off)
     const checkCloudSync = async () => {
@@ -477,7 +564,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             const lastPosition = localStorage.getItem('lastReadPosition');
             if (lastPosition) {
                 try {
-                    const { bookId, chapter, version, secondaryVersion, isSplitView: wasSplit } = JSON.parse(lastPosition);
+                    const { bookId, chapter, version, secondaryVersion, isSplitView: wasSplit, verse } = JSON.parse(lastPosition);
                     const book = result.data.all.find(b => b.id == bookId);
                     if (book) {
                         console.log('📚 Restoring last reading position:', book.name_full, chapter);
@@ -490,6 +577,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 setSecondVersion(secVer);
                                 setIsSplitView(true);
                             }
+                        }
+
+
+                        // Restore last verse
+                        if (verse) {
+                            console.log('📍 Restoring last verse:', verse);
+                            setTargetVerse(verse);
+                            setCurrentScrollVerse(verse); // [FIX] Sync state immediately
                         }
                         return; // Skip default
                     }
