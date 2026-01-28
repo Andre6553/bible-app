@@ -105,6 +105,7 @@ Omni Bible is not just another Bible reading app. It's a **complete Bible study 
 | **Recommended Reading** | Personalized articles from your search history |
 | **Seasonal Awareness** | Content relevant to holidays and seasons |
 | **Keyword Tracking** | Highlight topics you care about |
+| **Bible Trivia** | Gamified quiz with streaks, daily limits, and difficulty levels |
 
 ### ⚙️ Platform Features
 | Feature | Description |
