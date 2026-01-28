@@ -2,16 +2,21 @@
     display: flex;
     flex-direction: column;
     padding-top: var(--header-top-padding) !important;
-    min-height: 0;
-    overflow: hidden;
+    min-height: 100dvh;
+    overflow-y: auto;
+    /* Enable scrolling for form/history */
     background: var(--bg-secondary);
-    /* Seamless match with header */
     flex: 1;
+    padding-bottom: 160px;
+    /* Ensure bottom content clears nav */
+    -webkit-overflow-scrolling: touch;
 }
 
 .search-page.mobile-results-open {
-    height: 100vh;
-    height: 100svh;
+    height: 100dvh;
+    overflow: hidden;
+    /* Lock parent scroll when results are open */
+    padding-bottom: 0;
 }
 
 /* Search Header */
