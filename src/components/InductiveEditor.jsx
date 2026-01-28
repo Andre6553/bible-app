@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useBackButton } from './BackButtonHandler';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getStudyById, saveInductiveStudy } from '../services/studyService';
 import { getInductiveStudyHints } from '../services/aiService';
@@ -12,6 +13,12 @@ function InductiveEditor() {
     const navigate = useNavigate();
     const location = useLocation();
     const { settings } = useSettings();
+
+    // Handle back button specifically for the editor
+    const handleBack = useCallback(() => {
+        navigate('/study');
+    }, [navigate]);
+    useBackButton(true, handleBack);
 
     const [loading, setLoading] = useState(true);
     const [step, setStep] = useState(1);

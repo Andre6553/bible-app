@@ -3,11 +3,13 @@
  * Shows when user taps a verse
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HIGHLIGHT_COLORS } from '../services/highlightService';
 import { useSettings } from '../context/SettingsContext';
 import TutorialOverlay from './TutorialOverlay';
+import { useBackButton } from './BackButtonHandler';
+import { copyToClipboard } from '../utils/appUtils';
 import './VerseActionSheet.css';
 
 function VerseActionSheet({
@@ -28,6 +30,12 @@ function VerseActionSheet({
     const navigate = useNavigate();
     const { settings } = useSettings();
     const [copied, setCopied] = useState(false);
+
+    // Close on Android back button
+    const handleBackClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
+    useBackButton(true, handleBackClose);
     const [editingColor, setEditingColor] = useState(null); // color hex being renamed
     const [tempLabel, setTempLabel] = useState('');
     const [showHelp, setShowHelp] = useState(false);
@@ -129,13 +137,11 @@ function VerseActionSheet({
 
     const handleCopy = async () => {
         const textToCopy = verseText ? `${verseText} - ${verseRef}` : verseRef;
-        try {
-            await navigator.clipboard.writeText(textToCopy);
+        const success = await copyToClipboard(textToCopy);
+        if (success) {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             onCopy && onCopy();
-        } catch (err) {
-            console.error('Failed to copy:', err);
         }
     };
 

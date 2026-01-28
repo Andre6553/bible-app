@@ -9,6 +9,7 @@ import { initGlobalErrorListeners } from './services/loggerService';
 import SplashScreen from './components/SplashScreen';
 import { initGA, logPageView, setUserId } from './services/analyticsService';
 import { useLocation } from 'react-router-dom';
+import BackButtonHandler from './components/BackButtonHandler';
 import './App.css';
 
 // Lazy load components
@@ -94,6 +95,7 @@ function App() {
             <ThemeHandler />
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <AnalyticsTracker />
+                <BackButtonHandler />
                 <div className="app">
                     <Analytics />
                     <ErrorBoundary>

@@ -14,6 +14,7 @@ import {
 } from '../services/blogService';
 import { useSettings } from '../context/SettingsContext';
 import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
+import { copyToClipboard } from '../utils/appUtils';
 import './Blog.css';
 
 function Blog() {
@@ -387,52 +388,13 @@ function Blog() {
             return;
         }
 
-        console.log('Attempting to copy:', text.substring(0, 50) + '...');
-
-        // Helper for fallback
-        const fallbackCopy = (textToCopy) => {
-            try {
-                const textArea = document.createElement("textarea");
-                textArea.value = textToCopy;
-
-                // Ensure valid style so it doesn't break layout but is invisible
-                textArea.style.position = "fixed";
-                textArea.style.left = "-9999px";
-                textArea.style.top = "0";
-                textArea.setAttribute('readonly', '');
-
-                document.body.appendChild(textArea);
-
-                // Select text - iOS compat
-                textArea.select();
-                textArea.setSelectionRange(0, 99999);
-
-                const successful = document.execCommand('copy');
-                document.body.removeChild(textArea);
-
-                if (successful) {
-                    alert('Copied to clipboard! 📋');
-                } else {
-                    alert('Copy failed. Please copy manually.');
-                }
-            } catch (err) {
-                console.error('Fallback copy failed', err);
-                alert('Copy failed.');
+        copyToClipboard(text).then(success => {
+            if (success) {
+                alert('Copied to clipboard! 📋');
+            } else {
+                alert('Copy failed. Please copy manually.');
             }
-        };
-
-        // 1. Check if we can use modern API
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(text)
-                .then(() => alert('Copied to clipboard! 📋'))
-                .catch((err) => {
-                    console.warn('Clipboard API failed, trying fallback...', err);
-                    fallbackCopy(text);
-                });
-        } else {
-            // 2. Immediate fallback for non-secure contexts
-            fallbackCopy(text);
-        }
+        });
     };
 
     if (loading) {

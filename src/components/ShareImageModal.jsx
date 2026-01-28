@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toPng } from 'html-to-image';
+import { useBackButton } from './BackButtonHandler';
 import './ShareImageModal.css';
 
 const THEMES = [
@@ -46,6 +47,12 @@ function ShareImageModal({ verses, bookName, chapter, onClose, language = 'en' }
 
     const cardRef = useRef(null);
     const isAfrikaans = language === 'af';
+
+    // Close on Android back button
+    const handleBackClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
+    useBackButton(true, handleBackClose);
 
     // Preload images for snappier switching
     useEffect(() => {

@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useBackButton } from './BackButtonHandler';
 import { getChapterSummary } from '../services/aiService';
 import { getUserId } from '../services/bibleService';
+import { copyToClipboard } from '../utils/appUtils';
 import './BibleReader.css'; // Reuse reader styles
 
 function ChapterSummaryModal({ isOpen, onClose, bookName, chapter, verses, language }) {
@@ -8,6 +10,12 @@ function ChapterSummaryModal({ isOpen, onClose, bookName, chapter, verses, langu
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [copied, setCopied] = useState(false);
+
+    // Close on Android back button
+    const handleBackClose = useCallback(() => {
+        if (isOpen) onClose();
+    }, [isOpen, onClose]);
+    useBackButton(isOpen, handleBackClose);
 
     useEffect(() => {
         if (isOpen && bookName && chapter) {
@@ -42,9 +50,12 @@ function ChapterSummaryModal({ isOpen, onClose, bookName, chapter, verses, langu
 
         const fullText = `${bookName} ${chapter} Summary\n\n${summaryData.summary}\n\nOutline:\n${outlineText}`;
 
-        navigator.clipboard.writeText(fullText);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        copyToClipboard(fullText).then(success => {
+            if (success) {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            }
+        });
     };
 
     if (!isOpen) return null;

@@ -5,6 +5,7 @@ import { getMySermons, createSermon, deleteSermon, generateExegesis, updateSermo
 import { getBooks, getChapter, getChapterCount } from '../services/bibleService';
 import { askBibleQuestion } from '../services/aiService';
 import { getDeviceFingerprint } from '../utils/security';
+import { copyToClipboard as robustCopyToClipboard } from '../utils/appUtils';
 import './SermonPrep.css';
 import TutorialOverlay from './TutorialOverlay';
 
@@ -215,12 +216,10 @@ const SermonPrep = () => {
 
             // 2. Handle Clipboard Request
             if (event.data.type === 'COPY_TEXT') {
-                try {
-                    await navigator.clipboard.writeText(event.data.text);
+                const success = await robustCopyToClipboard(event.data.text);
+                if (success) {
                     const iframes = document.querySelectorAll('iframe');
                     iframes.forEach(f => f.contentWindow.postMessage({ type: 'COPY_SUCCESS' }, '*'));
-                } catch (err) {
-                    console.error('Clipboard Error:', err);
                 }
             }
         };
@@ -2000,79 +1999,23 @@ const SermonPrep = () => {
                 return; // Share sheet opened successfully
             } catch (shareErr) {
                 console.log('Share cancelled or failed:', shareErr);
-                // Fall through to other methods
             }
         }
 
-        const fallbackCopy = () => {
-            const textarea = document.createElement('textarea');
-            textarea.value = content;
-            textarea.style.position = 'absolute';
-            textarea.style.top = '0';
-            textarea.style.left = '0';
-            textarea.style.width = '100px';
-            textarea.style.height = '100px';
-            textarea.style.opacity = '0.01';
-            textarea.style.fontSize = '16px';
-            textarea.setAttribute('readonly', '');
-            document.body.appendChild(textarea);
-
-            if (isiOS) {
-                textarea.focus();
-                const range = document.createRange();
-                range.selectNodeContents(textarea);
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                selection.addRange(range);
-                textarea.setSelectionRange(0, content.length);
-            } else {
-                textarea.select();
-            }
-
-            let success = false;
-            try {
-                success = document.execCommand('copy');
-            } catch (e) {
-                console.error('execCommand failed:', e);
-            }
-            document.body.removeChild(textarea);
-            return success;
-        };
-
-        // Try modern Clipboard API (works on HTTPS/localhost)
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            try {
-                await navigator.clipboard.writeText(content);
-
-                // Special popup for scripts instead of standard alert
-                const isScript = content.includes('HOST:') || content.includes('EXPERT:') || content.includes('NARRATOR:');
-                if (isScript) {
-                    setScriptCopyNote({ type: content.includes('HOST:') ? 'generate_podcast' : 'generate_narrative' });
-                } else {
-                    alert(isAf ? 'Gekopieer na knipbord!' : 'Copied to clipboard!');
-                }
-
-                setIsAiPanelOpen(false);
-                return;
-            } catch (clipErr) {
-                console.log('Clipboard API failed:', clipErr);
-            }
-        }
-
-        // Fallback: execCommand
-        if (fallbackCopy()) {
+        const success = await robustCopyToClipboard(content);
+        if (success) {
+            // Special popup for scripts instead of standard alert
             const isScript = content.includes('HOST:') || content.includes('EXPERT:') || content.includes('NARRATOR:');
             if (isScript) {
                 setScriptCopyNote({ type: content.includes('HOST:') ? 'generate_podcast' : 'generate_narrative' });
             } else {
                 alert(isAf ? 'Gekopieer na knipbord!' : 'Copied to clipboard!');
             }
+            setIsAiPanelOpen(false);
         } else {
             // Last resort: show full-screen modal with selectable text for iOS
             setCopyModal({ content: content });
-            return; // Don't close AI panel - modal will handle it
         }
-        setIsAiPanelOpen(false);
     };
 
     const renderBlockEditor = () => {
@@ -3434,31 +3377,13 @@ const FullPageOverlay = ({ title, onClose, content, controlsType }) => {
 
         const text = contentEl.innerText;
 
-        // Try modern clipboard API first
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            try {
-                await navigator.clipboard.writeText(text);
+        robustCopyToClipboard(text).then(success => {
+            if (success) {
                 alert('Copied!');
-                return;
-            } catch (e) {
-                // Fall through to legacy method
+            } else {
+                alert('Copy failed. Please select and copy manually.');
             }
-        }
-
-        // Fallback: Create temporary textarea and use execCommand
-        try {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.left = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            alert('Copied!');
-        } catch (e) {
-            alert('Copy failed. Please select and copy manually.');
-        }
+        });
     };
 
     // Timer Effect

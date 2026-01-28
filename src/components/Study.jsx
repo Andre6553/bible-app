@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getInductiveStudies, deleteInductiveStudy } from '../services/studyService';
 import { getLocalizedBookName } from '../constants/bookNames';
 import { useSettings } from '../context/SettingsContext';
 import { logActivity } from '../services/bibleService';
+import { useBackButton } from './BackButtonHandler';
 import './Study.css';
 
 function Study() {
@@ -14,6 +15,12 @@ function Study() {
     const [error, setError] = useState(null);
     const [confirmDelete, setConfirmDelete] = useState({ show: false, id: null, title: '' });
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Close confirm delete on Android back button
+    const handleBackClose = useCallback(() => {
+        if (confirmDelete.show) cancelDelete();
+    }, [confirmDelete.show]);
+    useBackButton(confirmDelete.show, handleBackClose);
 
     // Prevent double logging in strict mode
     const loggingRef = useRef(false);

@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useBackButton } from './BackButtonHandler';
 import './Search.css'; // Re-use search styling or add new modal styles here
 
 const SearchHelpModal = ({ onClose, language }) => {
+    const handleBackClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
+    useBackButton(true, handleBackClose);
 
     const content = {
         en: {
@@ -23,16 +28,22 @@ const SearchHelpModal = ({ onClose, language }) => {
                 "**Direct Verse:** Typing 'John 3:16' (or 'Johannes 3:16' in Afrikaans) will take you directly to the verse regardless of mode.",
                 "**Multi-Word:** In Exact Match, use commas to find verses containing ANY of the words. Example: 'grace, mercy'.",
                 "**Parallel View:** Use the split-view icon in the reader to compare two versions (e.g., KJV and NLT) side-by-side.",
-                "**Smart Sync:** Your reading progress is automatically saved to your profile and synced across all your devices."
+                "**Smart Sync:** Your reading progress is automatically saved to your profile and synced across all your devices.",
+                "**Back Button:** On Android, the back button safely closes search results or the AI modal instead of exiting the app."
             ],
             aiTitle: "🤖 AI Research Lab",
             aiDesc: "Use the 'Ask AI' button or type these lightning shortcuts for deep biblical study:",
             shortcuts: [
-                { cmd: "/story [topic]", desc: "Tell the complete biblical story of..." },
-                { cmd: "/mean [word]", desc: "What is the biblical meaning of..." },
-                { cmd: "/explain [topic]", desc: "Explain deep theological concepts..." },
-                { cmd: "/who [person]", desc: "Who was this person?" },
-                { cmd: "/verse [ref]", desc: "Get an AI commentary on a specific verse." }
+                { cmd: "/story", desc: "Tell me the story of..." },
+                { cmd: "/explain", desc: "Explain from the Bible..." },
+                { cmd: "/meaning", desc: "Biblical meaning of..." },
+                { cmd: "/who", desc: "Who was..." },
+                { cmd: "/what", desc: "What was..." },
+                { cmd: "/why", desc: "Why did..." },
+                { cmd: "/teach", desc: "What does the Bible teach..." },
+                { cmd: "/compare", desc: "Compare in the Bible..." },
+                { cmd: "/Bible Verse", desc: "Find and copy verses..." },
+                { cmd: "/help", desc: "Show all shortcuts" }
             ],
             close: "Close"
         },
@@ -55,16 +66,22 @@ const SearchHelpModal = ({ onClose, language }) => {
                 "**Direkte Vers:** Tik 'Johannes 3:16' om direk na die vers te gaan ongeag die metode.",
                 "**Veelvuldige Woorde:** In Presiese Soektog, gebruik kommas om verse te vind wat ENIGE van die woorde bevat. Bv: 'vader, seun'.",
                 "**Parallelle Lees:** Gebruik die verdeelde-skerm ikoon om twee weergawes langs mekaar te vergelyk.",
-                "**Slim Sinchronisasie:** Jou leespunt word outomaties op jou profiel gestoor en met al jou toestelle gesinchroniseer."
+                "**Slim Sinchronisasie:** Jou leespunt word outomaties op jou profiel gestoor en met al jou toestelle gesinchroniseer.",
+                "**Terug-knoppie:** Op Android maak die terug-knoppie soekresultate of die AI venster toe in plaas daarvan om die app te sluit."
             ],
             aiTitle: "🤖 AI Navorsing Laboratorium",
             aiDesc: "Gebruik die 'Vra AI' knoppie of tik hierdie kortpaaie vir diep bybelstudie:",
             shortcuts: [
-                { cmd: "/story [onderwerp]", desc: "Vertel die volledige bybelse verhaal van..." },
-                { cmd: "/mean [woord]", desc: "Wat is die bybelse betekenis van..." },
-                { cmd: "/explain [onderwerp]", desc: "Verduidelik diep teologiese konsepte..." },
-                { cmd: "/who [persoon]", desc: "Wie was hierdie persoon?" },
-                { cmd: "/verse [verw]", desc: "Kry 'n AI kommentaar op 'n spesifieke vers." }
+                { cmd: "/story", desc: "Vertel my die storie van..." },
+                { cmd: "/explain", desc: "Verduidelik vanuit die Bybel..." },
+                { cmd: "/meaning", desc: "Bybelse betekenis van..." },
+                { cmd: "/who", desc: "Who was..." },
+                { cmd: "/what", desc: "What was..." },
+                { cmd: "/why", desc: "Waarom het..." },
+                { cmd: "/teach", desc: "Wat leer die Bybel oor..." },
+                { cmd: "/compare", desc: "Vergelyk in die Bybel..." },
+                { cmd: "/Bible Verse", desc: "Vind en kopieer verse..." },
+                { cmd: "/help", desc: "Wys alle kortpaaie" }
             ],
             close: "Maak Toe"
         }

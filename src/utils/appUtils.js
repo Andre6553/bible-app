@@ -36,3 +36,46 @@ export const resetAppCache = async () => {
         window.location.reload();
     }
 };
+
+/**
+ * Copies text to the clipboard using the most compatible method available.
+ * Falls back to execCommand('copy') for better mobile support.
+ */
+export const copyToClipboard = async (text) => {
+    if (!text) return false;
+
+    // 1. Try modern API first
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            console.warn('Modern clipboard API failed, trying fallback...', err);
+        }
+    }
+
+    // 2. Fallback to hidden textarea
+    try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+
+        // Ensure it's not visible or causing layout shifts
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        textArea.style.opacity = "0";
+        textArea.style.pointerEvents = "none";
+
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+
+        return successful;
+    } catch (err) {
+        console.error('Final fallback copy failed:', err);
+        return false;
+    }
+};

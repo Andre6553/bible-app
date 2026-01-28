@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchVerses, getVerseReference, getBooks, getVerseByReference, getUserId } from '../services/bibleService';
 import { useSettings } from '../context/SettingsContext';
@@ -8,6 +8,8 @@ import { getLocalizedBookName } from '../constants/bookNames';
 import { saveBulkHighlights, removeBulkHighlights, getAllHighlights } from '../services/highlightService';
 import ColorPickerModal from './ColorPickerModal';
 import TutorialOverlay from './TutorialOverlay';
+import { useBackButton } from './BackButtonHandler';
+import { copyToClipboard } from '../utils/appUtils';
 
 // Premium AI Icon Component
 const AIIcon = ({ className = "" }) => (
@@ -713,9 +715,11 @@ function Search({ currentVersion, versions }) {
             text += `\n[${v.version}] ${v.books.name_full} ${v.chapter}:${v.verse}\n${v.text}\n💡 ${v.semanticReason}\n`;
         });
 
-        navigator.clipboard.writeText(text).then(() => {
-            setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
-            setTimeout(() => setCopyStatus('Copy'), 2000);
+        copyToClipboard(text).then(success => {
+            if (success) {
+                setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
+                setTimeout(() => setCopyStatus('Copy'), 2000);
+            }
         });
     };
 
@@ -794,6 +798,34 @@ function Search({ currentVersion, versions }) {
         setAiResponse(null);
         setIsAnswerExpanded(false); // Reset expanded mode for new questions
     };
+
+    // Close on Android back button
+    const handleBackCloseAI = useCallback(() => {
+        if (showAIModal) setShowAIModal(false);
+    }, [showAIModal]);
+    useBackButton(showAIModal, handleBackCloseAI);
+
+    const handleBackCloseHistory = useCallback(() => {
+        if (showHistory) setShowHistory(false);
+    }, [showHistory]);
+    useBackButton(showHistory, handleBackCloseHistory);
+
+    const handleBackCloseHelp = useCallback(() => {
+        if (showHelpModal) setShowHelpModal(false);
+    }, [showHelpModal]);
+    useBackButton(showHelpModal, handleBackCloseHelp);
+
+    const handleBackCloseColorPicker = useCallback(() => {
+        if (showColorPicker) setShowColorPicker(false);
+    }, [showColorPicker]);
+    useBackButton(showColorPicker, handleBackCloseColorPicker);
+
+    const handleBackCloseMobileResults = useCallback(() => {
+        if (showMobileResults) setShowMobileResults(false);
+    }, [showMobileResults]);
+    // Only intercept mobile results back button if we are NOT on the main Bible page
+    // and if there are results showing.
+    useBackButton(showMobileResults && hasSearched, handleBackCloseMobileResults);
 
     const submitAIQuestion = async () => {
         if (!aiQuestion.trim()) return;
@@ -933,10 +965,12 @@ Here are the available shortcuts to quickly ask questions:
                 const uniqueRefs = [...new Set(matches.map(m => m.replace(/\[\[|\]\]/g, '').trim()))];
                 const cleanRefs = uniqueRefs.join(', ');
 
-                if (cleanRefs && navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(cleanRefs).then(() => {
-                        setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
-                        setTimeout(() => setCopyStatus('Copy'), 3000);
+                if (cleanRefs) {
+                    copyToClipboard(cleanRefs).then(success => {
+                        if (success) {
+                            setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
+                            setTimeout(() => setCopyStatus('Copy'), 3000);
+                        }
                     }).catch(err => console.warn("Auto-copy blocked", err));
                 }
             }
@@ -967,7 +1001,7 @@ Here are the available shortcuts to quickly ask questions:
         }
     };
 
-    const copyToClipboard = () => {
+    const handleAiResponseCopy = () => {
         if (!aiResponse) return;
 
         let textToCopy = "";
@@ -988,23 +1022,11 @@ Here are the available shortcuts to quickly ask questions:
             textToCopy = aiResponse.replace(/\[\[/g, '').replace(/\]\]/g, '');
         }
 
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
-            setTimeout(() => setCopyStatus('Copy'), 2000);
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            // Fallback for legacy browsers/environments
-            const textArea = document.createElement("textarea");
-            textArea.value = textToCopy;
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                setCopyStatus('Copied!');
-            } catch (e) {
-                alert("Please manually copy the text.");
+        copyToClipboard(textToCopy).then(success => {
+            if (success) {
+                setCopyStatus(settings.language === 'af' ? 'Gekopieer!' : 'Copied!');
+                setTimeout(() => setCopyStatus('Copy'), 2000);
             }
-            document.body.removeChild(textArea);
         });
     };
 
@@ -1752,7 +1774,7 @@ Here are the available shortcuts to quickly ask questions:
                                                     className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        copyToClipboard();
+                                                        handleAiResponseCopy();
                                                     }}
                                                     title="Copy to clipboard"
                                                 >

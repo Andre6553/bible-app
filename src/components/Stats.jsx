@@ -1,7 +1,9 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
+import { useBackButton } from './BackButtonHandler';
 import { useNavigate } from 'react-router-dom';
 import { logError } from '../services/loggerService';
 import { useSettings } from '../context/SettingsContext';
+import { copyToClipboard } from '../utils/appUtils';
 
 import { supabase, supabaseUrl, supabaseKey } from '../config/supabaseClient';
 import { getUserStatistics, getUserHistory, getGlobalSermonStats } from '../services/bibleService';
@@ -185,6 +187,28 @@ function Stats() {
             setIsMasterAdmin(false);
         }
     }, [profile]);
+
+    // Close modals on Android back button
+    const handleCloseUserEdit = useCallback(() => setShowUserEditModal(false), []);
+    useBackButton(showUserEditModal, handleCloseUserEdit);
+
+    const handleCloseDateRange = useCallback(() => setShowDateRangeModal(false), []);
+    useBackButton(showDateRangeModal, handleCloseDateRange);
+
+    const handleCloseTemplateEditor = useCallback(() => setShowTemplateEditor(false), []);
+    useBackButton(showTemplateEditor, handleCloseTemplateEditor);
+
+    const handleCloseCreatingPromo = useCallback(() => setIsCreatingPromo(false), []);
+    useBackButton(isCreatingPromo, handleCloseCreatingPromo);
+
+    const handleCloseEditingPromo = useCallback(() => setEditingPromo(null), []);
+    useBackButton(!!editingPromo, handleCloseEditingPromo);
+
+    const handleCloseSelectedUser = useCallback(() => setSelectedUser(null), []);
+    useBackButton(!!selectedUser, handleCloseSelectedUser);
+
+    const handleCloseSelectedItem = useCallback(() => setSelectedItem(null), []);
+    useBackButton(!!selectedItem, handleCloseSelectedItem);
 
     useEffect(() => {
         // Only fetch if authenticated
@@ -975,13 +999,15 @@ function Stats() {
             return `[${time}] ${err.error_message}\nDEVICE: ${device}\nCONTEXT: ${context}\n-------------------`;
         }).join('\n\n');
 
-        navigator.clipboard.writeText(report).then(() => {
-            setCrashCopied(true);
-            setTimeout(() => setCrashCopied(false), 2000);
-        }).catch(err => {
-            console.error('Failed to copy reports:', err);
-            alert('Clipboard access failed. See console for data (F12).');
-            console.log('CRASH REPORTS:', report);
+        copyToClipboard(report).then(success => {
+            if (success) {
+                setCrashCopied(true);
+                setTimeout(() => setCrashCopied(false), 2000);
+            } else {
+                console.error('Failed to copy reports');
+                alert('Clipboard access failed. See console for data (F12).');
+                console.log('CRASH REPORTS:', report);
+            }
         });
     };
 
@@ -989,11 +1015,9 @@ function Stats() {
     const longPressTimer = useRef(null);
 
     const handleCopyError = async (text) => {
-        try {
-            await navigator.clipboard.writeText(text);
+        const success = await copyToClipboard(text);
+        if (success) {
             alert("📋 Error message copied to clipboard!");
-        } catch (err) {
-            console.error('Failed to copy:', err);
         }
     };
 

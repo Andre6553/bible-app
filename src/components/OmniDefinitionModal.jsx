@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useBackButton } from './BackButtonHandler';
 import './BibleReader.css'; // Reuse existing modal styles
 
 const OmniDefinitionModal = ({ onClose }) => {
+    const handleBackClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
+    useBackButton(true, handleBackClose);
     return (
         <div className="book-selector-modal" onClick={onClose}>
             <div className="book-selector-content info-content" onClick={e => e.stopPropagation()}>

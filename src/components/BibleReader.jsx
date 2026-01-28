@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ShareImageModal from './ShareImageModal';
 import WordStudyModal from './WordStudyModal';
@@ -31,6 +31,7 @@ import NoteModal from './NoteModal';
 import BibleHelpModal from './BibleHelpModal';
 import OmniDefinitionModal from './OmniDefinitionModal';
 import ChapterSummaryModal from './ChapterSummaryModal';
+import { useBackButton } from './BackButtonHandler';
 import './BibleReader.css';
 import { resetAppCache } from '../utils/appUtils';
 
@@ -141,6 +142,32 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         setShowShareModal(true);
         setShowActionSheet(false); // Close the bottom sheet
     };
+
+    // Close on Android back button
+    const handleBackCloseSelector = useCallback(() => {
+        if (showBookSelector) setShowBookSelector(false);
+    }, [showBookSelector]);
+    useBackButton(showBookSelector, handleBackCloseSelector);
+
+    const handleBackCloseSettings = useCallback(() => {
+        if (showSettings) setShowSettings(false);
+    }, [showSettings]);
+    useBackButton(showSettings, handleBackCloseSettings);
+
+    const handleBackCloseContextMenu = useCallback(() => {
+        if (contextMenu.visible) setContextMenu({ ...contextMenu, visible: false });
+    }, [contextMenu.visible, contextMenu]);
+    useBackButton(contextMenu.visible, handleBackCloseContextMenu);
+
+    const handleBackCloseInfo = useCallback(() => {
+        if (showInfo) setShowInfo(false);
+    }, [showInfo]);
+    useBackButton(showInfo, handleBackCloseInfo);
+
+    const handleBackCloseDefinition = useCallback(() => {
+        if (showDefinition) setShowDefinition(false);
+    }, [showDefinition]);
+    useBackButton(showDefinition, handleBackCloseDefinition);
 
     // Parallel Reading (Split View) State
     const [isSplitView, setIsSplitView] = useState(false);
@@ -881,20 +908,26 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         logActivity('word_study_visit');
         const firstVerse = selectedVerses[0];
 
-        // Fetch original text for the first selected verse
-        const result = await getOriginalVerse(selectedBook.id, selectedChapter, firstVerse.verse);
-        if (result.success) {
-            setWordStudyData({
-                verse: firstVerse,
-                originalText: result.text,
-                originalVersion: result.version,
-                ref: getVerseRef()
-            });
-            setShowWordStudyModal(true);
-        } else {
-            alert('Original language text not available for this verse.');
+        try {
+            // Fetch original text for the first selected verse
+            const result = await getOriginalVerse(selectedBook.id, selectedChapter, firstVerse.verse);
+            if (result.success) {
+                setWordStudyData({
+                    verse: firstVerse,
+                    originalText: result.text,
+                    originalVersion: result.version,
+                    ref: getVerseRef()
+                });
+                setShowActionSheet(false);
+                setShowWordStudyModal(true);
+            } else {
+                alert('Original language text not available for this verse.');
+                handleCloseActionSheet();
+            }
+        } catch (err) {
+            console.error('Word study error:', err);
+            handleCloseActionSheet();
         }
-        handleCloseActionSheet();
     };
 
     // Close action sheet

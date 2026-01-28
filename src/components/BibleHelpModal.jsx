@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useBackButton } from './BackButtonHandler';
 import './BibleReader.css'; // Re-use bible reader styling
 
 const BibleHelpModal = ({ onClose, language }) => {
+    const handleBackClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
+    useBackButton(true, handleBackClose);
 
     const content = {
         en: {
@@ -9,7 +14,7 @@ const BibleHelpModal = ({ onClose, language }) => {
             sections: [
                 {
                     title: "📖 Reading the Bible",
-                    text: "Tap the **Book Name** button to browse books, chapters, and verses. Use the **< / >** arrows to navigate between chapters. Use the **split-view 📖📖** icon to read two versions side-by-side."
+                    text: "Tap the **Book Name** button to browse books, chapters, and verses. Use the **< / >** arrows to navigate between chapters. Use the **split-view 📖📖** icon to read two versions side-by-side. **Double-tap** a verse (**Double-click** on PC) to open the action sheet for highlighting and notes. Single tap toggles selection."
                 },
                 {
                     title: "🔄 Smart Sync",
@@ -56,7 +61,7 @@ const BibleHelpModal = ({ onClose, language }) => {
                 },
                 {
                     title: "🖍️ Highlights & Categories",
-                    text: "Swipe or tap a verse to highlight it. **Right-click (PC)** or **Long-press (Mobile)** a color circle to rename it. You can see all your highlights grouped by category in your **Profile**."
+                    text: "Single tap a verse to highlight it. **Double-tap (Mobile)** or **Double-click (PC)** a verse to open the action sheet. **Right-click (PC)** or **Long-press (Mobile)** a color circle to rename it."
                 },
                 {
                     title: "🏷️ Multi-Topic Tagging",
@@ -65,6 +70,14 @@ const BibleHelpModal = ({ onClose, language }) => {
                 {
                     title: "🧹 Bulk Actions",
                     text: "In **Search**, use the 'Select' button to pick multiple verses at once. You can highlight or remove highlights for all selected verses in one tap."
+                },
+                {
+                    title: "📖 Parallel Reading",
+                    text: "In split-view mode, you can now independently choose **ANY version** for the second pane using the selector at the top-right of the second column."
+                },
+                {
+                    title: "📱 Android Back Button",
+                    text: "The **Back Button** on Android now closes open modals, search results, or settings instead of closing the app. It will navigate you safely back to the Bible reader."
                 },
                 {
                     title: "🌍 Bible Versions",
@@ -78,7 +91,7 @@ const BibleHelpModal = ({ onClose, language }) => {
             sections: [
                 {
                     title: "📖 Die Bybel Lees",
-                    text: "Tik op die **Boeknaam** knoppie om deur boeke, hoofstukke en verse te blaai. Gebruik die **< / >** pyle om tussen hoofstukke te navigeer. Gebruik die **veelsydige-lees 📖📖** ikoon vir twee weergawes langs mekaar."
+                    text: "Tik op die **Boeknaam** knoppie om deur boeke, hoofstukke en verse te blaai. Gebruik die **< / >** pyle om tussen hoofstukke te navigeer. Gebruik die **veelsydige-lees 📖📖** ikoon vir twee weergawes langs mekaar. **Dubbeltik** op 'n vers (**Dubbelklik** op PC) om die aksie-paneel oop te maak. Enkeltik kies verse."
                 },
                 {
                     title: "🔄 Slim Sinchronisasie",
@@ -125,7 +138,7 @@ const BibleHelpModal = ({ onClose, language }) => {
                 },
                 {
                     title: "🖍️ Verligting & Kategorieë",
-                    text: "Tik op 'n vers om dit te verlig. **Regsklik (PC)** of **Lang-druk (Mobiel)** op 'n kleur sirkel om dit te hernoem. Jy kan al jou verligte verse gegroepeer volgens kategorie in jou **Profiel** sien."
+                    text: "Tik een keer op 'n vers om dit te verlig. **Dubbeltik (Mobiel)** of **Dubbelklik (PC)** op 'n vers om die aksie-paneel oop te maak. **Regsklik (PC)** of **Lang-druk (Mobiel)** op 'n kleur sirkel om dit te hernoem."
                 },
                 {
                     title: "🏷️ Veelvuldige Onderwerpe",
@@ -136,12 +149,20 @@ const BibleHelpModal = ({ onClose, language }) => {
                     text: "In **Soek**, gebruik die 'Select' knoppie om veelvuldige verse gelyktydig te kies. Jy kan verligting byvoeg of verwyder vir alle geselekteerde verse met een tik."
                 },
                 {
+                    title: "📖 Parallelle Lees",
+                    text: "In veelsydige-lees modus kan jy nou onafhanklik **ENIGE weergawe** vir die tweede kolom kies met die kieslys bo-aan die tweede kolom."
+                },
+                {
+                    title: "📱 Android Terug-knoppie",
+                    text: "Die **Terug-knoppie** op Android maak nou oop vensters, soekresultate of stellings toe in plaas daarvan om die app toe te maak. Dit sal jou veilig terugneem na die Bybelleser."
+                },
+                {
                     title: "🌍 Bybel Weergawes",
                     text: "Wissel tussen **KJV** (Engels), **AFR53** (Afrikaans), **AFR83**, **NLT**, en **AMP** met die aftreklys bo-aan."
                 }
             ],
             close: "Maak Toe"
-        }
+        },
     };
 
     const text = content[language] || content.en;

@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getWordStudy } from '../services/aiService';
 import { getUserId, getVerseByReference, getOriginalVerse, getVerseCount } from '../services/bibleService';
 import { saveWordStudy, deleteWordStudy, checkIsWordStudySaved } from '../services/wordStudyService';
 import { useSettings } from '../context/SettingsContext';
+import { useBackButton } from './BackButtonHandler';
+import { copyToClipboard } from '../utils/appUtils';
 import './WordStudyModal.css';
 
 function WordStudyModal({
@@ -18,6 +20,13 @@ function WordStudyModal({
 }) {
     const navigate = useNavigate();
     const { settings } = useSettings();
+
+    // Close on Android back button
+    const handleBackClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
+    useBackButton(true, handleBackClose);
+
     // Current verse being studied
     const [currentVerse, setCurrentVerse] = useState({
         verse: initialVerse,
@@ -67,30 +76,8 @@ function WordStudyModal({
         hydrateVerse();
     }, []); // Run once on mount
 
-    // Navigation History for Android Back Button behavior
-    useEffect(() => {
-        // Push a dummy state to intercept the back button
-        const state = { modal: 'word-study' };
-        window.history.pushState(state, '', window.location.href);
-
-        const handlePopState = (event) => {
-            // If back button pressed (popstate), close the modal
-            // (The state is already popped by the browser)
-            onClose();
-        };
-
-        window.addEventListener('popstate', handlePopState);
-
-        return () => {
-            window.removeEventListener('popstate', handlePopState);
-            // If we are cleaning up (closing) but the state is still ours,
-            // (meaning user clicked 'Close' button, not 'Back' button)
-            // we must manually pop the state to keep history clean.
-            if (window.history.state?.modal === 'word-study') {
-                window.history.back();
-            }
-        };
-    }, []); // Run ONCE on mount
+    // Navigation History for Android Back Button behavior is handled by useBackButton above
+    // No need for duplicate pushState/popstate logic here as it can cause race conditions.
 
     useEffect(() => {
         const loadCount = async () => {
@@ -464,34 +451,6 @@ ${studyData.word?.theologicalConnection || ''}
 ${t.relatedVerses}:
 ${studyData.relatedVerses?.map(v => `- ${v.label}${v.usage ? ` — ${v.usage}` : ''}`).join('\n') || ''}
 `.trim();
-
-                                                const copyToClipboard = async (textToCopy) => {
-                                                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                                                        try {
-                                                            await navigator.clipboard.writeText(textToCopy);
-                                                            return true;
-                                                        } catch (err) {
-                                                            console.warn('Clipboard API failed, trying fallback...', err);
-                                                        }
-                                                    }
-                                                    try {
-                                                        const textArea = document.createElement("textarea");
-                                                        textArea.value = textToCopy;
-                                                        textArea.style.position = "fixed";
-                                                        textArea.style.left = "-9999px";
-                                                        textArea.style.top = "0";
-                                                        textArea.setAttribute('readonly', '');
-                                                        document.body.appendChild(textArea);
-                                                        textArea.select();
-                                                        textArea.setSelectionRange(0, 99999);
-                                                        const successful = document.execCommand('copy');
-                                                        document.body.removeChild(textArea);
-                                                        return successful;
-                                                    } catch (err) {
-                                                        console.error('Copy fallback failed', err);
-                                                        return false;
-                                                    }
-                                                };
 
                                                 const success = await copyToClipboard(text);
                                                 if (success) {

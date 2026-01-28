@@ -2,8 +2,9 @@
  * NoteModal - Full screen modal for adding/editing verse notes
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getStudyCollections, createStudyCollection, getLabels, createLabel } from '../services/highlightService';
+import { useBackButton } from './BackButtonHandler';
 import './NoteModal.css';
 
 function NoteModal({
@@ -24,6 +25,12 @@ function NoteModal({
     const [showNewLabel, setShowNewLabel] = useState(false);
     const [newLabelName, setNewLabelName] = useState('');
     const [saving, setSaving] = useState(false);
+
+    // Close on Android back button
+    const handleBackClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
+    useBackButton(true, handleBackClose);
 
     useEffect(() => {
         loadData();
