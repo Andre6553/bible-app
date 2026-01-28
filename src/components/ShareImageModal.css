@@ -111,7 +111,8 @@
 .share-card-footer {
     position: relative;
     z-index: 2;
-    padding: 16px 24px;
+    padding: 16px 24px 32px 24px;
+    /* Increased bottom padding further for extra safety on all devices */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -317,14 +318,18 @@ input[type=range] {
     }
 
     .share-card {
-        width: auto;
+        width: 100%;
+        max-width: 380px;
+        /* Cap size on very wide phones */
         height: auto;
-        max-width: 100%;
-        max-height: 100%;
+        aspect-ratio: 1 / 1;
+        flex-shrink: 0;
+        /* Prevent squeezing */
     }
 
     .share-controls {
-        padding-bottom: 300px;
+        padding-bottom: 120px;
+        /* Balanced safe area */
     }
 
     .share-tabs {
