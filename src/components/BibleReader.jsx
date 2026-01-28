@@ -1543,7 +1543,17 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 {isSplitView && secondVersion && (
                     <div className="bible-column secondary-column">
                         <div className="pane-version-label">
-                            <span className="badge">{secondVersion?.abbreviation}</span>
+                            <select
+                                className="version-selector select secondary-version-select"
+                                value={secondVersion?.id || ''}
+                                onChange={handleSecondVersionChange}
+                            >
+                                {versions.map(v => (
+                                    <option key={v.id} value={v.id}>
+                                        {v.abbreviation}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         {loading ? (
                             <div className="loading-state">

@@ -443,7 +443,6 @@
     justify-content: flex-end;
     padding: 8px 16px;
     background: linear-gradient(to bottom, var(--bg-secondary), transparent);
-    pointer-events: none;
 }
 
 .pane-version-label .badge {
@@ -455,6 +454,18 @@
     font-weight: 700;
     box-shadow: var(--shadow-sm);
     opacity: 0.9;
+}
+
+.pane-version-label select {
+    background: var(--accent-primary);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    min-width: 80px;
 }
 
 /* Split Divider Styling */
