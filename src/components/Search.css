@@ -1750,18 +1750,38 @@
 
 .header-top-row {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     position: relative;
     margin-bottom: 20px;
+    width: 100%;
 }
 
-/* Ensure info button stays right even when title centers */
+.header-left-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    /* Allow shrinking */
+}
+
+.tutorial-toggle-label {
+    margin-left: 10px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Ensure info button stays right without absolute overlap */
 .header-top-row .info-btn {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
+    flex-shrink: 0;
+    margin-left: 10px;
 }
 
 .search-title {

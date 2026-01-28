@@ -2,12 +2,14 @@
 
 .trivia-page {
     padding: 20px;
-    padding-bottom: 80px;
-    /* Bottom nav space */
-    min-height: 100vh;
+    padding-bottom: 220px;
+    /* Increased to ensure "Next" button clear nav */
+    min-height: 100dvh;
+    overflow-y: auto;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     color: #fff;
     font-family: 'Inter', sans-serif;
+    -webkit-overflow-scrolling: touch;
 }
 
 .trivia-header {
@@ -147,7 +149,8 @@
 .question-container {
     display: flex;
     flex-direction: column;
-    min-height: 80vh;
+    height: auto;
+    padding-bottom: 40px;
 }
 
 .question-meta {

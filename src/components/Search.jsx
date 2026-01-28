@@ -1177,10 +1177,10 @@ Here are the available shortcuts to quickly ask questions:
                             ⬅ Back to Search
                         </button>
                     ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                        <div className="header-left-content">
                             <h1 className="search-title">Search the Bible</h1>
                             {/* Tutorial Mode Toggle */}
-                            <label className="tutorial-toggle-label" style={{ marginLeft: '10px', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                            <label className="tutorial-toggle-label">
                                 <input
                                     type="checkbox"
                                     checked={isTutorialMode}

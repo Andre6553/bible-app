@@ -4,6 +4,7 @@ import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
 import { getTriviaStats, checkDailyLimit, fetchQuestion, submitAnswer, syncDailyProgress } from '../services/triviaService';
 import { logActivity } from '../services/bibleService';
+import { useBackButton } from './BackButtonHandler';
 import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
 import './Trivia.css';
 
@@ -106,6 +107,15 @@ function TriviaSection() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [selectedOption, setSelectedOption] = useState(null);
     const [result, setResult] = useState(null); // { isCorrect, correctIndex, verseRef }
+
+    // Hardware Back Button -> Profile
+    useBackButton(true, () => {
+        if (view !== 'menu') {
+            setView('menu');
+        } else {
+            navigate('/profile');
+        }
+    });
 
     useEffect(() => {
         loadStats();
