@@ -655,10 +655,10 @@
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid transparent;
-    /* iOS Fix: Prevent system menu from fighting our long-press */
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
+    /* Allow text selection on long-press */
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
 }
 
 .verse-item:hover {

@@ -658,6 +658,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const isScrolling = useRef(false);
     const lastTouchTime = useRef(0);
     const longPressTimer = useRef(null);
+    const lastTapTime = useRef(0);
+    const lastTappedVerse = useRef(null);
 
     // Initial tap handler
     const handleVerseTap = (verse, e) => {
@@ -669,6 +671,27 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
         e.stopPropagation();
 
+        // Double-tap detection (check FIRST, before text selection interferes)
+        const now = Date.now();
+        const timeSinceLastTap = now - lastTapTime.current;
+        const isSameVerse = lastTappedVerse.current === verse.verse;
+
+        if (timeSinceLastTap < 400 && isSameVerse) {
+            // Double-tap confirmed - open action sheet
+            // Clear any auto-selection from browser
+            window.getSelection()?.removeAllRanges();
+            setSelectedVerses([verse]);
+            setShowActionSheet(true);
+            lastTapTime.current = 0;
+            lastTappedVerse.current = null;
+            return;
+        }
+
+        // Update tap tracking
+        lastTapTime.current = now;
+        lastTappedVerse.current = verse.verse;
+
+        // For single tap, if there's a text selection, let it be (don't select verse)
         const selection = window.getSelection();
         if (selection && selection.toString().length > 0) return;
 
@@ -681,18 +704,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 next = [...prev, verse].sort((a, b) => a.verse - b.verse);
             }
 
-            if (next.length > 0) {
-                // For desktop (mouse), show action sheet immediately
-                // For mobile (touch), only allow selection, opening happens via longPress
-                const isRecentTouch = Date.now() - lastTouchTime.current < 500;
-                if (!isRecentTouch) {
-                    setShowActionSheet(true);
-                }
-            } else {
+            // Only close action sheet if no verses selected
+            if (next.length === 0) {
                 setShowActionSheet(false);
             }
             return next;
         });
+    };
+
+    // Desktop double-click handler (more reliable than timing clicks)
+    const handleVerseDoubleClick = (verse, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.getSelection()?.removeAllRanges();
+        setSelectedVerses([verse]);
+        setShowActionSheet(true);
     };
 
     // Long press handler for premium feel
@@ -720,9 +746,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const handleTouchStart = (verse, e) => {
         isScrolling.current = false;
         lastTouchTime.current = Date.now();
-        longPressTimer.current = setTimeout(() => {
-            handleLongPress(verse, e);
-        }, 1000);
+        // Long press now allows native text selection (no timer)
     };
 
     const handleTouchMove = () => {
@@ -739,7 +763,6 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
-        // Small delay to ensure click handlers know we just finished a touch interaction
         setTimeout(() => {
             isScrolling.current = false;
         }, 100);
@@ -1488,12 +1511,13 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                             key={verse.id || `verse-${verse.verse}`}
                                             id={`verse-${verse.verse}`}
                                             className={`verse-item ${selectedVerses.some(v => v.verse === verse.verse) ? 'verse-selected' : ''}`}
-                                            onContextMenu={(e) => { e.preventDefault(); handleLongPress(verse, e); }}
+                                            onContextMenu={(e) => e.preventDefault()}
 
                                             onTouchStart={(e) => handleTouchStart(verse, e)}
                                             onTouchMove={handleTouchMove}
                                             onTouchEnd={handleTouchEnd}
                                             onClick={(e) => handleVerseTap(verse, e)}
+                                            onDoubleClick={(e) => handleVerseDoubleClick(verse, e)}
                                         >
                                             <span className="verse-number">{verse.verse}</span>
                                             <span
@@ -1541,11 +1565,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                                 key={verse.id || `v2-${verse.verse}`}
                                                 id={`v2-${verse.verse}`}
                                                 className={`verse-item ${selectedVerses.some(v => v.verse === verse.verse) ? 'verse-selected' : ''}`}
-                                                onContextMenu={(e) => handleLongPress(verse, e)}
+                                                onContextMenu={(e) => e.preventDefault()}
                                                 onTouchStart={(e) => handleTouchStart(verse, e)}
                                                 onTouchMove={handleTouchMove}
                                                 onTouchEnd={handleTouchEnd}
                                                 onClick={(e) => handleVerseTap(verse, e)}
+                                                onDoubleClick={(e) => handleVerseDoubleClick(verse, e)}
                                             >
                                                 <span className="verse-number">{verse.verse}</span>
                                                 <span
