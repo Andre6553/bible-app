@@ -84,6 +84,8 @@
     flex: 1;
     overflow-y: auto;
     padding: 20px;
+    padding-bottom: 120px;
+    /* Healthy bottom space for mobile keyboards/nav bars */
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -257,5 +259,10 @@
         overflow: hidden;
         background: var(--bg-primary, #0f0f1a);
         animation: popIn 0.2s ease;
+    }
+
+    .note-modal-content {
+        padding-bottom: 20px;
+        /* Standard padding for desktop */
     }
 }
