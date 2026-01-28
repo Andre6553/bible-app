@@ -14,12 +14,6 @@ function InductiveEditor() {
     const location = useLocation();
     const { settings } = useSettings();
 
-    // Handle back button specifically for the editor
-    const handleBack = useCallback(() => {
-        navigate('/study');
-    }, [navigate]);
-    useBackButton(true, handleBack);
-
     const [loading, setLoading] = useState(true);
     const [step, setStep] = useState(1);
     const [study, setStudy] = useState({
@@ -57,6 +51,25 @@ function InductiveEditor() {
             action: ''
         }
     });
+
+    // Handle back button specifically for the editor
+    const handleBack = useCallback(() => {
+        if (study.book_id && study.chapter) {
+            navigate('/bible', {
+                state: {
+                    reopenVerse: {
+                        bookId: study.book_id,
+                        chapter: study.chapter,
+                        verseStart: study.verse_start,
+                        verseEnd: study.verse_end
+                    }
+                }
+            });
+        } else {
+            navigate('/study');
+        }
+    }, [navigate, study.book_id, study.chapter, study.verse_start, study.verse_end]);
+    useBackButton(true, handleBack);
 
     const [verseCount, setVerseCount] = useState(0);
     const [verses, setVerses] = useState([]);
@@ -337,7 +350,7 @@ function InductiveEditor() {
         <div className="editor-container">
             <header className="editor-header">
                 <div className="header-top">
-                    <button className="back-btn" onClick={() => navigate('/study')}>‹</button>
+                    <button className="back-btn" onClick={handleBack}>‹</button>
                     <div className="range-picker">
                         <span>Verse</span>
                         <select

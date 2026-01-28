@@ -576,13 +576,18 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         if (result.success) {
             setBooks(result.data);
 
-            // Handle Deep Link from Search or Default to Genesis
-            if (location.state?.bookId) {
-                const book = result.data.all.find(b => b.id == location.state.bookId);
+            // Handle Deep Link from Search or Study Back Button
+            const state = location.state;
+            const bookId = state?.reopenVerse?.bookId || state?.bookId;
+            const chapter = state?.reopenVerse?.chapter || state?.chapter;
+            const targetVerse = state?.reopenVerse?.verseStart || state?.targetVerse;
+
+            if (bookId) {
+                const book = result.data.all.find(b => b.id == bookId);
                 if (book) {
                     setSelectedBook(book);
-                    if (location.state.chapter) setSelectedChapter(location.state.chapter);
-                    if (location.state.targetVerse) setTargetVerse(location.state.targetVerse);
+                    if (chapter) setSelectedChapter(chapter);
+                    if (targetVerse) setTargetVerse(targetVerse);
                     return; // Skip default
                 }
             }

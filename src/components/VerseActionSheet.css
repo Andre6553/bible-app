@@ -48,6 +48,9 @@
     /* Prevent iOS rubber banding from hiding content */
     position: relative;
     box-sizing: border-box;
+    /* Added: Ensure sheet never exceeds screen and can scroll internally */
+    max-height: 85vh;
+    overflow-y: auto;
 }
 
 @keyframes slideUp {
@@ -363,7 +366,7 @@
 /* Mobile Adjustments */
 @media (max-width: 480px) {
     .action-sheet {
-        padding-bottom: 250px;
-        /* Huge safe area for mobile */
+        padding-bottom: 120px;
+        /* Balanced safe area for mobile keyboard/navigation */
     }
 }

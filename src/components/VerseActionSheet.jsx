@@ -193,29 +193,29 @@ function VerseActionSheet({
         <>
             <div className="action-sheet-overlay" onClick={onClose}>
                 <div className="action-sheet" onClick={(e) => e.stopPropagation()}>
-                    {/* Handle bar */}
-                    <div className="action-sheet-handle" />
+                    {/* Header: Toggle, Handle, and Exit */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', padding: '0 5px' }}>
+                        <div className="tutorial-toggle-container">
+                            <label className="tutorial-toggle-label" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isTutorialMode}
+                                    onChange={(e) => {
+                                        const active = e.target.checked;
+                                        setIsTutorialMode(active);
+                                        setIsTutorialOpen(active);
+                                        if (active) setTutorialStepIdx(0);
+                                    }}
+                                />
+                                {isAfrikaans ? 'Handleiding' : 'Tutorial'}
+                            </label>
+                        </div>
 
-                    {/* Exit button */}
-                    <button className="action-sheet-close" onClick={onClose} aria-label="Close">
-                        ✕
-                    </button>
+                        <div className="action-sheet-handle" style={{ margin: '0' }} />
 
-                    {/* Tutorial Toggle */}
-                    <div style={{ position: 'absolute', top: '15px', left: '15px' }}>
-                        <label className="tutorial-toggle-label" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
-                            <input
-                                type="checkbox"
-                                checked={isTutorialMode}
-                                onChange={(e) => {
-                                    const active = e.target.checked;
-                                    setIsTutorialMode(active);
-                                    setIsTutorialOpen(active);
-                                    if (active) setTutorialStepIdx(0);
-                                }}
-                            />
-                            {isAfrikaans ? 'Handleiding' : 'Tutorial'}
-                        </label>
+                        <button className="action-sheet-close" onClick={onClose} aria-label="Close" style={{ position: 'static' }}>
+                            ✕
+                        </button>
                     </div>
 
                     {/* Verse reference */}
