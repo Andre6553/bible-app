@@ -30,6 +30,7 @@ export const getVersions = async () => {
 
 /**
  * Get all books grouped by testament
+ * Uses localStorage caching for offline access
  */
 export const getBooks = async () => {
     try {
@@ -44,7 +45,7 @@ export const getBooks = async () => {
         const oldTestament = data.filter(book => book.testament === 'OT');
         const newTestament = data.filter(book => book.testament === 'NT');
 
-        return {
+        const result = {
             success: true,
             data: {
                 oldTestament,
@@ -52,8 +53,25 @@ export const getBooks = async () => {
                 all: data
             }
         };
+
+        // Cache the result for offline use
+        localStorage.setItem('bible_books_cache', JSON.stringify(result.data));
+
+        return result;
     } catch (error) {
-        console.error('Error fetching books:', error);
+        console.error('Error fetching books, trying offline cache:', error);
+
+        // Fallback to cache
+        try {
+            const cached = localStorage.getItem('bible_books_cache');
+            if (cached) {
+                console.log('Serving books from cache');
+                return { success: true, data: JSON.parse(cached) };
+            }
+        } catch (e) {
+            console.warn('Error reading books cache', e);
+        }
+
         return { success: false, error: error.message };
     }
 };
@@ -159,12 +177,10 @@ export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
 
 /**
  * Get chapter count for a specific book
+ * Falls back to offline storage if online fetch fails
  */
 export const getChapterCount = async (bookId) => {
     try {
-        // We can find the max chapter number for a book
-        // Since we don't have a chapters table, we query verses
-        // This is a bit heavy but works for this schema
         const { data, error } = await supabase
             .from('verses')
             .select('chapter')
@@ -178,13 +194,43 @@ export const getChapterCount = async (bookId) => {
             data: data.length > 0 ? data[0].chapter : 0
         };
     } catch (error) {
-        console.error('Error fetching chapter count:', error);
+        console.warn('Error fetching chapter count from network:', error);
+
+        // Fallback to offline storage
+        try {
+            const { getDownloadedVersions, getOfflineChapter } = await import('./offlineService');
+            const versions = await getDownloadedVersions();
+
+            // Check through downloaded versions to find max chapter for this book
+            let maxChapter = 0;
+            if (versions && versions.length > 0) {
+                // Try checking chapters sequentially using getOfflineChapter until it returns null
+                // This is a rough estimation since we don't have a direct offline metadata query.
+                // Assuming typical max chapters a book can have is 150 (Psalms)
+                for (let c = 1; c <= 150; c++) {
+                    const chData = await getOfflineChapter(bookId, c, versions[0].version_id);
+                    if (chData && chData.length > 0) {
+                        maxChapter = c;
+                    } else if (c > 1) {
+                        // Missing chapter encountered, likely reached the end
+                        break;
+                    }
+                }
+                if (maxChapter > 0) {
+                    return { success: true, data: maxChapter };
+                }
+            }
+        } catch (offlineErr) {
+            console.error('Offline fallback for chapter count failed:', offlineErr);
+        }
+
         return { success: false, error: error.message };
     }
 };
 
 /**
  * Get verse count for a specific chapter
+ * Falls back to offline storage if online fetch fails
  */
 export const getVerseCount = async (bookId, chapter) => {
     try {
@@ -202,7 +248,25 @@ export const getVerseCount = async (bookId, chapter) => {
             data: data.length > 0 ? data[0].verse : 0
         };
     } catch (error) {
-        console.error('Error fetching verse count:', error);
+        console.warn('Error fetching verse count from network:', error);
+
+        // Fallback to offline storage
+        try {
+            const { getDownloadedVersions, getOfflineChapter } = await import('./offlineService');
+            const versions = await getDownloadedVersions();
+
+            if (versions && versions.length > 0) {
+                const chData = await getOfflineChapter(bookId, chapter, versions[0].version_id);
+                if (chData && chData.length > 0) {
+                    // Find the max verse number in the chapter array
+                    const maxVerse = Math.max(...chData.map(v => v.verse));
+                    return { success: true, data: maxVerse };
+                }
+            }
+        } catch (offlineErr) {
+            console.error('Offline fallback for verse count failed:', offlineErr);
+        }
+
         return { success: false, error: error.message };
     }
 };
