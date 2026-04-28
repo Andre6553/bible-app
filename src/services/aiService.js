@@ -67,6 +67,33 @@ async function generateAiText(prompt) {
     return response.text();
 }
 
+function extractJsonObject(text) {
+    const startIdx = text.indexOf('{');
+    const endIdx = text.lastIndexOf('}');
+    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+        throw new Error(`AI did not return a valid JSON object. Raw response: ${text.substring(0, 120)}...`);
+    }
+    return text.substring(startIdx, endIdx + 1);
+}
+
+function validateSemanticSearchPayload(data) {
+    if (!data || typeof data !== 'object') {
+        throw new Error('Invalid semantic payload: not an object');
+    }
+    if (typeof data.summary !== 'string' || !data.summary.trim()) {
+        throw new Error('Invalid semantic payload: missing summary');
+    }
+    if (!Array.isArray(data.results) || data.results.length === 0) {
+        throw new Error('Invalid semantic payload: missing results');
+    }
+
+    for (const item of data.results) {
+        if (!item || typeof item.ref !== 'string' || typeof item.reason !== 'string') {
+            throw new Error('Invalid semantic payload: malformed result item');
+        }
+    }
+}
+
 // System prompt for biblical accuracy
 const SYSTEM_PROMPT = `You are a Bible study assistant with comprehensive knowledge of the Bible. Follow these rules:
 
@@ -771,18 +798,46 @@ export async function performSemanticSearch(userId, query, versionId = 'KJV', te
         
         Do not include markdown formatting like \`\`\`json. Just the raw JSON object.`;
 
-        const text = (await generateAiText(prompt)).trim();
+        let data = null;
+        let lastError = null;
+        let lastRawText = '';
 
-        // Robust JSON extraction: Find the first { and last }
-        const startIdx = text.indexOf('{');
-        const endIdx = text.lastIndexOf('}');
+        // Retry/repair loop for stricter JSON compliance across providers.
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const attemptPrompt = attempt === 0 ? prompt : `
+Your previous output was invalid for this strict JSON contract.
+Return ONLY valid JSON with this exact structure:
+{
+  "summary": "string",
+  "results": [
+    { "ref": "Book Chapter:Verse", "reason": "string" }
+  ]
+}
+Do not include markdown fences, explanations, or extra keys.
 
-        if (startIdx === -1 || endIdx === -1) {
-            throw new Error(`AI did not return a valid JSON object. Raw response: ${text.substring(0, 100)}...`);
+Original task:
+${prompt}
+
+Previous invalid output:
+${lastRawText}
+`;
+
+            try {
+                const text = (await generateAiText(attemptPrompt)).trim();
+                lastRawText = text;
+                const jsonStr = extractJsonObject(text);
+                const parsed = JSON.parse(jsonStr);
+                validateSemanticSearchPayload(parsed);
+                data = parsed;
+                break;
+            } catch (err) {
+                lastError = err;
+            }
         }
 
-        const jsonStr = text.substring(startIdx, endIdx + 1);
-        const data = JSON.parse(jsonStr);
+        if (!data) {
+            throw new Error(`Semantic search format validation failed after retries: ${lastError?.message || 'unknown error'}`);
+        }
 
         // 2. Save to Cache
         saveCachedAnswer(cacheKey, JSON.stringify(data)).catch(console.error);

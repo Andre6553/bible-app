@@ -1,11 +1,86 @@
 import { supabase } from '../config/supabaseClient';
 import { getUserId, logActivity } from './bibleService';
 import { logApiCall } from './adminService';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * SERMON SERVICE
  * Handles CRUD for sermons and AI Generation for Exegesis/Structure
  */
+
+const AI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini').toLowerCase();
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash';
+const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || 'llama-3.1-8b-instant';
+
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
+
+const getAiModelLabel = () => {
+    if (AI_PROVIDER === 'groq') return GROQ_MODEL;
+    return GEMINI_MODEL;
+};
+
+const generateSermonAiText = async (prompt, generationConfig = {}) => {
+    if (AI_PROVIDER === 'groq') {
+        if (!GROQ_API_KEY) {
+            throw new Error('Groq API key is missing. Set VITE_GROQ_API_KEY in .env');
+        }
+
+        const body = {
+            model: GROQ_MODEL,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.5
+        };
+        if (generationConfig?.maxOutputTokens) {
+            body.max_tokens = generationConfig.maxOutputTokens;
+        }
+
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${GROQ_API_KEY}`
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            if ((response.status === 429 || response.status >= 500) && geminiModel) {
+                console.warn(`Groq unavailable (${response.status}) for sermon generation, falling back to Gemini.`);
+                const fallbackModel = genAI.getGenerativeModel({
+                    model: GEMINI_MODEL,
+                    generationConfig
+                });
+                const geminiResult = await fallbackModel.generateContent(prompt);
+                const geminiResponse = await geminiResult.response;
+                return geminiResponse.text();
+            }
+            throw new Error(`Groq API error (${response.status}): ${errText}`);
+        }
+
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (!content) {
+            throw new Error('Groq API returned empty content');
+        }
+        return content;
+    }
+
+    if (!geminiModel) {
+        throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY in .env');
+    }
+
+    const activeModel = genAI.getGenerativeModel({
+        model: GEMINI_MODEL,
+        generationConfig
+    });
+    const result = await activeModel.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+};
 
 // ==========================================
 // ==========================================
@@ -295,10 +370,6 @@ export const generateExegesis = async (scripture, title, audience, theme, langua
     try {
         await checkAndIncrementAiUsage(); // Enforce Limit
 
-        const { GoogleGenerativeAI } = await import('@google/generative-ai');
-        const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
         const isAf = language === 'af';
         const langInstruction = isAf
             ? 'Output MUST be in Afrikaans.'
@@ -356,19 +427,18 @@ export const generateExegesis = async (scripture, title, audience, theme, langua
         RETURN ONLY RAW JSON. NO MARKDOWN.
         `;
 
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
+        const text = await generateSermonAiText(prompt);
 
         // Clean markdown if present
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const data = JSON.parse(jsonStr);
 
-        logApiCall('generateExegesis', 'success', 'gemini-2.0-flash', { scripture });
+        logApiCall('generateExegesis', 'success', getAiModelLabel(), { scripture, provider: AI_PROVIDER });
         return { success: true, data };
 
     } catch (err) {
         console.error('Error generating exegesis:', err);
-        logApiCall('generateExegesis', 'error', 'gemini-2.0-flash', { error: err.message });
+        logApiCall('generateExegesis', 'error', getAiModelLabel(), { provider: AI_PROVIDER, error: err.message });
         return { success: false, error: 'Could not analyze scripture.' };
     }
 };
@@ -380,10 +450,6 @@ export const generateExegesis = async (scripture, title, audience, theme, langua
 export const performResearch = async (tool, query, context, language = 'en') => {
     try {
         await checkAndIncrementAiUsage(); // Enforce Limit
-
-        const { GoogleGenerativeAI } = await import('@google/generative-ai');
-        const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
         const isAf = language === 'af';
         const langInstruction = isAf
@@ -602,20 +668,14 @@ export const performResearch = async (tool, query, context, language = 'en') => 
                 prompt = `Research: ${query}. ${langInstruction}`;
         }
 
-        const chatModel = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash',
-            generationConfig
-        });
+        const text = await generateSermonAiText(prompt, generationConfig);
 
-        const result = await chatModel.generateContent(prompt);
-        const text = result.response.text();
-
-        logApiCall('performResearch', 'success', 'gemini-2.0-flash', { tool, query });
+        logApiCall('performResearch', 'success', getAiModelLabel(), { tool, query, provider: AI_PROVIDER });
         return { success: true, data: text };
 
     } catch (err) {
         console.error('Error performing research:', err);
-        logApiCall('performResearch', 'error', 'gemini-2.0-flash', { error: err.message });
+        logApiCall('performResearch', 'error', getAiModelLabel(), { provider: AI_PROVIDER, error: err.message });
         return { success: false, error: 'Could not perform research.' };
     }
 };

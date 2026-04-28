@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabaseClient';
 import { getUserId } from './bibleService';
 import { logApiCall } from './adminService';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const getCapturedIp = () => {
     try {
@@ -8,6 +9,67 @@ const getCapturedIp = () => {
     } catch (e) {
         return null;
     }
+};
+
+const AI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini').toLowerCase();
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.0-flash";
+const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || "llama-3.1-8b-instant";
+
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
+
+const getAiModelLabel = () => {
+    if (AI_PROVIDER === 'groq') return GROQ_MODEL;
+    return GEMINI_MODEL;
+};
+
+const generateBlogAiText = async (prompt) => {
+    if (AI_PROVIDER === 'groq') {
+        if (!GROQ_API_KEY) {
+            throw new Error('Groq API key is missing. Set VITE_GROQ_API_KEY in .env');
+        }
+
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${GROQ_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: GROQ_MODEL,
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.5
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            if ((response.status === 429 || response.status >= 500) && geminiModel) {
+                console.warn(`Groq unavailable (${response.status}) for blog generation, falling back to Gemini.`);
+                const result = await geminiModel.generateContent(prompt);
+                const geminiResponse = await result.response;
+                return geminiResponse.text();
+            }
+            throw new Error(`Groq API error (${response.status}): ${errText}`);
+        }
+
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (!content) {
+            throw new Error('Groq API returned empty content');
+        }
+        return content;
+    }
+
+    if (!geminiModel) {
+        throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY in .env');
+    }
+
+    const result = await geminiModel.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
 };
 
 /**
@@ -939,10 +1001,6 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
  */
 const generateFreshArticle = async (topic, index = 0, recentScriptures = [], language = 'en') => {
     try {
-        const { GoogleGenerativeAI } = await import('@google/generative-ai');
-        const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
         // Get diverse angle with seasonal awareness
         const angle = getDiversePromptAngle(language);
         const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
@@ -968,16 +1026,14 @@ const generateFreshArticle = async (topic, index = 0, recentScriptures = [], lan
  ${scriptureAvoidance}${langInstruction}`;
 
 
-        const result = await model.generateContent(prompt);
-        const content = result.response.text();
+        const content = await generateBlogAiText(prompt);
 
         // Log successful API call
-        logApiCall('generateFreshArticle', 'success', 'gemini-2.0-flash', { topic, language });
+        logApiCall('generateFreshArticle', 'success', getAiModelLabel(), { topic, language, provider: AI_PROVIDER });
 
         // Generate title
         const titlePrompt = `Create a catchy, engaging title (4-7 words) for an article about ${topic}. Return ONLY the title, no quotes.${language === 'af' ? ' Write in Afrikaans.' : ''}`;
-        const titleResult = await model.generateContent(titlePrompt);
-        const title = titleResult.response.text().trim().replace(/['"]/g, '');
+        const title = (await generateBlogAiText(titlePrompt)).trim().replace(/['"]/g, '');
 
         // Generate summary
         const summary = content.substring(0, 120).replace(/\*\*/g, '').trim() + '...';
@@ -994,7 +1050,7 @@ const generateFreshArticle = async (topic, index = 0, recentScriptures = [], lan
         };
     } catch (err) {
         console.error(`Error generating article for topic "${topic}":`, err);
-        logApiCall('generateFreshArticle', 'error', 'gemini-2.0-flash', { topic, error: err.message });
+        logApiCall('generateFreshArticle', 'error', getAiModelLabel(), { topic, provider: AI_PROVIDER, error: err.message });
         return null;
     }
 };
@@ -1194,10 +1250,6 @@ export const getDailyDevotional = async (userId, forceGenerate = false, language
  */
 const generateDevotionalWithAI = async (topics, recentScriptures = [], language = 'en') => {
     try {
-        // Import the AI module dynamically to avoid circular dependencies
-        const { GoogleGenerativeAI } = await import('@google/generative-ai');
-        const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-
         const topicList = topics.join(', ');
         const angle = getDiversePromptAngle(language);
         const scriptureAvoidance = getScriptureAvoidanceInstruction(recentScriptures);
@@ -1228,13 +1280,10 @@ Requirements:
 - Do not use overly formal or preachy language.
 - Do NOT start with greetings like "Hey Friend", "Okay Friend", "Hello", etc. - just begin directly with the content.${scriptureAvoidance}${langInstruction}`;
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-        const result = await model.generateContent(prompt);
-        const content = result.response.text();
+        const content = await generateBlogAiText(prompt);
 
         // Log successful API call
-        logApiCall('generateDevotionalWithAI', 'success', 'gemini-2.0-flash', { topics: topicList });
+        logApiCall('generateDevotionalWithAI', 'success', getAiModelLabel(), { topics: topicList, provider: AI_PROVIDER });
 
         // Extract scripture reference from content
         const scriptureMatch = content.match(/\*\*([^*]+)\*\*/);
@@ -1242,8 +1291,7 @@ Requirements:
 
         // Generate a title based on topics
         const titlePrompt = `Create a short, engaging title (5-8 words max) for a devotional about: ${topicList}. Return ONLY the title, no quotes or formatting.${language === 'af' ? ' Write in Afrikaans.' : ''}`;
-        const titleResult = await model.generateContent(titlePrompt);
-        const title = titleResult.response.text().trim().replace(/['"]/g, '');
+        const title = (await generateBlogAiText(titlePrompt)).trim().replace(/['"]/g, '');
 
         return {
             success: true,
@@ -1253,7 +1301,7 @@ Requirements:
         };
     } catch (err) {
         console.error('Error generating devotional with AI:', err);
-        logApiCall('generateDevotionalWithAI', 'error', 'gemini-2.0-flash', { error: err.message });
+        logApiCall('generateDevotionalWithAI', 'error', getAiModelLabel(), { provider: AI_PROVIDER, error: err.message });
         return {
             success: false,
             error: 'Could not generate devotional. Please try again later.'

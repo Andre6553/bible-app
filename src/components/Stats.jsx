@@ -2325,7 +2325,10 @@ function Stats() {
                             <p><strong>Supabase:</strong> {supabaseUrl}</p>
                             <p><strong>Vercel:</strong> https://bible-app-phi-one.vercel.app</p>
                             <p><strong>Google AI:</strong> https://aistudio.google.com/</p>
-                            <p><strong>API Key:</strong> <span style={{ fontFamily: 'monospace' }}>{import.meta.env.VITE_GEMINI_API_KEY ? `${import.meta.env.VITE_GEMINI_API_KEY.substring(0, 10)}...` : 'Not Set'}</span></p>
+                            <p><strong>Groq:</strong> https://console.groq.com/</p>
+                            <p><strong>AI Provider:</strong> {import.meta.env.VITE_AI_PROVIDER || 'gemini'}</p>
+                            <p><strong>Gemini Key:</strong> <span style={{ fontFamily: 'monospace' }}>{import.meta.env.VITE_GEMINI_API_KEY ? `${import.meta.env.VITE_GEMINI_API_KEY.substring(0, 10)}...` : 'Not Set'}</span></p>
+                            <p><strong>Groq Key:</strong> <span style={{ fontFamily: 'monospace' }}>{import.meta.env.VITE_GROQ_API_KEY ? `${import.meta.env.VITE_GROQ_API_KEY.substring(0, 10)}...` : 'Not Set'}</span></p>
                         </div>
                     </div>
 
