@@ -31,7 +31,8 @@ const generateTriviaAiText = async (prompt) => {
             body: JSON.stringify({
                 model: GROQ_MODEL,
                 messages: [{ role: 'user', content: prompt }],
-                temperature: 0.4
+                temperature: 0.2,
+                response_format: { type: "json_object" }
             })
         });
 
@@ -61,6 +62,15 @@ const generateTriviaAiText = async (prompt) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
+};
+
+const extractJsonObject = (text) => {
+    const startIdx = text.indexOf('{');
+    const endIdx = text.lastIndexOf('}');
+    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+        throw new Error(`AI did not return a valid JSON object. Raw: ${text.substring(0, 120)}...`);
+    }
+    return text.substring(startIdx, endIdx + 1);
 };
 
 /**
@@ -423,15 +433,55 @@ const generateQuestionViaAI = async (difficulty, testament, excludeIds, recentTe
             }
             `;
 
-            const text = await generateTriviaAiText(prompt);
+            let data = null;
+            let rawText = '';
+            let parseError = null;
+
+            // Strong JSON enforcement loop (handles occasional non-JSON responses)
+            for (let parseAttempt = 0; parseAttempt < 3; parseAttempt++) {
+                const parsePrompt = parseAttempt === 0 ? prompt : `
+Your previous output was invalid.
+Return ONLY valid JSON with this exact structure and keys:
+{
+  "question_en": "string",
+  "question_af": "string",
+  "options_en": ["a","b","c"],
+  "options_af": ["a","b","c"],
+  "correct_index": 0,
+  "verse_ref_en": "Book Chapter:Verse",
+  "verse_ref_af": "Boek Hoofstuk:Vers",
+  "tags": ["tag1","tag2"],
+  "verification": "string"
+}
+No markdown, no explanation text, no leading prose.
+
+Original task:
+${prompt}
+
+Previous invalid response:
+${rawText}
+`;
+
+                try {
+                    rawText = await generateTriviaAiText(parsePrompt);
+                    const jsonStr = extractJsonObject(rawText.replace(/```json/g, '').replace(/```/g, '').trim());
+                    data = JSON.parse(jsonStr);
+                    break;
+                } catch (e) {
+                    parseError = e;
+                }
+            }
+
+            if (!data) {
+                throw new Error(`Trivia JSON parse failed after retries: ${parseError?.message || 'unknown parse error'}`);
+            }
+
             await logApiCall('trivia_generation', 'success', getAiModelLabel(), {
                 difficulty,
                 testament: effectiveTestament,
                 attempt: attempts,
                 provider: AI_PROVIDER
             });
-            const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            const data = JSON.parse(jsonStr);
 
             // Validation: Verify correct_index is 0-2
             if (data.correct_index < 0 || data.correct_index > 2) data.correct_index = 0;

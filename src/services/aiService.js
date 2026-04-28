@@ -108,6 +108,13 @@ const SYSTEM_PROMPT = `You are a Bible study assistant with comprehensive knowle
 
 You are a knowledgeable Bible teacher. Answer with confidence and cite scripture.`;
 
+let aiCacheAccessible = true;
+
+function isPermissionDenied(error) {
+    const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''} ${error?.code || ''}`.toLowerCase();
+    return text.includes('403') || text.includes('forbidden') || text.includes('permission denied') || text.includes('42501');
+}
+
 const getCapturedIp = () => {
     try {
         return localStorage.getItem('captured_ip') || null;
@@ -271,6 +278,7 @@ function hashQuestion(question) {
  */
 export async function getCachedAnswer(question) {
     try {
+        if (!aiCacheAccessible) return null;
         const hash = hashQuestion(question);
 
         const { data, error } = await supabase
@@ -279,7 +287,14 @@ export async function getCachedAnswer(question) {
             .eq('question_hash', hash)
             .limit(1);
 
-        if (error || !data || data.length === 0) return null;
+        if (error) {
+            if (isPermissionDenied(error)) {
+                aiCacheAccessible = false;
+                console.warn('ai_cache access denied by RLS. Disabling cache for this session.');
+            }
+            return null;
+        }
+        if (!data || data.length === 0) return null;
         const entry = data[0];
 
         // Update hit count (background)
@@ -307,9 +322,10 @@ export async function getCachedAnswer(question) {
  */
 export async function saveCachedAnswer(question, answer) {
     try {
+        if (!aiCacheAccessible) return;
         const hash = hashQuestion(question);
 
-        await supabase
+        const { error } = await supabase
             .from('ai_cache')
             .upsert({
                 question_hash: hash,
@@ -320,6 +336,11 @@ export async function saveCachedAnswer(question, answer) {
             }, {
                 onConflict: 'question_hash'
             });
+
+        if (error && isPermissionDenied(error)) {
+            aiCacheAccessible = false;
+            console.warn('ai_cache write denied by RLS. Disabling cache for this session.');
+        }
 
     } catch (error) {
         console.error('Cache save error:', error);
@@ -479,20 +500,58 @@ export async function getInductiveStudyHints(userId, step, bookName, chapter, ve
             }
         }`;
 
-        const text = await generateAiText(prompt);
+        let data = null;
+        let lastError = null;
+        let lastRawText = '';
+
+        // Retry/repair loop for strict JSON compliance.
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const attemptPrompt = attempt === 0 ? prompt : `
+Your previous output was invalid.
+Return ONLY valid JSON with this exact structure:
+{
+  "hints": {
+    "who": "...", "what": "...", "where": "...", "keywords": ["...", "..."], "commands": "...", "promises": "...",
+    "author": "...", "context": "...", "meaning": "...", "crossRefs": "...",
+    "god": "...", "myself": "...", "change": "...", "action": "..."
+  }
+}
+No markdown, no explanation, no extra text before or after JSON.
+
+Original task:
+${prompt}
+
+Previous invalid output:
+${lastRawText}
+`;
+
+            try {
+                const text = await generateAiText(attemptPrompt);
+                lastRawText = text;
+                const jsonStr = extractJsonObject(text.replace(/```json\n?|\n?```/g, '').trim());
+                const parsed = JSON.parse(jsonStr);
+                if (!parsed || typeof parsed !== 'object' || !parsed.hints || typeof parsed.hints !== 'object') {
+                    throw new Error('Invalid hints payload: missing hints object');
+                }
+                data = parsed;
+                break;
+            } catch (err) {
+                lastError = err;
+            }
+        }
+
+        if (!data) {
+            throw new Error(`Study hints format validation failed after retries: ${lastError?.message || 'unknown error'}`);
+        }
 
         // Log successful API call
         logApiCall('getInductiveStudyHints', 'success', getModelLabel(), { userId, provider: AI_PROVIDER, step, ref });
-
-        // Clean markdown JSON if present
-        const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
-        const data = JSON.parse(jsonStr);
 
         // Map data back to log
         await supabase.from('ai_questions').insert({
             user_id: userId,
             question: `Inductive Hint Step ${step} for ${ref}`,
-            answer: text,
+            answer: JSON.stringify(data),
             cached: false,
             ip_address: getCapturedIp()
         });
