@@ -3,9 +3,62 @@ import { supabase } from '../config/supabaseClient';
 import { logApiCall } from './adminService';
 import { logEvent } from './analyticsService';
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Use latest flash model
+const AI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini').toLowerCase();
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.0-flash";
+const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || "llama-3.3-70b-versatile";
+
+// Initialize Gemini only when configured
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const model = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
+
+function getModelLabel() {
+    if (AI_PROVIDER === 'groq') return GROQ_MODEL;
+    return GEMINI_MODEL;
+}
+
+async function generateAiText(prompt) {
+    // Explicit provider selection with fallback to Gemini if Groq is not configured.
+    if (AI_PROVIDER === 'groq') {
+        if (!GROQ_API_KEY) {
+            throw new Error('Groq API key is missing. Set VITE_GROQ_API_KEY in .env');
+        }
+
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${GROQ_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: GROQ_MODEL,
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.4
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Groq API error (${response.status}): ${errText}`);
+        }
+
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (!content) {
+            throw new Error('Groq API returned an empty response');
+        }
+        return content;
+    }
+
+    if (!model) {
+        throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY in .env');
+    }
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+}
 
 // System prompt for biblical accuracy
 const SYSTEM_PROMPT = `You are a Bible study assistant with comprehensive knowledge of the Bible. Follow these rules:
@@ -296,12 +349,10 @@ export async function askBibleQuestion(userId, question, verses = [], language =
         userPrompt += "4. If you cannot find a direct biblical answer, admit it.";
 
         // 4. Call Gemini AI
-        const result = await model.generateContent(userPrompt);
-        const response = await result.response;
-        const answer = response.text();
+        const answer = await generateAiText(userPrompt);
 
         // Log successful API call
-        logApiCall('askBibleQuestion', 'success', 'gemini-2.0-flash', { userId });
+        logApiCall('askBibleQuestion', 'success', getModelLabel(), { userId, provider: AI_PROVIDER });
 
         // 5. Save to cache (for reuse) - Non-blocking
         saveCachedAnswer(cacheKey, answer).catch(console.error);
@@ -334,7 +385,7 @@ export async function askBibleQuestion(userId, question, verses = [], language =
     } catch (error) {
         console.error('AI question error:', error);
         // Log failed API call
-        logApiCall('askBibleQuestion', 'error', 'gemini-2.0-flash', { userId, error: error.message });
+        logApiCall('askBibleQuestion', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
 
         // More specific error messages
         let errorMessage = 'Failed to get AI response. Please try again.';
@@ -342,7 +393,7 @@ export async function askBibleQuestion(userId, question, verses = [], language =
         const errMsg = error.message?.toLowerCase() || '';
 
         if (errMsg.includes('quota') || errMsg.includes('limit') || errMsg.includes('rate') || errMsg.includes('429')) {
-            errorMessage = 'Google AI rate limit reached. Please wait a minute and try again.';
+            errorMessage = 'AI rate limit reached. Please wait a minute and try again.';
         } else if (errMsg.includes('api key') || errMsg.includes('api_key') || errMsg.includes('invalid')) {
             errorMessage = 'API configuration error. Please contact support.';
         } else if (errMsg.includes('network') || errMsg.includes('fetch') || errMsg.includes('Failed to fetch')) {
@@ -394,12 +445,10 @@ export async function getInductiveStudyHints(userId, step, bookName, chapter, ve
             }
         }`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const text = await generateAiText(prompt);
 
         // Log successful API call
-        logApiCall('getInductiveStudyHints', 'success', 'gemini-2.0-flash', { userId, step, ref });
+        logApiCall('getInductiveStudyHints', 'success', getModelLabel(), { userId, provider: AI_PROVIDER, step, ref });
 
         // Clean markdown JSON if present
         const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
@@ -417,7 +466,7 @@ export async function getInductiveStudyHints(userId, step, bookName, chapter, ve
         return { success: true, hints: data.hints };
     } catch (error) {
         console.error('Study hints error:', error);
-        logApiCall('getInductiveStudyHints', 'error', 'gemini-2.0-flash', { userId, error: error.message });
+        logApiCall('getInductiveStudyHints', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
         return { success: false, error: error.message };
     }
 }
@@ -575,12 +624,10 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
             ]
         } `;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const text = await generateAiText(prompt);
 
         // Log successful API call
-        logApiCall('getWordStudy', 'success', 'gemini-2.0-flash', { userId, verseRef });
+        logApiCall('getWordStudy', 'success', getModelLabel(), { userId, provider: AI_PROVIDER, verseRef });
 
         // Clean markdown JSON if present
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -599,7 +646,7 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
         return { success: true, data: data };
     } catch (error) {
         console.error('Word study error:', error);
-        logApiCall('getWordStudy', 'error', 'gemini-2.0-flash', { userId, error: error.message });
+        logApiCall('getWordStudy', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
         return { success: false, error: error.message };
     }
 }
@@ -639,12 +686,10 @@ export async function getChapterSummary(userId, bookName, chapter, verses = [], 
             ]
         }`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const text = await generateAiText(prompt);
 
         // Log successful API call
-        logApiCall('getChapterSummary', 'success', 'gemini-2.0-flash', { userId, ref });
+        logApiCall('getChapterSummary', 'success', getModelLabel(), { userId, provider: AI_PROVIDER, ref });
 
         // Clean markdown JSON if present
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -663,7 +708,7 @@ export async function getChapterSummary(userId, bookName, chapter, verses = [], 
         return { success: true, data };
     } catch (error) {
         console.error('Chapter summary error:', error);
-        logApiCall('getChapterSummary', 'error', 'gemini-2.0-flash', { userId, error: error.message });
+        logApiCall('getChapterSummary', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
         return { success: false, error: error.message };
     }
 }
@@ -719,9 +764,7 @@ export async function performSemanticSearch(userId, query, versionId = 'KJV', te
         
         Do not include markdown formatting like \`\`\`json. Just the raw JSON object.`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text().trim();
+        const text = (await generateAiText(prompt)).trim();
 
         // Robust JSON extraction: Find the first { and last }
         const startIdx = text.indexOf('{');
@@ -753,13 +796,13 @@ export async function performSemanticSearch(userId, query, versionId = 'KJV', te
         }
 
         // [NEW] Log API Usage for Admin Dashboard
-        logApiCall('performSemanticSearch', 'success', 'gemini-2.0-flash', { userId, query, results: data.results?.length });
+        logApiCall('performSemanticSearch', 'success', getModelLabel(), { userId, provider: AI_PROVIDER, query, results: data.results?.length });
 
         return { success: true, data, cached: false };
 
     } catch (error) {
         console.error('Semantic search error:', error);
-        logApiCall('performSemanticSearch', 'error', 'gemini-2.0-flash', { userId, query, error: error.message });
+        logApiCall('performSemanticSearch', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, query, error: error.message });
         return { success: false, error: error.message };
     }
 }

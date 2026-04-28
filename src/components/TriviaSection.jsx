@@ -71,7 +71,6 @@ const TRIVIA_LABELS = {
         answered: "Beantwoord",
         reset: "Herstel Telling",
         resetConfirm: "Is jy seker? Dit sal jou sessietelling na 0 terugstel.",
-        resetConfirm: "Is jy seker? Dit sal jou sessietelling na 0 terugstel.",
         sessionScore: "Sessie Telling",
         copied: "Gekopieer!"
     }
