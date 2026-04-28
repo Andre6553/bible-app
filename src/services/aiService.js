@@ -7,7 +7,7 @@ const AI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini').toLowerCase()
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.0-flash";
-const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || "llama-3.3-70b-versatile";
+const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || "llama-3.1-8b-instant";
 
 // Initialize Gemini only when configured
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -40,6 +40,13 @@ async function generateAiText(prompt) {
 
         if (!response.ok) {
             const errText = await response.text();
+            // If Groq is temporarily rate-limited, fallback to Gemini when available.
+            if ((response.status === 429 || response.status >= 500) && model) {
+                console.warn(`Groq unavailable (${response.status}), falling back to Gemini.`);
+                const geminiResult = await model.generateContent(prompt);
+                const geminiResponse = await geminiResult.response;
+                return geminiResponse.text();
+            }
             throw new Error(`Groq API error (${response.status}): ${errText}`);
         }
 
