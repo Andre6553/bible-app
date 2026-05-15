@@ -52,6 +52,10 @@ function Search({ currentVersion, versions }) {
     const [aiQuestion, setAiQuestion] = useState('');
     const [aiResponse, setAiResponse] = useState(null);
     const [aiLoading, setAiLoading] = useState(false);
+    // Conversation thread for follow-up questions: [{role:'user'|'ai', content:string}]
+    const [aiConversation, setAiConversation] = useState([]);
+    const [followUpQuestion, setFollowUpQuestion] = useState('');
+    const [followUpLoading, setFollowUpLoading] = useState(false);
     const [quotaInfo, setQuotaInfo] = useState({ remaining: 0, quota: 10 });
     const [allBooks, setAllBooks] = useState([]); // For citation lookup
     const [aiHistory, setAiHistory] = useState([]); // AI Q&A history
@@ -341,7 +345,16 @@ function Search({ currentVersion, versions }) {
             ? `📜 Vorige Vrae (${count})`
             : `📜 Previous Questions (${count})`,
         view: settings.language === 'af' ? 'Bekyk' : 'View',
-        clearHistory: settings.language === 'af' ? '🗑️ Vee Geskiedenis uit' : '🗑️ Clear History'
+        clearHistory: settings.language === 'af' ? '🗑️ Vee Geskiedenis uit' : '🗑️ Clear History',
+        followUpPlaceholder: settings.language === 'af'
+            ? 'Vra \'n opvolgvraag oor hierdie antwoord...'
+            : 'Ask a follow-up question about this answer...',
+        followUpHeading: settings.language === 'af' ? '💬 Gesels verder met die AI' : '💬 Continue the conversation',
+        askFollowUp: settings.language === 'af' ? '➤ Stuur Opvolgvraag' : '➤ Send Follow-up',
+        followUpThinking: settings.language === 'af' ? '⏳ AI dink...' : '⏳ AI is thinking...',
+        youLabel: settings.language === 'af' ? 'Jy' : 'You',
+        aiLabel: settings.language === 'af' ? 'AI' : 'AI',
+        newConversation: settings.language === 'af' ? '＋ Nuwe Gesprek' : '＋ New Conversation'
     };
 
 
@@ -373,11 +386,19 @@ function Search({ currentVersion, versions }) {
         try {
             const savedAI = sessionStorage.getItem('bible_ai_session');
             if (savedAI) {
-                const { question, response, showModal, expanded, timestamp } = JSON.parse(savedAI);
+                const { question, response, conversation, showModal, expanded, timestamp } = JSON.parse(savedAI);
                 // Valid for 1 hour
                 if (Date.now() - timestamp < 3600000) {
                     setAiQuestion(question);
                     setAiResponse(response);
+                    if (Array.isArray(conversation) && conversation.length > 0) {
+                        setAiConversation(conversation);
+                    } else if (question && response) {
+                        setAiConversation([
+                            { role: 'user', content: question },
+                            { role: 'ai', content: response }
+                        ]);
+                    }
                     // Do not auto-open modal on reload, user must explicitly click button
                     // setShowAIModal(showModal); 
 
@@ -485,16 +506,29 @@ function Search({ currentVersion, versions }) {
 
     // Persist AI State whenever it changes
     useEffect(() => {
-        if (aiQuestion || aiResponse || showAIModal) {
+        if (aiQuestion || aiResponse || showAIModal || aiConversation.length > 0) {
             sessionStorage.setItem('bible_ai_session', JSON.stringify({
                 question: aiQuestion,
                 response: aiResponse,
+                conversation: aiConversation,
                 showModal: showAIModal,
                 expanded: isAnswerExpanded, // Save expanded state
                 timestamp: Date.now()
             }));
         }
-    }, [aiQuestion, aiResponse, showAIModal, isAnswerExpanded]);
+    }, [aiQuestion, aiResponse, showAIModal, isAnswerExpanded, aiConversation]);
+
+    // Hide the mobile bottom nav while the AI modal is open so it
+    // doesn't overlap the follow-up input. Scoped to mobile via CSS;
+    // on desktop the sidebar stays visible regardless.
+    useEffect(() => {
+        if (showAIModal) {
+            document.body.classList.add('ai-modal-open');
+        } else {
+            document.body.classList.remove('ai-modal-open');
+        }
+        return () => document.body.classList.remove('ai-modal-open');
+    }, [showAIModal]);
 
     const loadBooks = async () => {
         const result = await getBooks();
@@ -796,7 +830,17 @@ function Search({ currentVersion, versions }) {
         setAiQuestion(searchQuery);
         setShowAIModal(true);
         setAiResponse(null);
+        setAiConversation([]);
+        setFollowUpQuestion('');
         setIsAnswerExpanded(false); // Reset expanded mode for new questions
+    };
+
+    const startNewConversation = () => {
+        setAiConversation([]);
+        setAiResponse(null);
+        setAiQuestion('');
+        setFollowUpQuestion('');
+        setIsAnswerExpanded(false);
     };
 
     // Close on Android back button
@@ -846,6 +890,8 @@ function Search({ currentVersion, versions }) {
 
         setAiLoading(true);
         setAiResponse(null);
+        setAiConversation([]);
+        setFollowUpQuestion('');
 
         // Process shortcuts like /story, /explain, /meaning
         let processedQuestion = aiQuestion.trim();
@@ -954,6 +1000,11 @@ Here are the available shortcuts to quickly ask questions:
 
         if (result.success) {
             setAiResponse(result.answer);
+            setAiConversation([
+                { role: 'user', content: aiQuestion.trim() },
+                { role: 'ai', content: result.answer }
+            ]);
+            setFollowUpQuestion('');
             setIsVerseShortcutResponse(isVerseShortcut); // Store for manual copy button
             setIsAnswerExpanded(true); // Auto-expand for better readability
 
@@ -979,6 +1030,10 @@ Here are the available shortcuts to quickly ask questions:
             const newEntry = {
                 question: aiQuestion,
                 answer: result.answer,
+                conversation: [
+                    { role: 'user', content: aiQuestion.trim() },
+                    { role: 'ai', content: result.answer }
+                ],
                 timestamp: Date.now()
             };
             const updatedHistory = [newEntry, ...aiHistory].slice(0, 20); // Keep last 20
@@ -997,6 +1052,83 @@ Here are the available shortcuts to quickly ask questions:
                 }
             } else {
                 setAiResponse(`❌ ${result.error}`);
+            }
+        }
+    };
+
+    // Send a follow-up question that continues the active AI conversation.
+    const submitFollowUp = async () => {
+        const trimmed = followUpQuestion.trim();
+        if (!trimmed || followUpLoading) return;
+
+        // Reuse the same guest gating as the initial question
+        const uid = currentUserId || await getUserId();
+        if (uid && uid.startsWith('user_')) {
+            const promptMsg = settings.language === 'af'
+                ? 'Om AI-kenmerke te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To use AI features, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+            if (window.confirm(promptMsg)) navigate('/auth');
+            return;
+        }
+
+        // Snapshot current conversation, then optimistically append the user's question
+        const priorConversation = aiConversation;
+        const conversationWithUser = [...priorConversation, { role: 'user', content: trimmed }];
+        setAiConversation(conversationWithUser);
+        setFollowUpQuestion('');
+        setFollowUpLoading(true);
+
+        // Use the verses still on screen (if any) as additional grounding for the model
+        const verseContext = (results || []).slice(0, 15).map(v => ({
+            book: v.books?.name_full,
+            chapter: v.chapter,
+            verse: v.verse,
+            text: v.text
+        }));
+
+        const result = await askBibleQuestion(
+            uid,
+            trimmed,
+            verseContext,
+            settings.language,
+            priorConversation
+        );
+
+        setFollowUpLoading(false);
+
+        if (result.success) {
+            const finalConversation = [...conversationWithUser, { role: 'ai', content: result.answer }];
+            setAiConversation(finalConversation);
+            setAiResponse(result.answer); // Keep latest answer in legacy state (for copy / share)
+            setIsVerseShortcutResponse(false);
+
+            // Update the most recent history entry with the full conversation
+            setAiHistory(prev => {
+                if (!prev.length) return prev;
+                const [first, ...rest] = prev;
+                const updatedFirst = {
+                    ...first,
+                    conversation: finalConversation,
+                    answer: result.answer, // newest answer for legacy "View"
+                    timestamp: Date.now()
+                };
+                const updated = [updatedFirst, ...rest];
+                localStorage.setItem('ai_search_history', JSON.stringify(updated));
+                return updated;
+            });
+
+            await loadQuotaInfo();
+        } else {
+            const errorText = result.quotaExceeded
+                ? '🔒 Daily Limit Reached. Upgrade for Unlimited Access.'
+                : `❌ ${result.error}`;
+            setAiConversation([...conversationWithUser, { role: 'ai', content: errorText }]);
+            if (result.quotaExceeded) {
+                if (window.confirm(settings.language === 'af'
+                    ? 'Daaglikse AI-limiet bereik.\n\nWil jy opgradeer vir ONBEPERKTE toegang?'
+                    : 'Daily AI Limit Reached.\n\nWould you like to upgrade for UNLIMITED access?')) {
+                    navigate('/subscription');
+                }
             }
         }
     };
@@ -1679,8 +1811,14 @@ Here are the available shortcuts to quickly ask questions:
             {/* AI Research Modal */}
             {
                 showAIModal && (
-                    <div className="book-selector-modal ai-research-modal" onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}>
-                        <div className="book-selector-content info-modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div
+                        className={`book-selector-modal ai-research-modal ${aiConversation.length > 0 ? 'has-conversation' : ''}`}
+                        onClick={() => { setShowAIModal(false); setIsAnswerExpanded(false); }}
+                    >
+                        <div
+                            className={`book-selector-content info-modal-content ${aiConversation.length > 0 && isAnswerExpanded ? 'fullscreen-ai' : ''}`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             <div className="modal-header ai-modal-header">
                                 <div className="ai-modal-title-wrapper">
                                     <AIIcon className="header-icon" />
@@ -1762,59 +1900,137 @@ Here are the available shortcuts to quickly ask questions:
                                     </div>
                                 )}
 
-                                {aiResponse && (
-                                    <div
-                                        className={`info-section ai-response ${isAnswerExpanded ? 'expanded' : ''}`}
-                                        onDoubleClick={() => setIsAnswerExpanded(!isAnswerExpanded)}
-                                    >
-                                        <div className="ai-response-header">
-                                            <h3>{t.biblicalAnswer}</h3>
-                                            <div className="ai-response-actions">
+                                {aiConversation.length > 0 && (() => {
+                                    const lastAiIdx = (() => {
+                                        for (let i = aiConversation.length - 1; i >= 0; i--) {
+                                            if (aiConversation[i].role === 'ai') return i;
+                                        }
+                                        return -1;
+                                    })();
+                                    return (
+                                        <div
+                                            className={`info-section ai-response ${isAnswerExpanded ? 'expanded' : ''}`}
+                                            onDoubleClick={() => setIsAnswerExpanded(!isAnswerExpanded)}
+                                        >
+                                            <div className="ai-response-header">
+                                                <h3>{t.biblicalAnswer}</h3>
+                                                <div className="ai-response-actions">
+                                                    <button
+                                                        className="new-conversation-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            startNewConversation();
+                                                        }}
+                                                        title={t.newConversation}
+                                                    >
+                                                        {t.newConversation}
+                                                    </button>
+                                                    <button
+                                                        className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleAiResponseCopy();
+                                                        }}
+                                                        title="Copy latest answer"
+                                                    >
+                                                        {copyStatus === 'Copied!' ? '✅ ' : '📋 '}{copyStatus === 'Copied!' ? t.copied : t.copy}
+                                                    </button>
+                                                    {!isAnswerExpanded && (
+                                                        <button
+                                                            className="expand-btn"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setIsAnswerExpanded(true);
+                                                            }}
+                                                        >
+                                                            {t.expand}
+                                                        </button>
+                                                    )}
+                                                    {isAnswerExpanded && (
+                                                        <button
+                                                            className="collapse-btn"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setIsAnswerExpanded(false);
+                                                            }}
+                                                        >
+                                                            {t.collapse}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="ai-conversation-thread">
+                                                {aiConversation.map((turn, idx) => (
+                                                    turn.role === 'user' ? (
+                                                        <div key={idx} className="ai-turn ai-turn-user">
+                                                            <div className="ai-turn-label">{t.youLabel}</div>
+                                                            <div className="ai-turn-bubble ai-turn-bubble-user">
+                                                                {turn.content}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div key={idx} className="ai-turn ai-turn-ai">
+                                                            <div className="ai-turn-label">{t.aiLabel}</div>
+                                                            <div className={`ai-answer ai-turn-bubble-ai ${idx === lastAiIdx ? 'latest' : ''}`}>
+                                                                {formatAIResponse(turn.content)}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                ))}
+
+                                                {followUpLoading && (
+                                                    <div className="ai-turn ai-turn-ai">
+                                                        <div className="ai-turn-label">{t.aiLabel}</div>
+                                                        <div className="ai-answer ai-turn-bubble-ai loading">
+                                                            {t.followUpThinking}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Follow-up input – lets the user dialog with the AI */}
+                                            <div
+                                                className="ai-followup-section"
+                                                onClick={(e) => e.stopPropagation()}
+                                                onDoubleClick={(e) => e.stopPropagation()}
+                                            >
+                                                <div className="ai-followup-heading">{t.followUpHeading}</div>
+                                                <textarea
+                                                    className="ai-followup-input"
+                                                    placeholder={t.followUpPlaceholder}
+                                                    value={followUpQuestion}
+                                                    onChange={(e) => setFollowUpQuestion(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            e.preventDefault();
+                                                            submitFollowUp();
+                                                        }
+                                                    }}
+                                                    rows={2}
+                                                    disabled={followUpLoading}
+                                                />
                                                 <button
-                                                    className={`copy-btn ${copyStatus === 'Copied!' ? 'success' : ''}`}
+                                                    className="ai-followup-btn"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleAiResponseCopy();
+                                                        submitFollowUp();
                                                     }}
-                                                    title="Copy to clipboard"
+                                                    disabled={followUpLoading || !followUpQuestion.trim()}
                                                 >
-                                                    {copyStatus === 'Copied!' ? '✅ ' : '📋 '}{copyStatus === 'Copied!' ? t.copied : t.copy}
+                                                    {followUpLoading ? t.followUpThinking : t.askFollowUp}
                                                 </button>
-                                                {!isAnswerExpanded && (
-                                                    <button
-                                                        className="expand-btn"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setIsAnswerExpanded(true);
-                                                        }}
-                                                    >
-                                                        {t.expand}
-                                                    </button>
-                                                )}
-                                                {isAnswerExpanded && (
-                                                    <button
-                                                        className="collapse-btn"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setIsAnswerExpanded(false);
-                                                        }}
-                                                    >
-                                                        {t.collapse}
-                                                    </button>
-                                                )}
                                             </div>
+
+                                            {isAnswerExpanded && (
+                                                <div className="expanded-nav-buttons">
+                                                    <button onClick={() => navigate('/bible')}>📖 Bible</button>
+                                                    <button onClick={() => { setIsAnswerExpanded(false); setShowAIModal(false); }}>🔍 Search</button>
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="ai-answer">
-                                            {formatAIResponse(aiResponse)}
-                                        </div>
-                                        {isAnswerExpanded && (
-                                            <div className="expanded-nav-buttons">
-                                                <button onClick={() => navigate('/bible')}>📖 Bible</button>
-                                                <button onClick={() => { setIsAnswerExpanded(false); setShowAIModal(false); }}>🔍 Search</button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                    );
+                                })()}
 
 
 
@@ -1846,11 +2062,22 @@ Here are the available shortcuts to quickly ask questions:
                                                                 className="reask-btn"
                                                                 onClick={() => {
                                                                     setAiQuestion(item.question);
-                                                                    if (item.answer) {
+                                                                    setFollowUpQuestion('');
+                                                                    if (Array.isArray(item.conversation) && item.conversation.length > 0) {
+                                                                        setAiConversation(item.conversation);
+                                                                        const lastAi = [...item.conversation].reverse().find(t => t.role === 'ai');
+                                                                        setAiResponse(lastAi ? lastAi.content : (item.answer || null));
+                                                                        setIsAnswerExpanded(true);
+                                                                    } else if (item.answer) {
                                                                         setAiResponse(item.answer);
+                                                                        setAiConversation([
+                                                                            { role: 'user', content: item.question },
+                                                                            { role: 'ai', content: item.answer }
+                                                                        ]);
                                                                         setIsAnswerExpanded(true);
                                                                     } else {
                                                                         setAiResponse(null);
+                                                                        setAiConversation([]);
                                                                     }
                                                                 }}
                                                                 title="View this answer"

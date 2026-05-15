@@ -2170,3 +2170,364 @@
         margin-left: 20px;
     }
 }
+
+/* ============================================================
+   AI Conversation Thread + Follow-up Input
+   ============================================================ */
+
+/* PC: stretch the modal card to the full viewport (minus sidebar). */
+@media (min-width: 769px) {
+    .ai-research-modal .book-selector-content.fullscreen-ai {
+        max-width: none;
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        margin: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+}
+
+/* Fullscreen content is a single vertical flex column:
+   header → info-body (fills) → no other layers. The info-body in
+   turn contains the response, and the response contains
+   [response-header, conversation-thread (scrolls), follow-up].   */
+.ai-research-modal .book-selector-content.fullscreen-ai {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ai-research-modal .book-selector-content.fullscreen-ai .modal-header {
+    flex-shrink: 0;
+}
+
+.ai-research-modal .book-selector-content.fullscreen-ai .info-body {
+    flex: 1;
+    min-height: 0;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden !important;
+    padding: 0 !important;
+}
+
+/* While in fullscreen mode we focus the user on the active
+   conversation — hide history, footer and the (now unused)
+   initial question section. */
+.ai-research-modal .book-selector-content.fullscreen-ai .ai-history-section,
+.ai-research-modal .book-selector-content.fullscreen-ai .empty-history,
+.ai-research-modal .book-selector-content.fullscreen-ai .info-footer {
+    display: none !important;
+}
+
+.ai-research-modal .book-selector-content.fullscreen-ai .ai-response {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent;
+    border-radius: 0;
+}
+
+.ai-research-modal .book-selector-content.fullscreen-ai .ai-response-header {
+    flex-shrink: 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-primary);
+    margin: 0;
+}
+
+/* Default (non-fullscreen) conversation thread layout */
+.ai-conversation-thread {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+/* Fullscreen: the thread is the SOLE scroll container */
+.ai-research-modal .book-selector-content.fullscreen-ai .ai-conversation-thread {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 20px;
+    margin: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary) rgba(0, 0, 0, 0.1);
+}
+
+.ai-research-modal .book-selector-content.fullscreen-ai .ai-conversation-thread::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ai-research-modal .book-selector-content.fullscreen-ai .ai-conversation-thread::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.ai-research-modal .book-selector-content.fullscreen-ai .ai-conversation-thread::-webkit-scrollbar-thumb {
+    background-color: var(--accent-primary);
+    border-radius: 4px;
+}
+
+.ai-response.expanded .ai-conversation-thread::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ai-response.expanded .ai-conversation-thread::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.ai-response.expanded .ai-conversation-thread::-webkit-scrollbar-thumb {
+    background-color: var(--accent-primary);
+    border-radius: 4px;
+}
+
+.ai-turn {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ai-turn-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    padding-left: 4px;
+}
+
+.ai-turn-user .ai-turn-label {
+    align-self: flex-end;
+    color: var(--accent-secondary);
+}
+
+.ai-turn-user {
+    align-items: flex-end;
+}
+
+.ai-turn-bubble {
+    max-width: 90%;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.ai-turn-bubble-user {
+    background: var(--accent-primary);
+    color: white;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.ai-turn-bubble-ai {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-left: 4px solid var(--accent-primary);
+    border-radius: var(--radius-md);
+    max-width: 100%;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 14px 18px;
+}
+
+.ai-turn-bubble-ai.loading {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left-color: var(--text-muted);
+}
+
+.ai-response.expanded .ai-turn-bubble-ai {
+    max-height: none;
+}
+
+/* Follow-up section (default, non-fullscreen card layout) */
+.ai-followup-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    margin-top: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* Fullscreen: the follow-up is a fixed bottom row of the flex
+   column — naturally pinned to the bottom by the thread above it
+   consuming all remaining space. No sticky / absolute / z-index
+   tricks needed, so it can't overlay the conversation. */
+.ai-research-modal .book-selector-content.fullscreen-ai .ai-followup-section {
+    flex-shrink: 0;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-secondary);
+    padding: 12px 16px;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Reset legacy ai-response.expanded rules that conflict with the
+   new conversation thread (the old behaviour used .ai-answer as
+   a single full-height scroller). */
+.ai-response.expanded .ai-conversation-thread .ai-answer {
+    flex: initial;
+    overflow-y: visible;
+    max-height: none;
+    padding: 14px 18px !important;
+    padding-bottom: 14px !important;
+    border-left: 4px solid var(--accent-primary);
+    border-radius: var(--radius-md);
+}
+
+/* Hide the fixed bottom nav (Bible / Search) when a conversation
+   is active — the follow-up input occupies the bottom instead. */
+.ai-research-modal .book-selector-content.fullscreen-ai .expanded-nav-buttons {
+    display: none;
+}
+
+/* Mobile: hide the bottom nav while the AI modal is open so the
+   follow-up input is reachable. Desktop keeps its sidebar nav. */
+@media (max-width: 768px) {
+    body.ai-modal-open .bottom-nav {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .ai-research-modal .book-selector-content.fullscreen-ai .ai-response-header {
+        padding: 10px 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+        row-gap: 6px;
+    }
+
+    .ai-research-modal .book-selector-content.fullscreen-ai .ai-response-header h3 {
+        font-size: 0.95rem;
+        flex: 1 0 auto;
+    }
+
+    .ai-research-modal .book-selector-content.fullscreen-ai .ai-response-actions {
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .ai-research-modal .book-selector-content.fullscreen-ai .copy-btn,
+    .ai-research-modal .book-selector-content.fullscreen-ai .new-conversation-btn,
+    .ai-research-modal .book-selector-content.fullscreen-ai .collapse-btn,
+    .ai-research-modal .book-selector-content.fullscreen-ai .expand-btn {
+        padding: 5px 9px;
+        font-size: 0.72rem;
+        white-space: nowrap;
+    }
+
+    .ai-research-modal .book-selector-content.fullscreen-ai .ai-conversation-thread {
+        padding: 12px 12px 16px;
+    }
+
+    .ai-research-modal .book-selector-content.fullscreen-ai .ai-followup-section {
+        padding: 10px 12px;
+    }
+}
+
+.ai-followup-heading {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.ai-followup-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm, 8px);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 56px;
+    box-sizing: border-box;
+}
+
+.ai-followup-input:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+}
+
+.ai-followup-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ai-followup-btn {
+    align-self: flex-end;
+    padding: 8px 18px;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm, 8px);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.05s ease;
+}
+
+.ai-followup-btn:hover:not(:disabled) {
+    background: var(--accent-secondary, var(--accent-primary));
+}
+
+.ai-followup-btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.ai-followup-btn:disabled {
+    background: var(--text-muted);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* New Conversation header button */
+.new-conversation-btn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm, 8px);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.new-conversation-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+@media (max-width: 600px) {
+    .ai-turn-bubble {
+        max-width: 95%;
+    }
+
+    .ai-turn-bubble-ai {
+        padding: 12px 14px;
+    }
+
+    .ai-followup-input {
+        font-size: 0.9rem;
+    }
+
+    .ai-followup-btn {
+        align-self: stretch;
+    }
+}

@@ -350,7 +350,7 @@ export async function saveCachedAnswer(question, answer) {
 /**
  * Main function: Ask AI a Bible question
  */
-export async function askBibleQuestion(userId, question, verses = [], language = 'en') {
+export async function askBibleQuestion(userId, question, verses = [], language = 'en', conversationHistory = []) {
     try {
         // 1. Check quota
         const { remaining } = await getUserRemainingQuota(userId);
@@ -362,22 +362,25 @@ export async function askBibleQuestion(userId, question, verses = [], language =
             };
         }
 
-        // 2. Check cache first - Cache key should include language to avoid cross-language leakage
-        const cacheKey = `${language}:${question}`;
-        const cachedAnswer = await getCachedAnswer(cacheKey);
-        if (cachedAnswer) {
-            // Log as cached
-            await supabase
-                .from('ai_questions')
-                .insert({
-                    user_id: userId,
-                    question: question,
-                    answer: cachedAnswer,
-                    cached: true,
-                    ip_address: getCapturedIp()
-                });
+        const isFollowUp = Array.isArray(conversationHistory) && conversationHistory.length > 0;
 
-            return { success: true, answer: cachedAnswer, cached: true };
+        // 2. Check cache first - skipped for follow-ups since answers are contextual
+        const cacheKey = `${language}:${question}`;
+        if (!isFollowUp) {
+            const cachedAnswer = await getCachedAnswer(cacheKey);
+            if (cachedAnswer) {
+                await supabase
+                    .from('ai_questions')
+                    .insert({
+                        user_id: userId,
+                        question: question,
+                        answer: cachedAnswer,
+                        cached: true,
+                        ip_address: getCapturedIp()
+                    });
+
+                return { success: true, answer: cachedAnswer, cached: true };
+            }
         }
 
         // 3. Build prompt with verse context
@@ -396,12 +399,29 @@ export async function askBibleQuestion(userId, question, verses = [], language =
         userPrompt += "\n";
         userPrompt += "**Context Verses (Reference Only):**\n";
         userPrompt += contextText + "\n\n";
-        userPrompt += "**User Question:** " + question + "\n\n";
-        userPrompt += `Provide a biblical answer in ${langOutput}.\n`;
-        userPrompt += "1. PRIORITIZE using the Context Verses above if they are relevant.\n";
-        userPrompt += "2. If the Context Verses are not relevant, use your general biblical knowledge to answer.\n";
-        userPrompt += "3. CRITICAL: You MUST cite verses in this EXACT format: [[Book Chapter:Verse]] (e.g., [[John 3:16]]). Do not use parentheses `()` for citations, use double brackets `[[]]`.\n";
-        userPrompt += "4. If you cannot find a direct biblical answer, admit it.";
+
+        if (isFollowUp) {
+            userPrompt += "**Previous Conversation (continue this thread; the user is now asking a follow-up about the answer below):**\n";
+            conversationHistory.forEach(turn => {
+                const speaker = turn.role === 'user' ? 'User' : 'Assistant';
+                const cleanContent = String(turn.content || '').trim();
+                userPrompt += `${speaker}: ${cleanContent}\n\n`;
+            });
+            userPrompt += "**User's Follow-up Question:** " + question + "\n\n";
+            userPrompt += `Provide a biblical answer in ${langOutput} that directly continues the conversation above.\n`;
+            userPrompt += "1. Treat this as a follow-up: reference and build on what was said earlier when relevant.\n";
+            userPrompt += "2. PRIORITIZE using the Context Verses above if they are relevant.\n";
+            userPrompt += "3. If the Context Verses are not relevant, use your general biblical knowledge to answer.\n";
+            userPrompt += "4. CRITICAL: You MUST cite verses in this EXACT format: [[Book Chapter:Verse]] (e.g., [[John 3:16]]). Do not use parentheses `()` for citations, use double brackets `[[]]`.\n";
+            userPrompt += "5. If you cannot find a direct biblical answer, admit it.";
+        } else {
+            userPrompt += "**User Question:** " + question + "\n\n";
+            userPrompt += `Provide a biblical answer in ${langOutput}.\n`;
+            userPrompt += "1. PRIORITIZE using the Context Verses above if they are relevant.\n";
+            userPrompt += "2. If the Context Verses are not relevant, use your general biblical knowledge to answer.\n";
+            userPrompt += "3. CRITICAL: You MUST cite verses in this EXACT format: [[Book Chapter:Verse]] (e.g., [[John 3:16]]). Do not use parentheses `()` for citations, use double brackets `[[]]`.\n";
+            userPrompt += "4. If you cannot find a direct biblical answer, admit it.";
+        }
 
         // 4. Call Gemini AI
         const answer = await generateAiText(userPrompt);
@@ -409,8 +429,10 @@ export async function askBibleQuestion(userId, question, verses = [], language =
         // Log successful API call
         logApiCall('askBibleQuestion', 'success', getModelLabel(), { userId, provider: AI_PROVIDER });
 
-        // 5. Save to cache (for reuse) - Non-blocking
-        saveCachedAnswer(cacheKey, answer).catch(console.error);
+        // 5. Save to cache (for reuse) - Non-blocking. Skip for follow-ups (contextual answers).
+        if (!isFollowUp) {
+            saveCachedAnswer(cacheKey, answer).catch(console.error);
+        }
 
         // 6. Log and Increment - Non-blocking / Separate try-catch
         try {
