@@ -94,6 +94,42 @@ function validateSemanticSearchPayload(data) {
     }
 }
 
+const HARDWARE_PRODUCT_PATTERN = /\b(creality|cr[-\s]?laser|laser\s+falcon|falcon\s+(?:control\s+)?board)\b/i;
+const TECHNICAL_OUT_OF_SCOPE_TERMS = [
+    /\bcontrol\s+board\b/i,
+    /\bmain\s*board\b/i,
+    /\bmotherboard\b/i,
+    /\bfirmware\b/i,
+    /\bgrbl\b/i,
+    /\blaser\s+(?:engraver|cutter|module)\b/i,
+    /\bengraver\b/i,
+    /\b3d\s*printer\b/i,
+    /\bcnc\b/i,
+    /\bstepper\s+(?:motor|driver)\b/i,
+    /\bmicrocontroller\b/i,
+    /\bpcb\b/i
+];
+
+function isClearlyOutOfScopeQuestion(question) {
+    const normalized = String(question || '').trim();
+    if (!normalized) return false;
+
+    if (HARDWARE_PRODUCT_PATTERN.test(normalized)) {
+        return true;
+    }
+
+    const technicalMatches = TECHNICAL_OUT_OF_SCOPE_TERMS.filter(pattern => pattern.test(normalized)).length;
+    return technicalMatches >= 2;
+}
+
+function buildOutOfScopeAnswer(question, language) {
+    if (language === 'af') {
+        return `Die Bybel spreek nie hierdie onderwerp direk aan nie: "${question.trim()}". Omni Bible is bedoel vir Bybelstudie, Skrifgedeeltes, Bybelse temas, woordstudies, preekvoorbereiding en dagstukkies. Vra asseblief 'n Skrifverwante vraag sodat ek met Bybelse verwysings kan help.`;
+    }
+
+    return `The Bible does not directly address this topic: "${question.trim()}". Omni Bible is designed for Bible study, passages, biblical themes, word studies, sermon preparation, and devotionals. Please ask a Scripture-related question so I can help with Bible-based support.`;
+}
+
 // System prompt for biblical accuracy — every claim must be provable from Scripture
 const SYSTEM_PROMPT = `You are a Bible study assistant. Your single most important rule:
 EVERY factual or theological claim you make MUST be directly supported by a specific
@@ -385,6 +421,15 @@ export async function saveCachedAnswer(question, answer) {
  */
 export async function askBibleQuestion(userId, question, verses = [], language = 'en', conversationHistory = []) {
     try {
+        if (isClearlyOutOfScopeQuestion(question)) {
+            return {
+                success: true,
+                answer: buildOutOfScopeAnswer(question, language),
+                cached: false,
+                outOfScope: true
+            };
+        }
+
         // 1. Check quota
         const { remaining } = await getUserRemainingQuota(userId);
         if (remaining <= 0) {
