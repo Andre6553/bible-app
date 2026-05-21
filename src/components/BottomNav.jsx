@@ -14,6 +14,7 @@ function BottomNav() {
             bible: "Bible",
             search: "Search",
             study: "Study",
+            plans: "Plans",
             foryou: "For You",
             profile: "Profile"
         },
@@ -21,6 +22,7 @@ function BottomNav() {
             bible: "Bybel",
             search: "Soek",
             study: "Studie",
+            plans: "Planne",
             foryou: "Vir Jou",
             profile: "Profiel"
         }
@@ -79,6 +81,15 @@ function BottomNav() {
             >
                 <span className="nav-icon">✍️</span>
                 <span className="nav-label">{t.study}</span>
+            </NavLink>
+
+            <NavLink
+                to="/plans"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => logActivity('plans_nav_click')}
+            >
+                <span className="nav-icon">📅</span>
+                <span className="nav-label">{t.plans}</span>
             </NavLink>
 
             <NavLink

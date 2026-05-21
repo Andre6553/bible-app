@@ -1,0 +1,16 @@
+[
+  {"day":1,"title_en":"In the Beginning","title_af":"In die Begin","passages":[{"book_id":1,"chapter":1}]},
+  {"day":2,"title_en":"The Word Became Flesh","title_af":"Die Woord Word Vlees","passages":[{"book_id":43,"chapter":1}]},
+  {"day":3,"title_en":"God So Loved the World","title_af":"God So Die Wêreld Liefgehad Het","passages":[{"book_id":43,"chapter":3}]},
+  {"day":4,"title_en":"The Lord Is My Shepherd","title_af":"Die Here Is My Herder","passages":[{"book_id":19,"chapter":23}]},
+  {"day":5,"title_en":"No Condemnation in Christ","title_af":"Geen Verdoemenis in Christus","passages":[{"book_id":45,"chapter":8}]},
+  {"day":6,"title_en":"The Beatitudes","title_af":"Die Saligprekings","passages":[{"book_id":40,"chapter":5}]},
+  {"day":7,"title_en":"The Birth of Jesus","title_af":"Die Geboorte van Jesus","passages":[{"book_id":42,"chapter":2}]},
+  {"day":8,"title_en":"The Ten Commandments","title_af":"Die Tien Gebooie","passages":[{"book_id":2,"chapter":20}]},
+  {"day":9,"title_en":"Rejoice in the Lord","title_af":"Verheug in die Here","passages":[{"book_id":50,"chapter":4}]},
+  {"day":10,"title_en":"Trust in the Lord","title_af":"Vertrou op die Here","passages":[{"book_id":20,"chapter":3}]},
+  {"day":11,"title_en":"The Suffering Servant","title_af":"Die Lydinge Kneg","passages":[{"book_id":23,"chapter":53}]},
+  {"day":12,"title_en":"The Day of Pentecost","title_af":"Die Dag van Pinkster","passages":[{"book_id":44,"chapter":2}]},
+  {"day":13,"title_en":"A New Heaven and Earth","title_af":"'n Nuwe Hemel en Aarde","passages":[{"book_id":66,"chapter":21}]},
+  {"day":14,"title_en":"The Call of Abraham","title_af":"Die Roeping van Abraham","passages":[{"book_id":1,"chapter":12}]}
+]

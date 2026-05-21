@@ -32,7 +32,9 @@ import BibleHelpModal from './BibleHelpModal';
 import OmniDefinitionModal from './OmniDefinitionModal';
 import ChapterSummaryModal from './ChapterSummaryModal';
 import { useBackButton } from './BackButtonHandler';
+import { markDayComplete, formatPassageRef, getDayCommentaryIntro, getDayCommentarySections } from '../services/readingPlanService';
 import './BibleReader.css';
+import './ReadingPlans.css';
 import { resetAppCache } from '../utils/appUtils';
 
 const THEME_COLORS = [
@@ -137,6 +139,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [wordStudyData, setWordStudyData] = useState(null);
     const [showChapterSummary, setShowChapterSummary] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [planContext, setPlanContext] = useState(null);
+    const [planActionLoading, setPlanActionLoading] = useState(false);
 
     const handleShareVerse = () => {
         setShowShareModal(true);
@@ -282,7 +286,10 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         if (!location.state?.bookId) return;
         if (!books.all || books.all.length === 0) return;
 
-        const { bookId, chapter, targetVerse } = location.state;
+        const { bookId, chapter, targetVerse, fromPlan } = location.state;
+        if (fromPlan) {
+            setPlanContext(fromPlan);
+        }
         // Use == for loose equality since bookId might be string and book.id integer
         const book = books.all.find(b => b.id == bookId);
 
@@ -301,6 +308,57 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             console.warn('Book not found for ID:', bookId);
         }
     }, [location.key, books.all]); // Use location.key to detect new navigation
+
+    const handlePlanMarkComplete = async () => {
+        if (!planContext?.enrollmentId || !planContext?.day) return;
+        setPlanActionLoading(true);
+        const res = await markDayComplete(
+            planContext.enrollmentId,
+            planContext.day,
+            planContext.planSlug
+        );
+        setPlanActionLoading(false);
+        if (res.success) {
+            setPlanContext(null);
+            navigate(`/plans/${planContext.planSlug}`);
+        } else {
+            alert(res.error || 'Failed to mark day complete');
+        }
+    };
+
+    const handlePlanNextPassage = () => {
+        if (!planContext?.dayReading?.passages) return;
+        const nextIndex = (planContext.passageIndex || 0) + 1;
+        const nextPassage = planContext.dayReading.passages[nextIndex];
+        if (!nextPassage) return;
+
+        const updatedContext = {
+            ...planContext,
+            passageIndex: nextIndex,
+        };
+        setPlanContext(updatedContext);
+        navigate('/bible', {
+            state: {
+                bookId: nextPassage.book_id,
+                chapter: nextPassage.chapter,
+                fromPlan: updatedContext,
+            },
+            replace: true,
+        });
+    };
+
+    const handlePlanDismiss = () => {
+        setPlanContext(null);
+        if (planContext?.planSlug) {
+            navigate(`/plans/${planContext.planSlug}`);
+        }
+    };
+
+    const isLastPlanPassage = planContext
+        ? (planContext.passageIndex || 0) >= (planContext.totalPassages || 1) - 1
+        : false;
+
+    const nextPlanPassage = planContext?.dayReading?.passages?.[(planContext.passageIndex || 0) + 1];
 
     useEffect(() => {
         if (selectedBook && currentVersion) {
@@ -1480,6 +1538,84 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {planContext && (
+                <div className="plan-reader-banner">
+                    <div className="plan-reader-banner-title">
+                        {settings.language === 'af' ? 'Dag' : 'Day'} {planContext.day}
+                        {planContext.planTitle ? ` · ${planContext.planTitle}` : ''}
+                    </div>
+                    {planContext.dayReading && (() => {
+                        const lang = settings.language;
+                        const intro = getDayCommentaryIntro(planContext.dayReading, lang);
+                        const sections = getDayCommentarySections(planContext.dayReading, lang);
+                        const currentPassage = planContext.dayReading.passages?.[planContext.passageIndex || 0];
+                        const currentSection = sections.find(
+                            (s) => s.book_id == currentPassage?.book_id && s.chapter == currentPassage?.chapter
+                        ) || sections[0];
+                        const firstPoint = currentSection?.studyPoints?.[0];
+                        const firstCrossRef = currentSection?.crossReferences?.[0];
+
+                        return (
+                            <div className="plan-reader-commentary-wrap">
+                                {intro && <p className="plan-reader-commentary">{intro}</p>}
+                                {currentSection?.heading && (
+                                    <div className="plan-reader-commentary-section">
+                                        <strong>{currentSection.heading}</strong>
+                                        <p>{currentSection.summary}</p>
+                                        {firstPoint?.title && (
+                                            <p className="plan-reader-point-preview">
+                                                <em>{firstPoint.title}</em>
+                                                {firstPoint.verses ? ` (${firstPoint.verses})` : ''}: {firstPoint.detail}
+                                            </p>
+                                        )}
+                                        {currentSection?.teaching && (
+                                            <p className="plan-reader-point-preview">
+                                                <em>{settings.language === 'af' ? 'God leer' : 'God teaches'}:</em> {currentSection.teaching}
+                                            </p>
+                                        )}
+                                        {firstCrossRef?.ref && (
+                                            <p className="plan-reader-point-preview">
+                                                <em>{settings.language === 'af' ? 'Soortgelyk' : 'Similar'}: {firstCrossRef.ref}</em> — {firstCrossRef.comparison}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+                    <div className="plan-reader-banner-actions">
+                        {!isLastPlanPassage && nextPlanPassage && (
+                            <button
+                                className="plan-reader-banner-btn secondary"
+                                onClick={handlePlanNextPassage}
+                            >
+                                {settings.language === 'af' ? 'Volgende' : 'Next'}:{' '}
+                                {formatPassageRef(nextPlanPassage, books, settings.language)}
+                            </button>
+                        )}
+                        {isLastPlanPassage && (
+                            <button
+                                className="plan-reader-banner-btn primary"
+                                onClick={handlePlanMarkComplete}
+                                disabled={planActionLoading}
+                            >
+                                {planActionLoading
+                                    ? '...'
+                                    : settings.language === 'af'
+                                        ? 'Merker Dag Voltooi'
+                                        : 'Mark Day Complete'}
+                            </button>
+                        )}
+                        <button
+                            className="plan-reader-banner-btn secondary"
+                            onClick={handlePlanDismiss}
+                        >
+                            {settings.language === 'af' ? 'Terug na Plan' : 'Back to Plan'}
+                        </button>
                     </div>
                 </div>
             )}

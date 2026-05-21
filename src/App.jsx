@@ -27,6 +27,8 @@ const BottomNav = lazy(() => import('./components/BottomNav'));
 const SubscriptionPage = lazy(() => import('./components/SubscriptionPage'));
 const Legal = lazy(() => import('./components/Legal'));
 const TriviaSection = lazy(() => import('./components/TriviaSection'));
+const ReadingPlans = lazy(() => import('./components/ReadingPlans'));
+const ReadingPlanDetail = lazy(() => import('./components/ReadingPlanDetail'));
 
 function App() {
     const [currentVersion, setCurrentVersion] = useState(null);
@@ -140,6 +142,20 @@ function App() {
                                     <Route
                                         path="/study/:id"
                                         element={<InductiveEditor />}
+                                    />
+                                    <Route
+                                        path="/plans"
+                                        element={<ReadingPlans />}
+                                    />
+                                    <Route
+                                        path="/plans/:slug"
+                                        element={
+                                            <ReadingPlanDetail
+                                                currentVersion={currentVersion}
+                                                setCurrentVersion={setCurrentVersion}
+                                                versions={versions}
+                                            />
+                                        }
                                     />
                                     <Route
                                         path="/profile"

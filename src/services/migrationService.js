@@ -18,7 +18,10 @@ const TABLES_TO_MIGRATE = [
     'ai_questions',
     'devotional_history',
     'sermons',
-    'user_settings'
+    'user_settings',
+    'user_reading_plans',
+    'user_plan_events',
+    'user_plan_profiles'
 ];
 
 /**

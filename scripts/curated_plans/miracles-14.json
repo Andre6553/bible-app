@@ -1,0 +1,16 @@
+[
+  {"day":1,"title_en":"Water Turned to Wine","title_af":"Water in Wyn","passages":[{"book_id":43,"chapter":2}]},
+  {"day":2,"title_en":"Healing at Bethesda","title_af":"Genees by Bethesda","passages":[{"book_id":43,"chapter":5}]},
+  {"day":3,"title_en":"Feeding the Five Thousand","title_af":"Voed Vyf Duisend","passages":[{"book_id":43,"chapter":6}]},
+  {"day":4,"title_en":"Walking on Water","title_af":"Loop op Water","passages":[{"book_id":40,"chapter":14}]},
+  {"day":5,"title_en":"Calming the Storm","title_af":"Stil die Storm","passages":[{"book_id":41,"chapter":4}]},
+  {"day":6,"title_en":"Healing the Gadarene Demoniac","title_af":"Genees die Besete","passages":[{"book_id":41,"chapter":5}]},
+  {"day":7,"title_en":"Raising Jairus's Daughter","title_af":"Weer opwek van Jairus se Dogter","passages":[{"book_id":41,"chapter":5}]},
+  {"day":8,"title_en":"Healing the Blind Man","title_af":"Genees die Blinde","passages":[{"book_id":43,"chapter":9}]},
+  {"day":9,"title_en":"Raising Lazarus","title_af":"Weer opwek van Lasarus","passages":[{"book_id":43,"chapter":11}]},
+  {"day":10,"title_en":"Ten Lepers Cleansed","title_af":"Tien Melaatses Genees","passages":[{"book_id":42,"chapter":17}]},
+  {"day":11,"title_en":"Widow's Son at Nain","title_af":"Wewenaar se Seun by Nain","passages":[{"book_id":42,"chapter":7}]},
+  {"day":12,"title_en":"Transfiguration","title_af":"Verheerliking","passages":[{"book_id":40,"chapter":17}]},
+  {"day":13,"title_en":"Healing the Paralytic","title_af":"Genees die Verlamde","passages":[{"book_id":42,"chapter":5}]},
+  {"day":14,"title_en":"The Resurrection","title_af":"Die Opstanding","passages":[{"book_id":40,"chapter":28}]}
+]

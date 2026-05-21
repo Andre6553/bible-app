@@ -14,7 +14,9 @@ import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
 import { migrateAnonymousData, checkIfMigrationNeeded } from '../services/migrationService';
 import TutorialOverlay from './TutorialOverlay';
+import { getActivePlan, getProgressStats } from '../services/readingPlanService';
 import './Profile.css';
+import './ReadingPlans.css';
 
 function Profile() {
     const navigate = useNavigate();
@@ -54,6 +56,7 @@ function Profile() {
     const [isPwaReady, setIsPwaReady] = useState(false);
     const [isTutorialOpen, setIsTutorialOpen] = useState(false);
     const [tutorialStepIdx, setTutorialStepIdx] = useState(0);
+    const [activeReadingPlan, setActiveReadingPlan] = useState(null);
 
     const tutorialSteps = [
         {
@@ -83,6 +86,7 @@ function Profile() {
         loadData();
         checkUser();
         checkPwaStatus();
+        loadActiveReadingPlan();
 
         // Check if we should show tutorial (navigated from search)
         const showTutorial = localStorage.getItem('profile_tutorial_trigger');
@@ -91,6 +95,15 @@ function Profile() {
             localStorage.removeItem('profile_tutorial_trigger');
         }
     }, [user]);
+
+    const loadActiveReadingPlan = async () => {
+        if (!user) {
+            setActiveReadingPlan(null);
+            return;
+        }
+        const res = await getActivePlan();
+        if (res.success) setActiveReadingPlan(res.data);
+    };
 
     const checkUser = async () => {
         const currentUser = user;
@@ -874,6 +887,45 @@ function Profile() {
                     )}
                 </div>
             </div>
+
+            {activeReadingPlan?.reading_plans && (
+                <div
+                    className="plan-continue-card profile-plan-card"
+                    onClick={() => navigate(`/plans/${activeReadingPlan.reading_plans.slug}`)}
+                    style={{ margin: '0 16px 16px', cursor: 'pointer' }}
+                >
+                    <div className="plan-continue-emoji">
+                        {activeReadingPlan.reading_plans.cover_emoji || '📅'}
+                    </div>
+                    <div className="plan-continue-info">
+                        <h3>
+                            {settings.language === 'af'
+                                ? activeReadingPlan.reading_plans.title_af
+                                : activeReadingPlan.reading_plans.title_en}
+                        </h3>
+                        {(() => {
+                            const stats = getProgressStats(activeReadingPlan, activeReadingPlan.reading_plans);
+                            return (
+                                <>
+                                    <p>
+                                        {settings.language === 'af' ? 'Dag' : 'Day'} {stats.nextDay}{' '}
+                                        {settings.language === 'af' ? 'van' : 'of'} {stats.duration} · {stats.percent}%
+                                    </p>
+                                    <div className="plan-progress-bar">
+                                        <div
+                                            className="plan-progress-fill"
+                                            style={{ width: `${stats.percent}%` }}
+                                        />
+                                    </div>
+                                </>
+                            );
+                        })()}
+                    </div>
+                    <button className="plan-cta-btn">
+                        {settings.language === 'af' ? 'Gaan voort' : 'Continue'}
+                    </button>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="profile-tabs">

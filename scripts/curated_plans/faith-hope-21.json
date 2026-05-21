@@ -1,0 +1,23 @@
+[
+  {"day":1,"title_en":"Abraham's Faith","title_af":"Abraham se Geloof","passages":[{"book_id":1,"chapter":15}]},
+  {"day":2,"title_en":"Trust in the Lord","title_af":"Vertrou op die Here","passages":[{"book_id":19,"chapter":27}]},
+  {"day":3,"title_en":"God Is Our Refuge","title_af":"God Is Ons Toevlug","passages":[{"book_id":19,"chapter":46}]},
+  {"day":4,"title_en":"Plans for Hope","title_af":"Planne van Hoop","passages":[{"book_id":24,"chapter":29}]},
+  {"day":5,"title_en":"Comfort My People","title_af":"Troos My Volk","passages":[{"book_id":23,"chapter":40}]},
+  {"day":6,"title_en":"By Faith","title_af":"Deur Geloof","passages":[{"book_id":58,"chapter":11}]},
+  {"day":7,"title_en":"Abraham Justified by Faith","title_af":"Abraham Geregtig Deur Geloof","passages":[{"book_id":45,"chapter":4}]},
+  {"day":8,"title_en":"No Condemnation","title_af":"Geen Verdoemenis","passages":[{"book_id":45,"chapter":8}]},
+  {"day":9,"title_en":"Living Hope","title_af":"Lewende Hoop","passages":[{"book_id":60,"chapter":1}]},
+  {"day":10,"title_en":"Faith Without Works Is Dead","title_af":"Geloof Sonder Werke Is Dood","passages":[{"book_id":59,"chapter":2}]},
+  {"day":11,"title_en":"Trust in the Lord","title_af":"Vertrou op die Here","passages":[{"book_id":20,"chapter":3}]},
+  {"day":12,"title_en":"Wait for the Lord","title_af":"Wag op die Here","passages":[{"book_id":19,"chapter":37}]},
+  {"day":13,"title_en":"The Suffering Servant","title_af":"Die Lydinge Kneg","passages":[{"book_id":23,"chapter":53}]},
+  {"day":14,"title_en":"Rejoice in Hope","title_af":"Verheug in Hoop","passages":[{"book_id":45,"chapter":12}]},
+  {"day":15,"title_en":"Faith, Hope, Love","title_af":"Geloof, Hoop, Liefde","passages":[{"book_id":46,"chapter":13}]},
+  {"day":16,"title_en":"Blessed Assurance","title_af":"Geseënde Sekerheid","passages":[{"book_id":50,"chapter":4}]},
+  {"day":17,"title_en":"Rooted and Built Up","title_af":"Gewortel en Gebou","passages":[{"book_id":51,"chapter":2}]},
+  {"day":18,"title_en":"Encourage One Another","title_af":"Be Moedig Mekaar","passages":[{"book_id":52,"chapter":4}]},
+  {"day":19,"title_en":"Fight the Good Fight","title_af":"Stry die Goeie Strijd","passages":[{"book_id":55,"chapter":4}]},
+  {"day":20,"title_en":"Hold Fast to Hope","title_af":"Vas Hou aan Hoop","passages":[{"book_id":58,"chapter":6}]},
+  {"day":21,"title_en":"New Heaven and Earth","title_af":"Nuwe Hemel en Aarde","passages":[{"book_id":66,"chapter":21}]}
+]

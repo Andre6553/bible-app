@@ -1,0 +1,22 @@
+[
+  {"day":1,"title_en":"The Sower","title_af":"Die Saaiers","passages":[{"book_id":40,"chapter":13}]},
+  {"day":2,"title_en":"Weeds Among Wheat","title_af":"Onkruid tussen Koring","passages":[{"book_id":40,"chapter":13}]},
+  {"day":3,"title_en":"Mustard Seed & Leaven","title_af":"Mosterd Saad en Suurdeeg","passages":[{"book_id":40,"chapter":13}]},
+  {"day":4,"title_en":"Hidden Treasure & Pearl","title_af":"Verborge Skat en Pêrel","passages":[{"book_id":40,"chapter":13}]},
+  {"day":5,"title_en":"The Dragnet","title_af":"Die Net","passages":[{"book_id":40,"chapter":13}]},
+  {"day":6,"title_en":"The Good Samaritan","title_af":"Die Barmhartige Samaritaan","passages":[{"book_id":42,"chapter":10}]},
+  {"day":7,"title_en":"The Lost Sheep","title_af":"Die Verlore Skaap","passages":[{"book_id":42,"chapter":15}]},
+  {"day":8,"title_en":"The Lost Coin","title_af":"Die Verlore Stuk Geld","passages":[{"book_id":42,"chapter":15}]},
+  {"day":9,"title_en":"The Prodigal Son","title_af":"Die Verlore Seun","passages":[{"book_id":42,"chapter":15}]},
+  {"day":10,"title_en":"The Pharisee and Tax Collector","title_af":"Die Fariseër en Tollenaar","passages":[{"book_id":42,"chapter":18}]},
+  {"day":11,"title_en":"The Unforgiving Servant","title_af":"Die Onvergeeflike Dienskneg","passages":[{"book_id":40,"chapter":18}]},
+  {"day":12,"title_en":"Workers in the Vineyard","title_af":"Werkers in die Wingerd","passages":[{"book_id":40,"chapter":20}]},
+  {"day":13,"title_en":"The Two Sons","title_af":"Die Twee Seuns","passages":[{"book_id":40,"chapter":21}]},
+  {"day":14,"title_en":"The Wicked Tenants","title_af":"Die Bose Pachters","passages":[{"book_id":40,"chapter":21}]},
+  {"day":15,"title_en":"The Wedding Banquet","title_af":"Die Bruilof","passages":[{"book_id":40,"chapter":22}]},
+  {"day":16,"title_en":"The Ten Virgins","title_af":"Die Tien Maagde","passages":[{"book_id":40,"chapter":25}]},
+  {"day":17,"title_en":"The Talents","title_af":"Die Talenten","passages":[{"book_id":40,"chapter":25}]},
+  {"day":18,"title_en":"Rich Man and Lazarus","title_af":"Die Ryke Man en Lasarus","passages":[{"book_id":42,"chapter":16}]},
+  {"day":19,"title_en":"The Persistent Widow","title_af":"Die Aanhoudende Weduwee","passages":[{"book_id":42,"chapter":18}]},
+  {"day":20,"title_en":"The Pharisee and Publican","title_af":"Fariseër en Publikan","passages":[{"book_id":42,"chapter":18}]}
+]

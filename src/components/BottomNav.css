@@ -37,7 +37,7 @@ body.overlay-open .bottom-nav {
     transition: all var(--transition-base);
     color: var(--text-muted);
     text-decoration: none;
-    min-width: 55px;
+    min-width: 48px;
     position: relative;
 }
 
@@ -78,7 +78,7 @@ body.overlay-open .bottom-nav {
 }
 
 .nav-label {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     /* Slightly smaller for better fit with more padding */
     font-weight: 600;
     text-transform: uppercase;
