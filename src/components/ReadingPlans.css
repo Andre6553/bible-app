@@ -589,6 +589,18 @@
     font-size: 0.85rem;
     color: var(--text-muted);
     margin: 0;
+    line-height: 1.5;
+}
+
+.plan-reading-fallback {
+    font-size: 0.78rem;
+    color: var(--accent-secondary);
+    margin: 0 0 8px;
+    line-height: 1.45;
+    padding: 8px 10px;
+    background: rgba(245, 158, 11, 0.08);
+    border-radius: 8px;
+    border-left: 2px solid rgba(245, 158, 11, 0.45);
 }
 
 .plan-commentary-block {

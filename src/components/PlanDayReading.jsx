@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getChapter } from '../services/bibleService';
-import { getLocalizedBookName } from '../constants/bookNames';
+import { getChapterWithFallback } from '../services/bibleService';
+import { resolveDbBookId, getPlanBookDisplayName } from '../constants/canonicalBooks';
 
 function PlanDayReading({ dayReading, books, versionId = 'KJV', language = 'en' }) {
     const [passages, setPassages] = useState(null);
@@ -10,7 +10,13 @@ function PlanDayReading({ dayReading, books, versionId = 'KJV', language = 'en' 
     const t = {
         reading: isAf ? 'Leeswerk' : 'Reading',
         loading: isAf ? 'Laai verse...' : 'Loading verses...',
-        noVerses: isAf ? 'Kon nie verse vir hierdie weergawe laai nie.' : 'Could not load verses for this version.',
+        noVerses: isAf
+            ? 'Geen verse beskikbaar vir hierdie gedeelte nie. Probeer KJV of laai \'n weergawe af in Profiel.'
+            : 'No verse text is available for this passage. Try KJV or download a version in Profile.',
+        fallback: (requested, used) =>
+            isAf
+                ? `Wys ${used} — ${requested} het nog nie teks vir hierdie hoofstuk nie.`
+                : `Showing ${used} — ${requested} is not available for this chapter yet.`,
     };
 
     useEffect(() => {
@@ -21,11 +27,14 @@ function PlanDayReading({ dayReading, books, versionId = 'KJV', language = 'en' 
 
             const loaded = [];
             for (const passage of dayReading.passages || []) {
-                const res = await getChapter(passage.book_id, passage.chapter, versionId);
-                const book = books.all?.find((b) => b.id == passage.book_id);
-                const bookName = book
-                    ? getLocalizedBookName(book.name_full, versionId)
-                    : `Book ${passage.book_id}`;
+                const dbBookId = resolveDbBookId(books, passage.book_id);
+                const res = await getChapterWithFallback(
+                    dbBookId,
+                    passage.chapter,
+                    versionId,
+                    language
+                );
+                const bookName = getPlanBookDisplayName(books, passage.book_id, language);
 
                 loaded.push({
                     bookId: passage.book_id,
@@ -33,6 +42,9 @@ function PlanDayReading({ dayReading, books, versionId = 'KJV', language = 'en' 
                     bookName,
                     verses: res.success ? res.data : [],
                     error: res.success ? null : res.error,
+                    versionUsed: res.versionUsed,
+                    usedFallback: res.usedFallback,
+                    requestedVersion: res.requestedVersion || versionId,
                 });
             }
 
@@ -42,11 +54,17 @@ function PlanDayReading({ dayReading, books, versionId = 'KJV', language = 'en' 
             }
         }
 
-        loadPassages();
+        if (books.all?.length) {
+            loadPassages();
+        } else {
+            setLoading(false);
+            setPassages([]);
+        }
+
         return () => {
             cancelled = true;
         };
-    }, [dayReading, books, versionId]);
+    }, [dayReading, books, versionId, language]);
 
     if (loading) {
         return (
@@ -61,37 +79,45 @@ function PlanDayReading({ dayReading, books, versionId = 'KJV', language = 'en' 
     }
 
     const hasVerses = passages?.some((p) => p.verses?.length > 0);
+    const displayVersion = passages?.find((p) => p.versionUsed)?.versionUsed || versionId;
 
     return (
         <div className="plan-study-block plan-reading-block">
             <h4>
                 {t.reading}
-                <span className="plan-reading-version">{versionId}</span>
+                <span className="plan-reading-version">{displayVersion}</span>
             </h4>
             {!hasVerses ? (
                 <p className="plan-reading-error">{t.noVerses}</p>
             ) : (
-                passages.map((passage) => (
-                    <div
-                        key={`${passage.bookId}-${passage.chapter}`}
-                        className="plan-passage-block"
-                    >
-                        <h5 className="plan-passage-heading">
-                            {passage.bookName} {passage.chapter}
-                        </h5>
-                        <div className="plan-verses-text">
-                            {passage.verses.map((v) => (
-                                <span
-                                    key={v.verse}
-                                    className={`plan-verse ${v.red_letters ? 'red-letter' : ''}`}
-                                >
-                                    <sup className="plan-verse-num">{v.verse}</sup>
-                                    {v.text}{' '}
-                                </span>
-                            ))}
+                passages.map((passage) =>
+                    passage.verses.length > 0 ? (
+                        <div
+                            key={`${passage.bookId}-${passage.chapter}`}
+                            className="plan-passage-block"
+                        >
+                            {passage.usedFallback && (
+                                <p className="plan-reading-fallback">
+                                    {t.fallback(passage.requestedVersion, passage.versionUsed)}
+                                </p>
+                            )}
+                            <h5 className="plan-passage-heading">
+                                {passage.bookName} {passage.chapter}
+                            </h5>
+                            <div className="plan-verses-text">
+                                {passage.verses.map((v) => (
+                                    <span
+                                        key={v.verse}
+                                        className={`plan-verse ${v.red_letters ? 'red-letter' : ''}`}
+                                    >
+                                        <sup className="plan-verse-num">{v.verse}</sup>
+                                        {v.text}{' '}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                ))
+                    ) : null
+                )
             )}
         </div>
     );

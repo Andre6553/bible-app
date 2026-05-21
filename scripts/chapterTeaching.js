@@ -52,6 +52,42 @@ const CURATED = {
             why: 'God verwerp Kain se offer en waarsku hom oor sonde by die deur (vv. 5–7). Na Abel se moord konfronteer God Kain (vv. 9–12) maar merk hom vir beskerming (v. 15). Die hoofstuk eindig met Seth en mense wat die Here se Naam aanroep (vv. 25–26).',
         },
     },
+    '19:27': {
+        en: {
+            message:
+                'God wants us to know that he is light and salvation so his people need not fear enemies, and that seeking his presence is worth more than safety elsewhere.',
+            why: 'David names the Lord as light and salvation and refuses fear though armies surround him (vv. 1–3). He asks to dwell in God\'s house and gaze on his beauty (v. 4). Even if parents forsake him, the Lord will take him in (v. 10). The psalm closes by urging strength and courage while waiting for the Lord (v. 14).',
+        },
+        af: {
+            message:
+                'God wil hê ons moet weet dat Hy lig en redding is sodat sy volk nie vyande hoef te vrees nie, en dat die soeke na sy teenwoordigheid meer werd is as veiligheid elders.',
+            why: 'Dawid noem die Here as lig en redding en weier vrees al sou leers hom omring (vv. 1–3). Hy vra om in God se huis te woon (v. 4). Selfs as ouers hom verlaat, sal die Here hom aanneem (v. 10). Die psalm eindig met sterkte en moed terwyl hy op die Here wag (v. 14).',
+        },
+    },
+    '19:37': {
+        en: {
+            message:
+                'God wants us to know that fretting over evildoers is misplaced, and that trusting him, doing good, and waiting patiently leads to his care for the righteous.',
+            why: 'The psalm commands not to fret over the wicked who fade like grass (vv. 1–2). It pairs trust and doing good (v. 3) with delight in the Lord (v. 4) and patient waiting (v. 7). The meek inherit the land (v. 11), and the Lord upholds the steps of the righteous (vv. 23–24).',
+        },
+        af: {
+            message:
+                'God wil hê ons moet weet dat bekommering oor goddeloses misplaas is, en dat vertroue op Hom, goeddoen, en geduldig wag lei tot sy sorg vir die regverdiges.',
+            why: 'Die psalm beveel om nie oor goddeloses te bekommer nie (vv. 1–2). Dit verbind vertroue en goeddoen (v. 3) met verlustiging in die Here (v. 4) en geduldig wag (v. 7). Die sagmoediges erf die land (v. 11), en die Here rig die stappe van die regverdiges op (vv. 23–24).',
+        },
+    },
+    '19:46': {
+        en: {
+            message:
+                'God wants us to know that he is refuge and strength in trouble, that his presence steadies his people when nations rage, and that he can still wars and is exalted when his people are still before him.',
+            why: 'The psalm opens with God as refuge and very present help (v. 1), leading to courage though earth and mountains give way (vv. 2–3). God is in the midst of his city and she shall not be moved (v. 5). Nations rage but God speaks and wars cease (vv. 6–9). "Be still, and know that I am God" follows (v. 10).',
+        },
+        af: {
+            message:
+                'God wil hê ons moet weet dat Hy toevlug en krag in nood is, dat sy teenwoordigheid sy volk vaste hou wanneer nasies woed, en dat Hy oorloë kan laat ophou en verheerlik word wanneer sy volk stil voor Hom is.',
+            why: 'Die psalm open met God as toevlug en baie teenwoordige hulp (v. 1), wat moed gee al wankel aarde en berge (vv. 2–3). God is in die midde van sy stad en sy sal nie wankel nie (v. 5). Nasies woed maar God spreek en oorloë hou op (vv. 6–9). "Wees stil en weet dat Ek God is" volg (v. 10).',
+        },
+    },
 };
 
 const CATEGORY_TEACHING = {

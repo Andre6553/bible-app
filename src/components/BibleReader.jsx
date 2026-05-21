@@ -33,6 +33,7 @@ import OmniDefinitionModal from './OmniDefinitionModal';
 import ChapterSummaryModal from './ChapterSummaryModal';
 import { useBackButton } from './BackButtonHandler';
 import { markDayComplete, formatPassageRef, getDayCommentaryIntro, getDayCommentarySections } from '../services/readingPlanService';
+import { resolveDbBookId } from '../constants/canonicalBooks';
 import './BibleReader.css';
 import './ReadingPlans.css';
 import { resetAppCache } from '../utils/appUtils';
@@ -339,7 +340,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         setPlanContext(updatedContext);
         navigate('/bible', {
             state: {
-                bookId: nextPassage.book_id,
+                bookId: resolveDbBookId(books, nextPassage.book_id),
                 chapter: nextPassage.chapter,
                 fromPlan: updatedContext,
             },

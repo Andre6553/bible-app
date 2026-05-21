@@ -2,6 +2,9 @@ import { supabase } from '../config/supabaseClient';
 import { getUserId } from './bibleService';
 import { logEvent } from './analyticsService';
 import { recordPlanBehavior } from './planIntelligenceService';
+import {
+    getPlanBookDisplayName,
+} from '../constants/canonicalBooks';
 
 /**
  * Reading Plan Service - Static curated plans with enrollment and progress tracking
@@ -53,28 +56,94 @@ export const getPlanBySlug = async (slug) => {
     }
 };
 
+const ENROLLMENT_COLUMNS =
+    'id, user_id, plan_id, status, started_at, completed_at, current_day, completed_days, last_activity_at, day_notes';
+
+/** Lightweight plan embed — never include readings JSONB (too large for list queries). */
+const PLAN_LIST_EMBED = `
+    reading_plans (
+        id, slug, title_en, title_af, description_en, description_af,
+        duration_days, category, cover_emoji
+    )
+`;
+
+const PLAN_LIST_FIELDS =
+    'id, slug, title_en, title_af, description_en, description_af, duration_days, category, cover_emoji';
+
+async function attachPlansToEnrollments(enrollments) {
+    if (!enrollments?.length) return enrollments || [];
+    const planIds = [...new Set(enrollments.map((e) => e.plan_id).filter(Boolean))];
+    if (!planIds.length) return enrollments;
+
+    const { data: plans, error } = await supabase
+        .from('reading_plans')
+        .select(PLAN_LIST_FIELDS)
+        .in('id', planIds);
+
+    if (error) throw error;
+    const byId = Object.fromEntries((plans || []).map((p) => [p.id, p]));
+    return enrollments.map((e) => ({ ...e, reading_plans: byId[e.plan_id] || null }));
+}
+
+async function fetchUserEnrollments(userId, statuses, single = false) {
+    const baseColumns =
+        'id, user_id, plan_id, status, started_at, completed_at, current_day, completed_days, last_activity_at';
+
+    let query = supabase
+        .from('user_reading_plans')
+        .select(`${baseColumns}, day_notes`)
+        .eq('user_id', userId)
+        .in('status', statuses)
+        .order('last_activity_at', { ascending: false });
+
+    if (single) query = query.limit(1).maybeSingle();
+
+    let { data, error } = await query;
+
+    if (error?.code === '42703' || error?.message?.includes('day_notes')) {
+        let retry = supabase
+            .from('user_reading_plans')
+            .select(baseColumns)
+            .eq('user_id', userId)
+            .in('status', statuses)
+            .order('last_activity_at', { ascending: false });
+        if (single) retry = retry.limit(1).maybeSingle();
+        ({ data, error } = await retry);
+    }
+
+    if (error) throw error;
+    return data;
+}
+
 export const getUserPlans = async () => {
     const auth = await requireAuth();
     if (!auth.ok) return { success: true, data: [] };
 
     try {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
             .from('user_reading_plans')
-            .select(`
-                *,
-                reading_plans (
-                    id, slug, title_en, title_af, description_en, description_af,
-                    duration_days, category, cover_emoji, readings
-                )
-            `)
+            .select(`${ENROLLMENT_COLUMNS}, ${PLAN_LIST_EMBED}`)
             .eq('user_id', auth.userId)
             .in('status', ['active', 'paused', 'completed'])
             .order('last_activity_at', { ascending: false });
 
-        if (error) throw error;
+        if (error?.code === '42703' || error?.message?.includes('day_notes')) {
+            ({ data, error } = await supabase
+                .from('user_reading_plans')
+                .select(`id, user_id, plan_id, status, started_at, completed_at, current_day, completed_days, last_activity_at, ${PLAN_LIST_EMBED}`)
+                .eq('user_id', auth.userId)
+                .in('status', ['active', 'paused', 'completed'])
+                .order('last_activity_at', { ascending: false }));
+        }
+
+        if (error) {
+            const enrollments = await fetchUserEnrollments(auth.userId, ['active', 'paused', 'completed']);
+            data = await attachPlansToEnrollments(Array.isArray(enrollments) ? enrollments : []);
+        }
+
         return { success: true, data: data || [] };
     } catch (err) {
-        console.error('[ReadingPlans] getUserPlans:', err);
+        console.error('[ReadingPlans] getUserPlans:', err?.message || err, err?.code, err?.details);
         return { success: false, error: err.message, data: [] };
     }
 };
@@ -87,10 +156,8 @@ export const getActivePlan = async () => {
         const { data, error } = await supabase
             .from('user_reading_plans')
             .select(`
-                *,
-                reading_plans (
-                    id, slug, title_en, title_af, duration_days, category, cover_emoji, readings
-                )
+                id, user_id, plan_id, status, started_at, completed_at, current_day, completed_days, last_activity_at,
+                ${PLAN_LIST_EMBED}
             `)
             .eq('user_id', auth.userId)
             .eq('status', 'active')
@@ -98,10 +165,16 @@ export const getActivePlan = async () => {
             .limit(1)
             .maybeSingle();
 
-        if (error) throw error;
+        if (error) {
+            const enrollment = await fetchUserEnrollments(auth.userId, ['active'], true);
+            if (!enrollment) return { success: true, data: null };
+            const [withPlan] = await attachPlansToEnrollments([enrollment]);
+            return { success: true, data: withPlan || null };
+        }
+
         return { success: true, data };
     } catch (err) {
-        console.error('[ReadingPlans] getActivePlan:', err);
+        console.error('[ReadingPlans] getActivePlan:', err?.message || err, err?.code, err?.details);
         return { success: false, error: err.message, data: null };
     }
 };
@@ -111,18 +184,28 @@ export const getEnrollmentForPlan = async (planId) => {
     if (!auth.ok) return { success: true, data: null };
 
     try {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
             .from('user_reading_plans')
-            .select('*')
+            .select(ENROLLMENT_COLUMNS)
             .eq('user_id', auth.userId)
             .eq('plan_id', planId)
             .in('status', ['active', 'paused'])
             .maybeSingle();
 
+        if (error?.code === '42703' || error?.message?.includes('day_notes')) {
+            ({ data, error } = await supabase
+                .from('user_reading_plans')
+                .select('id, user_id, plan_id, status, started_at, completed_at, current_day, completed_days, last_activity_at')
+                .eq('user_id', auth.userId)
+                .eq('plan_id', planId)
+                .in('status', ['active', 'paused'])
+                .maybeSingle());
+        }
+
         if (error) throw error;
         return { success: true, data };
     } catch (err) {
-        console.error('[ReadingPlans] getEnrollmentForPlan:', err);
+        console.error('[ReadingPlans] getEnrollmentForPlan:', err?.message || err);
         return { success: false, error: err.message };
     }
 };
@@ -315,11 +398,8 @@ const updatePlanStatus = async (enrollmentId, status, behaviorEvent = null) => {
 };
 
 export const formatPassageRef = (passage, books, language = 'en') => {
-    if (!passage || !books?.all) return '';
-    const book = books.all.find((b) => b.id == passage.book_id);
-    const name = book
-        ? (language === 'af' && book.name_af ? book.name_af : book.name_full)
-        : `Book ${passage.book_id}`;
+    if (!passage) return '';
+    const name = getPlanBookDisplayName(books, passage.book_id, language);
     return `${name} ${passage.chapter}`;
 };
 

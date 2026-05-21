@@ -4,6 +4,7 @@
  */
 
 import { GENESIS_EXPANDED } from './expandedGenesis.js';
+import { PSALMS_EXPANDED } from './expandedPsalms.js';
 import { enrichSummary, normalizeStudyContent } from './studyPointExpansion.js';
 import { getCrossReferences, localizeCrossReferences } from './bibleCrossReferences.js';
 import { getChapterTeaching } from './chapterTeaching.js';
@@ -113,6 +114,10 @@ GENESIS_EARLY.forEach((data, i) => add(1, i + 1, data));
 
 Object.entries(GENESIS_EXPANDED).forEach(([ch, data]) => {
     add(1, Number(ch), data);
+});
+
+Object.entries(PSALMS_EXPANDED).forEach(([ch, data]) => {
+    add(19, Number(ch), data);
 });
 
 // Genesis 12–50 — narrative summaries (condensed but substantive)
@@ -327,12 +332,20 @@ export function getChapterSummaryContent(bookId, chapter) {
     if (bookId === 19) {
         return {
             en: {
-                summary: `Psalm ${chapter} expresses worship, lament, or wisdom before God. Read it as prayer — many psalms foreshadow Christ and speak to every season of the soul.`,
-                highlights: ['Pray the psalm back to God', 'Notice metaphors for God', 'Apply its emotion honestly'],
+                summary: `Psalm ${chapter} is a poem in the Psalter. Read the opening verses for what the psalmist declares, the middle for prayer or description, and the closing lines for how the psalm resolves.`,
+                highlights: [
+                    'Opening claim or address (early verses)',
+                    'Central prayer, threat, or praise (middle section)',
+                    'Closing trust, vow, or call to worship (final verses)',
+                ],
             },
             af: {
-                summary: `Psalm ${chapter} druk aanbidding, klagte of wysheid voor God uit. Lees dit as gebed — baie psalms wys na Christus en spreek tot elke seisoen van die siel.`,
-                highlights: ['Bid die psalm terug aan God', 'Let op metafore vir God', 'Pas die emosie eerlik toe'],
+                summary: `Psalm ${chapter} is 'n gedig in die Psalmboek. Lees die openingsverse vir wat die psalmis verklaar, die middel vir gebed of beskrywing, en die slot vir hoe die psalm eindig.`,
+                highlights: [
+                    'Openingsverklaring of aanspraak (vroeë verse)',
+                    'Sentrale gebed, bedreiging of lof (middelste gedeelte)',
+                    'Slotsvertroue, gelofte of oproep tot aanbidding (slotverse)',
+                ],
             },
         };
     }

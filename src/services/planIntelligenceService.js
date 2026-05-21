@@ -178,33 +178,6 @@ function bootstrapFromEnrollments(profile, userPlans) {
     return next;
 }
 
-async function loadProfileFromDb(userId) {
-    try {
-        const { data, error } = await supabase
-            .from('user_plan_profiles')
-            .select('profile')
-            .eq('user_id', userId)
-            .maybeSingle();
-        if (error) return null;
-        return data?.profile || null;
-    } catch {
-        return null;
-    }
-}
-
-async function saveProfileToDb(userId, profile) {
-    try {
-        await supabase.from('user_plan_profiles').upsert({
-            user_id: userId,
-            profile,
-            updated_at: new Date().toISOString(),
-        });
-        return true;
-    } catch {
-        return false;
-    }
-}
-
 async function loadProfileFromSettings(userId) {
     try {
         const { data } = await supabase
@@ -232,27 +205,12 @@ async function saveProfileToSettings(userId, profile) {
     }
 }
 
-async function insertPlanEvent(userId, eventType, plan, metadata = {}) {
-    try {
-        await supabase.from('user_plan_events').insert({
-            user_id: userId,
-            event_type: eventType,
-            plan_id: plan?.id || null,
-            plan_slug: plan?.slug || null,
-            plan_category: plan?.category || null,
-            metadata,
-        });
-    } catch {
-        // Table may not exist yet; profile in app_settings still updated
-    }
-}
-
 export async function getUserPlanProfile(userPlans = []) {
     const authed = await isAuthenticatedUser();
     if (!authed) return { success: true, profile: emptyProfile(), isGuest: true };
 
     const userId = await getUserId();
-    let profile = (await loadProfileFromDb(userId)) || (await loadProfileFromSettings(userId)) || emptyProfile();
+    let profile = (await loadProfileFromSettings(userId)) || emptyProfile();
 
     if ((profile.event_count || 0) < 2 && userPlans.length > 0) {
         profile = bootstrapFromEnrollments(profile, userPlans);
@@ -273,8 +231,7 @@ export async function getUserPlanProfile(userPlans = []) {
 }
 
 async function persistProfile(userId, profile) {
-    const saved = await saveProfileToDb(userId, profile);
-    if (!saved) await saveProfileToSettings(userId, profile);
+    await saveProfileToSettings(userId, profile);
 }
 
 /**
@@ -285,15 +242,14 @@ export async function recordPlanBehavior(eventType, plan, metadata = {}) {
     if (!authed || !plan) return { success: false };
 
     const userId = await getUserId();
-    let profile = (await loadProfileFromDb(userId)) || (await loadProfileFromSettings(userId)) || emptyProfile();
+    let profile = (await loadProfileFromSettings(userId)) || emptyProfile();
 
     profile = applyEventToProfile(profile, eventType, plan);
     profile.recent_events = [
-        { eventType, planSlug: plan.slug, at: new Date().toISOString() },
+        { eventType, planSlug: plan.slug, at: new Date().toISOString(), ...metadata },
         ...(profile.recent_events || []),
     ].slice(0, MAX_RECENT_EVENTS);
 
-    await insertPlanEvent(userId, eventType, plan, metadata);
     await persistProfile(userId, profile);
 
     return { success: true, profile };

@@ -155,6 +155,60 @@ const CURATED = {
                 'Psalm 23 praat van die Here as Herder. Openbaring 7:17 sê die Lam sal weid en lei na lewende waters — soortgelyke herder-beeld.',
         },
     ],
+    '19:27': [
+        {
+            ref_en: 'Psalm 23:4',
+            ref_af: 'Psalm 23:4',
+            comparison_en:
+                'Psalm 27:1 names the Lord as light and salvation and asks whom to fear. Psalm 23:4 walks through the valley of the shadow of death without fear because the Lord is with the psalmist — both link courage to the Lord\'s presence.',
+            comparison_af:
+                'Psalm 27:1 noem die Here as lig en redding. Psalm 23:4 loop deur die skaduwee van die dood sonder vrees omdat die Here by die psalmis is — beide verbind moed met die Here se teenwoordigheid.',
+        },
+        {
+            ref_en: 'Isaiah 12:2',
+            ref_af: 'Jesaja 12:2',
+            comparison_en:
+                'Psalm 27:1 declares the Lord is light and salvation. Isaiah 12:2 records "God is my salvation… the Lord God is my strength and my song" — similar trust language in psalm and prophetic song.',
+            comparison_af:
+                'Psalm 27:1 verklaar die Here is lig en redding. Jesaja 12:2 sê "God is my redding… die Here God is my sterkte" — soortgelyke vertroue-taal.',
+        },
+    ],
+    '19:37': [
+        {
+            ref_en: 'Matthew 5:5',
+            ref_af: 'Matteus 5:5',
+            comparison_en:
+                'Psalm 37:11 states the meek will inherit the land. Matthew 5:5 records Jesus saying the meek will inherit the earth — the same beatitude theme with parallel wording.',
+            comparison_af:
+                'Psalm 37:11 sê die sagmoediges sal die land erf. Matteus 5:5 beskryf Jesus wat sê die sagmoediges sal die aarde erf — dieselfde tema met parallelle woorde.',
+        },
+        {
+            ref_en: 'Psalm 1:3',
+            ref_af: 'Psalm 1:3',
+            comparison_en:
+                'Psalm 37 contrasts the fading wicked (vv. 1–2) with the righteous who trust and inherit the land. Psalm 1:3 compares the righteous to a tree planted by streams — both psalms tie lasting life to trusting God\'s way.',
+            comparison_af:
+                'Psalm 37 kontrasteer verdwynende goddeloses (vv. 1–2) met regverdiges wat erf. Psalm 1:3 vergelyk die regverdiges met \'n boom by water — beide psalms verbind volhouding met vertroue op God se pad.',
+        },
+    ],
+    '19:46': [
+        {
+            ref_en: 'Exodus 14:13–14',
+            ref_af: 'Eksodus 14:13–14',
+            comparison_en:
+                'Psalm 46 calls for no fear though earth and mountains give way (vv. 2–3) and declares God is a very present help (v. 1). Exodus 14:13–14 tells Israel not to fear because the Lord will fight for them — both tie courage in crisis to God\'s active help.',
+            comparison_af:
+                'Psalm 46 roep tot geen vrees nie al wankel aarde en berge (vv. 2–3) en verklaar God is baie teenwoordige hulp (v. 1). Eksodus 14:13–14 sê Israel moet nie vrees nie omdat die Here vir hulle sal veg — beide verbind moed in krisis met God se hulp.',
+        },
+        {
+            ref_en: 'Revelation 21:2',
+            ref_af: 'Openbaring 21:2',
+            comparison_en:
+                'Psalm 46 describes a river gladdening the city of God where God dwells in the midst (vv. 4–5). Revelation 21:2–22:1 again presents the holy city and the river of life — both use city-and-river imagery for God\'s dwelling with his people.',
+            comparison_af:
+                'Psalm 46 beskryf \'n rivier wat die stad van God verbly waar God in haar midde woon (vv. 4–5). Openbaring 21:2–22:1 wys weer die heilige stad en rivier van lewe — beide gebruik stad-en-rivier-beelde.',
+        },
+    ],
     '43:3': [
         {
             ref_en: 'John 3:16',

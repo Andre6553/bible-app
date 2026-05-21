@@ -139,6 +139,10 @@ export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
 
         if (error) throw error;
 
+        if (!data || data.length === 0) {
+            return { success: false, error: 'no_verses', data: [] };
+        }
+
         // 3. Save to cache if successful
         if (data && data.length > 0) {
             try {
@@ -171,8 +175,42 @@ export const getChapter = async (bookId, chapter, versionId = 'KJV') => {
         return { success: true, data };
     } catch (error) {
         console.error('Error fetching chapter:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: error.message, data: [] };
     }
+};
+
+const FALLBACK_VERSIONS_EN = ['KJV', 'NKJV', 'ESV', 'NIV', 'NLT', 'AMP'];
+const FALLBACK_VERSIONS_AF = ['AFR53', 'AFR83', 'AFRNLV', 'KJV'];
+
+/**
+ * Load a chapter, falling back to other versions when the requested one has no DB text.
+ */
+export const getChapterWithFallback = async (bookId, chapter, versionId = 'KJV', language = 'en') => {
+    const pool = language === 'af' ? FALLBACK_VERSIONS_AF : FALLBACK_VERSIONS_EN;
+    const tryVersions = [versionId, ...pool.filter((v) => v !== versionId)];
+
+    let lastError = 'no_verses';
+    for (const vid of tryVersions) {
+        const res = await getChapter(bookId, chapter, vid);
+        if (res.success && res.data?.length > 0) {
+            return {
+                ...res,
+                versionUsed: vid,
+                requestedVersion: versionId,
+                usedFallback: vid !== versionId,
+            };
+        }
+        if (res.error) lastError = res.error;
+    }
+
+    return {
+        success: false,
+        data: [],
+        error: lastError,
+        requestedVersion: versionId,
+        versionUsed: null,
+        usedFallback: false,
+    };
 };
 
 /**

@@ -22,6 +22,7 @@ import { useBackButton } from './BackButtonHandler';
 import PlanDayReading from './PlanDayReading';
 import VersionSelector from './VersionSelector';
 import { recordPlanBehavior } from '../services/planIntelligenceService';
+import { resolveDbBookId } from '../constants/canonicalBooks';
 import './ReadingPlans.css';
 
 function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] }) {
@@ -90,8 +91,8 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
             : 'Browse the days below to preview commentary and study questions before you start.',
         bibleVersion: isAf ? 'Bybelweergawe' : 'Bible Version',
         versionHint: isAf
-            ? 'Dieselfde weergawe as op die Bybel-oortjie. Verander hier of in die Bybel-lezer.'
-            : 'Same version as the Bible tab. Change here or in the Bible reader.',
+            ? 'Dieselfde weergawe as op die Bybel-oortjie. NLT/NIV ens. vereis dat die teks in die databasis gelaai is — KJV word outomaties gebruik indien nodig.'
+            : 'Same version as the Bible tab. Some versions (e.g. NLT) need text loaded in the database — KJV is used automatically when needed.',
     };
 
     const activeVersionId = currentVersion?.id || 'KJV';
@@ -185,7 +186,7 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
 
         navigate('/bible', {
             state: {
-                bookId: passage.book_id,
+                bookId: resolveDbBookId(books, passage.book_id),
                 chapter: passage.chapter,
                 fromPlan: {
                     enrollmentId: enrollment.id,
