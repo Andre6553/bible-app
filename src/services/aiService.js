@@ -76,6 +76,35 @@ function extractJsonObject(text) {
     return text.substring(startIdx, endIdx + 1);
 }
 
+/** Remove chatty letter-style openings the model sometimes adds despite instructions. */
+function stripConversationalOpening(text) {
+    if (!text || typeof text !== 'string') return text;
+
+    let cleaned = text.trim();
+    const openingPatterns = [
+        /^(?:dear\s+friend,?\s*)?(?:i'?m\s+glad\s+you\s+asked(?:\s+this\s+question)?[.!?,]?\s*)+/i,
+        /^(?:great\s+question[!.,]?\s*)+/i,
+        /^(?:thank\s+you\s+for\s+asking[.!?,]?\s*)+/i,
+        /^(?:as\s+we\s+explored[^.!?]*[.!?]\s*)+/i,
+        /^(?:liewe\s+vriend,?\s*)?(?:ek\s+is\s+bly\s+(?:dat\s+jy|jy\s+het)[^.!?]*[.!?]\s*)+/i,
+        /^(?:dankie\s+dat\s+jy\s+(?:vra|gevra\s+het)[^.!?]*[.!?]\s*)+/i,
+    ];
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const pattern of openingPatterns) {
+            const next = cleaned.replace(pattern, '').trim();
+            if (next !== cleaned) {
+                cleaned = next;
+                changed = true;
+            }
+        }
+    }
+
+    return cleaned;
+}
+
 function validateSemanticSearchPayload(data) {
     if (!data || typeof data !== 'object') {
         throw new Error('Invalid semantic payload: not an object');
@@ -128,18 +157,28 @@ NON-NEGOTIABLE RULES:
 7. No speculation about end-time dates, hidden numerical meanings, or things not stated
    in the text. Stay grounded in what is written.
 
-8. Keep responses reverent, factual, pastoral, and under 400 words. Use paragraphs for
-   readability.
+8. Keep responses reverent, factual, and under 400 words. Use paragraphs for
+   readability. Write like a clear Bible study answer — not a letter or sermon intro.
 
-9. Cite ALL scripture references in EXACTLY this format: [[Book Chapter:Verse]]
+9. OPENING STYLE (strict): Start immediately with the biblical answer or main point.
+   Do NOT begin with greetings or filler such as "Dear friend", "I'm glad you asked",
+   "Great question", "Thank you for asking", or "As we explored earlier". Do NOT
+   write a conversational preamble before the substance.
+
+10. CLOSING STYLE: Do NOT end with sermon-style wrap-ups like "In conclusion" or
+    "May we trust..." unless the user explicitly asks for a devotional tone. End
+    after the last substantive point or a brief Scripture-backed summary.
+
+11. Cite ALL scripture references in EXACTLY this format: [[Book Chapter:Verse]]
    (e.g. [[John 3:16]], [[Genesis 1:1]], [[Romans 8:28]]). NEVER use parentheses
    or any other format for citations — always double square brackets.
 
-10. Aim to include at least 2–3 verse citations per answer when the topic is biblical,
+12. Aim to include at least 2–3 verse citations per answer when the topic is biblical,
     so the user can verify your claims directly in their Bible.
 
-You answer as a humble, knowledgeable Bible teacher who lets Scripture speak for itself.
-Confidence comes from the Word — not from speculation.`;
+You answer as a knowledgeable Bible teacher who lets Scripture speak for itself.
+Be direct and substantive from the first sentence. Confidence comes from the Word —
+not from speculation or chatty introductions.`;
 
 let aiCacheAccessible = true;
 
@@ -402,17 +441,18 @@ export async function askBibleQuestion(userId, question, verses = [], language =
         if (!isFollowUp) {
             const cachedAnswer = await getCachedAnswer(cacheKey);
             if (cachedAnswer) {
+                const answer = stripConversationalOpening(cachedAnswer);
                 await supabase
                     .from('ai_questions')
                     .insert({
                         user_id: userId,
                         question: question,
-                        answer: cachedAnswer,
+                        answer: answer,
                         cached: true,
                         ip_address: getCapturedIp()
                     });
 
-                return { success: true, answer: cachedAnswer, cached: true };
+                return { success: true, answer, cached: true };
             }
         }
 
@@ -442,22 +482,25 @@ export async function askBibleQuestion(userId, question, verses = [], language =
             });
             userPrompt += "**User's Follow-up Question:** " + question + "\n\n";
             userPrompt += `Provide a biblical answer in ${langOutput} that directly continues the conversation above.\n`;
-            userPrompt += "1. Treat this as a follow-up: reference and build on what was said earlier when relevant.\n";
-            userPrompt += "2. Every new claim in this follow-up MUST still be backed by a real [[Book Chapter:Verse]] citation — do not repeat unverified points from earlier turns without Scripture support.\n";
-            userPrompt += "3. PRIORITIZE using the Context Verses above if they are relevant; only use other passages when needed.\n";
-            userPrompt += "4. CRITICAL: Cite verses only in [[Book Chapter:Verse]] format. Never invent references.\n";
-            userPrompt += "5. If you cannot find a direct biblical answer, say \"The Bible does not directly address this\" — do not speculate.\n";
+            userPrompt += "1. Start with the answer immediately — no greetings, no \"Dear friend\", no \"I'm glad you asked\".\n";
+            userPrompt += "2. Treat this as a follow-up: reference and build on what was said earlier when relevant.\n";
+            userPrompt += "3. Every new claim in this follow-up MUST still be backed by a real [[Book Chapter:Verse]] citation — do not repeat unverified points from earlier turns without Scripture support.\n";
+            userPrompt += "4. PRIORITIZE using the Context Verses above if they are relevant; only use other passages when needed.\n";
+            userPrompt += "5. CRITICAL: Cite verses only in [[Book Chapter:Verse]] format. Never invent references.\n";
+            userPrompt += "6. If you cannot find a direct biblical answer, say \"The Bible does not directly address this\" — do not speculate.\n";
         } else {
             userPrompt += "**User Question:** " + question + "\n\n";
             userPrompt += `Provide a biblical answer in ${langOutput}.\n`;
-            userPrompt += "1. PRIORITIZE using the Context Verses above if they are relevant; quote and cite them when they answer the question.\n";
-            userPrompt += "2. Every factual or theological claim MUST be supported by at least one real [[Book Chapter:Verse]] citation.\n";
-            userPrompt += "3. CRITICAL: Cite verses only in [[Book Chapter:Verse]] format. Never invent or guess references.\n";
-            userPrompt += "4. If you cannot find a direct biblical answer, say \"The Bible does not directly address this\" — do not speculate.\n";
+            userPrompt += "1. Start with the answer immediately — no greetings, no \"Dear friend\", no \"I'm glad you asked\".\n";
+            userPrompt += "2. PRIORITIZE using the Context Verses above if they are relevant; quote and cite them when they answer the question.\n";
+            userPrompt += "3. Every factual or theological claim MUST be supported by at least one real [[Book Chapter:Verse]] citation.\n";
+            userPrompt += "4. CRITICAL: Cite verses only in [[Book Chapter:Verse]] format. Never invent or guess references.\n";
+            userPrompt += "5. If you cannot find a direct biblical answer, say \"The Bible does not directly address this\" — do not speculate.\n";
         }
 
         // 4. Call Gemini AI
-        const answer = await generateAiText(userPrompt);
+        const rawAnswer = await generateAiText(userPrompt);
+        const answer = stripConversationalOpening(rawAnswer);
 
         // Log successful API call
         logApiCall('askBibleQuestion', 'success', getModelLabel(), { userId, provider: AI_PROVIDER });
@@ -877,6 +920,9 @@ export async function performSemanticSearch(userId, query, versionId = 'KJV', te
         if (cached) {
             try {
                 const parsed = JSON.parse(cached);
+                if (parsed?.summary) {
+                    parsed.summary = stripConversationalOpening(parsed.summary);
+                }
                 return { success: true, data: parsed, cached: true };
             } catch (e) {
                 console.warn("Malformed semantic cache entry", e);
@@ -893,7 +939,7 @@ export async function performSemanticSearch(userId, query, versionId = 'KJV', te
         **CRITICAL INSTRUCTION**: All output (summary and reasons) MUST be in **${outputLanguage}**. Do not use any English if the requested language is Afrikaans.
         
         **Instructions:**
-        1. **Biblical Summary**: Provide a 2-3 sentence biblical reflection or summary addressing the user's situation directly. This MUST be based strictly on biblical principles and facts that can be proven with verses.
+        1. **Biblical Summary**: Provide a 2-3 sentence biblical reflection or summary addressing the user's situation directly. Start with the substance immediately — no greetings like "Dear friend" or "I'm glad you asked". This MUST be based strictly on biblical principles and facts that can be proven with verses.
         2. **Relevant Verses**: Find 5-8 Bible verses that are most relevant to this conceptual query and support your summary.
         3. ${testamentLimit}.
         4. For each verse, provide:
@@ -951,6 +997,10 @@ ${lastRawText}
 
         if (!data) {
             throw new Error(`Semantic search format validation failed after retries: ${lastError?.message || 'unknown error'}`);
+        }
+
+        if (data.summary) {
+            data.summary = stripConversationalOpening(data.summary);
         }
 
         // 2. Save to Cache

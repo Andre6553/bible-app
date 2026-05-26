@@ -174,6 +174,19 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     }, [showDefinition]);
     useBackButton(showDefinition, handleBackCloseDefinition);
 
+    const fromAiSearch = Boolean(location.state?.fromAiSearch);
+    const aiSearchBackActive = fromAiSearch
+        && !showBookSelector
+        && !showSettings
+        && !contextMenu.visible
+        && !showInfo
+        && !showDefinition;
+
+    const handleBackToAiSearch = useCallback(() => {
+        navigate('/search', { state: { restoreAiSearch: true } });
+    }, [navigate]);
+    useBackButton(aiSearchBackActive, handleBackToAiSearch);
+
     // Parallel Reading (Split View) State
     const [isSplitView, setIsSplitView] = useState(false);
     const [secondVersion, setSecondVersion] = useState(null);
@@ -373,6 +386,17 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         if (selectedBook && currentVersion) {
             loadHighlights();
         }
+    }, [selectedBook, selectedChapter, currentVersion]);
+
+    useEffect(() => {
+        const handleHighlightsChanged = () => {
+            if (selectedBook && currentVersion) {
+                loadHighlights();
+            }
+        };
+
+        window.addEventListener('bible-highlights-changed', handleHighlightsChanged);
+        return () => window.removeEventListener('bible-highlights-changed', handleHighlightsChanged);
     }, [selectedBook, selectedChapter, currentVersion]);
 
     // Scroll to target verse after verses load
@@ -1323,10 +1347,15 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 </div>
 
                 <div className="reading-controls">
-                    {location.state?.fromSearch && (
+                    {(location.state?.fromSearch || fromAiSearch) && (
                         <button
-                            className="book-selector-btn btn-secondary"
+                            className={`book-selector-btn btn-secondary ${fromAiSearch ? 'ai-search-back-btn' : ''}`}
                             onClick={() => {
+                                if (fromAiSearch) {
+                                    navigate('/search', { state: { restoreAiSearch: true } });
+                                    return;
+                                }
+
                                 const sp = location.state?.searchParams;
                                 if (sp) {
                                     const params = new URLSearchParams();
@@ -1341,7 +1370,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             }}
                             style={{ marginRight: '8px', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)' }}
                         >
-                            ⬅ {settings.language === 'af' ? 'Terug' : 'Back'}
+                            ⬅ {fromAiSearch
+                                ? (settings.language === 'af' ? 'Terug na AI' : 'Back to AI')
+                                : (settings.language === 'af' ? 'Terug' : 'Back')}
                         </button>
                     )}
                     <button

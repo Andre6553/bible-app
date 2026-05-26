@@ -1,0 +1,28 @@
+---
+description: Require desktop and mobile optimization for every code change
+alwaysApply: true
+---
+
+# Responsive design (PC + mobile)
+
+Every code change MUST work well on **desktop and mobile**. Do not ship UI or layout work that only looks correct on one screen size.
+
+## Before finishing any change
+
+1. **Layout** — Check narrow (~375px) and wide (≥1024px) viewports. Use flex/grid with `min-height: 0`, scrolling in the right container, and no overlapping fixed elements.
+2. **Touch** — Interactive controls need at least **44×44px** tap targets on mobile. Use `touch-action: manipulation` on buttons/links where appropriate.
+3. **Safe areas** — Bottom bars, modals, and inputs on phones must respect `env(safe-area-inset-bottom)` (and top inset when full-screen).
+4. **Scroll** — Long lists/chips use `-webkit-overflow-scrolling: touch`. Prefer horizontal scroll for chip rows on small screens.
+5. **Text** — Avoid tiny fonts on mobile; allow wrapping (`max-width: 100%`) for verse refs and long strings.
+6. **Navigation** — Back buttons and modals must behave correctly with the app’s back-button handler on Android.
+
+## CSS conventions in this project
+
+- Mobile breakpoint: `@media (max-width: 768px)` (also `600px` for tighter tweaks).
+- Full-screen AI chat: `.fullscreen-ai` flex column — header fixed, thread scrolls, bottom stack (verse list + follow-up) pinned with safe-area padding.
+- Co-locate responsive rules with the component CSS (`Search.css`, `BibleReader.css`, etc.).
+
+## When adding features
+
+- If you add buttons, chips, or links in AI/search/Bible flows, add mobile styles in the same PR.
+- If you add a new modal or panel, verify it on mobile height (keyboard + safe area) before marking done.

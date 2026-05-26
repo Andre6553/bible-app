@@ -763,6 +763,15 @@
         width: 100%;
     }
 
+    .reading-controls .ai-search-back-btn {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+        font-size: 0.9rem;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
     .book-selector-btn,
     .nav-and-toggle,
     .chapter-nav {

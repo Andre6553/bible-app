@@ -1,15 +1,111 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { searchVerses, getVerseReference, getBooks, getVerseByReference, getUserId } from '../services/bibleService';
 import { useSettings } from '../context/SettingsContext';
 import SearchHelpModal from './SearchHelpModal';
 import { askBibleQuestion, getUserRemainingQuota, performSemanticSearch, getAIHistory } from '../services/aiService';
 import { getLocalizedBookName } from '../constants/bookNames';
-import { saveBulkHighlights, removeBulkHighlights, getAllHighlights } from '../services/highlightService';
+import { saveBulkHighlights, removeBulkHighlights, getAllHighlights, saveHighlightsIfMissing } from '../services/highlightService';
+import {
+    AI_SEARCH_HIGHLIGHT_COLOR,
+    extractVerseReferencesFromConversation,
+    parseSingleCitation,
+    referencesToHighlightVerses,
+    splitTextWithVerseLinks,
+} from '../utils/aiVerseReferences';
 import ColorPickerModal from './ColorPickerModal';
 import TutorialOverlay from './TutorialOverlay';
 import { useBackButton } from './BackButtonHandler';
 import { copyToClipboard } from '../utils/appUtils';
+
+const AI_SESSION_KEY = 'bible_ai_session';
+const AI_RETURN_KEY = 'bible_ai_return';
+
+function persistAiSessionSnapshot({ question, response, conversation, showModal, expanded }) {
+    sessionStorage.setItem(AI_SESSION_KEY, JSON.stringify({
+        question,
+        response,
+        conversation,
+        showModal,
+        expanded,
+        timestamp: Date.now(),
+    }));
+}
+
+function readAiSessionSnapshot() {
+    try {
+        const savedAI = sessionStorage.getItem(AI_SESSION_KEY);
+        if (!savedAI) return null;
+        const parsed = JSON.parse(savedAI);
+        if (Date.now() - parsed.timestamp >= 3600000) return null;
+        return parsed;
+    } catch (e) {
+        return null;
+    }
+}
+
+function normalizeAiHistoryQuestion(question = '') {
+    return String(question).trim().toLowerCase();
+}
+
+function buildConversationFromHistoryItem(item) {
+    if (Array.isArray(item?.conversation) && item.conversation.length > 0) {
+        return item.conversation;
+    }
+    if (item?.question && item?.answer) {
+        return [
+            { role: 'user', content: item.question },
+            { role: 'ai', content: item.answer },
+        ];
+    }
+    return [];
+}
+
+function mergeAiHistory(localHistory = [], remoteHistory = []) {
+    const merged = new Map();
+
+    const upsert = (item) => {
+        if (!item?.question) return;
+        const key = normalizeAiHistoryQuestion(item.question);
+        const existing = merged.get(key);
+        const conversation = buildConversationFromHistoryItem(item);
+        const existingConversation = buildConversationFromHistoryItem(existing);
+        const timestamp = Math.max(
+            existing?.timestamp || 0,
+            item?.timestamp ? new Date(item.timestamp).getTime() : 0
+        );
+
+        if (!existing || conversation.length >= existingConversation.length) {
+            merged.set(key, {
+                ...existing,
+                ...item,
+                conversation: conversation.length >= existingConversation.length ? conversation : existingConversation,
+                answer: item.answer || existing?.answer || conversation.at(-1)?.content || '',
+                timestamp,
+            });
+        }
+    };
+
+    remoteHistory.forEach(upsert);
+    localHistory.forEach(upsert);
+
+    return Array.from(merged.values())
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        .slice(0, 20);
+}
+
+function stripAiCitationMarkers(text = '') {
+    return String(text).replace(/\[\[/g, '').replace(/\]\]/g, '');
+}
+
+function formatConversationForCopy(conversation, labels) {
+    return conversation
+        .map((turn) => {
+            const label = turn.role === 'user' ? labels.you : labels.ai;
+            return `${label}: ${stripAiCitationMarkers(turn.content)}`;
+        })
+        .join('\n\n');
+}
 
 // Premium AI Icon Component
 const AIIcon = ({ className = "" }) => (
@@ -31,6 +127,7 @@ const AIIcon = ({ className = "" }) => (
 function Search({ currentVersion, versions }) {
     const isSearchingRef = useRef(false);
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
     const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
     const [searchVersion, setSearchVersion] = useState(searchParams.get('version') || 'all');
     const [searchTestament, setSearchTestament] = useState(searchParams.get('testament') || 'all');
@@ -64,6 +161,8 @@ function Search({ currentVersion, versions }) {
     const [showMainShortcutMenu, setShowMainShortcutMenu] = useState(false); // Main search shortcut popup
     const [isAnswerExpanded, setIsAnswerExpanded] = useState(false); // Fullscreen answer mode
     const [copyStatus, setCopyStatus] = useState('Copy'); // 'Copy' or 'Copied!'
+    const [aiChatVerseRefs, setAiChatVerseRefs] = useState([]);
+    const aiHighlightedVersesRef = useRef(new Set());
     const [showHelpModal, setShowHelpModal] = useState(false);
     const [searchMode, setSearchMode] = useState('exact'); // 'exact' or 'semantic'
     const [semanticResults, setSemanticResults] = useState([]); // Verses with AI reasons
@@ -332,6 +431,13 @@ function Search({ currentVersion, versions }) {
         thinking: settings.language === 'af' ? '⏳ AI dink tans...' : '⏳ AI is thinking...',
         biblicalAnswer: settings.language === 'af' ? '📚 Bybelse Antwoord:' : '📚 Biblical Answer:',
         copy: settings.language === 'af' ? 'Kopieer' : 'Copy',
+        copyConversation: settings.language === 'af' ? 'Kopieer hele gesprek' : 'Copy full conversation',
+        versesInChat: (count) => settings.language === 'af'
+            ? `📖 Verse in hierdie gesprek (${count})`
+            : `📖 Verses in this chat (${count})`,
+        autoHighlightNote: settings.language === 'af'
+            ? 'Nuwe verse word outomaties in ligpers gemerk as hulle nog nie gemerk is nie.'
+            : 'New verses are auto-highlighted in light purple if not already highlighted.',
         copied: settings.language === 'af' ? 'Gekopieer!' : 'Copied!',
         expand: settings.language === 'af' ? '⤢ Brei uit' : '⤢ Expand',
         collapse: settings.language === 'af' ? '✕ Maak toe' : '✕ Close',
@@ -356,6 +462,50 @@ function Search({ currentVersion, versions }) {
         aiLabel: settings.language === 'af' ? 'AI' : 'AI',
         newConversation: settings.language === 'af' ? '＋ Nuwe Gesprek' : '＋ New Conversation'
     };
+
+    const restoreAiSession = useCallback((openModal = false) => {
+        const saved = readAiSessionSnapshot();
+        if (!saved) return false;
+
+        setAiQuestion(saved.question || '');
+        setAiResponse(saved.response || null);
+
+        if (Array.isArray(saved.conversation) && saved.conversation.length > 0) {
+            setAiConversation(saved.conversation);
+        } else if (saved.question && saved.response) {
+            setAiConversation([
+                { role: 'user', content: saved.question },
+                { role: 'ai', content: saved.response },
+            ]);
+        }
+
+        setIsAnswerExpanded(Boolean(saved.response && (saved.expanded ?? true)));
+        if (openModal) {
+            setShowAIModal(true);
+        }
+        return true;
+    }, []);
+
+    const navigateToAiVerseInBible = useCallback((parsed) => {
+        persistAiSessionSnapshot({
+            question: aiQuestion,
+            response: aiResponse,
+            conversation: aiConversation,
+            showModal: true,
+            expanded: true,
+        });
+        sessionStorage.setItem(AI_RETURN_KEY, '1');
+
+        navigate('/bible', {
+            state: {
+                bookId: parsed.bookId,
+                chapter: parsed.chapter,
+                targetVerse: parsed.verses[0],
+                fromSearch: true,
+                fromAiSearch: true,
+            },
+        });
+    }, [aiQuestion, aiResponse, aiConversation, navigate]);
 
 
     // Load history and AI state on mount
@@ -384,31 +534,22 @@ function Search({ currentVersion, versions }) {
             console.warn("AI history load failed", e);
         }
         try {
-            const savedAI = sessionStorage.getItem('bible_ai_session');
-            if (savedAI) {
-                const { question, response, conversation, showModal, expanded, timestamp } = JSON.parse(savedAI);
-                // Valid for 1 hour
-                if (Date.now() - timestamp < 3600000) {
-                    setAiQuestion(question);
-                    setAiResponse(response);
-                    if (Array.isArray(conversation) && conversation.length > 0) {
-                        setAiConversation(conversation);
-                    } else if (question && response) {
-                        setAiConversation([
-                            { role: 'user', content: question },
-                            { role: 'ai', content: response }
-                        ]);
-                    }
-                    // Do not auto-open modal on reload, user must explicitly click button
-                    // setShowAIModal(showModal); 
-
-                    // If we have a response, we can restore the expanded state
-                    // If there's no response, expanded should be false to show the input box
-                    if (response && expanded) {
-                        setIsAnswerExpanded(true);
-                    } else {
-                        setIsAnswerExpanded(false);
-                    }
+            const saved = readAiSessionSnapshot();
+            if (saved) {
+                setAiQuestion(saved.question || '');
+                setAiResponse(saved.response || null);
+                if (Array.isArray(saved.conversation) && saved.conversation.length > 0) {
+                    setAiConversation(saved.conversation);
+                } else if (saved.question && saved.response) {
+                    setAiConversation([
+                        { role: 'user', content: saved.question },
+                        { role: 'ai', content: saved.response },
+                    ]);
+                }
+                if (saved.response && saved.expanded) {
+                    setIsAnswerExpanded(true);
+                } else {
+                    setIsAnswerExpanded(false);
                 }
             }
         } catch (e) {
@@ -419,12 +560,12 @@ function Search({ currentVersion, versions }) {
             const id = await getUserId();
             setCurrentUserId(id);
             if (id) {
-                // Fetch synced history from DB
                 const dbHistory = await getAIHistory(id);
-                if (dbHistory && dbHistory.length > 0) {
-                    setAiHistory(dbHistory);
-                    localStorage.setItem('ai_search_history', JSON.stringify(dbHistory));
-                }
+                setAiHistory((prev) => {
+                    const merged = mergeAiHistory(prev, dbHistory);
+                    localStorage.setItem('ai_search_history', JSON.stringify(merged));
+                    return merged;
+                });
             }
         };
         fetchUserId();
@@ -441,6 +582,19 @@ function Search({ currentVersion, versions }) {
             }, 1000);
         }
     }, []);
+
+    useEffect(() => {
+        const shouldRestore = location.state?.restoreAiSearch
+            || sessionStorage.getItem(AI_RETURN_KEY) === '1';
+        if (!shouldRestore) return;
+
+        sessionStorage.removeItem(AI_RETURN_KEY);
+        restoreAiSession(true);
+
+        if (location.state?.restoreAiSearch) {
+            navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+        }
+    }, [location.key, location.state?.restoreAiSearch, restoreAiSession, navigate, location.pathname, location.search]);
 
     const refreshHighlights = async () => {
         const targetResults = searchMode === 'semantic' ? semanticResults : results;
@@ -507,16 +661,43 @@ function Search({ currentVersion, versions }) {
     // Persist AI State whenever it changes
     useEffect(() => {
         if (aiQuestion || aiResponse || showAIModal || aiConversation.length > 0) {
-            sessionStorage.setItem('bible_ai_session', JSON.stringify({
+            persistAiSessionSnapshot({
                 question: aiQuestion,
                 response: aiResponse,
                 conversation: aiConversation,
                 showModal: showAIModal,
-                expanded: isAnswerExpanded, // Save expanded state
-                timestamp: Date.now()
-            }));
+                expanded: isAnswerExpanded,
+            });
         }
     }, [aiQuestion, aiResponse, showAIModal, isAnswerExpanded, aiConversation]);
+
+    useEffect(() => {
+        if (!allBooks.length || aiConversation.length === 0) {
+            setAiChatVerseRefs([]);
+            return;
+        }
+
+        const refs = extractVerseReferencesFromConversation(aiConversation, allBooks);
+        setAiChatVerseRefs(refs);
+
+        const verseList = referencesToHighlightVerses(refs).filter((item) => {
+            const key = `${item.bookId}-${item.chapter}-${item.verse}`;
+            return !aiHighlightedVersesRef.current.has(key);
+        });
+
+        if (verseList.length === 0) return;
+
+        saveHighlightsIfMissing(verseList, AI_SEARCH_HIGHLIGHT_COLOR, 'AI Search')
+            .then((result) => {
+                verseList.forEach((item) => {
+                    aiHighlightedVersesRef.current.add(`${item.bookId}-${item.chapter}-${item.verse}`);
+                });
+                if (result.success && result.added > 0) {
+                    window.dispatchEvent(new CustomEvent('bible-highlights-changed'));
+                }
+            })
+            .catch((err) => console.warn('AI verse auto-highlight failed', err));
+    }, [aiConversation, allBooks]);
 
     // Hide the mobile bottom nav while the AI modal is open so it
     // doesn't overlap the follow-up input. Scoped to mobile via CSS;
@@ -826,6 +1007,11 @@ function Search({ currentVersion, versions }) {
         setShowHistory(false);
     };
 
+    const resetAiVerseTracking = () => {
+        setAiChatVerseRefs([]);
+        aiHighlightedVersesRef.current = new Set();
+    };
+
     const handleAskAI = () => {
         setAiQuestion(searchQuery);
         setShowAIModal(true);
@@ -833,6 +1019,7 @@ function Search({ currentVersion, versions }) {
         setAiConversation([]);
         setFollowUpQuestion('');
         setIsAnswerExpanded(false); // Reset expanded mode for new questions
+        resetAiVerseTracking();
     };
 
     const startNewConversation = () => {
@@ -841,11 +1028,15 @@ function Search({ currentVersion, versions }) {
         setAiQuestion('');
         setFollowUpQuestion('');
         setIsAnswerExpanded(false);
+        resetAiVerseTracking();
     };
 
     // Close on Android back button
     const handleBackCloseAI = useCallback(() => {
-        if (showAIModal) setShowAIModal(false);
+        if (showAIModal) {
+            sessionStorage.removeItem(AI_RETURN_KEY);
+            setShowAIModal(false);
+        }
     }, [showAIModal]);
     useBackButton(showAIModal, handleBackCloseAI);
 
@@ -892,6 +1083,7 @@ function Search({ currentVersion, versions }) {
         setAiResponse(null);
         setAiConversation([]);
         setFollowUpQuestion('');
+        resetAiVerseTracking();
 
         // Process shortcuts like /story, /explain, /meaning
         let processedQuestion = aiQuestion.trim();
@@ -1102,17 +1294,21 @@ Here are the available shortcuts to quickly ask questions:
             setAiResponse(result.answer); // Keep latest answer in legacy state (for copy / share)
             setIsVerseShortcutResponse(false);
 
-            // Update the most recent history entry with the full conversation
+            // Update the matching history entry with the full conversation
             setAiHistory(prev => {
-                if (!prev.length) return prev;
-                const [first, ...rest] = prev;
-                const updatedFirst = {
-                    ...first,
+                const rootQuestion = priorConversation.find(turn => turn.role === 'user')?.content || aiQuestion;
+                const idx = prev.findIndex(entry => entry.question === rootQuestion);
+                const baseEntry = idx >= 0
+                    ? prev[idx]
+                    : { question: rootQuestion, answer: '', conversation: [], timestamp: Date.now() };
+                const updatedEntry = {
+                    ...baseEntry,
                     conversation: finalConversation,
-                    answer: result.answer, // newest answer for legacy "View"
-                    timestamp: Date.now()
+                    answer: result.answer,
+                    timestamp: Date.now(),
                 };
-                const updated = [updatedFirst, ...rest];
+                const rest = idx >= 0 ? prev.filter((_, i) => i !== idx) : prev;
+                const updated = [updatedEntry, ...rest].slice(0, 20);
                 localStorage.setItem('ai_search_history', JSON.stringify(updated));
                 return updated;
             });
@@ -1134,25 +1330,26 @@ Here are the available shortcuts to quickly ask questions:
     };
 
     const handleAiResponseCopy = () => {
-        if (!aiResponse) return;
+        let textToCopy = '';
 
-        let textToCopy = "";
-
-        if (isVerseShortcutResponse) {
-            // Specialized extraction for verse lists: get only the content inside [[ ]]
+        if (isVerseShortcutResponse && aiResponse) {
             const matches = aiResponse.match(/\[\[(.*?)\]\]/g) || [];
             if (matches.length > 0) {
-                // Deduplicate references using a Set
                 const uniqueRefs = [...new Set(matches.map(m => m.replace(/\[\[|\]\]/g, '').trim()))];
                 textToCopy = uniqueRefs.join(', ');
             } else {
-                // Fallback if no brackets found (unlikely)
-                textToCopy = aiResponse.replace(/\[\[/g, '').replace(/\]\]/g, '');
+                textToCopy = stripAiCitationMarkers(aiResponse);
             }
-        } else {
-            // Standard behavior: full text with delimiters removed
-            textToCopy = aiResponse.replace(/\[\[/g, '').replace(/\]\]/g, '');
+        } else if (aiConversation.length > 0) {
+            textToCopy = formatConversationForCopy(aiConversation, {
+                you: t.youLabel,
+                ai: t.aiLabel,
+            });
+        } else if (aiResponse) {
+            textToCopy = stripAiCitationMarkers(aiResponse);
         }
+
+        if (!textToCopy) return;
 
         copyToClipboard(textToCopy).then(success => {
             if (success) {
@@ -1165,77 +1362,36 @@ Here are the available shortcuts to quickly ask questions:
 
 
     const handleCitationClick = (citation) => {
-        // citation format: "Book Chapter:Verse" e.g., "John 3:16" or "1 Samuel 17:4"
         try {
-            // Strategy: Look for the last space which separates Book and Chapter:Verse
-            const lastSpaceIndex = citation.lastIndexOf(' ');
-            if (lastSpaceIndex === -1) return;
-
-            const bookNameRaw = citation.substring(0, lastSpaceIndex).trim();
-            const refPart = citation.substring(lastSpaceIndex + 1).trim(); // "3:16"
-
-            const [chapter, verse] = refPart.split(':');
-
-            // Normalization helper - handles common variations
-            const normalizeBookName = (name) => {
-                let normalized = name.toLowerCase().trim()
-                    // Handle numbered books
-                    .replace(/^first /, '1 ')
-                    .replace(/^second /, '2 ')
-                    .replace(/^third /, '3 ')
-                    .replace(/^i /, '1 ')
-                    .replace(/^ii /, '2 ')
-                    .replace(/^iii /, '3 ')
-                    .replace(/^1st /, '1 ')
-                    .replace(/^2nd /, '2 ')
-                    .replace(/^3rd /, '3 ')
-                    // Handle singular/plural variations
-                    .replace(/^psalm$/, 'psalms')
-                    .replace(/^proverb$/, 'proverbs')
-                    .replace(/^song of solomon$/, 'song of songs')
-                    .replace(/^songs of solomon$/, 'song of songs')
-                    .replace(/^revelation$/, 'revelations')
-                    // Remove dots and extra spaces
-                    .replace(/\./g, '')
-                    .replace(/\s+/g, ' ');
-
-                return normalized;
-            };
-
-            const targetName = normalizeBookName(bookNameRaw);
-
-            // Try exact match first
-            let book = allBooks.find(b => {
-                const dbName = normalizeBookName(b.name_full);
-                return dbName === targetName || b.id === bookNameRaw.toUpperCase();
-            });
-
-            // Fallback: try partial match (for cases like "Psalm" matching "Psalms")
-            if (!book) {
-                book = allBooks.find(b => {
-                    const dbName = normalizeBookName(b.name_full);
-                    return dbName.startsWith(targetName) || targetName.startsWith(dbName);
-                });
+            const parsed = parseSingleCitation(citation, allBooks);
+            if (!parsed) {
+                console.warn(`Could not parse citation: ${citation}`);
+                return;
             }
 
-            if (book) {
-                // Navigate to bible reader
-                navigate('/bible', {
-                    state: {
-                        bookId: book.id,
-                        chapter: parseInt(chapter),
-                        targetVerse: parseInt(verse),
-                        fromSearch: true
-                    }
-                });
-                // Persist state, don't close modal (handled by caching)
-            } else {
-                console.warn(`Book not found: ${bookNameRaw}(Normalized: ${targetName})`);
-                // Optional: Flash a toast or error to user
-            }
+            navigateToAiVerseInBible(parsed);
         } catch (e) {
-            console.error("Error parsing citation", e);
+            console.error('Error parsing citation', e);
         }
+    };
+
+    const renderPlainTextWithVerseLinks = (text, keyPrefix = 'plain') => {
+        const segments = splitTextWithVerseLinks(text, allBooks);
+        return segments.map((segment, index) => {
+            if (segment.type === 'ref') {
+                return (
+                    <button
+                        key={`${keyPrefix}-ref-${index}`}
+                        className="citation-link"
+                        onClick={() => handleCitationClick(segment.content)}
+                        title="Read this verse"
+                    >
+                        📖 {segment.content}
+                    </button>
+                );
+            }
+            return <span key={`${keyPrefix}-text-${index}`}>{segment.content}</span>;
+        });
     };
 
     // Parse AI text to replace [[Book Chapter:Verse]] with links
@@ -1243,34 +1399,27 @@ Here are the available shortcuts to quickly ask questions:
     const formatAIResponse = (text) => {
         if (!text) return null;
 
-        // Regex for [[Book Chapter:Verse]] or [[Book Chapter:Verse, Chapter:Verse, ...]]
         const parts = text.split(/(\[\[.*?\]\])/g);
 
         return parts.map((part, index) => {
             if (part.startsWith('[[') && part.endsWith(']]')) {
-                const content = part.slice(2, -2); // Remove [[ and ]]
+                const content = part.slice(2, -2);
 
-                // Check if it contains multiple verses (comma-separated)
                 if (content.includes(',')) {
-                    // Split by comma: "2 Samuel 8:10, 8:8" -> ["2 Samuel 8:10", "8:8"]
                     const refs = content.split(',').map(r => r.trim());
-
-                    // Extract book name from the first reference
                     const firstRef = refs[0];
                     const lastSpaceIdx = firstRef.lastIndexOf(' ');
                     const bookPart = lastSpaceIdx !== -1 ? firstRef.substring(0, lastSpaceIdx) : '';
 
                     return refs.map((ref, refIdx) => {
-                        // If ref doesn't have a book name (e.g. "8:8"), prepend the book
                         let fullRef = ref;
                         if (!ref.includes(' ') && bookPart) {
-                            // This is just "8:8" (chapter:verse only), add the book
                             fullRef = `${bookPart} ${ref}`;
                         }
 
                         return (
                             <button
-                                key={`${index} - ${refIdx}`}
+                                key={`${index}-${refIdx}`}
                                 className="citation-link"
                                 onClick={() => handleCitationClick(fullRef)}
                                 title="Read this verse"
@@ -1281,7 +1430,6 @@ Here are the available shortcuts to quickly ask questions:
                     });
                 }
 
-                // Single verse - original behavior
                 return (
                     <button
                         key={index}
@@ -1293,7 +1441,8 @@ Here are the available shortcuts to quickly ask questions:
                     </button>
                 );
             }
-            return part; // Return normal text
+
+            return renderPlainTextWithVerseLinks(part, `part-${index}`);
         });
     };
 
@@ -1931,7 +2080,7 @@ Here are the available shortcuts to quickly ask questions:
                                                             e.stopPropagation();
                                                             handleAiResponseCopy();
                                                         }}
-                                                        title="Copy latest answer"
+                                                        title={t.copyConversation}
                                                     >
                                                         {copyStatus === 'Copied!' ? '✅ ' : '📋 '}{copyStatus === 'Copied!' ? t.copied : t.copy}
                                                     </button>
@@ -1989,37 +2138,59 @@ Here are the available shortcuts to quickly ask questions:
                                                 )}
                                             </div>
 
-                                            {/* Follow-up input – lets the user dialog with the AI */}
                                             <div
-                                                className="ai-followup-section"
+                                                className="ai-chat-bottom-stack"
                                                 onClick={(e) => e.stopPropagation()}
                                                 onDoubleClick={(e) => e.stopPropagation()}
                                             >
-                                                <div className="ai-followup-heading">{t.followUpHeading}</div>
-                                                <textarea
-                                                    className="ai-followup-input"
-                                                    placeholder={t.followUpPlaceholder}
-                                                    value={followUpQuestion}
-                                                    onChange={(e) => setFollowUpQuestion(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                                            e.preventDefault();
+                                                {aiChatVerseRefs.length > 0 && (
+                                                    <div className="ai-verse-index">
+                                                        <div className="ai-verse-index-heading">{t.versesInChat(aiChatVerseRefs.length)}</div>
+                                                        <p className="ai-verse-index-note">{t.autoHighlightNote}</p>
+                                                        <div className="ai-verse-index-list">
+                                                            {aiChatVerseRefs.map((ref) => (
+                                                                <button
+                                                                    key={ref.key}
+                                                                    type="button"
+                                                                    className="ai-verse-index-chip"
+                                                                    onClick={() => handleCitationClick(ref.displayRef)}
+                                                                    title="Open in Bible"
+                                                                >
+                                                                    {ref.displayRef}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Follow-up input – lets the user dialog with the AI */}
+                                                <div className="ai-followup-section">
+                                                    <div className="ai-followup-heading">{t.followUpHeading}</div>
+                                                    <textarea
+                                                        className="ai-followup-input"
+                                                        placeholder={t.followUpPlaceholder}
+                                                        value={followUpQuestion}
+                                                        onChange={(e) => setFollowUpQuestion(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                                e.preventDefault();
+                                                                submitFollowUp();
+                                                            }
+                                                        }}
+                                                        rows={2}
+                                                        disabled={followUpLoading}
+                                                    />
+                                                    <button
+                                                        className="ai-followup-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
                                                             submitFollowUp();
-                                                        }
-                                                    }}
-                                                    rows={2}
-                                                    disabled={followUpLoading}
-                                                />
-                                                <button
-                                                    className="ai-followup-btn"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        submitFollowUp();
-                                                    }}
-                                                    disabled={followUpLoading || !followUpQuestion.trim()}
-                                                >
-                                                    {followUpLoading ? t.followUpThinking : t.askFollowUp}
-                                                </button>
+                                                        }}
+                                                        disabled={followUpLoading || !followUpQuestion.trim()}
+                                                    >
+                                                        {followUpLoading ? t.followUpThinking : t.askFollowUp}
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {isAnswerExpanded && (
@@ -2061,11 +2232,13 @@ Here are the available shortcuts to quickly ask questions:
                                                             <button
                                                                 className="reask-btn"
                                                                 onClick={() => {
-                                                                    setAiQuestion(item.question);
+                                                                    const conversation = buildConversationFromHistoryItem(item);
+                                                                    const rootQuestion = conversation.find(turn => turn.role === 'user')?.content || item.question;
+                                                                    setAiQuestion(rootQuestion);
                                                                     setFollowUpQuestion('');
-                                                                    if (Array.isArray(item.conversation) && item.conversation.length > 0) {
-                                                                        setAiConversation(item.conversation);
-                                                                        const lastAi = [...item.conversation].reverse().find(t => t.role === 'ai');
+                                                                    if (conversation.length > 0) {
+                                                                        setAiConversation(conversation);
+                                                                        const lastAi = [...conversation].reverse().find(turn => turn.role === 'ai');
                                                                         setAiResponse(lastAi ? lastAi.content : (item.answer || null));
                                                                         setIsAnswerExpanded(true);
                                                                     } else if (item.answer) {

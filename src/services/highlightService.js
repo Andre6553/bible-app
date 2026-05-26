@@ -82,6 +82,71 @@ export const saveHighlight = async (bookId, chapter, verse, version, color) => {
 };
 
 /**
+ * Save highlights only for verses that are not already highlighted (cross-version).
+ * Existing highlights are left unchanged.
+ */
+export const saveHighlightsIfMissing = async (verseList, color, label = null) => {
+    const userId = await getUserId();
+    if (!verseList || verseList.length === 0) return { success: true, added: 0, skipped: 0 };
+
+    try {
+        const groups = {};
+        verseList.forEach((v) => {
+            const key = `${v.bookId}-${v.chapter}`;
+            if (!groups[key]) {
+                groups[key] = { bookId: v.bookId, chapter: v.chapter, verses: new Set() };
+            }
+            groups[key].verses.add(v.verse);
+        });
+
+        const toInsert = [];
+        let skipped = 0;
+
+        for (const group of Object.values(groups)) {
+            const verses = Array.from(group.verses);
+            const { data: existing, error } = await supabase
+                .from('verse_highlights')
+                .select('verse')
+                .eq('user_id', userId)
+                .eq('book_id', group.bookId)
+                .eq('chapter', group.chapter)
+                .in('verse', verses);
+
+            if (error) throw error;
+
+            const existingSet = new Set((existing || []).map((row) => row.verse));
+            verses.forEach((verse) => {
+                if (existingSet.has(verse)) {
+                    skipped += 1;
+                } else {
+                    toInsert.push({
+                        user_id: userId,
+                        book_id: group.bookId,
+                        chapter: group.chapter,
+                        verse,
+                        version: 'AFR53',
+                        color,
+                        label,
+                        created_at: new Date().toISOString(),
+                    });
+                }
+            });
+        }
+
+        if (toInsert.length > 0) {
+            const { error: insertError } = await supabase.from('verse_highlights').insert(toInsert);
+            if (insertError) throw insertError;
+            logActivity('verse_highlight');
+        }
+
+        return { success: true, added: toInsert.length, skipped };
+    } catch (err) {
+        console.error('Error saving missing highlights:', err);
+        return { success: false, error: err.message, added: 0, skipped: 0 };
+    }
+};
+
+/**
  * Save highlights for multiple verses at once (Bulk)
  * @param {Array} verseList - Array of { bookId, chapter, verse, version }
  * @param {string} color - Hex color code
