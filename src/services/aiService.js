@@ -105,6 +105,72 @@ function stripConversationalOpening(text) {
     return cleaned;
 }
 
+function getWordStudyQuotaMessage(language = 'en') {
+    if (language === 'af') {
+        return 'Jy het vandag se AI-woordstudie limiet bereik. Probeer asseblief weer môre.';
+    }
+
+    return "You've reached today's AI word-study limit. Please try again tomorrow.";
+}
+
+function getFriendlyWordStudyError(error, language = 'en') {
+    const rawMessage = error?.message || String(error || '');
+    const text = [
+        rawMessage,
+        error?.details,
+        error?.errorDetails,
+        error?.status,
+        error?.code,
+        error?.name
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    const messages = language === 'af'
+        ? {
+            rateLimit: "Die AI-diens is tans besig. Wag asseblief 'n minuut en probeer hierdie woordstudie weer.",
+            config: 'Woordstudie is nie korrek opgestel nie. Kontak asseblief ondersteuning.',
+            network: 'Netwerkfout. Gaan asseblief jou verbinding na en probeer weer.',
+            timeout: 'Die woordstudie het te lank geneem. Probeer asseblief weer.',
+            safety: "Die AI-diens kon nie hierdie versoek ontleed nie. Probeer asseblief 'n ander woord kies.",
+            model: 'Woordstudie is tydelik onbeskikbaar. Probeer asseblief later weer.',
+            parse: 'Die woordstudie antwoord kon nie gelees word nie. Probeer asseblief weer.',
+            default: 'Woordstudie is tydelik onbeskikbaar. Probeer asseblief weer.'
+        }
+        : {
+            rateLimit: 'The AI service is temporarily busy. Please wait a minute and try this word study again.',
+            config: 'Word study is not configured correctly. Please contact support.',
+            network: 'Network error. Please check your connection and try again.',
+            timeout: 'The word study request timed out. Please try again.',
+            safety: 'The AI service could not analyze this request. Try selecting a different word.',
+            model: 'Word study is temporarily unavailable. Please try again later.',
+            parse: 'The word-study response could not be read. Please try again.',
+            default: 'Word study is temporarily unavailable. Please try again.'
+        };
+
+    if (text.includes('quota') || text.includes('limit') || text.includes('rate') || text.includes('429')) {
+        return messages.rateLimit;
+    }
+    if (text.includes('api key') || text.includes('api_key') || text.includes('invalid')) {
+        return messages.config;
+    }
+    if (text.includes('network') || text.includes('fetch') || text.includes('failed to fetch')) {
+        return messages.network;
+    }
+    if (text.includes('timeout')) {
+        return messages.timeout;
+    }
+    if (text.includes('blocked') || text.includes('safety')) {
+        return messages.safety;
+    }
+    if (text.includes('model') || text.includes('not found')) {
+        return messages.model;
+    }
+    if (error instanceof SyntaxError || text.includes('json') || text.includes('unexpected token')) {
+        return messages.parse;
+    }
+
+    return messages.default;
+}
+
 function validateSemanticSearchPayload(data) {
     if (!data || typeof data !== 'object') {
         throw new Error('Invalid semantic payload: not an object');
@@ -668,7 +734,13 @@ ${lastRawText}
 export async function getWordStudy(userId, verseRef, verseText, originalText, selectedWord = null, language = 'en') {
     try {
         const { remaining } = await getUserRemainingQuota(userId);
-        if (remaining <= 0) return { success: false, error: 'Quota exceeded' };
+        if (remaining <= 0) {
+            return {
+                success: false,
+                error: getWordStudyQuotaMessage(language),
+                quotaExceeded: true
+            };
+        }
 
         // 1. Lexical Danger List & Specific Rules
         const LEXICAL_DANGER_LIST = {
@@ -838,7 +910,11 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
     } catch (error) {
         console.error('Word study error:', error);
         logApiCall('getWordStudy', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
-        return { success: false, error: error.message };
+        return {
+            success: false,
+            error: getFriendlyWordStudyError(error, language),
+            details: error?.message || String(error || '')
+        };
     }
 }
 
