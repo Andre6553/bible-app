@@ -1,71 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from '../config/supabaseClient';
 import { logApiCall } from './adminService';
 import { logEvent } from './analyticsService';
-
-const AI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini').toLowerCase();
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.0-flash";
-const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || "llama-3.1-8b-instant";
-
-// Initialize Gemini only when configured
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const model = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
-
-function getModelLabel() {
-    if (AI_PROVIDER === 'groq') return GROQ_MODEL;
-    return GEMINI_MODEL;
-}
-
-async function generateAiText(prompt) {
-    // Explicit provider selection with fallback to Gemini if Groq is not configured.
-    if (AI_PROVIDER === 'groq') {
-        if (!GROQ_API_KEY) {
-            throw new Error('Groq API key is missing. Set VITE_GROQ_API_KEY in .env');
-        }
-
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${GROQ_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: GROQ_MODEL,
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.4
-            })
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            // If Groq is temporarily rate-limited, fallback to Gemini when available.
-            if ((response.status === 429 || response.status >= 500) && model) {
-                console.warn(`Groq unavailable (${response.status}), falling back to Gemini.`);
-                const geminiResult = await model.generateContent(prompt);
-                const geminiResponse = await geminiResult.response;
-                return geminiResponse.text();
-            }
-            throw new Error(`Groq API error (${response.status}): ${errText}`);
-        }
-
-        const data = await response.json();
-        const content = data?.choices?.[0]?.message?.content;
-        if (!content) {
-            throw new Error('Groq API returned an empty response');
-        }
-        return content;
-    }
-
-    if (!model) {
-        throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY in .env');
-    }
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-}
+import {
+    AI_PROVIDER,
+    formatAiError,
+    generateAiText,
+    getModelLabel
+} from './aiProvider';
 
 function extractJsonObject(text) {
     const startIdx = text.indexOf('{');
@@ -540,28 +481,9 @@ export async function askBibleQuestion(userId, question, verses = [], language =
         // Log failed API call
         logApiCall('askBibleQuestion', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
 
-        // More specific error messages
-        let errorMessage = 'Failed to get AI response. Please try again.';
-
-        const errMsg = error.message?.toLowerCase() || '';
-
-        if (errMsg.includes('quota') || errMsg.includes('limit') || errMsg.includes('rate') || errMsg.includes('429')) {
-            errorMessage = 'AI rate limit reached. Please wait a minute and try again.';
-        } else if (errMsg.includes('api key') || errMsg.includes('api_key') || errMsg.includes('invalid')) {
-            errorMessage = 'API configuration error. Please contact support.';
-        } else if (errMsg.includes('network') || errMsg.includes('fetch') || errMsg.includes('Failed to fetch')) {
-            errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (errMsg.includes('timeout')) {
-            errorMessage = 'Request timed out. Please try again.';
-        } else if (errMsg.includes('blocked') || errMsg.includes('safety')) {
-            errorMessage = 'Content was blocked by safety filters. Please rephrase your question.';
-        } else if (errMsg.includes('model') || errMsg.includes('not found')) {
-            errorMessage = 'AI model error. Please try again later.';
-        }
-
         return {
             success: false,
-            error: errorMessage,
+            error: formatAiError(error),
             details: error.message
         };
     }
@@ -658,7 +580,11 @@ ${lastRawText}
     } catch (error) {
         console.error('Study hints error:', error);
         logApiCall('getInductiveStudyHints', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
-        return { success: false, error: error.message };
+        return {
+            success: false,
+            error: formatAiError(error, 'Study hints failed. Please try again.'),
+            details: error.message
+        };
     }
 }
 
@@ -838,7 +764,11 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
     } catch (error) {
         console.error('Word study error:', error);
         logApiCall('getWordStudy', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
-        return { success: false, error: error.message };
+        return {
+            success: false,
+            error: formatAiError(error, 'Word study failed. Please try again.'),
+            details: error.message
+        };
     }
 }
 
@@ -900,7 +830,11 @@ export async function getChapterSummary(userId, bookName, chapter, verses = [], 
     } catch (error) {
         console.error('Chapter summary error:', error);
         logApiCall('getChapterSummary', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, error: error.message });
-        return { success: false, error: error.message };
+        return {
+            success: false,
+            error: formatAiError(error, 'Chapter summary failed. Please try again.'),
+            details: error.message
+        };
     }
 }
 
@@ -1029,7 +963,11 @@ ${lastRawText}
     } catch (error) {
         console.error('Semantic search error:', error);
         logApiCall('performSemanticSearch', 'error', getModelLabel(), { userId, provider: AI_PROVIDER, query, error: error.message });
-        return { success: false, error: error.message };
+        return {
+            success: false,
+            error: formatAiError(error, 'Semantic search failed. Please try again.'),
+            details: error.message
+        };
     }
 }
 
