@@ -286,11 +286,15 @@ npm install
 ```
 
 ### 3. Environment Variables
-Create a `.env` file in the root directory and add your Gemini API Key:
+Create a `.env` file in the root directory:
 ```env
 VITE_GEMINI_API_KEY=your_gemini_api_key_here
+VITE_GEMINI_MODEL=gemini-2.5-flash
+# Optional: VITE_AI_PROVIDER=groq and VITE_GROQ_API_KEY=... for Groq primary / failover
 ```
 > [!NOTE]
+> Use `gemini-2.5-flash` (not `gemini-2.0-flash`). The 2.0 Flash free tier no longer has quota (`limit: 0`). The app also falls back across Gemini 2.5 models and to Groq when rate-limited.
+>
 > Supabase credentials are currently configured in `src/config/supabaseClient.js`. In a production environment, these should also be moved to environment variables.
 
 ### 4. Run Development Server
@@ -308,7 +312,10 @@ Omni Bible is optimized for deployment on **Vercel**.
 ### Automatic Deployment (Recommended)
 1. Push your code to a GitHub repository.
 2. Connect the repository to [Vercel](https://vercel.com/).
-3. Add the `VITE_GEMINI_API_KEY` to the **Environment Variables** section in the Vercel dashboard.
+3. Add these to the **Environment Variables** section in the Vercel dashboard:
+   - `VITE_GEMINI_API_KEY`
+   - `VITE_GEMINI_MODEL=gemini-2.5-flash` (recommended; avoid `gemini-2.0-flash` on free tier)
+   - Optional: `VITE_GROQ_API_KEY` for automatic failover when Gemini is rate-limited
 4. Vercel will automatically detect Vite and deploy the application.
 
 ### Manual Build

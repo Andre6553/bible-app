@@ -1,86 +1,24 @@
 import { supabase } from '../config/supabaseClient';
 import { getUserId, logActivity } from './bibleService';
 import { logApiCall } from './adminService';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+    generateAiText,
+    getAiModelLabel,
+    getAiProvider
+} from './aiProvider';
 
 /**
  * SERMON SERVICE
  * Handles CRUD for sermons and AI Generation for Exegesis/Structure
  */
 
-const AI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini').toLowerCase();
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash';
-const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || 'llama-3.1-8b-instant';
+const AI_PROVIDER = getAiProvider();
 
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
-
-const getAiModelLabel = () => {
-    if (AI_PROVIDER === 'groq') return GROQ_MODEL;
-    return GEMINI_MODEL;
-};
-
-const generateSermonAiText = async (prompt, generationConfig = {}) => {
-    if (AI_PROVIDER === 'groq') {
-        if (!GROQ_API_KEY) {
-            throw new Error('Groq API key is missing. Set VITE_GROQ_API_KEY in .env');
-        }
-
-        const body = {
-            model: GROQ_MODEL,
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.5
-        };
-        if (generationConfig?.maxOutputTokens) {
-            body.max_tokens = generationConfig.maxOutputTokens;
-        }
-
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${GROQ_API_KEY}`
-            },
-            body: JSON.stringify(body)
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            if ((response.status === 429 || response.status >= 500) && geminiModel) {
-                console.warn(`Groq unavailable (${response.status}) for sermon generation, falling back to Gemini.`);
-                const fallbackModel = genAI.getGenerativeModel({
-                    model: GEMINI_MODEL,
-                    generationConfig
-                });
-                const geminiResult = await fallbackModel.generateContent(prompt);
-                const geminiResponse = await geminiResult.response;
-                return geminiResponse.text();
-            }
-            throw new Error(`Groq API error (${response.status}): ${errText}`);
-        }
-
-        const data = await response.json();
-        const content = data?.choices?.[0]?.message?.content;
-        if (!content) {
-            throw new Error('Groq API returned empty content');
-        }
-        return content;
-    }
-
-    if (!geminiModel) {
-        throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY in .env');
-    }
-
-    const activeModel = genAI.getGenerativeModel({
-        model: GEMINI_MODEL,
-        generationConfig
-    });
-    const result = await activeModel.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-};
+const generateSermonAiText = async (prompt, generationConfig = {}) => generateAiText(prompt, {
+    temperature: generationConfig?.temperature ?? 0.5,
+    maxOutputTokens: generationConfig?.maxOutputTokens,
+    generationConfig
+});
 
 // ==========================================
 // ==========================================
