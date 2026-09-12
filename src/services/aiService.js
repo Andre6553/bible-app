@@ -3,11 +3,17 @@ import { supabase } from '../config/supabaseClient';
 import { logApiCall } from './adminService';
 import { logEvent } from './analyticsService';
 
-const AI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini').toLowerCase();
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.0-flash";
-const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || "llama-3.1-8b-instant";
+import {
+    AI_PROVIDER,
+    GEMINI_API_KEY,
+    GROQ_API_KEY,
+    GEMINI_MODEL,
+    GROQ_MODEL,
+    GROQ_CHAT_URL,
+    buildGroqChatBody,
+    extractGroqMessageContent,
+    shouldFallbackFromGroq,
+} from '../config/aiConfig';
 
 // Initialize Gemini only when configured
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -25,23 +31,18 @@ async function generateAiText(prompt) {
             throw new Error('Groq API key is missing. Set VITE_GROQ_API_KEY in .env');
         }
 
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const response = await fetch(GROQ_CHAT_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${GROQ_API_KEY}`
             },
-            body: JSON.stringify({
-                model: GROQ_MODEL,
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.4
-            })
+            body: JSON.stringify(buildGroqChatBody(prompt, { temperature: 0.4 })),
         });
 
         if (!response.ok) {
             const errText = await response.text();
-            // If Groq is temporarily rate-limited, fallback to Gemini when available.
-            if ((response.status === 429 || response.status >= 500) && model) {
+            if (shouldFallbackFromGroq(response.status) && model) {
                 console.warn(`Groq unavailable (${response.status}), falling back to Gemini.`);
                 const geminiResult = await model.generateContent(prompt);
                 const geminiResponse = await geminiResult.response;
@@ -51,9 +52,15 @@ async function generateAiText(prompt) {
         }
 
         const data = await response.json();
-        const content = data?.choices?.[0]?.message?.content;
+        const { content, finishReason } = extractGroqMessageContent(data);
         if (!content) {
-            throw new Error('Groq API returned an empty response');
+            if (model) {
+                console.warn(`Groq empty content (finish_reason=${finishReason}), falling back to Gemini.`);
+                const geminiResult = await model.generateContent(prompt);
+                const geminiResponse = await geminiResult.response;
+                return geminiResponse.text();
+            }
+            throw new Error(`Groq API returned an empty response (finish_reason=${finishReason ?? 'unknown'})`);
         }
         return content;
     }
