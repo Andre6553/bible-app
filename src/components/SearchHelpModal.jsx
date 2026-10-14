@@ -29,10 +29,10 @@ const SearchHelpModal = ({ onClose, language }) => {
                 "**Multi-Word:** In Exact Match, use commas to find verses containing ANY of the words. Example: 'grace, mercy'.",
                 "**Parallel View:** Use the split-view icon in the reader to compare two versions (e.g., KJV and NLT) side-by-side.",
                 "**Smart Sync:** Your reading progress is automatically saved to your profile and synced across all your devices.",
-                "**Back Button:** On Android, the back button safely closes search results or the AI modal instead of exiting the app."
+                "**Back Button:** On Android, the back button safely closes search results or the Bible Search modal instead of exiting the app."
             ],
-            aiTitle: "🤖 AI Research Lab",
-            aiDesc: "Use the 'Ask AI' button or type these lightning shortcuts for deep biblical study:",
+            aiTitle: "🤖 Bible Search",
+            aiDesc: "Use the 'Bible Search' button or type these lightning shortcuts for deep biblical study:",
             shortcuts: [
                 { cmd: "/story", desc: "Tell me the story of..." },
                 { cmd: "/explain", desc: "Explain from the Bible..." },
@@ -67,10 +67,10 @@ const SearchHelpModal = ({ onClose, language }) => {
                 "**Veelvuldige Woorde:** In Presiese Soektog, gebruik kommas om verse te vind wat ENIGE van die woorde bevat. Bv: 'vader, seun'.",
                 "**Parallelle Lees:** Gebruik die verdeelde-skerm ikoon om twee weergawes langs mekaar te vergelyk.",
                 "**Slim Sinchronisasie:** Jou leespunt word outomaties op jou profiel gestoor en met al jou toestelle gesinchroniseer.",
-                "**Terug-knoppie:** Op Android maak die terug-knoppie soekresultate of die AI venster toe in plaas daarvan om die app te sluit."
+                "**Terug-knoppie:** Op Android maak die terug-knoppie soekresultate of die Bybelsoek venster toe in plaas daarvan om die app te sluit."
             ],
-            aiTitle: "🤖 AI Navorsing Laboratorium",
-            aiDesc: "Gebruik die 'Vra AI' knoppie of tik hierdie kortpaaie vir diep bybelstudie:",
+            aiTitle: "🤖 Bybelsoek",
+            aiDesc: "Gebruik die 'Bybelsoek' knoppie of tik hierdie kortpaaie vir diep bybelstudie:",
             shortcuts: [
                 { cmd: "/story", desc: "Vertel my die storie van..." },
                 { cmd: "/explain", desc: "Verduidelik vanuit die Bybel..." },

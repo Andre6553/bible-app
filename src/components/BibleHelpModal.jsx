@@ -29,12 +29,12 @@ const BibleHelpModal = ({ onClose, language }) => {
                     text: "Go to the **Search** tab to find verses by keyword. Supports **multi-word search** (e.g., 'grace, mercy') to find verses with ANY of the words. You can filter by Bible version and Testament (Old/New)."
                 },
                 {
-                    title: "🤖 AI Research",
+                    title: "🤖 Bible Search",
                     text: "Ask any Bible question! Click **'Bible Search'** in Search to get AI-powered answers with scripture references. Click the references to jump directly to those verses."
                 },
                 {
-                    title: "⚡ AI Shortcuts",
-                    text: "Use quick commands in AI Research for faster questions:",
+                    title: "⚡ Bible Search Shortcuts",
+                    text: "Use quick commands in Bible Search for faster questions:",
                     shortcuts: [
                         { cmd: "/story", desc: "Tell me the story of..." },
                         { cmd: "/explain", desc: "Explain..." },
@@ -106,12 +106,12 @@ const BibleHelpModal = ({ onClose, language }) => {
                     text: "Gaan na die **Soek** (Search) oortjie om verse per sleutelwoord te vind. Ondersteun **veelvuldige woordsoektog** (bv. 'genade, barmhartigheid'). Jy kan filter volgens Bybelweergawe en Testament (Ou/Nuut)."
                 },
                 {
-                    title: "🤖 AI Navorsing",
-                    text: "Vra enige Bybelvraag! Klik **'Bible Search'** in Soek om AI-gegenereerde antwoorde met skrifverwysings te kry. Klik op die verwysings om direk na daardie verse te gaan."
+                    title: "🤖 Bybelsoek",
+                    text: "Vra enige Bybelvraag! Klik **'Bybelsoek'** in Soek om AI-gegenereerde antwoorde met skrifverwysings te kry. Klik op die verwysings om direk na daardie verse te gaan."
                 },
                 {
-                    title: "⚡ AI Kortpaaie",
-                    text: "Gebruik vinnige opdragte in AI Navorsing vir vinniger vrae:",
+                    title: "⚡ Bybelsoek Kortpaaie",
+                    text: "Gebruik vinnige opdragte in Bybelsoek vir vinniger vrae:",
                     shortcuts: [
                         { cmd: "/story", desc: "Vertel my die storie van..." },
                         { cmd: "/explain", desc: "Verduidelik..." },
