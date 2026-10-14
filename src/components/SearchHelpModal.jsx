@@ -10,7 +10,7 @@ const SearchHelpModal = ({ onClose, language }) => {
 
     const content = {
         en: {
-            title: "How to use Search & AI",
+            title: "How to use Search",
             searchTitle: "🔍 Search Modes",
             searchDesc: "Choose the mode that fits your needs best:",
             modes: [
@@ -19,7 +19,7 @@ const SearchHelpModal = ({ onClose, language }) => {
                     desc: "Finds verses containing the specific words or phrases you type. Perfect for finding a direct verse or a specific keyword like 'grace' or 'psalm 23'."
                 },
                 {
-                    name: "Concept Search (AI)",
+                    name: "Concept Search",
                     desc: "Finds verses based on the meaning, theme, or feeling of your query. Great for questions like 'how to handle anxiety' or 'God's promises for the future' even if those exact words aren't in the verse."
                 }
             ],
@@ -29,10 +29,10 @@ const SearchHelpModal = ({ onClose, language }) => {
                 "**Multi-Word:** In Exact Match, use commas to find verses containing ANY of the words. Example: 'grace, mercy'.",
                 "**Parallel View:** Use the split-view icon in the reader to compare two versions (e.g., KJV and NLT) side-by-side.",
                 "**Smart Sync:** Your reading progress is automatically saved to your profile and synced across all your devices.",
-                "**Back Button:** On Android, the back button safely closes search results or the AI modal instead of exiting the app."
+                "**Back Button:** On Android, the back button safely closes search results or the Bible Search modal instead of exiting the app."
             ],
-            aiTitle: "🤖 AI Research Lab",
-            aiDesc: "Use the 'Ask AI' button or type these lightning shortcuts for deep biblical study:",
+            aiTitle: "🤖 Bible Search Lab",
+            aiDesc: "Use the 'Bible Search' button or type these lightning shortcuts for deep biblical study:",
             shortcuts: [
                 { cmd: "/story", desc: "Tell me the story of..." },
                 { cmd: "/explain", desc: "Explain from the Bible..." },
@@ -48,7 +48,7 @@ const SearchHelpModal = ({ onClose, language }) => {
             close: "Close"
         },
         af: {
-            title: "Hoe om Soektog & AI te gebruik",
+            title: "Hoe om Soektog te gebruik",
             searchTitle: "🔍 Soek Metodes",
             searchDesc: "Kies die metode wat die beste by jou behoeftes pas:",
             modes: [
@@ -57,7 +57,7 @@ const SearchHelpModal = ({ onClose, language }) => {
                     desc: "Vind verse wat die spesifieke woorde of frases bevat wat jy tik. Ideaal om 'n direkte vers of 'n spesifieke trefwoord soos 'genade' of 'psalm 23' te vind."
                 },
                 {
-                    name: "Konsep-soektog (AI)",
+                    name: "Konsep-soektog",
                     desc: "Vind verse gebaseer op die betekenis, tema, of gevoel van jou navraag. Uitstekend vir vrae soos 'hoe om angs te hanteer' of 'God se beloftes vir die toekoms'."
                 }
             ],
@@ -67,10 +67,10 @@ const SearchHelpModal = ({ onClose, language }) => {
                 "**Veelvuldige Woorde:** In Presiese Soektog, gebruik kommas om verse te vind wat ENIGE van die woorde bevat. Bv: 'vader, seun'.",
                 "**Parallelle Lees:** Gebruik die verdeelde-skerm ikoon om twee weergawes langs mekaar te vergelyk.",
                 "**Slim Sinchronisasie:** Jou leespunt word outomaties op jou profiel gestoor en met al jou toestelle gesinchroniseer.",
-                "**Terug-knoppie:** Op Android maak die terug-knoppie soekresultate of die AI venster toe in plaas daarvan om die app te sluit."
+                "**Terug-knoppie:** Op Android maak die terug-knoppie soekresultate of die Bybelsoek-venster toe in plaas daarvan om die app te sluit."
             ],
-            aiTitle: "🤖 AI Navorsing Laboratorium",
-            aiDesc: "Gebruik die 'Vra AI' knoppie of tik hierdie kortpaaie vir diep bybelstudie:",
+            aiTitle: "🤖 Bybelsoek Laboratorium",
+            aiDesc: "Gebruik die 'Bybelsoek' knoppie of tik hierdie kortpaaie vir diep bybelstudie:",
             shortcuts: [
                 { cmd: "/story", desc: "Vertel my die storie van..." },
                 { cmd: "/explain", desc: "Verduidelik vanuit die Bybel..." },
