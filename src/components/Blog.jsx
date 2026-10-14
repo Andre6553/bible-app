@@ -112,6 +112,7 @@ function Blog() {
 
         try {
             const userId = await getUserId();
+            let loadError = null;
 
             // Load all content
             const [postsResult, devotionalResult, trendingResult, interestsResult, keywordsResult] = await Promise.all([
@@ -124,10 +125,14 @@ function Blog() {
 
             if (postsResult.success) {
                 setPosts(postsResult.posts);
+            } else if (postsResult.error) {
+                loadError = postsResult.error;
             }
 
             if (devotionalResult.success) {
                 setDevotional(devotionalResult.devotional);
+            } else if (devotionalResult.error && !loadError) {
+                loadError = devotionalResult.error;
             }
 
             if (trendingResult.success) {
@@ -139,6 +144,10 @@ function Blog() {
             }
 
             setSearchKeywords(keywordsResult || []);
+
+            if (loadError) {
+                setError(loadError);
+            }
         } catch (err) {
             console.error('Error loading blog content:', err);
             setError('Could not load content. Please try again.');
