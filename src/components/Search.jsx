@@ -1607,7 +1607,7 @@ Here are the available shortcuts to quickly ask questions:
                                 onClick={handleAskAI}
                                 disabled={quotaInfo.remaining <= 0}
                             >
-                                <AIIcon className="inline-icon" /> AI Research
+                                <AIIcon className="inline-icon" /> Bible Search
                             </button>
                         </div>
                     </form>
