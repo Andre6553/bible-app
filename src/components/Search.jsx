@@ -17,6 +17,7 @@ import ColorPickerModal from './ColorPickerModal';
 import TutorialOverlay from './TutorialOverlay';
 import { useBackButton } from './BackButtonHandler';
 import { copyToClipboard } from '../utils/appUtils';
+import { shouldShowSubscriptionPromo } from '../utils/subscription';
 
 const AI_SESSION_KEY = 'bible_ai_session';
 const AI_RETURN_KEY = 'bible_ai_return';
@@ -134,7 +135,7 @@ function Search({ currentVersion, versions }) {
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
-    const { settings, profile } = useSettings();
+    const { settings, profile, profileLoading, user } = useSettings();
 
     // Localization
     const isAf = settings.language === 'af';
@@ -268,7 +269,7 @@ function Search({ currentVersion, versions }) {
             target: '.ai-research-modal',
             title: settings.language === 'af' ? 'Bybelsoek Gevorderd' : 'Bible Search Advanced',
             content: settings.language === 'af'
-                ? 'Welkom by die Bybelsoek-sentrum. Hier kan jy dieper delf in die Skrif.'
+                ? 'Welkom by die Bybelsoek sentrum. Hier kan jy dieper delf in die Skrif.'
                 : 'Welcome to the Bible Search center. Here you can delve deeper into Scripture.'
         },
         {
@@ -1500,8 +1501,8 @@ Here are the available shortcuts to quickly ask questions:
                     </button>
                 </div>
 
-                {/* [NEW] Subscriber Promo Button - Show to Guests AND Free Users */}
-                {(!profile || (!profile.subscription_tier || profile.subscription_tier === 'free')) && (
+                {/* Subscriber promo: guests + free users only (no flash while profile loads) */}
+                {shouldShowSubscriptionPromo({ user, profile, profileLoading }) && (
                     <button
                         className="subscriber-promo-btn"
                         onClick={() => navigate('/subscription')}
@@ -1808,9 +1809,7 @@ Here are the available shortcuts to quickly ask questions:
                                         onClick={handleAskAI}
                                         disabled={quotaInfo.remaining <= 0}
                                     >
-                                        {settings.language === 'af'
-                                            ? `🤖 Bybelsoek (${quotaInfo.remaining} oor)`
-                                            : `🤖 Bible Search (${quotaInfo.remaining} left)`}
+                                        🤖 {settings.language === 'af' ? 'Bybelsoek' : 'Bible Search'} ({quotaInfo.remaining} {settings.language === 'af' ? 'oor' : 'left'})
                                     </button>
                                 </div>
                             </div>

@@ -13,6 +13,7 @@ import {
     extractGroqMessageContent,
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
+import { isPremiumProfile } from '../utils/subscription';
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const model = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
@@ -106,11 +107,7 @@ export const checkDailyLimit = async (userId) => {
         if (pError && pError.code !== 'PGRST116') throw pError;
 
         const override = profile?.subscription_override;
-        const expiry = profile?.subscription_expiry;
-        const isPremium = profile?.subscription_tier === 'premium' ||
-            override === 'premium' ||
-            override === 'tester' ||
-            (expiry && new Date(expiry) > new Date());
+        const isPremium = isPremiumProfile(profile);
 
         const isAdmin = override === 'admin';
 

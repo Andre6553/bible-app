@@ -6,6 +6,7 @@ import { supabase } from '../config/supabaseClient';
 import md5 from 'crypto-js/md5';
 import { logEvent } from '../services/analyticsService';
 import './SubscriptionPage.css';
+import { isPremiumProfile } from '../utils/subscription';
 
 const SubscriptionPage = () => {
     const navigate = useNavigate();
@@ -25,12 +26,7 @@ const SubscriptionPage = () => {
     const [userIP, setUserIP] = React.useState(null);
     const [isDiscountEligible, setIsDiscountEligible] = React.useState(true); // Default to Eligible (Optimistic)
 
-    // Calculate Premium Status for UI
-    const isPremium = contextProfile?.subscription_override === 'premium' ||
-        contextProfile?.subscription_override === 'admin' ||
-        contextProfile?.subscription_override === 'tester' ||
-        contextProfile?.subscription_tier === 'premium' ||
-        (contextProfile?.subscription_expiry && new Date(contextProfile.subscription_expiry) > new Date());
+    const isPremium = isPremiumProfile(contextProfile);
 
     React.useEffect(() => {
         const detectLocationAndIP = async () => {
@@ -204,13 +200,7 @@ const SubscriptionPage = () => {
                 profile = data;
             }
 
-            const isPremium = profile?.subscription_override === 'premium' ||
-                profile?.subscription_override === 'admin' ||
-                profile?.subscription_override === 'tester';
-
-            const hasValidExpiry = profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date();
-
-            if (isPremium || hasValidExpiry) {
+            if (isPremiumProfile(profile)) {
                 clearTimeout(safetyTimeout);
                 const expiry = profile?.subscription_expiry
                     ? new Date(profile.subscription_expiry).toLocaleDateString(undefined, { dateStyle: 'long' })

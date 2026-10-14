@@ -19,6 +19,7 @@ import {
     extractGroqMessageContent,
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
+import { isPremiumProfile } from '../utils/subscription';
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
@@ -320,11 +321,7 @@ const checkAndIncrementAiUsage = async () => {
     const currentUsage = resetHappened ? 0 : (profile?.ai_usage_count || 0);
 
     const override = profile?.subscription_override;
-    const expiry = profile?.subscription_expiry;
-    const isPremium = override === 'premium' ||
-        override === 'admin' ||
-        override === 'tester' ||
-        (expiry && new Date(expiry) > new Date());
+    const isPremium = isPremiumProfile(profile);
 
     // 2. Enforce Limit
     let limit = 50;

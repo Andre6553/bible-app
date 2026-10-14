@@ -31,7 +31,7 @@ const SearchHelpModal = ({ onClose, language }) => {
                 "**Smart Sync:** Your reading progress is automatically saved to your profile and synced across all your devices.",
                 "**Back Button:** On Android, the back button safely closes search results or the Bible Search modal instead of exiting the app."
             ],
-            aiTitle: "🤖 Bible Search Lab",
+            aiTitle: "🤖 Bible Search",
             aiDesc: "Use the 'Bible Search' button or type these lightning shortcuts for deep biblical study:",
             shortcuts: [
                 { cmd: "/story", desc: "Tell me the story of..." },
@@ -67,9 +67,9 @@ const SearchHelpModal = ({ onClose, language }) => {
                 "**Veelvuldige Woorde:** In Presiese Soektog, gebruik kommas om verse te vind wat ENIGE van die woorde bevat. Bv: 'vader, seun'.",
                 "**Parallelle Lees:** Gebruik die verdeelde-skerm ikoon om twee weergawes langs mekaar te vergelyk.",
                 "**Slim Sinchronisasie:** Jou leespunt word outomaties op jou profiel gestoor en met al jou toestelle gesinchroniseer.",
-                "**Terug-knoppie:** Op Android maak die terug-knoppie soekresultate of die Bybelsoek-venster toe in plaas daarvan om die app te sluit."
+                "**Terug-knoppie:** Op Android maak die terug-knoppie soekresultate of die Bybelsoek venster toe in plaas daarvan om die app te sluit."
             ],
-            aiTitle: "🤖 Bybelsoek Laboratorium",
+            aiTitle: "🤖 Bybelsoek",
             aiDesc: "Gebruik die 'Bybelsoek' knoppie of tik hierdie kortpaaie vir diep bybelstudie:",
             shortcuts: [
                 { cmd: "/story", desc: "Vertel my die storie van..." },

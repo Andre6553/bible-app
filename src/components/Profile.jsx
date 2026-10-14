@@ -17,6 +17,7 @@ import TutorialOverlay from './TutorialOverlay';
 import { getActivePlan, getProgressStats } from '../services/readingPlanService';
 import './Profile.css';
 import './ReadingPlans.css';
+import { isPremiumProfile } from '../utils/subscription';
 
 function Profile() {
     const navigate = useNavigate();
@@ -769,10 +770,7 @@ function Profile() {
                     border: '1px solid var(--border-color)'
                 }}>
                     {(() => {
-                        const isPremium = profile?.subscription_override === 'premium' ||
-                            profile?.subscription_override === 'admin' ||
-                            profile?.subscription_override === 'tester' ||
-                            (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
+                        const isPremium = isPremiumProfile(profile);
 
                         return isPremium ? (
                             <>
