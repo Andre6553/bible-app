@@ -22,6 +22,7 @@ import {
     extractGroqMessageContent,
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
+import { isPremiumProfile } from '../utils/subscription';
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
@@ -726,15 +727,7 @@ export const isSuperUser = async (userId) => {
             }
 
             // B. Paid Subscribers automatically become Super Users (Req: Sub -> Super)
-            const override = profile.subscription_override;
-            const expiry = profile.subscription_expiry;
-            const isPremium = profile.subscription_tier === 'premium' ||
-                override === 'premium' ||
-                override === 'admin' ||
-                override === 'tester' ||
-                (expiry && new Date(expiry) > new Date());
-
-            if (isPremium) {
+            if (isPremiumProfile(profile)) {
                 console.log(`🔓 Paid Subscriber auto-promoted to Super User benefits: ${userId}`);
                 return true;
             }
@@ -767,6 +760,21 @@ const isCacheValid = (lastRefresh, expiryMs) => {
     return elapsed < expiryMs;
 };
 
+const DEVOTIONAL_PLACEHOLDER_TITLE = 'Pending';
+const DEVOTIONAL_PLACEHOLDER_CONTENT = 'Devotional pending generation';
+
+const hasCachedRecommendedArticles = (articles) =>
+    Array.isArray(articles) && articles.length > 0;
+
+const isUsableDevotionalContent = (content, title) => {
+    if (!content || typeof content !== 'string') return false;
+    const trimmed = content.trim();
+    if (!trimmed) return false;
+    if (trimmed === DEVOTIONAL_PLACEHOLDER_CONTENT) return false;
+    if (title === DEVOTIONAL_PLACEHOLDER_TITLE) return false;
+    return true;
+};
+
 /**
  * Check refresh cooldown status for UI display
  * Returns { canRefresh, remainingMinutes, message }
@@ -777,6 +785,8 @@ export const checkRefreshCooldown = async (userId) => {
         if (!userId) userId = await getUserId();
 
         if (userId.startsWith('user_')) {
+            const expiryMs = await getCacheExpiryMs();
+            const rateLimited = await isRateLimitEnabled();
             const guestCache = localStorage.getItem('omni_guest_devotional_cache');
             if (guestCache) {
                 const parsed = JSON.parse(guestCache);
@@ -871,7 +881,9 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
                 const guestCache = localStorage.getItem('omni_guest_articles_cache');
                 if (guestCache) {
                     const parsed = JSON.parse(guestCache);
-                    if (parsed.language === language && isCacheValid(parsed.last_refresh, expiryMs)) {
+                    if (parsed.language === language &&
+                        hasCachedRecommendedArticles(parsed.articles) &&
+                        isCacheValid(parsed.last_refresh, expiryMs)) {
                         console.log(`Returning GUEST cached recommended articles (${language})`);
                         return {
                             success: true,
@@ -891,8 +903,8 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
                     .limit(1)
                     .single();
 
-                // Return cached articles ONLY if valid and language matches
-                if (!cacheError && cached?.recommended_articles && cached?.last_refresh) {
+                // Return cached articles ONLY if valid, non-empty, and language matches
+                if (!cacheError && hasCachedRecommendedArticles(cached?.recommended_articles) && cached?.last_refresh) {
                     // Check if language matches (we store 'af' or 'en' as the first topic in the cache)
                     const cacheLang = cached.topics?.[0];
                     const isLangMatch = cacheLang === language;
@@ -927,6 +939,14 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
         );
 
         const successfulArticles = articles.filter(a => a !== null);
+
+        if (successfulArticles.length === 0) {
+            return {
+                success: false,
+                error: 'Could not generate personalized articles. Please try again.',
+                posts: [],
+            };
+        }
 
         // [GUEST PROTECTION] Save to local storage and skip cloud caching for guest users
         if (userId.startsWith('user_')) {
@@ -965,8 +985,8 @@ export const getRecommendedPosts = async (userId, forceGenerate = false, languag
                 .insert({
                     user_id: userId,
                     generated_date: today,
-                    title: 'Pending',
-                    content: 'Devotional pending generation',
+                    title: DEVOTIONAL_PLACEHOLDER_TITLE,
+                    content: DEVOTIONAL_PLACEHOLDER_CONTENT,
                     topics: [language, ...finalTopics], // Store language tag first
                     recommended_articles: successfulArticles,
                     last_refresh: now
@@ -1139,8 +1159,9 @@ export const getDailyDevotional = async (userId, forceGenerate = false, language
                     .limit(1)
                     .single();
 
-                // Return cached ONLY if valid and language matches
-                if (!existingError && existing && existing.content && existing.last_refresh) {
+                // Return cached ONLY if valid, real content, and language matches
+                if (!existingError && existing && existing.last_refresh &&
+                    isUsableDevotionalContent(existing.content, existing.title)) {
                     // Check language tag stored in topics[0]
                     const cacheLang = existing.topics?.[0];
                     const isLangMatch = cacheLang === language;
@@ -1221,16 +1242,29 @@ export const getDailyDevotional = async (userId, forceGenerate = false, language
             };
         }
 
+        const { data: existingRow } = await supabase
+            .from('user_devotionals')
+            .select('recommended_articles')
+            .eq('user_id', userId)
+            .eq('generated_date', today)
+            .maybeSingle();
+
+        const devotionalUpsert = {
+            user_id: userId,
+            title: devotionalContent.title,
+            content: devotionalContent.content,
+            topics: [language, ...finalTopics], // Store language first
+            generated_date: today,
+            last_refresh: new Date().toISOString()
+        };
+
+        if (hasCachedRecommendedArticles(existingRow?.recommended_articles)) {
+            devotionalUpsert.recommended_articles = existingRow.recommended_articles;
+        }
+
         const { data: saved, error: saveError } = await supabase
             .from('user_devotionals')
-            .upsert({
-                user_id: userId,
-                title: devotionalContent.title,
-                content: devotionalContent.content,
-                topics: [language, ...finalTopics], // Store language first
-                generated_date: today,
-                last_refresh: new Date().toISOString()
-            }, {
+            .upsert(devotionalUpsert, {
                 onConflict: 'user_id,generated_date'
             })
             .select()

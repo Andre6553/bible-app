@@ -14,6 +14,7 @@ import {
     extractGroqMessageContent,
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
+import { isPremiumProfile } from '../utils/subscription';
 
 // Initialize Gemini only when configured
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -302,13 +303,7 @@ export async function getUserRemainingQuota(userId) {
             .eq('user_id', userId)
             .single();
 
-        const override = profile?.subscription_override;
-        const expiry = profile?.subscription_expiry;
-        const isPremium = profile?.subscription_tier === 'premium' ||
-            override === 'premium' ||
-            override === 'admin' ||
-            override === 'tester' ||
-            (expiry && new Date(expiry) > new Date());
+        const isPremium = isPremiumProfile(profile);
 
         // If Premium/Subscriber -> UNLIMITED QUOTA
         if (isPremium) {
