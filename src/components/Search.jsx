@@ -225,7 +225,7 @@ function Search({ currentVersion, versions }) {
         },
         {
             target: '#tutorial-ai-research',
-            title: settings.language === 'af' ? 'AI Navorsing' : 'AI Research',
+            title: settings.language === 'af' ? 'Bybelsoek' : 'Bible Search',
             content: settings.language === 'af'
                 ? 'Stel diep vrae vir historiese en teologiese konteks. Dit gaan verder as net soek.'
                 : 'Ask deep questions for historical and theological context. This goes beyond just searching.'
@@ -267,10 +267,10 @@ function Search({ currentVersion, versions }) {
         },
         {
             target: '.ai-research-modal',
-            title: settings.language === 'af' ? 'AI Navorsing Gevorderd' : 'AI Research Advanced',
+            title: settings.language === 'af' ? 'Bybelsoek Gevorderd' : 'Bible Search Advanced',
             content: settings.language === 'af'
-                ? 'Welkom by die AI Navorsing sentrum. Hier kan jy dieper delf in die Skrif.'
-                : 'Welcome to the AI Research center. Here you can delve deeper into Scripture.'
+                ? 'Welkom by die Bybelsoek sentrum. Hier kan jy dieper delf in die Skrif.'
+                : 'Welcome to the Bible Search center. Here you can delve deeper into Scripture.'
         },
         {
             target: '#tutorial-ai-shortcuts-modal',
@@ -423,7 +423,7 @@ function Search({ currentVersion, versions }) {
     ];
 
     const t = {
-        aiTitle: settings.language === 'af' ? 'AI Bybel Navorsing' : 'AI Bible Research',
+        aiTitle: settings.language === 'af' ? 'Bybelsoek' : 'Bible Search',
         backToResults: settings.language === 'af' ? '⬅ Terug na Resultate' : '⬅ Back to Results',
         askQuestion: settings.language === 'af' ? 'Stel jou vraag:' : 'Ask your question:',
         aiPlaceholder: settings.language === 'af' ? 'b.v., Wat sê die Bybel oor geloof? Hoe moet Christene op lyding reageer?' : 'e.g., What does the Bible say about faith? How should Christians respond to suffering?',
@@ -1549,7 +1549,7 @@ Here are the available shortcuts to quickly ask questions:
                                     zIndex: 1000,
                                     marginTop: '5px'
                                 }}>
-                                    <div className="shortcut-header">⚡ Quick AI Research</div>
+                                    <div className="shortcut-header">{settings.language === 'af' ? '⚡ Vinnige Bybelsoek' : '⚡ Quick Bible Search'}</div>
                                     {AI_SHORTCUTS.map((item) => (
                                         <button
                                             key={item.cmd}
@@ -1598,7 +1598,7 @@ Here are the available shortcuts to quickly ask questions:
                                 disabled={loading || !searchQuery.trim()}
                             >
                                 {loading ? '...' : (searchQuery.startsWith('/') ? <AIIcon className="inline-icon" /> : (searchMode === 'semantic' ? '🪄 Concept Search' : '🔍 Exact Search'))}
-                                {searchQuery.startsWith('/') && ' Ask AI'}
+                                {searchQuery.startsWith('/') && (settings.language === 'af' ? ' Bybelsoek' : ' Bible Search')}
                             </button>
                             <button
                                 type="button"
@@ -1607,7 +1607,7 @@ Here are the available shortcuts to quickly ask questions:
                                 onClick={handleAskAI}
                                 disabled={quotaInfo.remaining <= 0}
                             >
-                                <AIIcon className="inline-icon" /> Bible Search
+                                <AIIcon className="inline-icon" /> {settings.language === 'af' ? 'Bybelsoek' : 'Bible Search'}
                             </button>
                         </div>
                     </form>
@@ -1809,7 +1809,7 @@ Here are the available shortcuts to quickly ask questions:
                                         onClick={handleAskAI}
                                         disabled={quotaInfo.remaining <= 0}
                                     >
-                                        🤖 Ask AI ({quotaInfo.remaining} left)
+                                        🤖 {settings.language === 'af' ? 'Bybelsoek' : 'Bible Search'} ({quotaInfo.remaining} {settings.language === 'af' ? 'oor' : 'left'})
                                     </button>
                                 </div>
                             </div>
