@@ -30,7 +30,7 @@ const BibleHelpModal = ({ onClose, language }) => {
                 },
                 {
                     title: "🤖 Bible Search",
-                    text: "Ask any Bible question! Click **'Bible Search'** in Search to get AI-powered answers with scripture references. Click the references to jump directly to those verses."
+                    text: "Ask any Bible question! Click **'Bible Search'** in Search to get Bible Search answers with scripture references. Click the references to jump directly to those verses."
                 },
                 {
                     title: "⚡ Bible Search Shortcuts",
@@ -107,7 +107,7 @@ const BibleHelpModal = ({ onClose, language }) => {
                 },
                 {
                     title: "🤖 Bybelsoek",
-                    text: "Vra enige Bybelvraag! Klik **'Bybelsoek'** in Soek om AI-gegenereerde antwoorde met skrifverwysings te kry. Klik op die verwysings om direk na daardie verse te gaan."
+                    text: "Vra enige Bybelvraag! Klik **'Bybelsoek'** in Soek om Bybelsoek-antwoorde met skrifverwysings te kry. Klik op die verwysings om direk na daardie verse te gaan."
                 },
                 {
                     title: "⚡ Bybelsoek Kortpaaie",

@@ -10,7 +10,7 @@ const SearchHelpModal = ({ onClose, language }) => {
 
     const content = {
         en: {
-            title: "How to use Search & AI",
+            title: "How to use Search",
             searchTitle: "🔍 Search Modes",
             searchDesc: "Choose the mode that fits your needs best:",
             modes: [
@@ -19,7 +19,7 @@ const SearchHelpModal = ({ onClose, language }) => {
                     desc: "Finds verses containing the specific words or phrases you type. Perfect for finding a direct verse or a specific keyword like 'grace' or 'psalm 23'."
                 },
                 {
-                    name: "Concept Search (AI)",
+                    name: "Concept Search",
                     desc: "Finds verses based on the meaning, theme, or feeling of your query. Great for questions like 'how to handle anxiety' or 'God's promises for the future' even if those exact words aren't in the verse."
                 }
             ],
@@ -48,7 +48,7 @@ const SearchHelpModal = ({ onClose, language }) => {
             close: "Close"
         },
         af: {
-            title: "Hoe om Soektog & AI te gebruik",
+            title: "Hoe om Soektog te gebruik",
             searchTitle: "🔍 Soek Metodes",
             searchDesc: "Kies die metode wat die beste by jou behoeftes pas:",
             modes: [
@@ -57,7 +57,7 @@ const SearchHelpModal = ({ onClose, language }) => {
                     desc: "Vind verse wat die spesifieke woorde of frases bevat wat jy tik. Ideaal om 'n direkte vers of 'n spesifieke trefwoord soos 'genade' of 'psalm 23' te vind."
                 },
                 {
-                    name: "Konsep-soektog (AI)",
+                    name: "Konsep-soektog",
                     desc: "Vind verse gebaseer op die betekenis, tema, of gevoel van jou navraag. Uitstekend vir vrae soos 'hoe om angs te hanteer' of 'God se beloftes vir die toekoms'."
                 }
             ],

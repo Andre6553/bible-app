@@ -220,8 +220,8 @@ function Search({ currentVersion, versions }) {
             target: '#tutorial-search-mode',
             title: settings.language === 'af' ? 'Soek-Modusse' : 'Search Modes',
             content: settings.language === 'af'
-                ? 'Hier kan jy kies tussen "Presies" vir spesifieke woorde, of "Konsep" vir AI wat temas verstaan.'
-                : 'Here you can choose between "Exact" for specific words, or "Concept" for AI that understands themes.'
+                ? 'Hier kan jy kies tussen "Presies" vir spesifieke woorde, of "Konsep" vir Bybelsoek wat temas verstaan.'
+                : 'Here you can choose between "Exact" for specific words, or "Concept" for Bible Search that understands themes.'
         },
         {
             target: '#tutorial-ai-research',
@@ -283,12 +283,12 @@ function Search({ currentVersion, versions }) {
             target: '#tutorial-ai-quota',
             title: settings.language === 'af' ? 'Daaglikse Kwota' : 'Daily Quota',
             content: settings.language === 'af'
-                ? 'Gratis gebruikers het n daaglikse limiet. Intekenare geniet onbeperkte AI-vrae.'
-                : 'Free users have a daily limit. Subscribers enjoy unlimited AI questions.'
+                ? 'Gratis gebruikers het n daaglikse limiet. Intekenare geniet onbeperkte Bybelsoek-vrae.'
+                : 'Free users have a daily limit. Subscribers enjoy unlimited Bible Search questions.'
         },
         {
             target: '#tutorial-ai-history-modal',
-            title: settings.language === 'af' ? 'AI Geskiedenis' : 'AI History',
+            title: settings.language === 'af' ? 'Bybelsoek Geskiedenis' : 'Bible Search History',
             content: settings.language === 'af'
                 ? 'Bekyk jou vorige vrae en antwoorde hier om jou studie later voort te sit.'
                 : 'View your previous questions and answers here to continue your study later.'
@@ -429,7 +429,7 @@ function Search({ currentVersion, versions }) {
         aiPlaceholder: settings.language === 'af' ? 'b.v., Wat sê die Bybel oor geloof? Hoe moet Christene op lyding reageer?' : 'e.g., What does the Bible say about faith? How should Christians respond to suffering?',
         quickCommands: settings.language === 'af' ? '⚡ Vinnige Opdragte' : '⚡ Quick Commands',
         submitQuestion: settings.language === 'af' ? '💬 Stuur Vraag' : '💬 Submit Question',
-        thinking: settings.language === 'af' ? '⏳ AI dink tans...' : '⏳ AI is thinking...',
+        thinking: settings.language === 'af' ? '⏳ Bybelsoek dink tans...' : '⏳ Bible Search is thinking...',
         biblicalAnswer: settings.language === 'af' ? '📚 Bybelse Antwoord:' : '📚 Biblical Answer:',
         copy: settings.language === 'af' ? 'Kopieer' : 'Copy',
         copyConversation: settings.language === 'af' ? 'Kopieer hele gesprek' : 'Copy full conversation',
@@ -446,8 +446,8 @@ function Search({ currentVersion, versions }) {
             ? `📈 ${rem} vrae oor vandag (gebaseer op ${total} daaglikse limiet)`
             : `📈 ${rem} questions remaining today (based on ${total} daily limit)`,
         aiDisclaimer: settings.language === 'af'
-            ? 'AI-antwoorde is gebaseer op soekresultate en bybelse teks.'
-            : 'AI responses are based on search results and biblical text.',
+            ? 'Bybelsoek-antwoorde is gebaseer op soekresultate en bybelse teks.'
+            : 'Bible Search responses are based on search results and biblical text.',
         prevQuestions: (count) => settings.language === 'af'
             ? `📜 Vorige Vrae (${count})`
             : `📜 Previous Questions (${count})`,
@@ -456,11 +456,11 @@ function Search({ currentVersion, versions }) {
         followUpPlaceholder: settings.language === 'af'
             ? 'Vra \'n opvolgvraag oor hierdie antwoord...'
             : 'Ask a follow-up question about this answer...',
-        followUpHeading: settings.language === 'af' ? '💬 Gesels verder met die AI' : '💬 Continue the conversation',
+        followUpHeading: settings.language === 'af' ? '💬 Gesels verder met Bybelsoek' : '💬 Continue the conversation with Bible Search',
         askFollowUp: settings.language === 'af' ? '➤ Stuur Opvolgvraag' : '➤ Send Follow-up',
-        followUpThinking: settings.language === 'af' ? '⏳ AI dink...' : '⏳ AI is thinking...',
+        followUpThinking: settings.language === 'af' ? '⏳ Bybelsoek dink...' : '⏳ Bible Search is thinking...',
         youLabel: settings.language === 'af' ? 'Jy' : 'You',
-        aiLabel: settings.language === 'af' ? 'AI' : 'AI',
+        aiLabel: settings.language === 'af' ? 'Bybelsoek' : 'Bible Search',
         newConversation: settings.language === 'af' ? '＋ Nuwe Gesprek' : '＋ New Conversation'
     };
 
@@ -688,7 +688,7 @@ function Search({ currentVersion, versions }) {
 
         if (verseList.length === 0) return;
 
-        saveHighlightsIfMissing(verseList, AI_SEARCH_HIGHLIGHT_COLOR, 'AI Search')
+        saveHighlightsIfMissing(verseList, AI_SEARCH_HIGHLIGHT_COLOR, settings.language === 'af' ? 'Bybelsoek' : 'Bible Search')
             .then((result) => {
                 verseList.forEach((item) => {
                     aiHighlightedVersesRef.current.add(`${item.bookId}-${item.chapter}-${item.verse}`);
@@ -698,7 +698,7 @@ function Search({ currentVersion, versions }) {
                 }
             })
             .catch((err) => console.warn('AI verse auto-highlight failed', err));
-    }, [aiConversation, allBooks]);
+    }, [aiConversation, allBooks, settings.language]);
 
     // Hide the mobile bottom nav while the AI modal is open so it
     // doesn't overlap the follow-up input. Scoped to mobile via CSS;
@@ -823,8 +823,8 @@ function Search({ currentVersion, versions }) {
             const uid = currentUserId || await getUserId();
             if (uid && uid.startsWith('user_')) {
                 const promptMsg = settings.language === 'af'
-                    ? 'Om Semantiese (AI) soektog te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
-                    : 'To use Semantic (AI) Search, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+                    ? 'Om Konsep-soektog te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte Bybelsoek-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                    : 'To use Concept Search, you need to create a free account!\n\nCreating an account is FREE and includes limited Bible Search requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
 
                 if (window.confirm(promptMsg)) {
                     navigate('/auth');
@@ -1071,8 +1071,8 @@ function Search({ currentVersion, versions }) {
         const uid = currentUserId || await getUserId();
         if (uid && uid.startsWith('user_')) {
             const promptMsg = settings.language === 'af'
-                ? 'Om AI-kenmerke te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
-                : 'To use AI features, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+                ? 'Om Bybelsoek-kenmerke te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte Bybelsoek-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To use Bible Search features, you need to create a free account!\n\nCreating an account is FREE and includes limited Bible Search requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
 
             if (window.confirm(promptMsg)) {
                 navigate('/auth');
@@ -1105,7 +1105,7 @@ function Search({ currentVersion, versions }) {
         // Handle /help command - show shortcuts without calling AI
         if (processedQuestion.toLowerCase() === '/help' || processedQuestion.toLowerCase() === '/help ') {
             setAiLoading(false);
-            setAiResponse(`📚 **AI Shortcut Commands**
+            setAiResponse(`📚 **Bible Search Shortcut Commands**
 
 Here are the available shortcuts to quickly ask questions:
 
@@ -1140,7 +1140,7 @@ Here are the available shortcuts to quickly ask questions:
   Example: \`/Bible Verse God Love\` or \`/Bible Verse 5 verses describe God Love for Us in new Testament\`
 
 
-💡 **Tip:** Just type the shortcut followed by your topic and press Ask!`);
+💡 **Tip:** Just type the shortcut followed by your topic and press Bible Search!`);
             return;
         }
 
@@ -1239,8 +1239,8 @@ Here are the available shortcuts to quickly ask questions:
             if (result.quotaExceeded) {
                 setAiResponse('🔒 Daily Limit Reached. Upgrade for Unlimited Access.');
                 if (window.confirm(settings.language === 'af'
-                    ? 'Daaglikse AI-limiet bereik.\n\nWil jy opgradeer vir ONBEPERKTE toegang?'
-                    : 'Daily AI Limit Reached.\n\nWould you like to upgrade for UNLIMITED access?')) {
+                    ? 'Daaglikse Bybelsoek-limiet bereik.\n\nWil jy opgradeer vir ONBEPERKTE toegang?'
+                    : 'Daily Bible Search Limit Reached.\n\nWould you like to upgrade for UNLIMITED access?')) {
                     navigate('/subscription');
                 }
             } else {
@@ -1258,8 +1258,8 @@ Here are the available shortcuts to quickly ask questions:
         const uid = currentUserId || await getUserId();
         if (uid && uid.startsWith('user_')) {
             const promptMsg = settings.language === 'af'
-                ? 'Om AI-kenmerke te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
-                : 'To use AI features, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
+                ? 'Om Bybelsoek-kenmerke te gebruik, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte Bybelsoek-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
+                : 'To use Bible Search features, you need to create a free account!\n\nCreating an account is FREE and includes limited Bible Search requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
             if (window.confirm(promptMsg)) navigate('/auth');
             return;
         }
@@ -1322,8 +1322,8 @@ Here are the available shortcuts to quickly ask questions:
             setAiConversation([...conversationWithUser, { role: 'ai', content: errorText }]);
             if (result.quotaExceeded) {
                 if (window.confirm(settings.language === 'af'
-                    ? 'Daaglikse AI-limiet bereik.\n\nWil jy opgradeer vir ONBEPERKTE toegang?'
-                    : 'Daily AI Limit Reached.\n\nWould you like to upgrade for UNLIMITED access?')) {
+                    ? 'Daaglikse Bybelsoek-limiet bereik.\n\nWil jy opgradeer vir ONBEPERKTE toegang?'
+                    : 'Daily Bible Search Limit Reached.\n\nWould you like to upgrade for UNLIMITED access?')) {
                     navigate('/subscription');
                 }
             }
@@ -1879,7 +1879,7 @@ Here are the available shortcuts to quickly ask questions:
                                                         <span className="result-ref">
                                                             {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
                                                         </span>
-                                                        <span className="semantic-badge">AI Reason</span>
+                                                        <span className="semantic-badge">{settings.language === 'af' ? 'Bybelsoek Rede' : 'Bible Search Match'}</span>
                                                         <span className="result-version">
                                                             {verse.version}
                                                         </span>
