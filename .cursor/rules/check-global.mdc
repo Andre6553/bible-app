@@ -1,0 +1,18 @@
+﻿---
+description: Always consult Andre's global rules when working in this project
+alwaysApply: true
+---
+
+# Check global rules first
+
+When working in this project, ALWAYS follow Andre's machine-level global rules in
+`C:\Users\User\.cursor\rules\` — especially:
+
+- `python-version-policy.mdc` — which Python to use (default = newest installed, 3.14.x).
+- `andre-pc-specs.mdc` and `andre-user-context.mdc` — PC + user background.
+
+Also read the Information Hierarchy when present: `_ABOUT-ME/*.md`, the root `AGENTS.md`,
+and this project's `PROJECT.md`.
+
+**Python:** create venvs with the newest Python (`py -3.14 -m venv .venv`) unless a safety
+issue or a pinned exception in `python-version-policy.mdc` applies.

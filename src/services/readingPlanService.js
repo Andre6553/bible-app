@@ -5,6 +5,8 @@ import { recordPlanBehavior } from './planIntelligenceService';
 import {
     getPlanBookDisplayName,
 } from '../constants/canonicalBooks';
+import { refreshCommentarySections } from './planCommentaryEnrichment';
+import { applyPlanPassageVerses } from '../../scripts/planPassageVerses';
 
 /**
  * Reading Plan Service - Static curated plans with enrollment and progress tracking
@@ -23,16 +25,45 @@ const requireAuth = async () => {
     return { ok: true, userId: await getUserId() };
 };
 
+const PLAN_CATALOG_FIELDS =
+    'id, slug, title_en, title_af, description_en, description_af, duration_days, category, cover_emoji, sort_order';
+
+function isMissingPersonalColumnError(error) {
+    const msg = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+    return (
+        error?.code === '42703' ||
+        error?.code === 'PGRST204' ||
+        msg.includes('is_personal') ||
+        (error?.code === '400' && msg.includes('column'))
+    );
+}
+
 export const getAvailablePlans = async () => {
     try {
-        const { data, error } = await supabase
+        // Exclude personal/AI-generated subject plans when the column exists.
+        let { data, error } = await supabase
             .from('reading_plans')
-            .select('id, slug, title_en, title_af, description_en, description_af, duration_days, category, cover_emoji, sort_order')
+            .select(PLAN_CATALOG_FIELDS)
             .eq('is_active', true)
+            .or('is_personal.is.null,is_personal.eq.false')
             .order('sort_order');
 
+        if (error && isMissingPersonalColumnError(error)) {
+            ({ data, error } = await supabase
+                .from('reading_plans')
+                .select(PLAN_CATALOG_FIELDS)
+                .eq('is_active', true)
+                .order('sort_order'));
+        }
+
         if (error) throw error;
-        return { success: true, data: data || [] };
+
+        const rows = data || [];
+        const catalog = rows.some((p) => p.is_personal != null)
+            ? rows.filter((p) => !p.is_personal)
+            : rows;
+
+        return { success: true, data: catalog };
     } catch (err) {
         console.error('[ReadingPlans] getAvailablePlans:', err);
         return { success: false, error: err.message, data: [] };
@@ -49,6 +80,28 @@ export const getPlanBySlug = async (slug) => {
             .single();
 
         if (error) throw error;
+
+        // Re-build commentary_sections from the live chapter scripts so that
+        // every plan (curated or AI-generated) benefits from the latest
+        // cross-references, teaching depth, and book-name fixes without
+        // re-seeding the database.
+        if (data?.readings?.length) {
+            try {
+                data.readings = await refreshCommentarySections(data.readings);
+            } catch (refreshErr) {
+                console.warn('[ReadingPlans] refreshCommentarySections failed:', refreshErr?.message);
+            }
+
+            // Attach verse_start/verse_end to passages for topic plans where
+            // each plan day targets a specific passage inside a shared chapter
+            // (e.g. Parables of Jesus). No-op for plans without overrides.
+            try {
+                data.readings = applyPlanPassageVerses(data.slug, data.readings);
+            } catch (verseErr) {
+                console.warn('[ReadingPlans] applyPlanPassageVerses failed:', verseErr?.message);
+            }
+        }
+
         return { success: true, data };
     } catch (err) {
         console.error('[ReadingPlans] getPlanBySlug:', err);

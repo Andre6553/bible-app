@@ -1,28 +1,52 @@
 ---
-description: Require desktop and mobile optimization for every code change
+description: MANDATORY — every code change must work on desktop AND mobile; verify before finishing
 alwaysApply: true
 ---
 
-# Responsive design (PC + mobile)
+# Responsive design — MANDATORY (PC + mobile)
 
-Every code change MUST work well on **desktop and mobile**. Do not ship UI or layout work that only looks correct on one screen size.
+**NON-NEGOTIABLE.** Do not mark UI, layout, CSS, or component work complete until both **desktop (≥1024px)** and **mobile (~375px)** are addressed in the **same change**. Never defer mobile styles to a follow-up.
 
-## Before finishing any change
+This rule applies to **every** task that touches UI — features, bugfixes, refactors, new buttons, modals, lists, forms, or AI panels.
 
-1. **Layout** — Check narrow (~375px) and wide (≥1024px) viewports. Use flex/grid with `min-height: 0`, scrolling in the right container, and no overlapping fixed elements.
-2. **Touch** — Interactive controls need at least **44×44px** tap targets on mobile. Use `touch-action: manipulation` on buttons/links where appropriate.
-3. **Safe areas** — Bottom bars, modals, and inputs on phones must respect `env(safe-area-inset-bottom)` (and top inset when full-screen).
-4. **Scroll** — Long lists/chips use `-webkit-overflow-scrolling: touch`. Prefer horizontal scroll for chip rows on small screens.
-5. **Text** — Avoid tiny fonts on mobile; allow wrapping (`max-width: 100%`) for verse refs and long strings.
-6. **Navigation** — Back buttons and modals must behave correctly with the app’s back-button handler on Android.
+---
 
-## CSS conventions in this project
+## Required before you finish (check every item)
 
-- Mobile breakpoint: `@media (max-width: 768px)` (also `600px` for tighter tweaks).
-- Full-screen AI chat: `.fullscreen-ai` flex column — header fixed, thread scrolls, bottom stack (verse list + follow-up) pinned with safe-area padding.
-- Co-locate responsive rules with the component CSS (`Search.css`, `BibleReader.css`, etc.).
+Copy this checklist mentally for each change; if any item fails, fix it before responding “done”:
 
-## When adding features
+- [ ] **Layout** — Tested narrow (~375px) and wide (≥1024px). Flex/grid uses `min-width: 0` / `min-height: 0` where content scrolls. No overlap with fixed bottom nav or headers.
+- [ ] **Touch** — Every button, chip, link, and tappable row is **≥44×44px** on mobile (`min-height` / `min-width` or padding). Add `touch-action: manipulation` on interactive controls.
+- [ ] **Safe areas** — Bottom bars, modals, inputs, and pinned footers use `env(safe-area-inset-bottom)` (and top inset when full-screen). Page containers account for bottom nav padding.
+- [ ] **Scroll** — Long lists and chip rows scroll in the correct container. Chip rows on small screens: horizontal scroll + `-webkit-overflow-scrolling: touch`.
+- [ ] **Text** — No unreadable tiny type on mobile (avoid &lt;0.75rem for body). Long labels, verse refs, and errors use `max-width: 100%`, `overflow-wrap: break-word`.
+- [ ] **Navigation** — Modals and overlays integrate with the app back-button handler on Android where applicable.
+- [ ] **CSS co-located** — Mobile rules live in the **same** component CSS file (`Component.css`), inside `@media (max-width: 768px)` (use `600px` only when tighter layout is needed).
 
-- If you add buttons, chips, or links in AI/search/Bible flows, add mobile styles in the same PR.
-- If you add a new modal or panel, verify it on mobile height (keyboard + safe area) before marking done.
+---
+
+## Implementation rules (this project)
+
+| Area | Requirement |
+|------|-------------|
+| Breakpoint | `@media (max-width: 768px)` — default mobile block for every new UI section |
+| New buttons/chips | Add base + mobile styles in the same edit; full-width CTAs on narrow screens when appropriate |
+| New modals/panels | Max-height + internal scroll; safe-area padding; keyboard-friendly spacing |
+| Full-screen AI | `.fullscreen-ai` — fixed header, scrollable thread, bottom stack with safe-area |
+| Grid → mobile | Collapse to 1–2 columns or horizontal scroll; never squeeze below usable tap size |
+
+---
+
+## Do not ship
+
+- Desktop-only layouts with no `@media (max-width: 768px)` block for new UI
+- Tap targets under 44px (e.g. 36px “Change” or icon-only buttons without padding)
+- Horizontal overflow clipping text with no wrap
+- Fixed elements covering content on short phone viewports
+- “Will fix mobile later” — **fix mobile in the same change**
+
+---
+
+## When reporting completion
+
+If the change included UI, briefly confirm responsive work (e.g. “Mobile: 2-col chip grid, 48px duration buttons, safe-area padding on section”). If the change was logic-only with no UI impact, say so explicitly.

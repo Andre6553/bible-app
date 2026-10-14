@@ -406,6 +406,10 @@ let cachedUserId = null;
 supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
         cachedUserId = null;
+        isSessionInitialized = false;
+    } else if (event === 'SIGNED_IN') {
+        isSessionInitialized = false;
+        if (session?.user) cachedUserId = session.user.id;
     } else if (session?.user) {
         cachedUserId = session.user.id;
     }

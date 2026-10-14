@@ -6,7 +6,9 @@
     "scripts": {
         "dev": "vite --host 0.0.0.0",
         "build": "vite build",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "test:auth": "node scripts/test_auth_env.js",
+        "test:admin": "node scripts/test_admin_connection.js"
     },
     "dependencies": {
         "@emailjs/browser": "^4.4.1",

@@ -21,7 +21,7 @@ import { isPremiumProfile } from '../utils/subscription';
 
 function Profile() {
     const navigate = useNavigate();
-    const { settings, updateSettings, profile, fetchProfile, user, manualSetUser } = useSettings();
+    const { settings, updateSettings, profile, fetchProfile, user, manualSetUser, authLoading } = useSettings();
     const [activeTab, setActiveTab] = useState('highlights');
     const [highlights, setHighlights] = useState([]);
     const [totalHighlightCount, setTotalHighlightCount] = useState(0);
@@ -879,8 +879,8 @@ function Profile() {
                             )}
                         </div>
                     ) : (
-                        <button className="login-btn-link" onClick={() => navigate('/auth')}>
-                            🔐 Login / Sign Up to sync across devices
+                        <button className="login-btn-link" onClick={() => navigate('/auth')} disabled={authLoading}>
+                            {authLoading ? '⏳ Checking login...' : '🔐 Login / Sign Up to sync across devices'}
                         </button>
                     )}
                 </div>

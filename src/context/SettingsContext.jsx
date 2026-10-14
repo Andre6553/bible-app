@@ -33,6 +33,16 @@ export const SettingsProvider = ({ children }) => {
             }
         }
 
+        // Bootstrap session before listener (avoids logged-out flash on refresh)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            setAuthLoading(false);
+            if (currentUser) {
+                fetchRemoteSettings(currentUser.id);
+            }
+        });
+
         // Single Auth Source
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             const currentUser = session?.user ?? null;

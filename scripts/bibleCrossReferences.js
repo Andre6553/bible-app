@@ -248,35 +248,224 @@ const CURATED = {
 };
 
 const BOOK_NAMES = {
-    en: { 1: 'Genesis', 2: 'Exodus', 19: 'Psalms', 43: 'John', 45: 'Romans' },
-    af: { 1: 'Genesis', 2: 'Eksodus', 19: 'Psalms', 43: 'Johannes', 45: 'Romeine' },
+    en: {
+        1: 'Genesis', 2: 'Exodus', 3: 'Leviticus', 4: 'Numbers', 5: 'Deuteronomy',
+        6: 'Joshua', 7: 'Judges', 8: 'Ruth', 9: '1 Samuel', 10: '2 Samuel',
+        11: '1 Kings', 12: '2 Kings', 13: '1 Chronicles', 14: '2 Chronicles',
+        15: 'Ezra', 16: 'Nehemiah', 17: 'Esther', 18: 'Job', 19: 'Psalms',
+        20: 'Proverbs', 21: 'Ecclesiastes', 22: 'Song of Solomon', 23: 'Isaiah',
+        24: 'Jeremiah', 25: 'Lamentations', 26: 'Ezekiel', 27: 'Daniel',
+        28: 'Hosea', 29: 'Joel', 30: 'Amos', 31: 'Obadiah', 32: 'Jonah',
+        33: 'Micah', 34: 'Nahum', 35: 'Habakkuk', 36: 'Zephaniah', 37: 'Haggai',
+        38: 'Zechariah', 39: 'Malachi', 40: 'Matthew', 41: 'Mark', 42: 'Luke',
+        43: 'John', 44: 'Acts', 45: 'Romans', 46: '1 Corinthians', 47: '2 Corinthians',
+        48: 'Galatians', 49: 'Ephesians', 50: 'Philippians', 51: 'Colossians',
+        52: '1 Thessalonians', 53: '2 Thessalonians', 54: '1 Timothy', 55: '2 Timothy',
+        56: 'Titus', 57: 'Philemon', 58: 'Hebrews', 59: 'James', 60: '1 Peter',
+        61: '2 Peter', 62: '1 John', 63: '2 John', 64: '3 John', 65: 'Jude',
+        66: 'Revelation',
+    },
+    af: {
+        1: 'Genesis', 2: 'Eksodus', 3: 'Levitikus', 4: 'Numeri', 5: 'Deuteronomium',
+        6: 'Josua', 7: 'Rigters', 8: 'Rut', 9: '1 Samuel', 10: '2 Samuel',
+        11: '1 Konings', 12: '2 Konings', 13: '1 Kronieke', 14: '2 Kronieke',
+        15: 'Esra', 16: 'Nehemia', 17: 'Ester', 18: 'Job', 19: 'Psalms',
+        20: 'Spreuke', 21: 'Prediker', 22: 'Hooglied', 23: 'Jesaja',
+        24: 'Jeremia', 25: 'Klaagliedere', 26: 'Esegiël', 27: 'Daniël',
+        28: 'Hosea', 29: 'Joël', 30: 'Amos', 31: 'Obadja', 32: 'Jona',
+        33: 'Miga', 34: 'Nahum', 35: 'Habakuk', 36: 'Sefanja', 37: 'Haggai',
+        38: 'Sagaria', 39: 'Maleagi', 40: 'Matteus', 41: 'Markus', 42: 'Lukas',
+        43: 'Johannes', 44: 'Handelinge', 45: 'Romeine', 46: '1 Korintiërs',
+        47: '2 Korintiërs', 48: 'Galasiërs', 49: 'Efesiërs', 50: 'Filippense',
+        51: 'Kolossense', 52: '1 Tessalonisense', 53: '2 Tessalonisense',
+        54: '1 Timoteus', 55: '2 Timoteus', 56: 'Titus', 57: 'Filemon',
+        58: 'Hebreërs', 59: 'Jakobus', 60: '1 Petrus', 61: '2 Petrus',
+        62: '1 Johannes', 63: '2 Johannes', 64: '3 Johannes', 65: 'Judas',
+        66: 'Openbaring',
+    },
 };
 
 const CATEGORY_PARALLELS = {
-    pentateuch: {
-        ref_en: 'Deuteronomy 30:15–20',
-        ref_af: 'Deuteronomium 30:15–20',
-        comparison_en:
-            'Like other Pentateuch chapters, this text forms part of Moses\' covenant instruction. Deuteronomy 30 places life and death, blessing and curse, before Israel and calls them to choose obedience to God\'s command.',
-        comparison_af:
-            'Soos ander Pentateug-hoofstukke vorm hierdie teks deel van Moses se verbondsinstruksie. Deut 30 stel lewe en dood, seën en vloek, voor Israel.',
-    },
-    gospels: {
-        ref_en: 'Parallel Gospels',
-        ref_af: 'Parallelle Evangelies',
-        comparison_en:
-            'Many events in Matthew, Mark, Luke, and John appear in more than one Gospel with matching or overlapping details. Compare the same episode across Gospels to see what each writer records.',
-        comparison_af:
-            'Baie gebeure in Matteus, Markus, Lukas en Johannes verskyn in meer as een Evangelie. Vergelyk dieselfde episode oor Evangelies heen.',
-    },
-    wisdom: {
-        ref_en: 'Proverbs 1:7',
-        ref_af: 'Spreuke 1:7',
-        comparison_en:
-            'Wisdom books often repeat the theme that the fear of the Lord is the beginning of wisdom (Proverbs 1:7). Compare how each psalm or proverb applies that foundation differently.',
-        comparison_af:
-            'Wysheidsboeke herhaal dat die vrees vir die Here die begin van wysheid is (Spr 1:7). Vergelyk hoe elke psalm of spreuk dit toepas.',
-    },
+    pentateuch: [
+        {
+            ref_en: 'Deuteronomy 30:15–20',
+            ref_af: 'Deuteronomium 30:15–20',
+            comparison_en: 'Moses places life and death, blessing and curse, before Israel and calls them to choose obedience to God\'s command (vv. 19–20). Pentateuch chapters frequently echo this covenant-choice structure where God speaks and his people must respond.',
+            comparison_af: 'Moses stel lewe en dood, seën en vloek, voor Israel en roep hulle om gehoorsaamheid te kies (vv. 19–20). Pentateug-hoofstukke herhaal hierdie verbond-keuse-struktuur waar God praat en sy volk moet reageer.',
+        },
+        {
+            ref_en: 'Hebrews 11:8–12',
+            ref_af: 'Hebreërs 11:8–12',
+            comparison_en: 'Hebrews 11 looks back on the Pentateuch patriarchs as examples of faith — Abraham trusting the call, Isaac and Jacob expecting promised inheritance. NT writers treat these narratives as real history with theological weight, not as legend.',
+            comparison_af: 'Hebreërs 11 kyk terug na die Pentateug-aartsvaders as voorbeelde van geloof — Abraham wat die roeping vertrou. NT skrywers behandel hierdie verhale as werklike geskiedenis met teologiese gewig.',
+        },
+        {
+            ref_en: 'Galatians 3:6–14',
+            ref_af: 'Galasiërs 3:6–14',
+            comparison_en: 'Paul re-reads Pentateuch promises through the cross — Abraham\'s faith credited as righteousness (Genesis 15:6), the law\'s curse borne by Christ (Deuteronomy 21:23). The Pentateuch is foundational for understanding the gospel.',
+            comparison_af: 'Paulus lees Pentateug-beloftes deur die kruis — Abraham se geloof gereken as geregtigheid, die wet se vloek deur Christus gedra. Die Pentateug is grondleggend vir die evangelie.',
+        },
+    ],
+    history: [
+        {
+            ref_en: '1 Samuel 15:22',
+            ref_af: '1 Samuel 15:22',
+            comparison_en: 'Samuel tells Saul that to obey is better than sacrifice — the heart of every historical narrative. Israel\'s rise and fall track the leaders\' obedience or rejection of God\'s word.',
+            comparison_af: 'Samuel sê vir Saul dat gehoorsaamheid beter is as offer — die hart van elke historiese verhaal. Israel se opkoms en val volg die leiers se gehoorsaamheid.',
+        },
+        {
+            ref_en: '2 Chronicles 7:14',
+            ref_af: '2 Kronieke 7:14',
+            comparison_en: 'God\'s pattern with his people: if they humble themselves, pray, seek his face, and turn — he hears and heals. Most history books include moments of national failure and the call to this same repentance.',
+            comparison_af: 'God se patroon: as hulle hulself verootmoedig, bid, sy aangesig soek en omkeer — Hy hoor en genees. Die meeste geskiedenisboeke bevat hierdie roeping.',
+        },
+        {
+            ref_en: 'Romans 15:4',
+            ref_af: 'Romeine 15:4',
+            comparison_en: 'Paul says what was written before was for our instruction, so through endurance and the encouragement of Scripture we might have hope. OT history is not just record-keeping — it teaches Christians how to trust God today.',
+            comparison_af: 'Paulus sê wat voorheen geskryf is, is vir ons onderrig sodat ons deur volharding en die troos van die Skrifte hoop kan hê. OT geskiedenis leer Christene om God te vertrou.',
+        },
+    ],
+    wisdom: [
+        {
+            ref_en: 'Proverbs 1:7',
+            ref_af: 'Spreuke 1:7',
+            comparison_en: 'The fear of the Lord is the beginning of knowledge — the central thesis of Hebrew wisdom. Every psalm, proverb, and reflection in Job and Ecclesiastes returns to this anchor: real understanding starts with reverence for God.',
+            comparison_af: 'Die vrees vir die Here is die begin van kennis — die sentrale tese van Hebreeuse wysheid. Elke psalm, spreuk en oorpeinsing keer terug na hierdie anker.',
+        },
+        {
+            ref_en: 'James 1:5',
+            ref_af: 'Jakobus 1:5',
+            comparison_en: 'James echoes OT wisdom: if any of you lacks wisdom, ask God who gives generously. The NT treats biblical wisdom not as proverbs alone but as a gift from God himself in response to humble prayer.',
+            comparison_af: 'Jakobus eggo OT-wysheid: as enigeen van julle wysheid kortkom, vra dit van God wat ruim gee. Die NT behandel wysheid as \'n gawe van God deur gebed.',
+        },
+        {
+            ref_en: 'Matthew 7:24–27',
+            ref_af: 'Matteus 7:24–27',
+            comparison_en: 'Jesus closes the Sermon on the Mount with wise vs. foolish builders — those who hear AND do his words stand. Wisdom literature\'s practical thrust ("do this") finds its sharpest expression in Jesus\' call to obey.',
+            comparison_af: 'Jesus sluit die Bergpreek af met wyse vs. dwase bouers — wie sy woorde hoor EN doen, staan. Wysheid se praktiese fokus vind sy skerpste uitdrukking in Jesus se roeping.',
+        },
+    ],
+    prophets: [
+        {
+            ref_en: 'Jeremiah 31:31–34',
+            ref_af: 'Jeremia 31:31–34',
+            comparison_en: 'God promises a new covenant — law written on hearts, sins remembered no more. Most prophets pair warnings of judgment with this kind of restoration promise looking forward to Christ.',
+            comparison_af: 'God beloof \'n nuwe verbond — wet op die hart geskryf, sondes nie meer onthou nie. Die meeste profete paar waarskuwings met hierdie herstel-belofte.',
+        },
+        {
+            ref_en: 'Isaiah 53',
+            ref_af: 'Jesaja 53',
+            comparison_en: 'The Servant who bears the sins of many — quoted across the NT as Christ\'s passion (Acts 8:32, 1 Peter 2:24). Prophetic chapters often point past their immediate audience to the suffering Messiah.',
+            comparison_af: 'Die Dienskneg wat die sondes van baie dra — deur die NT aangehaal as Christus se lyding. Profetiese hoofstukke wys dikwels na die lydende Messias.',
+        },
+        {
+            ref_en: 'Matthew 5:17',
+            ref_af: 'Matteus 5:17',
+            comparison_en: 'Jesus says he came not to abolish the Law and the Prophets but to fulfill them. The prophetic books are not standalone — they reach their goal in Christ, who quotes and embodies their themes.',
+            comparison_af: 'Jesus sê Hy het nie gekom om die Wet en Profete af te skaf nie maar om te vervul. Die profete bereik hul doel in Christus.',
+        },
+    ],
+    gospels: [
+        {
+            ref_en: 'Isaiah 53:4–6',
+            ref_af: 'Jesaja 53:4–6',
+            comparison_en: 'The Servant Song foretells one who bears our griefs, is pierced for our transgressions, and brings peace by his wounds — language directly applied to Jesus by Peter (1 Peter 2:24) and Philip (Acts 8:32–35). The Gospels show this fulfilled.',
+            comparison_af: 'Die Diensknegslied profeteer een wat ons smarte dra, vir ons oortredinge deurboor word — taal direk op Jesus toegepas. Die Evangelies wys dit vervuld.',
+        },
+        {
+            ref_en: 'John 20:30–31',
+            ref_af: 'Johannes 20:30–31',
+            comparison_en: 'John states the purpose of his Gospel — "these are written that you may believe that Jesus is the Christ, the Son of God, and that by believing you may have life in his name." Every Gospel chapter advances this aim.',
+            comparison_af: 'Johannes verklaar die doel van sy Evangelie — geskryf sodat julle mag glo dat Jesus die Christus is, en deur glo lewe mag hê. Elke Evangelie-hoofstuk dien hierdie doel.',
+        },
+        {
+            ref_en: 'Romans 1:16',
+            ref_af: 'Romeine 1:16',
+            comparison_en: 'Paul calls the gospel "the power of God for salvation to everyone who believes." The Gospels narrate the events; the epistles unfold their meaning. Read Gospel chapters knowing the apostles understood them as power, not just history.',
+            comparison_af: 'Paulus noem die evangelie "die krag van God tot redding vir elkeen wat glo." Die Evangelies vertel die gebeure; die briewe ontvou die betekenis.',
+        },
+    ],
+    acts: [
+        {
+            ref_en: 'Matthew 28:18–20',
+            ref_af: 'Matteus 28:18–20',
+            comparison_en: 'Jesus\' Great Commission — make disciples of all nations, baptize, teach. Acts is the narrative of the early church carrying this out, often at great cost. Most Acts chapters trace how the commission spreads.',
+            comparison_af: 'Jesus se Groot Opdrag — maak dissipels van alle nasies, doop, leer. Handelinge is die verhaal van die vroeë kerk wat dit uitvoer.',
+        },
+        {
+            ref_en: 'Acts 1:8',
+            ref_af: 'Handelinge 1:8',
+            comparison_en: 'The Spirit-empowered witness moves outward: Jerusalem, Judea, Samaria, ends of the earth — the structural outline of the whole book. Most Acts chapters fit this geographic and ethnic expansion.',
+            comparison_af: 'Die Gees-bemagtigde getuienis beweeg uit: Jerusalem, Judea, Samaria, eindes van die aarde — die struktuur van die boek.',
+        },
+        {
+            ref_en: 'Romans 1:1–7',
+            ref_af: 'Romeine 1:1–7',
+            comparison_en: 'Paul, writing soon after the Acts events, summarizes the apostolic gospel: Christ promised through prophets, son of David, declared Son of God by resurrection. Acts shows this preaching in action; the epistles unfold its theology.',
+            comparison_af: 'Paulus som die apostoliese evangelie op: Christus belowe deur die profete, seun van Dawid, verklaar as Seun van God. Handelinge wys dit in aksie.',
+        },
+    ],
+    paul: [
+        {
+            ref_en: 'Acts 17:2–3',
+            ref_af: 'Handelinge 17:2–3',
+            comparison_en: 'Paul\'s standard method: reasoning from the Scriptures that the Christ had to suffer and rise. His letters argue from OT to Christ to Christian living — read Pauline chapters as gospel reasoning, not just rules.',
+            comparison_af: 'Paulus se metode: redeneer uit die Skrifte dat die Christus moes ly en opstaan. Sy briewe redeneer van OT na Christus na Christelike lewe.',
+        },
+        {
+            ref_en: 'Romans 12:1–2',
+            ref_af: 'Romeine 12:1–2',
+            comparison_en: 'Paul\'s ethical hinge — "in view of God\'s mercy… present your bodies as a living sacrifice." Most Pauline letters pivot from doctrine (what God did in Christ) to ethics (how the church should live in light of it).',
+            comparison_af: 'Paulus se etiese spilpunt — "in die lig van God se barmhartigheid… bring julle liggame as \'n lewende offer." Sy briewe draai van leer na lewe.',
+        },
+        {
+            ref_en: 'Galatians 2:20',
+            ref_af: 'Galasiërs 2:20',
+            comparison_en: '"I have been crucified with Christ; it is no longer I who live, but Christ who lives in me." The personal heart of Paul\'s theology — union with Christ. Pauline chapters return to this again and again.',
+            comparison_af: '"Ek is met Christus gekruisig; nie meer ek nie, maar Christus leef in my." Die persoonlike hart van Paulus se teologie — eenheid met Christus.',
+        },
+    ],
+    general: [
+        {
+            ref_en: 'Hebrews 12:1–2',
+            ref_af: 'Hebreërs 12:1–2',
+            comparison_en: '"Looking to Jesus, the founder and perfecter of our faith… run with endurance the race set before us." The general letters call believers to endure under pressure by fixing their eyes on Christ.',
+            comparison_af: '"Kyk op na Jesus, die Aanvoerder en Voleinder van geloof… hardloop met volharding." Die algemene briewe roep gelowiges tot volharding.',
+        },
+        {
+            ref_en: 'James 1:2–4',
+            ref_af: 'Jakobus 1:2–4',
+            comparison_en: 'James reframes trials as joy because testing produces steadfastness. The general letters teach that suffering is not God\'s absence but his refinement — a theme Peter, John, and Jude echo.',
+            comparison_af: 'Jakobus herformuleer beproewings as vreugde omdat toetsing volharding bring. Die algemene briewe leer dat lyding nie God se afwesigheid is nie.',
+        },
+        {
+            ref_en: '1 Peter 1:6–9',
+            ref_af: '1 Petrus 1:6–9',
+            comparison_en: 'Peter writes to scattered believers: rejoice though grieved by trials — your faith is more precious than gold. The general epistles consistently link present suffering to future salvation through Jesus.',
+            comparison_af: 'Petrus skryf aan verstrooide gelowiges: verbly julle al word julle deur beproewings bedroef — julle geloof is kosbaarder as goud.',
+        },
+    ],
+    revelation: [
+        {
+            ref_en: 'Daniel 7:13–14',
+            ref_af: 'Daniël 7:13–14',
+            comparison_en: 'Daniel\'s vision of "one like a son of man" coming with clouds, given everlasting dominion — language Revelation reuses for Christ (Revelation 1:7, 1:13). Apocalyptic literature reaches back through Daniel to Christ\'s reign.',
+            comparison_af: 'Daniël se visie van "een soos \'n Seun van die mens" wat met wolke kom — taal wat Openbaring vir Christus hergebruik.',
+        },
+        {
+            ref_en: 'Matthew 24',
+            ref_af: 'Matteus 24',
+            comparison_en: 'Jesus\' Olivet Discourse on end-time signs, false christs, tribulation, the gathering of the elect. Revelation chapters often echo these themes; reading them together gives the NT picture of the end.',
+            comparison_af: 'Jesus se Olyfberg-rede oor eindtye-tekens, valse christusse, verdrukking. Openbaring eggo dikwels hierdie temas.',
+        },
+        {
+            ref_en: '1 Thessalonians 4:13–18',
+            ref_af: '1 Tessalonisense 4:13–18',
+            comparison_en: 'Paul on Christ\'s coming, the dead in Christ rising first, believers gathered to be with the Lord forever. Revelation\'s scenes of victory and gathering connect with this apostolic hope.',
+            comparison_af: 'Paulus oor Christus se koms, die dode in Christus wat eerste opstaan, gelowiges versamel om vir altyd by die Here te wees.',
+        },
+    ],
 };
 
 function getBookName(bookId, lang) {
@@ -284,16 +473,16 @@ function getBookName(bookId, lang) {
     return map[bookId] || `Book ${bookId}`;
 }
 
-function adjacentChapterRef(bookId, chapter, lang) {
+function adjacentChapterRef(bookId, chapter) {
     if (chapter <= 1) return null;
-    const name = getBookName(bookId, lang);
-    const label = lang === 'af' ? 'Vergelyk met' : 'Compare with';
     const prev = chapter - 1;
+    const enName = getBookName(bookId, 'en');
+    const afName = getBookName(bookId, 'af');
     return {
-        ref_en: `${getBookName(bookId, 'en')} ${prev}`,
-        ref_af: `${getBookName(bookId, 'af')} ${prev}`,
-        comparison_en: `${label} ${getBookName(bookId, 'en')} ${prev}, which immediately precedes this chapter in the same book — notice what events or themes continue or change.`,
-        comparison_af: `${label} ${getBookName(bookId, 'af')} ${prev}, wat direct voor hierdie hoofstuk kom — let op wat voortgaan of verander.`,
+        ref_en: `${enName} ${prev}`,
+        ref_af: `${afName} ${prev}`,
+        comparison_en: `${enName} ${prev} immediately precedes this chapter in the same book. Read it alongside today's chapter to see what events, characters, or themes continue and where the author shifts direction — context within a single book is often the clearest commentary on a passage.`,
+        comparison_af: `${afName} ${prev} kom direk voor hierdie hoofstuk in dieselfde boek. Lees dit saam met vandag se hoofstuk om te sien wat voortgaan en waar die skrywer rigting verander — konteks binne een boek is dikwels die duidelikste kommentaar.`,
     };
 }
 
@@ -305,14 +494,17 @@ export function getCrossReferences(bookId, chapter, category) {
     }
 
     const refs = [];
-    const adj = adjacentChapterRef(bookId, chapter, 'en');
-    if (adj && chapter > 1) {
-        refs.push(adj);
-    }
+    const adj = adjacentChapterRef(bookId, chapter);
+    if (adj) refs.push(adj);
 
-    const parallel = CATEGORY_PARALLELS[category];
-    if (parallel && refs.length < 2) {
-        refs.push({ ...parallel });
+    const parallels = CATEGORY_PARALLELS[category];
+    if (Array.isArray(parallels)) {
+        for (const p of parallels) {
+            if (refs.length >= 3) break;
+            refs.push({ ...p });
+        }
+    } else if (parallels) {
+        refs.push({ ...parallels });
     }
 
     return refs.slice(0, 3);

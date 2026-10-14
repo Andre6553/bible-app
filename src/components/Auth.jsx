@@ -24,6 +24,43 @@ function Auth() {
         }
     }, [searchParams]);
 
+    // Check for recovery / magic-link tokens in URL hash
+    useEffect(() => {
+        const applyRecoveryFromHash = async () => {
+            const hash = window.location.hash?.replace(/^#/, '') || '';
+            if (!hash) return;
+
+            const params = new URLSearchParams(hash);
+            const type = params.get('type');
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+
+            if (type === 'recovery' && accessToken && refreshToken) {
+                const { error } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken,
+                });
+                if (error) {
+                    setError(error.message);
+                    return;
+                }
+                setAuthMode('updatePassword');
+                window.history.replaceState({}, document.title, `${window.location.pathname}?type=recovery`);
+            }
+        };
+
+        applyRecoveryFromHash();
+    }, []);
+
+    useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setAuthMode('updatePassword');
+            }
+        });
+        return () => subscription.unsubscribe();
+    }, []);
+
     const handleAuth = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -46,29 +83,34 @@ function Auth() {
 
             if (result.error) throw result.error;
 
-            if (result.data?.user) {
+            const session = result.data?.session;
+            const authedUser = session?.user ?? null;
+
+            if (authedUser) {
                 console.log('Auth success, starting migration...');
                 setLoading(false); // Auth is done
                 setIsSyncing(true); // Now syncing data
 
                 if (authMode === 'signup') {
                     sendWelcomeEmail(email);
-                    notifyAdminOfNewUser(result.data.user.id, email);
+                    notifyAdminOfNewUser(authedUser.id, email);
                 }
 
                 try {
                     // [UX] Wait at most 3 seconds for migration before proceeding anyway
-                    const migrationTask = migrateAnonymousData(result.data.user.id);
+                    const migrationTask = migrateAnonymousData(authedUser.id);
                     const timeoutTask = new Promise(resolve => setTimeout(resolve, 3000));
 
                     await Promise.race([migrationTask, timeoutTask]);
                     console.log('[Auth] Migration finished or timed out, navigating to profile.');
                 } catch (migErr) {
                     console.error('[Auth] Migration error, proceeding anyway:', migErr);
+                } finally {
+                    setIsSyncing(false);
                 }
 
                 navigate('/profile');
-            } else if (authMode === 'signup') {
+            } else if (authMode === 'signup' && result.data?.user) {
                 sendWelcomeEmail(email);
                 notifyAdminOfNewUser('Pending', email);
                 alert('Success! Please check your email for the confirmation link.');
@@ -78,7 +120,9 @@ function Auth() {
 
         } catch (err) {
             setError(err.message);
+        } finally {
             setLoading(false);
+            setIsSyncing(false);
         }
     };
 

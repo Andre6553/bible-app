@@ -11,15 +11,17 @@ import {
     abandonPlan,
     getProgressStats,
     formatDayPassages,
-    getDayCommentaryIntro,
-    getDayCommentarySections,
-    getDayQuestions,
     getDayNote,
     saveDayNote,
     isAuthenticatedUser,
 } from '../services/readingPlanService';
+import {
+    deletePersonalPlan,
+    generateSubjectPlan,
+} from '../services/subjectPlanService';
 import { useBackButton } from './BackButtonHandler';
 import PlanDayReading from './PlanDayReading';
+import PlanDayStudyPanel from './PlanDayStudyPanel';
 import VersionSelector from './VersionSelector';
 import { recordPlanBehavior } from '../services/planIntelligenceService';
 import { resolveDbBookId } from '../constants/canonicalBooks';
@@ -35,6 +37,8 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [confirmAbandon, setConfirmAbandon] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [regenerating, setRegenerating] = useState(false);
     const [error, setError] = useState(null);
     const [expandedDay, setExpandedDay] = useState(null);
     const [noteDrafts, setNoteDrafts] = useState({});
@@ -86,6 +90,19 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
         savingNotes: isAf ? 'Stoor...' : 'Saving...',
         expandStudy: isAf ? 'Wys studie' : 'Show study',
         collapseStudy: isAf ? 'Versteek studie' : 'Hide study',
+        deletePlan: isAf ? 'Verwyder Plan' : 'Delete Plan',
+        regenerate: isAf ? 'Skep \'n vars plan' : 'Generate a fresh plan',
+        confirmDeleteTitle: isAf ? 'Verwyder hierdie plan?' : 'Delete this plan?',
+        confirmDeleteMsg: isAf
+            ? 'Hierdie plan verdwyn vir jou alleen. \'n Vars KI-plan kan vir jou geskep word — daardie nuwe plan (nie hierdie een) kan vir ander in die gemeenskapspoel gaan.'
+            : 'This plan disappears for you only. A fresh AI plan can be created for you — that new plan (not this one) may join the community pool for others.',
+        yesDelete: isAf ? 'Ja, verwyder' : 'Yes, delete',
+        deleteAndRegenerate: isAf ? 'Verwyder en skep \'n vars plan' : 'Delete and generate a fresh plan',
+        regenerating: isAf ? 'Skep \'n vars plan...' : 'Generating a fresh plan...',
+        regenerateHint: isAf
+            ? 'Die KI skep \'n vars plan vir jou. Daardie nuwe plan (nie die verwyderde een) kan vir ander gebruikers beskikbaar word.'
+            : 'AI creates a fresh plan for you. That new plan (not the deleted one) may become available for other users.',
+        personalBadge: isAf ? 'Persoonlik' : 'Personal',
         previewHint: isAf
             ? 'Blaai deur die dae hieronder om kommentaar en studie vrae te sien voordat jy begin.'
             : 'Browse the days below to preview commentary and study questions before you start.',
@@ -143,6 +160,7 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
     }, [enrollment?.id, enrollment?.day_notes]);
 
     useBackButton(confirmAbandon, () => setConfirmAbandon(false));
+    useBackButton(confirmDelete && !regenerating, () => setConfirmDelete(false));
 
     const stats = plan && enrollment ? getProgressStats(enrollment, plan) : null;
 
@@ -188,6 +206,7 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
             state: {
                 bookId: resolveDbBookId(books, passage.book_id),
                 chapter: passage.chapter,
+                targetVerse: passage.verse_start || null,
                 fromPlan: {
                     enrollmentId: enrollment.id,
                     planSlug: plan.slug,
@@ -196,6 +215,8 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
                     passageIndex,
                     totalPassages: dayReading.passages.length,
                     dayReading,
+                    verseStart: passage.verse_start || null,
+                    verseEnd: passage.verse_end || null,
                 },
             },
         });
@@ -219,6 +240,50 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
         setActionLoading(false);
         if (res.success) {
             setConfirmAbandon(false);
+            navigate('/plans');
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!plan?.id) return;
+        setActionLoading(true);
+        const res = await deletePersonalPlan(plan.id);
+        setActionLoading(false);
+        if (res.success) {
+            setConfirmDelete(false);
+            navigate('/plans');
+        } else {
+            alert(res.error || 'Could not delete plan');
+        }
+    };
+
+    const handleDeleteAndRegenerate = async () => {
+        if (!plan?.id) return;
+        setRegenerating(true);
+        const subjectInput = plan.subject || (isAf ? plan.title_af : plan.title_en);
+        const durationDays = plan.duration_days || 7;
+
+        const delRes = await deletePersonalPlan(plan.id);
+        if (!delRes.success) {
+            setRegenerating(false);
+            alert(delRes.error || 'Could not delete plan');
+            return;
+        }
+
+        const genRes = await generateSubjectPlan({
+            subject: subjectInput,
+            subjectSlug: plan.subject || null,
+            durationDays,
+            language: settings.language,
+            shareToPool: true,
+        });
+        setRegenerating(false);
+        setConfirmDelete(false);
+
+        if (genRes.success && genRes.planSlug) {
+            navigate(`/plans/${genRes.planSlug}`, { replace: true });
+        } else {
+            alert(genRes.error || 'Could not generate a fresh plan');
             navigate('/plans');
         }
     };
@@ -275,6 +340,7 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
     const title = isAf ? plan.title_af : plan.title_en;
     const description = isAf ? plan.description_af : plan.description_en;
     const studyGuide = isAf ? plan.study_guide_af : plan.study_guide_en;
+    const isPersonalPlan = Boolean(plan.is_personal) || plan.category === 'personal';
 
     return (
         <div className="plans-container plan-detail">
@@ -286,9 +352,16 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
                 <span className="plan-detail-emoji">{plan.cover_emoji || '📖'}</span>
                 <h1>{title}</h1>
                 <p className="subtitle">{description}</p>
-                <span className="plan-detail-meta">
-                    {plan.duration_days} {isAf ? 'dae' : 'days'}
-                </span>
+                <div className="plan-detail-meta-row">
+                    <span className="plan-detail-meta">
+                        {plan.duration_days} {isAf ? 'dae' : 'days'}
+                    </span>
+                    {isPersonalPlan && (
+                        <span className="plan-detail-meta plan-detail-meta-personal">
+                            {t.personalBadge}
+                        </span>
+                    )}
+                </div>
             </header>
 
             {studyGuide && (
@@ -324,6 +397,15 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
                     >
                         {actionLoading ? '...' : t.startPlan}
                     </button>
+                    {isPersonalPlan && (
+                        <button
+                            className="plan-action-btn danger plan-detail-delete-link"
+                            onClick={() => setConfirmDelete(true)}
+                            disabled={actionLoading || regenerating}
+                        >
+                            {t.deletePlan}
+                        </button>
+                    )}
                 </div>
             ) : (
                 <>
@@ -364,6 +446,15 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
                                 >
                                     {t.abandon}
                                 </button>
+                                {isPersonalPlan && (
+                                    <button
+                                        className="plan-action-btn danger"
+                                        onClick={() => setConfirmDelete(true)}
+                                        disabled={actionLoading || regenerating}
+                                    >
+                                        {t.deletePlan}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
@@ -378,9 +469,6 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
                         dayReading.day === stats?.nextDay &&
                         !done;
                     const expanded = expandedDay === dayReading.day;
-                    const commentaryIntro = getDayCommentaryIntro(dayReading, settings.language);
-                    const commentarySections = getDayCommentarySections(dayReading, settings.language);
-                    const questions = getDayQuestions(dayReading, settings.language);
                     const noteValue =
                         noteDrafts[String(dayReading.day)] ??
                         getDayNote(enrollment, dayReading.day);
@@ -430,88 +518,11 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
                                         versionId={activeVersionId}
                                         language={settings.language}
                                     />
-                                    {(commentaryIntro || commentarySections.length > 0) && (
-                                        <div className="plan-study-block plan-commentary-block">
-                                            <h4>{t.commentary}</h4>
-                                            {commentaryIntro && (
-                                                <p className="plan-commentary-intro">{commentaryIntro}</p>
-                                            )}
-                                            {commentarySections.map((section, idx) => (
-                                                <div
-                                                    key={`${section.book_id || 's'}-${section.chapter || idx}`}
-                                                    className="plan-commentary-section"
-                                                >
-                                                    {section.heading && (
-                                                        <h5 className="plan-commentary-heading">{section.heading}</h5>
-                                                    )}
-                                                    <p className="plan-commentary-summary">{section.summary}</p>
-                                                    {section.studyPoints?.length > 0 && (
-                                                        <div className="plan-commentary-highlights">
-                                                            <span className="plan-commentary-highlights-label">
-                                                                {t.keyPoints}
-                                                            </span>
-                                                            <div className="plan-study-points">
-                                                                {section.studyPoints.map((point, i) => (
-                                                                    <div key={i} className="plan-study-point">
-                                                                        <strong className="plan-study-point-title">
-                                                                            {point.title}
-                                                                            {point.verses && (
-                                                                                <span className="plan-verse-ref">
-                                                                                    {' '}{t.seeVerses} {point.verses}
-                                                                                </span>
-                                                                            )}
-                                                                        </strong>
-                                                                        {point.detail && (
-                                                                            <p className="plan-study-point-detail">
-                                                                                {point.detail}
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {section.teaching && (
-                                                        <div className="plan-teaching-block">
-                                                            <span className="plan-commentary-highlights-label">
-                                                                {t.godTeaches}
-                                                            </span>
-                                                            <p className="plan-teaching-message">{section.teaching}</p>
-                                                            {section.teachingWhy && (
-                                                                <>
-                                                                    <span className="plan-teaching-why-label">{t.why}</span>
-                                                                    <p className="plan-teaching-why">{section.teachingWhy}</p>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    {section.crossReferences?.length > 0 && (
-                                                        <div className="plan-cross-references">
-                                                            <span className="plan-commentary-highlights-label">
-                                                                {t.similarElsewhere}
-                                                            </span>
-                                                            {section.crossReferences.map((cr, i) => (
-                                                                <div key={i} className="plan-cross-ref">
-                                                                    <strong className="plan-cross-ref-title">{cr.ref}</strong>
-                                                                    <p className="plan-cross-ref-text">{cr.comparison}</p>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {questions.length > 0 && (
-                                        <div className="plan-study-block">
-                                            <h4>{t.questions}</h4>
-                                            <ul className="plan-study-questions">
-                                                {questions.map((q, i) => (
-                                                    <li key={i}>{q}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
+                                    <PlanDayStudyPanel
+                                        dayReading={dayReading}
+                                        language={settings.language}
+                                        variant="detail"
+                                    />
                                     <div className="plan-study-block">
                                         <h4>
                                             {t.myNotes}
@@ -557,6 +568,47 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
                                 disabled={actionLoading}
                             >
                                 {actionLoading ? '...' : t.yes}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {confirmDelete && (
+                <div
+                    className="confirm-modal-overlay"
+                    onClick={() => !regenerating && !actionLoading && setConfirmDelete(false)}
+                >
+                    <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()}>
+                        <h3>{t.confirmDeleteTitle}</h3>
+                        <p>{t.confirmDeleteMsg}</p>
+                        {regenerating && (
+                            <p className="plan-regenerate-hint">{t.regenerating}</p>
+                        )}
+                        {!regenerating && (
+                            <p className="plan-regenerate-hint">{t.regenerateHint}</p>
+                        )}
+                        <div className="modal-actions modal-actions-stacked">
+                            <button
+                                className="plan-action-btn primary"
+                                onClick={handleDeleteAndRegenerate}
+                                disabled={actionLoading || regenerating}
+                            >
+                                {regenerating ? '...' : t.deleteAndRegenerate}
+                            </button>
+                            <button
+                                className="confirm-delete-btn"
+                                onClick={handleDelete}
+                                disabled={actionLoading || regenerating}
+                            >
+                                {actionLoading ? '...' : t.yesDelete}
+                            </button>
+                            <button
+                                className="cancel-btn"
+                                onClick={() => setConfirmDelete(false)}
+                                disabled={actionLoading || regenerating}
+                            >
+                                {t.cancel}
                             </button>
                         </div>
                     </div>

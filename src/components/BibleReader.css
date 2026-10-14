@@ -682,6 +682,88 @@
     box-shadow: 0 0 10px rgba(99, 102, 241, 0.1);
 }
 
+/* Plan study passage range — verses the current plan day is focused on. */
+.verse-item.verse-plan-range {
+    position: relative;
+    background: linear-gradient(
+        to right,
+        rgba(245, 158, 11, 0.10),
+        rgba(245, 158, 11, 0.04)
+    );
+    border-left: 3px solid rgba(245, 158, 11, 0.75);
+    padding-left: 10px;
+    margin-left: -3px;
+    transition: background 0.25s ease;
+}
+
+.verse-item.verse-plan-range .verse-number {
+    color: #b45309;
+}
+
+.verse-item.verse-plan-range-start {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding-top: 6px;
+    margin-top: 4px;
+    box-shadow: 0 -2px 0 rgba(245, 158, 11, 0.5);
+}
+
+.verse-item.verse-plan-range-start::before {
+    content: 'Plan passage';
+    position: absolute;
+    top: -10px;
+    left: 8px;
+    background: #f59e0b;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.verse-item.verse-plan-range-end {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 0 rgba(245, 158, 11, 0.5);
+}
+
+/* Mobile tweaks for plan passage highlight */
+@media (max-width: 768px) {
+    .verse-item.verse-plan-range {
+        padding-left: 8px;
+        margin-left: -2px;
+        border-left-width: 3px;
+    }
+    .verse-item.verse-plan-range-start::before {
+        font-size: 9px;
+        padding: 2px 6px;
+        top: -9px;
+        left: 6px;
+    }
+}
+
+/* Dark theme — keep highlight visible without washing out text */
+[data-theme='dark'] .verse-item.verse-plan-range,
+.dark .verse-item.verse-plan-range {
+    background: linear-gradient(
+        to right,
+        rgba(245, 158, 11, 0.18),
+        rgba(245, 158, 11, 0.06)
+    );
+}
+
+[data-theme='dark'] .verse-item.verse-plan-range .verse-number,
+.dark .verse-item.verse-plan-range .verse-number {
+    color: #fbbf24;
+}
+
 .verse-number {
     color: var(--accent-primary);
     font-weight: 700;

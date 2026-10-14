@@ -32,7 +32,8 @@ import BibleHelpModal from './BibleHelpModal';
 import OmniDefinitionModal from './OmniDefinitionModal';
 import ChapterSummaryModal from './ChapterSummaryModal';
 import { useBackButton } from './BackButtonHandler';
-import { markDayComplete, formatPassageRef, getDayCommentaryIntro, getDayCommentarySections } from '../services/readingPlanService';
+import { markDayComplete, formatPassageRef } from '../services/readingPlanService';
+import PlanDayStudyPanel from './PlanDayStudyPanel';
 import { resolveDbBookId } from '../constants/canonicalBooks';
 import './BibleReader.css';
 import './ReadingPlans.css';
@@ -304,6 +305,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         if (fromPlan) {
             setPlanContext(fromPlan);
         }
+        const planVerseStart = fromPlan?.verseStart || null;
         // Use == for loose equality since bookId might be string and book.id integer
         const book = books.all.find(b => b.id == bookId);
 
@@ -314,8 +316,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             setTimeout(() => {
                 setSelectedBook(book);
                 setSelectedChapter(chapter || 1);
-                if (targetVerse) {
-                    setTargetVerse(targetVerse);
+                const verseToScroll = targetVerse || planVerseStart;
+                if (verseToScroll) {
+                    setTargetVerse(verseToScroll);
                 }
             }, 0);
         } else {
@@ -349,12 +352,15 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         const updatedContext = {
             ...planContext,
             passageIndex: nextIndex,
+            verseStart: nextPassage.verse_start || null,
+            verseEnd: nextPassage.verse_end || null,
         };
         setPlanContext(updatedContext);
         navigate('/bible', {
             state: {
                 bookId: resolveDbBookId(books, nextPassage.book_id),
                 chapter: nextPassage.chapter,
+                targetVerse: nextPassage.verse_start || null,
                 fromPlan: updatedContext,
             },
             replace: true,
@@ -373,6 +379,29 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         : false;
 
     const nextPlanPassage = planContext?.dayReading?.passages?.[(planContext.passageIndex || 0) + 1];
+
+    // Resolve the active plan-day passage so we can highlight its verse range.
+    // We match by current book + chapter so highlighting only applies on the
+    // chapter the plan is currently studying — not other chapters the user
+    // navigates to in the same session.
+    const activePlanPassage = (() => {
+        if (!planContext?.dayReading?.passages?.length) return null;
+        const idx = planContext.passageIndex || 0;
+        const p = planContext.dayReading.passages[idx];
+        if (!p) return null;
+        if (!selectedBook || !selectedChapter) return p;
+        const sameBook = Number(p.book_id) === Number(selectedBook.id);
+        const sameChapter = Number(p.chapter) === Number(selectedChapter);
+        return sameBook && sameChapter ? p : null;
+    })();
+
+    const planVerseStart = activePlanPassage?.verse_start || null;
+    const planVerseEnd = activePlanPassage?.verse_end || null;
+
+    const isVerseInPlanRange = (verseNum) => {
+        if (!planVerseStart || !planVerseEnd) return false;
+        return verseNum >= planVerseStart && verseNum <= planVerseEnd;
+    };
 
     useEffect(() => {
         if (selectedBook && currentVersion) {
@@ -1575,80 +1604,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             )}
 
             {planContext && (
-                <div className="plan-reader-banner">
-                    <div className="plan-reader-banner-title">
-                        {settings.language === 'af' ? 'Dag' : 'Day'} {planContext.day}
-                        {planContext.planTitle ? ` · ${planContext.planTitle}` : ''}
+                <div className="plan-reader-strip">
+                    <div className="plan-reader-strip-title">
+                        <span className="plan-reader-strip-emoji">📅</span>
+                        <span className="plan-reader-strip-text">
+                            {settings.language === 'af' ? 'Dag' : 'Day'} {planContext.day}
+                            {planContext.planTitle ? ` · ${planContext.planTitle}` : ''}
+                        </span>
                     </div>
-                    {planContext.dayReading && (() => {
-                        const lang = settings.language;
-                        const intro = getDayCommentaryIntro(planContext.dayReading, lang);
-                        const sections = getDayCommentarySections(planContext.dayReading, lang);
-                        const currentPassage = planContext.dayReading.passages?.[planContext.passageIndex || 0];
-                        const currentSection = sections.find(
-                            (s) => s.book_id == currentPassage?.book_id && s.chapter == currentPassage?.chapter
-                        ) || sections[0];
-                        const firstPoint = currentSection?.studyPoints?.[0];
-                        const firstCrossRef = currentSection?.crossReferences?.[0];
-
-                        return (
-                            <div className="plan-reader-commentary-wrap">
-                                {intro && <p className="plan-reader-commentary">{intro}</p>}
-                                {currentSection?.heading && (
-                                    <div className="plan-reader-commentary-section">
-                                        <strong>{currentSection.heading}</strong>
-                                        <p>{currentSection.summary}</p>
-                                        {firstPoint?.title && (
-                                            <p className="plan-reader-point-preview">
-                                                <em>{firstPoint.title}</em>
-                                                {firstPoint.verses ? ` (${firstPoint.verses})` : ''}: {firstPoint.detail}
-                                            </p>
-                                        )}
-                                        {currentSection?.teaching && (
-                                            <p className="plan-reader-point-preview">
-                                                <em>{settings.language === 'af' ? 'God leer' : 'God teaches'}:</em> {currentSection.teaching}
-                                            </p>
-                                        )}
-                                        {firstCrossRef?.ref && (
-                                            <p className="plan-reader-point-preview">
-                                                <em>{settings.language === 'af' ? 'Soortgelyk' : 'Similar'}: {firstCrossRef.ref}</em> — {firstCrossRef.comparison}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
-                    <div className="plan-reader-banner-actions">
-                        {!isLastPlanPassage && nextPlanPassage && (
-                            <button
-                                className="plan-reader-banner-btn secondary"
-                                onClick={handlePlanNextPassage}
-                            >
-                                {settings.language === 'af' ? 'Volgende' : 'Next'}:{' '}
-                                {formatPassageRef(nextPlanPassage, books, settings.language)}
-                            </button>
-                        )}
-                        {isLastPlanPassage && (
-                            <button
-                                className="plan-reader-banner-btn primary"
-                                onClick={handlePlanMarkComplete}
-                                disabled={planActionLoading}
-                            >
-                                {planActionLoading
-                                    ? '...'
-                                    : settings.language === 'af'
-                                        ? 'Merker Dag Voltooi'
-                                        : 'Mark Day Complete'}
-                            </button>
-                        )}
-                        <button
-                            className="plan-reader-banner-btn secondary"
-                            onClick={handlePlanDismiss}
-                        >
-                            {settings.language === 'af' ? 'Terug na Plan' : 'Back to Plan'}
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        className="plan-reader-strip-btn"
+                        onClick={handlePlanDismiss}
+                    >
+                        {settings.language === 'af' ? 'Terug na Plan' : 'Back to Plan'}
+                    </button>
                 </div>
             )}
 
@@ -1712,11 +1682,14 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                     const verse = verses.find(v => v.verse === verseNum);
                                     if (!verse) return null;
 
+                                    const inPlanRange = isVerseInPlanRange(verse.verse);
+                                    const isPlanRangeStart = inPlanRange && verse.verse === planVerseStart;
+                                    const isPlanRangeEnd = inPlanRange && verse.verse === planVerseEnd;
                                     return (
                                         <div
                                             key={verse.id || `verse-${verse.verse}`}
                                             id={`verse-${verse.verse}`}
-                                            className={`verse-item ${selectedVerses.some(v => v.verse === verse.verse) ? 'verse-selected' : ''}`}
+                                            className={`verse-item ${selectedVerses.some(v => v.verse === verse.verse) ? 'verse-selected' : ''}${inPlanRange ? ' verse-plan-range' : ''}${isPlanRangeStart ? ' verse-plan-range-start' : ''}${isPlanRangeEnd ? ' verse-plan-range-end' : ''}`}
                                             onContextMenu={(e) => e.preventDefault()}
 
                                             onTouchStart={(e) => handleTouchStart(verse, e)}
@@ -1740,6 +1713,63 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                     );
                                 })}
                             </div>
+
+                            {planContext && planContext.dayReading && !isSplitView && (
+                                <div className="plan-inline-study">
+                                    <div className="plan-inline-study-header">
+                                        <span className="plan-inline-study-eyebrow">
+                                            {settings.language === 'af' ? 'Plan studie' : 'Plan study'}
+                                        </span>
+                                        <h2 className="plan-inline-study-title">
+                                            {settings.language === 'af' ? 'Dag' : 'Day'} {planContext.day}
+                                            {planContext.planTitle ? ` · ${planContext.planTitle}` : ''}
+                                        </h2>
+                                    </div>
+
+                                    <PlanDayStudyPanel
+                                        dayReading={planContext.dayReading}
+                                        language={settings.language}
+                                        currentPassage={
+                                            planContext.dayReading.passages?.[planContext.passageIndex || 0]
+                                        }
+                                        variant="inline"
+                                    />
+
+                                    <div className="plan-inline-study-actions">
+                                        {!isLastPlanPassage && nextPlanPassage && (
+                                            <button
+                                                type="button"
+                                                className="plan-reader-banner-btn secondary"
+                                                onClick={handlePlanNextPassage}
+                                            >
+                                                {settings.language === 'af' ? 'Volgende' : 'Next'}:{' '}
+                                                {formatPassageRef(nextPlanPassage, books, settings.language)}
+                                            </button>
+                                        )}
+                                        {isLastPlanPassage && (
+                                            <button
+                                                type="button"
+                                                className="plan-reader-banner-btn primary"
+                                                onClick={handlePlanMarkComplete}
+                                                disabled={planActionLoading}
+                                            >
+                                                {planActionLoading
+                                                    ? '...'
+                                                    : settings.language === 'af'
+                                                        ? 'Merker Dag Voltooi'
+                                                        : 'Mark Day Complete'}
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="plan-reader-banner-btn secondary"
+                                            onClick={handlePlanDismiss}
+                                        >
+                                            {settings.language === 'af' ? 'Terug na Plan' : 'Back to Plan'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
