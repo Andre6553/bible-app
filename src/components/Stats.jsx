@@ -3,6 +3,7 @@ import { useBackButton } from './BackButtonHandler';
 import { useNavigate } from 'react-router-dom';
 import { logError } from '../services/loggerService';
 import { useSettings } from '../context/SettingsContext';
+import { useFreeMode } from '../context/FreeModeContext';
 import { copyToClipboard } from '../utils/appUtils';
 
 import { supabase, supabaseUrl, supabaseKey } from '../config/supabaseClient';
@@ -64,6 +65,7 @@ Omni Bible System`.trim();
 function Stats() {
     const navigate = useNavigate();
     const { profile, fetchProfile, user, authLoading, profileLoading } = useSettings();
+    const { freeMode, setFreeModeEnabled, refreshFreeMode } = useFreeMode();
 
     // ... (state declarations)
 
@@ -126,6 +128,8 @@ function Stats() {
     // Admin Settings
     const [rateLimitEnabled, setRateLimitEnabled] = useState(false);
     const [rateLimitLoading, setRateLimitLoading] = useState(false);
+    const [freeModeToggleLoading, setFreeModeToggleLoading] = useState(false);
+    const [freeModeFeedback, setFreeModeFeedback] = useState('');
     const [superAutoEnabled, setSuperAutoEnabled] = useState(false);
     const [superAutoLoading, setSuperAutoLoading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -227,6 +231,7 @@ function Stats() {
             fetchPromoCodes();
             fetchPromoSettings();
             fetchTriviaStats();
+            refreshFreeMode();
         }
     }, [isAuthenticated]);
 
@@ -530,6 +535,23 @@ function Stats() {
             alert('Failed to update setting: ' + result.error);
         }
         setSuperAutoLoading(false);
+    };
+
+    const handleToggleFreeMode = async () => {
+        setFreeModeToggleLoading(true);
+        setFreeModeFeedback('');
+        const newValue = !freeMode;
+        const result = await setFreeModeEnabled(newValue);
+        if (result.success) {
+            setFreeModeFeedback(
+                newValue
+                    ? 'Free mode is ON — logged-in members have full premium access; subscription promos are hidden.'
+                    : 'Free mode is OFF — standard paid subscription behavior is restored.'
+            );
+        } else {
+            setFreeModeFeedback(`Could not save free mode: ${result.error || 'Unknown error'}`);
+        }
+        setFreeModeToggleLoading(false);
     };
 
     const fetchEmailSettings = async () => {
@@ -1718,11 +1740,40 @@ function Stats() {
                     <div className="setting-row">
                         <p>Auto SuperUser: <strong>{superAutoEnabled ? 'ON' : 'OFF'}</strong></p>
                         <label className="switch">
-                            <input type="checkbox" checked={superAutoEnabled} onChange={handleToggleSuperAuto} />
+                            <input type="checkbox" checked={superAutoEnabled} onChange={handleToggleSuperAuto} disabled={superAutoLoading} />
                             <span className="slider"></span>
                         </label>
                     </div>
-
+                    <div className="setting-row">
+                        <p>
+                            Free mode (disable paid subscriptions): <strong>{freeMode ? 'ON' : 'OFF'}</strong>
+                        </p>
+                        <label className="switch">
+                            <input
+                                type="checkbox"
+                                checked={freeMode}
+                                onChange={handleToggleFreeMode}
+                                disabled={freeModeToggleLoading}
+                            />
+                            <span className="slider"></span>
+                        </label>
+                    </div>
+                    <p className="setting-desc" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        When ON, every signed-in user gets premium features for free. Guests stay on free limits; subscribe buttons and paywalls are hidden app-wide.
+                    </p>
+                    {freeModeFeedback && (
+                        <p
+                            className="setting-desc"
+                            style={{
+                                marginTop: '8px',
+                                fontSize: '0.85rem',
+                                color: freeModeFeedback.startsWith('Could not') ? '#f87171' : '#4ade80'
+                            }}
+                            role="status"
+                        >
+                            {freeModeFeedback}
+                        </p>
+                    )}
 
                     {/* Dynamic Pricing Setting */}
                     <div className="settings-card" style={{ marginTop: '15px', opacity: isMasterAdmin ? 1 : 0.5, pointerEvents: isMasterAdmin ? 'auto' : 'none', position: 'relative' }}>

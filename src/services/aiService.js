@@ -15,6 +15,7 @@ import {
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
 import { isPremiumProfile } from '../utils/subscription';
+import { ensureFreeModeLoaded } from './appSettingsService';
 
 // Initialize Gemini only when configured
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -303,7 +304,8 @@ export async function getUserRemainingQuota(userId) {
             .eq('user_id', userId)
             .single();
 
-        const isPremium = isPremiumProfile(profile);
+        const freeMode = await ensureFreeModeLoaded();
+        const isPremium = isPremiumProfile(profile, { freeMode, user: { id: userId } });
 
         // If Premium/Subscriber -> UNLIMITED QUOTA
         if (isPremium) {

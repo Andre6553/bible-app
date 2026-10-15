@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
+import { useFreeMode } from '../context/FreeModeContext';
 import { supabase } from '../config/supabaseClient';
 import { getTriviaStats, checkDailyLimit, fetchQuestion, submitAnswer, syncDailyProgress } from '../services/triviaService';
 import { logActivity } from '../services/bibleService';
@@ -79,6 +80,7 @@ const TRIVIA_LABELS = {
 function TriviaSection() {
     const navigate = useNavigate();
     const { settings, user } = useSettings();
+    const { freeMode } = useFreeMode();
     const lang = settings.language === 'af' ? 'af' : 'en';
     const txt = TRIVIA_LABELS[lang];
 
@@ -401,7 +403,7 @@ Verse Text: "${verseText}"
                     <p>You've answered {stats.todayCount} questions today.</p>
                     <p>Come back tomorrow for more!</p>
 
-                    {!limitInfo?.isPremium && (
+                    {!freeMode && !limitInfo?.isPremium && (
                         <div style={{ marginTop: '30px' }}>
                             <p style={{ color: '#aaa', fontSize: '0.9rem' }}>Want more?</p>
                             <button className="upgrade-btn" onClick={() => navigate('/subscription')}>

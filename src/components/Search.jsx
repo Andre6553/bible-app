@@ -18,6 +18,7 @@ import TutorialOverlay from './TutorialOverlay';
 import { useBackButton } from './BackButtonHandler';
 import { copyToClipboard } from '../utils/appUtils';
 import { shouldShowSubscriptionPromo } from '../utils/subscription';
+import { useFreeMode } from '../context/FreeModeContext';
 
 const AI_SESSION_KEY = 'bible_ai_session';
 const AI_RETURN_KEY = 'bible_ai_return';
@@ -136,6 +137,7 @@ function Search({ currentVersion, versions }) {
     const [loading, setLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const { settings, profile, profileLoading, user } = useSettings();
+    const { freeMode } = useFreeMode();
 
     // Localization
     const isAf = settings.language === 'af';
@@ -1237,8 +1239,10 @@ Here are the available shortcuts to quickly ask questions:
             await loadQuotaInfo();
         } else {
             if (result.quotaExceeded) {
-                setAiResponse('🔒 Daily Limit Reached. Upgrade for Unlimited Access.');
-                if (window.confirm(settings.language === 'af'
+                setAiResponse(freeMode
+                    ? '🔒 Daily Limit Reached.'
+                    : '🔒 Daily Limit Reached. Upgrade for Unlimited Access.');
+                if (!freeMode && window.confirm(settings.language === 'af'
                     ? 'Daaglikse Bybelsoek-limiet bereik.\n\nWil jy opgradeer vir ONBEPERKTE toegang?'
                     : 'Daily Bible Search Limit Reached.\n\nWould you like to upgrade for UNLIMITED access?')) {
                     navigate('/subscription');
@@ -1317,10 +1321,10 @@ Here are the available shortcuts to quickly ask questions:
             await loadQuotaInfo();
         } else {
             const errorText = result.quotaExceeded
-                ? '🔒 Daily Limit Reached. Upgrade for Unlimited Access.'
+                ? (freeMode ? '🔒 Daily Limit Reached.' : '🔒 Daily Limit Reached. Upgrade for Unlimited Access.')
                 : `❌ ${result.error}`;
             setAiConversation([...conversationWithUser, { role: 'ai', content: errorText }]);
-            if (result.quotaExceeded) {
+            if (result.quotaExceeded && !freeMode) {
                 if (window.confirm(settings.language === 'af'
                     ? 'Daaglikse Bybelsoek-limiet bereik.\n\nWil jy opgradeer vir ONBEPERKTE toegang?'
                     : 'Daily Bible Search Limit Reached.\n\nWould you like to upgrade for UNLIMITED access?')) {
@@ -1502,7 +1506,7 @@ Here are the available shortcuts to quickly ask questions:
                 </div>
 
                 {/* Subscriber promo: guests + free users only (no flash while profile loads) */}
-                {shouldShowSubscriptionPromo({ user, profile, profileLoading }) && (
+                {shouldShowSubscriptionPromo({ user, profile, profileLoading, freeMode }) && (
                     <button
                         className="subscriber-promo-btn"
                         onClick={() => navigate('/subscription')}

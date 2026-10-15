@@ -7,10 +7,12 @@ import md5 from 'crypto-js/md5';
 import { logEvent } from '../services/analyticsService';
 import './SubscriptionPage.css';
 import { isPremiumProfile } from '../utils/subscription';
+import { useFreeMode } from '../context/FreeModeContext';
 
 const SubscriptionPage = () => {
     const navigate = useNavigate();
     const { settings, fetchProfile, user: contextUser, profile: contextProfile } = useSettings();
+    const { freeMode, freeModeLoading } = useFreeMode();
     const isAf = settings.language === 'af';
 
     // [NEW] Promo Visibility State
@@ -26,7 +28,7 @@ const SubscriptionPage = () => {
     const [userIP, setUserIP] = React.useState(null);
     const [isDiscountEligible, setIsDiscountEligible] = React.useState(true); // Default to Eligible (Optimistic)
 
-    const isPremium = isPremiumProfile(contextProfile);
+    const isPremium = isPremiumProfile(contextProfile, { freeMode, user: contextUser });
 
     React.useEffect(() => {
         const detectLocationAndIP = async () => {
@@ -315,6 +317,42 @@ const SubscriptionPage = () => {
             setPromoLoading(false);
         }
     };
+
+    if (!freeModeLoading && freeMode) {
+        return (
+            <div className="subscription-page">
+                <header className="sub-header">
+                    <button className="back-btn" onClick={() => navigate(-1)}>
+                        ← {isAf ? 'Terug' : 'Back'}
+                    </button>
+                    <h1>{isAf ? 'Premium vir lede' : 'Premium for members'}</h1>
+                </header>
+                <div className="pricing-container" style={{ maxWidth: '520px', margin: '0 auto' }}>
+                    <div className="pricing-card premium" style={{ textAlign: 'center' }}>
+                        <p style={{ lineHeight: 1.6 }}>
+                            {contextUser
+                                ? (isAf
+                                    ? 'Intekeninge is tans gedeaktiveer. As geregistreerde lid het jy volle premium-toegang.'
+                                    : 'Paid subscriptions are temporarily disabled. As a signed-in member, you already have full premium access.')
+                                : (isAf
+                                    ? 'Intekeninge is tans gedeaktiveer. Teken in of registreer gratis om premium-funksies te gebruik.'
+                                    : 'Paid subscriptions are temporarily disabled. Sign in or register for free to use premium features.')}
+                        </p>
+                        {!contextUser && (
+                            <button
+                                className="subscribe-btn"
+                                type="button"
+                                onClick={() => navigate('/auth')}
+                                style={{ marginTop: '20px' }}
+                            >
+                                {isAf ? 'Teken in' : 'Sign in'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="subscription-page">

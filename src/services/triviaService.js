@@ -14,6 +14,7 @@ import {
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
 import { isPremiumProfile } from '../utils/subscription';
+import { ensureFreeModeLoaded } from './appSettingsService';
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const model = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
@@ -107,7 +108,8 @@ export const checkDailyLimit = async (userId) => {
         if (pError && pError.code !== 'PGRST116') throw pError;
 
         const override = profile?.subscription_override;
-        const isPremium = isPremiumProfile(profile);
+        const freeMode = await ensureFreeModeLoaded();
+        const isPremium = isPremiumProfile(profile, { freeMode, user: { id: userId } });
 
         const isAdmin = override === 'admin';
 
