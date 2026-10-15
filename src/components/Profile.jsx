@@ -18,10 +18,12 @@ import { getActivePlan, getProgressStats } from '../services/readingPlanService'
 import './Profile.css';
 import './ReadingPlans.css';
 import { isPremiumProfile } from '../utils/subscription';
+import { useFreeMode } from '../context/FreeModeContext';
 
 function Profile() {
     const navigate = useNavigate();
     const { settings, updateSettings, profile, fetchProfile, user, manualSetUser } = useSettings();
+    const { freeMode } = useFreeMode();
     const [activeTab, setActiveTab] = useState('highlights');
     const [highlights, setHighlights] = useState([]);
     const [totalHighlightCount, setTotalHighlightCount] = useState(0);
@@ -770,7 +772,7 @@ function Profile() {
                     border: '1px solid var(--border-color)'
                 }}>
                     {(() => {
-                        const isPremium = isPremiumProfile(profile);
+                        const isPremium = isPremiumProfile(profile, { freeMode, user });
 
                         return isPremium ? (
                             <>

@@ -20,6 +20,7 @@ import {
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
 import { isPremiumProfile } from '../utils/subscription';
+import { ensureFreeModeLoaded } from './appSettingsService';
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
@@ -161,6 +162,8 @@ export const createSermon = async (sermonData, fingerprint) => {
 
         if (pError && pError.code !== 'PGRST116') throw pError;
 
+        const freeMode = await ensureFreeModeLoaded();
+
         // Check for tester renewal (DB based)
         const resetHappened = await checkTesterRenewal(userId, profile);
 
@@ -170,7 +173,7 @@ export const createSermon = async (sermonData, fingerprint) => {
         const isFingerUser = profile?.email?.toLowerCase().includes('finger') || profile?.subscription_override === 'tester_finger';
 
         // 2. Anti-Abuse: Check if this device has already exhausted trials on other accounts
-        if (tier === 'free' && fingerprint && !isFingerUser) {
+        if (!freeMode && tier === 'free' && fingerprint && !isFingerUser) {
             const { data: fingerprintMatches, error: fError } = await supabase
                 .from('user_profiles')
                 .select('user_id, sermon_trial_count')
@@ -196,7 +199,7 @@ export const createSermon = async (sermonData, fingerprint) => {
         // If tester, we check against 10.
         // If normal free, we check against 3.
 
-        if (tier === 'free' && override !== 'admin') {
+        if (!freeMode && tier === 'free' && override !== 'admin') {
             if (trials >= limit) {
                 return { success: false, error: 'TRIAL_EXPIRED' };
             }
@@ -321,7 +324,8 @@ const checkAndIncrementAiUsage = async () => {
     const currentUsage = resetHappened ? 0 : (profile?.ai_usage_count || 0);
 
     const override = profile?.subscription_override;
-    const isPremium = isPremiumProfile(profile);
+    const freeMode = await ensureFreeModeLoaded();
+    const isPremium = isPremiumProfile(profile, { freeMode, user: { id: userId } });
 
     // 2. Enforce Limit
     let limit = 50;

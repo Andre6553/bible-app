@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SettingsProvider } from './context/SettingsContext';
+import { FreeModeProvider } from './context/FreeModeContext';
 import ThemeHandler from './components/ThemeHandler';
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { getVersions } from './services/bibleService';
@@ -93,6 +94,7 @@ function App() {
 
     return (
         <SettingsProvider>
+            <FreeModeProvider>
             {showSplash && <SplashScreen />}
             <ThemeHandler />
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -200,6 +202,7 @@ function App() {
                 </div>
 
             </Router>
+            </FreeModeProvider>
         </SettingsProvider >
     );
 }

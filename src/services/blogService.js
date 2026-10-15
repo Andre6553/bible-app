@@ -23,6 +23,7 @@ import {
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
 import { isPremiumProfile } from '../utils/subscription';
+import { ensureFreeModeLoaded } from './appSettingsService';
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
@@ -727,7 +728,8 @@ export const isSuperUser = async (userId) => {
             }
 
             // B. Paid Subscribers automatically become Super Users (Req: Sub -> Super)
-            if (isPremiumProfile(profile)) {
+            const freeMode = await ensureFreeModeLoaded();
+            if (isPremiumProfile(profile, { freeMode, user: { id: userId } })) {
                 console.log(`🔓 Paid Subscriber auto-promoted to Super User benefits: ${userId}`);
                 return true;
             }

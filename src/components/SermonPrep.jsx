@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
+import { useFreeMode } from '../context/FreeModeContext';
+import { isPremiumProfile } from '../utils/subscription';
 import { useNavigate } from 'react-router-dom';
 import { getMySermons, createSermon, deleteSermon, generateExegesis, updateSermon, performResearch, incrementSermonAuditCount } from '../services/sermonService';
 import { getBooks, getChapter, getChapterCount } from '../services/bibleService';
@@ -101,13 +103,14 @@ const scrubText = (text, blockTitle, mainSermonTitle) => {
 
 const SermonPrep = () => {
     const { settings, user, profile, fetchProfile } = useSettings();
+    const { freeMode } = useFreeMode();
     const navigate = useNavigate();
     const isAf = settings.language === 'af';
     const isAdmin = profile?.subscription_override === 'admin';
     const isFingerUser = user?.email?.toLowerCase().includes('finger') || profile?.subscription_override === 'tester_finger';
     const canSeeExperimental = isAdmin || profile?.subscription_override === 'tester' || user?.email === 'Andre@58078' || isFingerUser;
 
-    const isPremium = profile?.subscription_override === 'premium' || (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
+    const isPremium = isPremiumProfile(profile, { freeMode, user });
     const canAccessPremium = isAdmin || isPremium;
 
     // Audit Quota Logic
@@ -141,6 +144,7 @@ const SermonPrep = () => {
     };
 
     const handlePremiumLockClick = (featureKey) => {
+        if (freeMode) return;
         const feat = premiumFeatures[featureKey];
         const msg = isAf
             ? `${feat.name}: ${feat.desc}\n\nHierdie is 'n PRO funksie. Wil jy inteken om toegang te kry?`
@@ -323,6 +327,23 @@ const SermonPrep = () => {
     };
 
     const handleStartNew = () => {
+        if (freeMode || canAccessPremium) {
+            setCurrentSermon(null);
+            setTitle('');
+            setMainScripture('');
+            setAudience('general');
+            setTone('practical');
+            setTheme('');
+            setPlannedDuration(90);
+            setStep('foundation');
+
+            if (isTutorialMode) {
+                setTutorialStepIdx(0);
+                setIsTutorialOpen(true);
+            }
+            return;
+        }
+
         // Enforce Limit Check using unified logic
         const isPremiumTier = profile?.subscription_override === 'premium' ||
             (profile?.subscription_expiry && new Date(profile.subscription_expiry) > new Date());
@@ -1744,9 +1765,9 @@ const SermonPrep = () => {
                                         } else {
                                             if (result.error === 'AI_LIMIT_EXCEEDED') {
                                                 alert(isAf
-                                                    ? 'Gratis AI-limiet bereik (50/50). U kan nie outomaties \'n preek genereer nie.'
-                                                    : 'Free AI limit reached (50/50). Please upgrade for unlimited generations.');
-                                                navigate('/subscription');
+                                                    ? (freeMode ? 'AI-limiet bereik.' : 'Gratis AI-limiet bereik (50/50). U kan nie outomaties \'n preek genereer nie.')
+                                                    : (freeMode ? 'AI limit reached.' : 'Free AI limit reached (50/50). Please upgrade for unlimited generations.'));
+                                                if (!freeMode) navigate('/subscription');
                                             } else {
                                                 alert(isAf ? 'Fout met genereer van inhoud.' : 'Error generating content.');
                                             }
@@ -1973,9 +1994,9 @@ const SermonPrep = () => {
                 // Handle Errors
                 if (result.error === 'AI_LIMIT_EXCEEDED') {
                     alert(isAf
-                        ? 'Gratis AI-limiet bereik (50/50). Gradeer op vir onbeperkte toegang.'
-                        : 'Free AI limit reached (50/50). Upgrade for unlimited access or continue manual editing.');
-                    navigate('/subscription');
+                        ? (freeMode ? 'AI-limiet bereik.' : 'Gratis AI-limiet bereik (50/50). Gradeer op vir onbeperkte toegang.')
+                        : (freeMode ? 'AI limit reached.' : 'Free AI limit reached (50/50). Upgrade for unlimited access or continue manual editing.'));
+                    if (!freeMode) navigate('/subscription');
                 } else {
                     alert(isAf ? 'Kon nie inhoud genereer nie. Probeer weer.' : 'Could not generate content. Please try again.');
                 }
@@ -2441,9 +2462,11 @@ const SermonPrep = () => {
                     <span>✅ {isAf ? 'Gevorderde Navorsingsgereedskap' : 'Advanced Research Tools'}</span>
                     <span>✅ {isAf ? 'PDF Uitvoer & Druk' : 'PDF Export & Print'}</span>
                 </div>
-                <button className="gate-btn premium-btn" onClick={() => navigate('/subscription')}>
-                    {isAf ? 'Gradeer nou op' : 'Upgrade Now'}
-                </button>
+                {!freeMode && (
+                    <button className="gate-btn premium-btn" onClick={() => navigate('/subscription')}>
+                        {isAf ? 'Gradeer nou op' : 'Upgrade Now'}
+                    </button>
+                )}
                 <button className="gate-btn secondary" onClick={() => { setStep('dashboard'); setError(null); }}>
                     {isAf ? 'Terug na Paneel' : 'Back to Dashboard'}
                 </button>
@@ -2481,7 +2504,7 @@ const SermonPrep = () => {
                     </label>
                 </div>
 
-                {profile && profile.subscription_tier === 'free' && (
+                {profile && profile.subscription_tier === 'free' && !freeMode && (
                     <button
                         className="new-sermon-btn subscriber-btn"
                         onClick={() => navigate('/subscription')}
@@ -2494,7 +2517,7 @@ const SermonPrep = () => {
                     + {isAf ? 'Nuwe Preek' : 'New Sermon'}
                 </button>
 
-                {profile && profile.subscription_tier === 'free' && (
+                {profile && profile.subscription_tier === 'free' && !freeMode && (
                     <div className="trial-counter">
                         {isAf ? 'Gratis Preke oor:' : 'Free Trials left:'}
                         {(() => {
