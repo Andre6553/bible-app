@@ -1,23 +1,42 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
-    ensureFreeModeLoaded,
+    ensureAppSettingsLoaded,
     fetchFreeModeSetting,
+    fetchSermonPrepEnabledSetting,
     setCachedFreeMode,
-    updateFreeModeSetting
+    setCachedSermonPrepEnabled,
+    updateFreeModeSetting,
+    updateSermonPrepEnabledSetting
 } from '../services/appSettingsService';
 
-const FreeModeContext = createContext({
+const AppSettingsContext = createContext({
     freeMode: false,
     freeModeLoading: true,
+    sermonPrepEnabled: false,
+    sermonPrepLoading: true,
     refreshFreeMode: async () => false,
-    setFreeModeEnabled: async () => ({ success: false })
+    refreshSermonPrepEnabled: async () => false,
+    setFreeModeEnabled: async () => ({ success: false }),
+    setSermonPrepEnabled: async () => ({ success: false })
 });
 
-export const useFreeMode = () => useContext(FreeModeContext);
+export const useAppSettings = () => useContext(AppSettingsContext);
+
+export const useFreeMode = () => {
+    const ctx = useContext(AppSettingsContext);
+    return {
+        freeMode: ctx.freeMode,
+        freeModeLoading: ctx.freeModeLoading,
+        refreshFreeMode: ctx.refreshFreeMode,
+        setFreeModeEnabled: ctx.setFreeModeEnabled
+    };
+};
 
 export const FreeModeProvider = ({ children }) => {
     const [freeMode, setFreeMode] = useState(false);
     const [freeModeLoading, setFreeModeLoading] = useState(true);
+    const [sermonPrepEnabled, setSermonPrepEnabledState] = useState(false);
+    const [sermonPrepLoading, setSermonPrepLoading] = useState(true);
 
     const refreshFreeMode = useCallback(async () => {
         setFreeModeLoading(true);
@@ -32,13 +51,29 @@ export const FreeModeProvider = ({ children }) => {
         return result.success ? result.enabled : false;
     }, []);
 
+    const refreshSermonPrepEnabled = useCallback(async () => {
+        setSermonPrepLoading(true);
+        const result = await fetchSermonPrepEnabledSetting();
+        if (result.success) {
+            setSermonPrepEnabledState(result.enabled);
+        } else {
+            setSermonPrepEnabledState(false);
+            setCachedSermonPrepEnabled(false);
+        }
+        setSermonPrepLoading(false);
+        return result.success ? result.enabled : false;
+    }, []);
+
     useEffect(() => {
         let cancelled = false;
         (async () => {
-            const enabled = await ensureFreeModeLoaded();
+            const { freeMode: loadedFreeMode, sermonPrepEnabled: loadedSermonPrep } =
+                await ensureAppSettingsLoaded();
             if (!cancelled) {
-                setFreeMode(enabled);
+                setFreeMode(loadedFreeMode);
+                setSermonPrepEnabledState(loadedSermonPrep);
                 setFreeModeLoading(false);
+                setSermonPrepLoading(false);
             }
         })();
         return () => {
@@ -54,19 +89,40 @@ export const FreeModeProvider = ({ children }) => {
         return result;
     }, []);
 
+    const setSermonPrepEnabled = useCallback(async (enabled) => {
+        const result = await updateSermonPrepEnabledSetting(enabled);
+        if (result.success) {
+            setSermonPrepEnabledState(result.enabled);
+        }
+        return result;
+    }, []);
+
     const value = useMemo(
         () => ({
             freeMode,
             freeModeLoading,
+            sermonPrepEnabled,
+            sermonPrepLoading,
             refreshFreeMode,
-            setFreeModeEnabled
+            refreshSermonPrepEnabled,
+            setFreeModeEnabled,
+            setSermonPrepEnabled
         }),
-        [freeMode, freeModeLoading, refreshFreeMode, setFreeModeEnabled]
+        [
+            freeMode,
+            freeModeLoading,
+            sermonPrepEnabled,
+            sermonPrepLoading,
+            refreshFreeMode,
+            refreshSermonPrepEnabled,
+            setFreeModeEnabled,
+            setSermonPrepEnabled
+        ]
     );
 
     return (
-        <FreeModeContext.Provider value={value}>
+        <AppSettingsContext.Provider value={value}>
             {children}
-        </FreeModeContext.Provider>
+        </AppSettingsContext.Provider>
     );
 };

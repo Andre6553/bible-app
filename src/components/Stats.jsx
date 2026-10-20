@@ -3,7 +3,7 @@ import { useBackButton } from './BackButtonHandler';
 import { useNavigate } from 'react-router-dom';
 import { logError } from '../services/loggerService';
 import { useSettings } from '../context/SettingsContext';
-import { useFreeMode } from '../context/FreeModeContext';
+import { useAppSettings, useFreeMode } from '../context/FreeModeContext';
 import { copyToClipboard } from '../utils/appUtils';
 
 import { supabase, supabaseUrl, supabaseKey } from '../config/supabaseClient';
@@ -64,8 +64,14 @@ Omni Bible System`.trim();
 
 function Stats() {
     const navigate = useNavigate();
-    const { profile, fetchProfile, user, authLoading, profileLoading } = useSettings();
+    const { settings, profile, fetchProfile, user, authLoading, profileLoading } = useSettings();
     const { freeMode, setFreeModeEnabled, refreshFreeMode } = useFreeMode();
+    const {
+        sermonPrepEnabled,
+        setSermonPrepEnabled,
+        refreshSermonPrepEnabled
+    } = useAppSettings();
+    const isAf = settings?.language === 'af';
 
     // ... (state declarations)
 
@@ -130,6 +136,8 @@ function Stats() {
     const [rateLimitLoading, setRateLimitLoading] = useState(false);
     const [freeModeToggleLoading, setFreeModeToggleLoading] = useState(false);
     const [freeModeFeedback, setFreeModeFeedback] = useState('');
+    const [sermonPrepToggleLoading, setSermonPrepToggleLoading] = useState(false);
+    const [sermonPrepFeedback, setSermonPrepFeedback] = useState('');
     const [superAutoEnabled, setSuperAutoEnabled] = useState(false);
     const [superAutoLoading, setSuperAutoLoading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -232,6 +240,7 @@ function Stats() {
             fetchPromoSettings();
             fetchTriviaStats();
             refreshFreeMode();
+            refreshSermonPrepEnabled();
         }
     }, [isAuthenticated]);
 
@@ -552,6 +561,31 @@ function Stats() {
             setFreeModeFeedback(`Could not save free mode: ${result.error || 'Unknown error'}`);
         }
         setFreeModeToggleLoading(false);
+    };
+
+    const handleToggleSermonPrep = async () => {
+        setSermonPrepToggleLoading(true);
+        setSermonPrepFeedback('');
+        const newValue = !sermonPrepEnabled;
+        const result = await setSermonPrepEnabled(newValue);
+        if (result.success) {
+            setSermonPrepFeedback(
+                newValue
+                    ? (isAf
+                        ? 'Preek Voorbereiding is AAN — sigbaar vir alle gebruikers.'
+                        : 'Sermon Preparation is ON — visible to all users.')
+                    : (isAf
+                        ? 'Preek Voorbereiding is AF — slegs admins sien die funksie.'
+                        : 'Sermon Preparation is OFF — only admins can see the feature.')
+            );
+        } else {
+            setSermonPrepFeedback(
+                isAf
+                    ? `Kon nie stoor: ${result.error || 'Onbekende fout'}`
+                    : `Could not save sermon prep setting: ${result.error || 'Unknown error'}`
+            );
+        }
+        setSermonPrepToggleLoading(false);
     };
 
     const fetchEmailSettings = async () => {
@@ -1772,6 +1806,45 @@ function Stats() {
                             role="status"
                         >
                             {freeModeFeedback}
+                        </p>
+                    )}
+                    <div className="setting-row">
+                        <p>
+                            {isAf
+                                ? 'Preek Voorbereiding sigbaar vir alle gebruikers'
+                                : 'Sermon Preparation visible to all users'}
+                            : <strong>{sermonPrepEnabled ? 'ON' : 'OFF'}</strong>
+                        </p>
+                        <label className="switch">
+                            <input
+                                type="checkbox"
+                                checked={sermonPrepEnabled}
+                                onChange={handleToggleSermonPrep}
+                                disabled={sermonPrepToggleLoading}
+                            />
+                            <span className="slider"></span>
+                        </label>
+                    </div>
+                    <p className="setting-desc" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        {isAf
+                            ? 'Wanneer AF, kan slegs admins Preek Voorbereiding sien en gebruik. Ander gebruikers en gaste sien nie die knoppie nie.'
+                            : 'When OFF, only admins see and can use Sermon Preparation. Other users and guests do not see the entry point.'}
+                    </p>
+                    {sermonPrepFeedback && (
+                        <p
+                            className="setting-desc"
+                            style={{
+                                marginTop: '8px',
+                                fontSize: '0.85rem',
+                                color:
+                                    sermonPrepFeedback.startsWith('Could not') ||
+                                    sermonPrepFeedback.startsWith('Kon nie')
+                                        ? '#f87171'
+                                        : '#4ade80'
+                            }}
+                            role="status"
+                        >
+                            {sermonPrepFeedback}
                         </p>
                     )}
 
