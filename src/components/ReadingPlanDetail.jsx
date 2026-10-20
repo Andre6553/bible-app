@@ -23,6 +23,7 @@ import PlanDayReading from './PlanDayReading';
 import VersionSelector from './VersionSelector';
 import { recordPlanBehavior } from '../services/planIntelligenceService';
 import { resolveDbBookId } from '../constants/canonicalBooks';
+import { getBookNamesLanguage } from '../constants/bookNames';
 import './ReadingPlans.css';
 
 function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] }) {
@@ -406,7 +407,7 @@ function ReadingPlanDetail({ currentVersion, setCurrentVersion, versions = [] })
                                             {isAf ? `: ${dayReading.title_af}` : `: ${dayReading.title_en}`}
                                         </strong>
                                         <p className="plan-day-passages">
-                                            {formatDayPassages(dayReading, books, settings.language)}
+                                            {formatDayPassages(dayReading, books, getBookNamesLanguage(activeVersionId, settings.language))}
                                         </p>
                                     </div>
                                     <span className="plan-day-expand-icon">{expanded ? '−' : '+'}</span>

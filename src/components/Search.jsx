@@ -930,7 +930,7 @@ function Search({ currentVersion, versions }) {
         }
 
         semanticResults.forEach(v => {
-            text += `\n[${v.version}] ${v.books.name_full} ${v.chapter}:${v.verse}\n${v.text}\n💡 ${v.semanticReason}\n`;
+            text += `\n[${v.version}] ${getLocalizedBookName(v.books.name_full, v.version || settings.language)} ${v.chapter}:${v.verse}\n${v.text}\n💡 ${v.semanticReason}\n`;
         });
 
         copyToClipboard(text).then(success => {
@@ -1881,7 +1881,7 @@ Here are the available shortcuts to quickly ask questions:
                                                 <div className="result-header">
                                                     <div className="header-left">
                                                         <span className="result-ref">
-                                                            {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
+                                                            {getLocalizedBookName(verse.books.name_full, verse.version || settings.language)} {verse.chapter}:{verse.verse}
                                                         </span>
                                                         <span className="semantic-badge">{settings.language === 'af' ? 'Bybelsoek Rede' : 'Bible Search Match'}</span>
                                                         <span className="result-version">
@@ -1925,7 +1925,7 @@ Here are the available shortcuts to quickly ask questions:
                                                 <div className="result-header">
                                                     <div className="header-left">
                                                         <span className="result-ref">
-                                                            {getLocalizedBookName(verse.books.name_full, verse.version === 'AFR53' || verse.version === 'AFR83' ? 'af' : settings.language)} {verse.chapter}:{verse.verse}
+                                                            {getLocalizedBookName(verse.books.name_full, verse.version || settings.language)} {verse.chapter}:{verse.verse}
                                                         </span>
                                                         <span className="result-version">
                                                             {verse.version}

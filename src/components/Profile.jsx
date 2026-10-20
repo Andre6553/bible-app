@@ -330,11 +330,11 @@ function Profile() {
         setEditingName(false);
     };
 
-    const getBookName = (bookId) => {
+    const getBookName = (bookId, versionId) => {
         // Use loose equality (==) because bookId might be string from DB but number in books array
         const book = books.find(b => b.id == bookId);
         const name = book?.name_full || bookId;
-        return getLocalizedBookName(name, settings.language);
+        return getLocalizedBookName(name, versionId || settings.language);
     };
 
     const getColorName = (colorHex) => {
@@ -1020,10 +1020,10 @@ function Profile() {
                                                                     <div key={h.id} className="highlight-item" onClick={() => navigateToVerse(h.book_id, h.chapter, h.verse)}>
                                                                         <div className="highlight-color-dot" style={{ backgroundColor: h.color }} />
                                                                         <div className="highlight-info">
-                                                                            <span className="highlight-ref">{getBookName(h.book_id)} {h.chapter}:{h.verse}</span>
+                                                                            <span className="highlight-ref">{getBookName(h.book_id, h.version)} {h.chapter}:{h.verse}</span>
                                                                             <span className="highlight-version">{h.version}</span>
                                                                         </div>
-                                                                        <button className="delete-btn" onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id)} ${h.chapter}:{h.verse}`, e)}>🗑️</button>
+                                                                        <button className="delete-btn" onClick={(e) => openDeleteConfirm('highlight', h.id, `${getBookName(h.book_id, h.version)} ${h.chapter}:${h.verse}`, e)}>🗑️</button>
                                                                     </div>
                                                                 ))
                                                             )}
@@ -1060,13 +1060,13 @@ function Profile() {
                                         )}
                                         {(selectedStudyId ? notes.filter(n => n.study_id === selectedStudyId) : notes).map(note => (
                                             <div key={note.id} className="note-item" onClick={() => navigate(`/bible?book=${note.book_id}&chapter=${note.chapter}`)}>
-                                                <div className="note-ref">{getBookName(note.book_id)} {note.chapter}:{note.verse}</div>
+                                                <div className="note-ref">{getBookName(note.book_id, note.version)} {note.chapter}:{note.verse}</div>
                                                 <p className="note-text-preview">{note.note_text}</p>
                                                 <div className="note-footer">
                                                     {note.study_collections && (
                                                         <span className="note-study-badge" style={{ backgroundColor: note.study_collections.color }}>{note.study_collections.name}</span>
                                                     )}
-                                                    <button className="delete-btn" onClick={(e) => openDeleteConfirm('note', note.id, `${getBookName(note.book_id)} ${note.chapter}:${note.verse}`, e)}>🗑️</button>
+                                                    <button className="delete-btn" onClick={(e) => openDeleteConfirm('note', note.id, `${getBookName(note.book_id, note.version)} ${note.chapter}:${note.verse}`, e)}>🗑️</button>
                                                 </div>
                                             </div>
                                         ))}

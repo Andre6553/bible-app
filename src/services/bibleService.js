@@ -1,24 +1,14 @@
 import { supabase } from '../config/supabaseClient';
 import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
+import { SUPPORTED_VERSIONS } from '../constants/bibleVersions';
 import { notifyAdminOfNewUser } from './emailService';
 import { logEvent } from './analyticsService';
+
+export { SUPPORTED_VERSIONS };
 
 /**
  * Bible Service - Handles all Bible data operations with Supabase
  */
-
-export const SUPPORTED_VERSIONS = [
-    { id: 'AFR53', name: 'Afrikaans 1953', abbreviation: 'AFR53', language: 'af' },
-    { id: 'KJV', name: 'King James Version', abbreviation: 'KJV', language: 'en' },
-    { id: 'NKJV', name: 'New King James Version', abbreviation: 'NKJV', language: 'en' },
-    { id: 'NIV', name: 'New International Version', abbreviation: 'NIV', language: 'en' },
-    { id: 'ESV', name: 'English Standard Version', abbreviation: 'ESV', language: 'en' },
-    { id: 'NLT', name: 'New Living Translation', abbreviation: 'NLT', language: 'en' },
-    { id: 'AMP', name: 'Amplified Bible', abbreviation: 'AMP', language: 'en' },
-    { id: 'AFR83', name: 'Afrikaans 1983', abbreviation: 'AFR83', language: 'af' },
-    { id: 'AFRNLV', name: 'Afrikaanse Nuwe Lewe', abbreviation: 'AFR NLV', language: 'af' },
-    { id: 'XHO22', name: 'Xhosa 2022', abbreviation: 'XHO22', language: 'xh' },
-];
 
 /**
  * Get all available Bible versions
