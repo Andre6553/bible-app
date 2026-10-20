@@ -18,12 +18,16 @@ import { getActivePlan, getProgressStats } from '../services/readingPlanService'
 import './Profile.css';
 import './ReadingPlans.css';
 import { isPremiumProfile } from '../utils/subscription';
-import { useFreeMode } from '../context/FreeModeContext';
+import { useAppSettings, useFreeMode } from '../context/FreeModeContext';
+import { isAppAdmin } from '../utils/admin';
 
 function Profile() {
     const navigate = useNavigate();
     const { settings, updateSettings, profile, fetchProfile, user, manualSetUser } = useSettings();
     const { freeMode } = useFreeMode();
+    const { sermonPrepEnabled, sermonPrepLoading } = useAppSettings();
+    const showSermonPrepEntry =
+        isAppAdmin(user, profile) || (!sermonPrepLoading && sermonPrepEnabled);
     const [activeTab, setActiveTab] = useState('highlights');
     const [highlights, setHighlights] = useState([]);
     const [totalHighlightCount, setTotalHighlightCount] = useState(0);
@@ -943,13 +947,14 @@ function Profile() {
                     </button>
                 ))}
 
-                {/* Sermon Prep Button */}
-                <button
-                    className="profile-tab sermon-prep-btn"
-                    onClick={() => navigate('/sermon-prep')}
-                >
-                    ⛪ {settings.language === 'af' ? 'Preek Voorbereiding' : 'Sermon Preparation'}
-                </button>
+                {showSermonPrepEntry && (
+                    <button
+                        className="profile-tab sermon-prep-btn"
+                        onClick={() => navigate('/sermon-prep')}
+                    >
+                        ⛪ {settings.language === 'af' ? 'Preek Voorbereiding' : 'Sermon Preparation'}
+                    </button>
+                )}
                 <button
                     className="profile-tab sermon-prep-btn"
                     style={{ marginLeft: '10px' }}

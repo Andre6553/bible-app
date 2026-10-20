@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
-import { useFreeMode } from '../context/FreeModeContext';
+import { useAppSettings, useFreeMode } from '../context/FreeModeContext';
 import { isPremiumProfile } from '../utils/subscription';
+import { isAppAdmin } from '../utils/admin';
 import { useNavigate } from 'react-router-dom';
 import { getMySermons, createSermon, deleteSermon, generateExegesis, updateSermon, performResearch, incrementSermonAuditCount } from '../services/sermonService';
 import { getBooks, getChapter, getChapterCount } from '../services/bibleService';
@@ -104,9 +105,10 @@ const scrubText = (text, blockTitle, mainSermonTitle) => {
 const SermonPrep = () => {
     const { settings, user, profile, fetchProfile } = useSettings();
     const { freeMode } = useFreeMode();
+    const { sermonPrepEnabled, sermonPrepLoading } = useAppSettings();
     const navigate = useNavigate();
     const isAf = settings.language === 'af';
-    const isAdmin = profile?.subscription_override === 'admin';
+    const isAdmin = isAppAdmin(user, profile);
     const isFingerUser = user?.email?.toLowerCase().includes('finger') || profile?.subscription_override === 'tester_finger';
     const canSeeExperimental = isAdmin || profile?.subscription_override === 'tester' || user?.email === 'Andre@58078' || isFingerUser;
 
@@ -241,6 +243,13 @@ const SermonPrep = () => {
         }
         return () => document.body.classList.remove('overlay-open');
     }, [overlayState.isOpen]);
+
+    useEffect(() => {
+        if (sermonPrepLoading) return;
+        if (!sermonPrepEnabled && !isAdmin) {
+            navigate('/profile', { replace: true });
+        }
+    }, [sermonPrepEnabled, sermonPrepLoading, isAdmin, navigate]);
 
     const tutorialSteps = [
         {
