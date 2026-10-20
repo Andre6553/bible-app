@@ -1,3 +1,6 @@
+import { isAfrikaansVersion } from './bibleVersions';
+
+export { isAfrikaansVersion, getBookNamesLanguage, getVersionById } from './bibleVersions';
 
 export const AFRIKAANS_BOOK_NAMES = {
     "Genesis": "Genesis",
@@ -71,10 +74,7 @@ export const AFRIKAANS_BOOK_NAMES = {
 export const getLocalizedBookName = (bookName, langOrVersion) => {
     if (!bookName) return '';
 
-    // Check if it's a version ID or a simple language code
-    const isAfrikaans = ['afr53', 'afr83', 'af', 'afrikaans'].includes(langOrVersion?.toLowerCase());
-
-    if (isAfrikaans) {
+    if (isAfrikaansVersion(langOrVersion)) {
         return AFRIKAANS_BOOK_NAMES[bookName] || bookName;
     }
 

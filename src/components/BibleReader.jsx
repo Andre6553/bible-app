@@ -24,7 +24,7 @@ import {
     getHighlightCategories,
     saveHighlightCategory
 } from '../services/highlightService';
-import { getLocalizedBookName } from '../constants/bookNames';
+import { getLocalizedBookName, isAfrikaansVersion, getBookNamesLanguage } from '../constants/bookNames';
 import { useSettings } from '../context/SettingsContext';
 import VerseActionSheet from './VerseActionSheet';
 import NoteModal from './NoteModal';
@@ -1395,7 +1395,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             setSelectionStage('chapters');
                             setShowBookSelector(true);
                         }}>
-                            {['AFR53', 'AFR83'].includes(currentVersion?.id) ? 'Hoofstuk' : 'Chapter'} {selectedChapter}
+                            {isAfrikaansVersion(currentVersion?.id) ? 'Hoofstuk' : 'Chapter'} {selectedChapter}
                         </span>
                         <button
                             className="chapter-btn btn-secondary"
@@ -1501,8 +1501,8 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 )}
                                 <h3>
                                     {selectionStage === 'books' && (settings.language === 'af' ? 'Kies Boek' : 'Select Book')}
-                                    {selectionStage === 'chapters' && (settings.language === 'af' ? `Kies Hoofstuk (${tempSelectedBook?.name_full})` : `Select Chapter (${tempSelectedBook?.name_full})`)}
-                                    {selectionStage === 'verses' && (settings.language === 'af' ? `Kies Vers (${tempSelectedBook?.name_full} ${tempSelectedChapter})` : `Select Verse (${tempSelectedBook?.name_full} ${tempSelectedChapter})`)}
+                                    {selectionStage === 'chapters' && (settings.language === 'af' ? `Kies Hoofstuk (${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)})` : `Select Chapter (${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)})`)}
+                                    {selectionStage === 'verses' && (settings.language === 'af' ? `Kies Vers (${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)} ${tempSelectedChapter})` : `Select Verse (${getLocalizedBookName(tempSelectedBook?.name_full, currentVersion?.id)} ${tempSelectedChapter})`)}
                                 </h3>
                             </div>
                             <button className="close-btn" onClick={() => setShowBookSelector(false)}>✕</button>
@@ -1626,7 +1626,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 onClick={handlePlanNextPassage}
                             >
                                 {settings.language === 'af' ? 'Volgende' : 'Next'}:{' '}
-                                {formatPassageRef(nextPlanPassage, books, settings.language)}
+                                {formatPassageRef(nextPlanPassage, books, getBookNamesLanguage(currentVersion?.id, settings.language))}
                             </button>
                         )}
                         {isLastPlanPassage && (
