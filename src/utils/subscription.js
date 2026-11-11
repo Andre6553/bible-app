@@ -7,16 +7,16 @@ export function isPremiumProfile(profile, { freeMode = false, user = null } = {}
     if (freeMode && user) return true;
     if (!profile) return false;
 
-    const override = profile.subscription_override;
+    const override = (profile.subscription_override || '').trim().toLowerCase();
+    const tier = (profile.subscription_tier || '').trim().toLowerCase();
     const expiry = profile.subscription_expiry;
+    const expiryValid = expiry && new Date(expiry) > new Date();
 
-    return (
-        profile.subscription_tier === 'premium' ||
-        override === 'premium' ||
-        override === 'admin' ||
-        override === 'tester' ||
-        (expiry && new Date(expiry) > new Date())
-    );
+    if (override === 'admin' || override === 'tester') return true;
+    if (tier === 'admin') return true;
+    if ((override === 'premium' || tier === 'premium') && expiryValid) return true;
+
+    return false;
 }
 
 /**

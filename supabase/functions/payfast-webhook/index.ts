@@ -49,22 +49,56 @@ serve(async (req) => {
         const hash = await crypto.subtle.digest("MD5", new TextEncoder().encode(finalString))
         const hashHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
 
-        // [SECURITY BYPASS FOR LOCAL TESTING] 
-        // In production, we compare signature === hashHex
-        // For initial setup, we will log it.
-        console.log('[PayFast IPN] Computed Hash:', hashHex)
-        console.log('[PayFast IPN] Provided Signature:', signature)
+        const sigOk = signature.toLowerCase() === hashHex.toLowerCase()
+        if (!sigOk) {
+            console.error('[PayFast IPN] Invalid signature', { provided: signature, computed: hashHex })
+            return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 400,
+            })
+        }
+
+        const expectedMerchant = Deno.env.get('PAYFAST_MERCHANT_ID')
+        if (expectedMerchant && ipnData.merchant_id && ipnData.merchant_id !== expectedMerchant) {
+            throw new Error('Merchant ID mismatch')
+        }
+
+        const amountGross = parseFloat(ipnData.amount_gross || '0')
+        const minAmount = parseFloat(Deno.env.get('PAYFAST_MIN_AMOUNT_ZAR') || '1')
+        if (Number.isFinite(amountGross) && amountGross > 0 && amountGross < minAmount) {
+            throw new Error('Amount below minimum')
+        }
 
         // 4. Process Payment
         const userId = ipnData.custom_str1 // We pass user_id in custom_str1
         const status = ipnData.payment_status
+        const pfPaymentId = ipnData.pf_payment_id
+
+        if (pfPaymentId && status === 'COMPLETE') {
+            const { data: prior } = await supabase
+                .from('payment_history')
+                .select('id')
+                .eq('pf_payment_id', pfPaymentId)
+                .eq('payment_status', 'COMPLETE')
+                .eq('status', 'success')
+                .limit(1)
+                .maybeSingle()
+
+            if (prior) {
+                console.log('[PayFast IPN] Duplicate COMPLETE ignored:', pfPaymentId)
+                return new Response(JSON.stringify({ received: true, duplicate: true }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                })
+            }
+        }
 
         // Audit Log
         await supabase.from('payment_history').insert({
             user_id: userId || 'unknown',
             status: status === 'COMPLETE' ? 'success' : 'pending',
-            amount_gross: parseFloat(ipnData.amount_gross || '0'),
-            pf_payment_id: ipnData.pf_payment_id,
+            amount_gross: amountGross,
+            pf_payment_id: pfPaymentId,
             payment_status: status,
             item_name: ipnData.item_name,
             full_ipn_data: ipnData,

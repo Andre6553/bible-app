@@ -1,0 +1,1005 @@
+[
+  {
+    "tablename": "ai_cache",
+    "policyname": "Users can insert ai cache",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "tablename": "ai_cache",
+    "policyname": "Users can read ai cache",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "ai_cache",
+    "policyname": "Users can update ai cache",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "true",
+    "with_check": "true"
+  },
+  {
+    "tablename": "ai_questions",
+    "policyname": "Users can insert ai questions",
+    "cmd": "INSERT",
+    "roles": [
+      "public"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "ai_questions",
+    "policyname": "Users can read own ai questions",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "ai_quota",
+    "policyname": "Anyone can read quota",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "api_usage_logs",
+    "policyname": "Admins can read api logs",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "api_usage_logs",
+    "policyname": "Users can insert api logs",
+    "cmd": "INSERT",
+    "roles": [
+      "public"
+    ],
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "tablename": "api_usage_logs",
+    "policyname": "admin_only_api",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "app_config",
+    "policyname": "Admins can delete app_config",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE ((user_profiles.user_id = (auth.uid())::text) AND (user_profiles.subscription_override = 'admin'::text))))",
+    "with_check": null
+  },
+  {
+    "tablename": "app_config",
+    "policyname": "Admins can insert app_config",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE ((user_profiles.user_id = (auth.uid())::text) AND (user_profiles.subscription_override = 'admin'::text))))"
+  },
+  {
+    "tablename": "app_config",
+    "policyname": "Admins can update app_config",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE ((user_profiles.user_id = (auth.uid())::text) AND (user_profiles.subscription_override = 'admin'::text))))",
+    "with_check": null
+  },
+  {
+    "tablename": "app_config",
+    "policyname": "Admins/Testers can read app_config",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(is_admin_jwt() OR (key = ANY (ARRAY['base_subscription_price_usd'::text, 'maintenance_mode'::text])))",
+    "with_check": null
+  },
+  {
+    "tablename": "app_config",
+    "policyname": "Anyone can read app_config",
+    "cmd": "SELECT",
+    "roles": [
+      "anon",
+      "authenticated"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "app_errors",
+    "policyname": "Enable delete for admins only",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((is_admin_jwt() = true) OR (auth.email() = 'andre.ecprint@gmail.com'::text))",
+    "with_check": null
+  },
+  {
+    "tablename": "app_errors",
+    "policyname": "Enable insert for everyone",
+    "cmd": "INSERT",
+    "roles": [
+      "anon",
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "tablename": "app_errors",
+    "policyname": "Enable select for admins only",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((is_admin_jwt() = true) OR (auth.email() = 'andre.ecprint@gmail.com'::text))",
+    "with_check": null
+  },
+  {
+    "tablename": "app_settings",
+    "policyname": "Anyone can read app settings",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "app_settings",
+    "policyname": "admin_all_settings",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "app_settings",
+    "policyname": "admin_delete_app_settings",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "check_is_admin()",
+    "with_check": null
+  },
+  {
+    "tablename": "app_settings",
+    "policyname": "admin_insert_app_settings",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "check_is_admin()"
+  },
+  {
+    "tablename": "app_settings",
+    "policyname": "admin_update_app_settings",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "check_is_admin()",
+    "with_check": "check_is_admin()"
+  },
+  {
+    "tablename": "app_settings",
+    "policyname": "public_read_app_settings",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "app_settings",
+    "policyname": "public_read_settings",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "bible_reading_logs",
+    "policyname": "Admins/Testers can view all reading logs",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "bible_reading_logs",
+    "policyname": "owner_admin_reading_logs",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "blog_views",
+    "policyname": "Users can insert blog views",
+    "cmd": "INSERT",
+    "roles": [
+      "public"
+    ],
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "tablename": "blog_views",
+    "policyname": "Users can read blog views",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "books",
+    "policyname": "admin_delete_books",
+    "cmd": "DELETE",
+    "roles": [
+      "public"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "books",
+    "policyname": "admin_update_books",
+    "cmd": "UPDATE",
+    "roles": [
+      "public"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "books",
+    "policyname": "admin_write_books",
+    "cmd": "INSERT",
+    "roles": [
+      "public"
+    ],
+    "qual": null,
+    "with_check": "is_admin_jwt()"
+  },
+  {
+    "tablename": "books",
+    "policyname": "public_read_books",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "devotional_history",
+    "policyname": "owner_admin_devotionals",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "highlight_categories",
+    "policyname": "owner_admin_categories",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "inductive_studies",
+    "policyname": "Users can create their own studies",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "inductive_studies",
+    "policyname": "Users can delete their own studies",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "inductive_studies",
+    "policyname": "Users can update their own studies",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "inductive_studies",
+    "policyname": "Users can view their own studies",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "note_labels",
+    "policyname": "Authenticated users can manage note links",
+    "cmd": "ALL",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "true",
+    "with_check": "true"
+  },
+  {
+    "tablename": "note_labels",
+    "policyname": "owner_admin_note_labels",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(EXISTS ( SELECT 1\n   FROM verse_notes\n  WHERE ((verse_notes.id = note_labels.note_id) AND ((verse_notes.user_id = (auth.uid())::text) OR is_admin_jwt()))))",
+    "with_check": null
+  },
+  {
+    "tablename": "promo_codes",
+    "policyname": "Admins and Testers can view promo codes",
+    "cmd": "ALL",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "promo_codes",
+    "policyname": "Allow full access for admins",
+    "cmd": "ALL",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE ((user_profiles.user_id = (auth.uid())::text) AND (user_profiles.subscription_override = 'admin'::text))))",
+    "with_check": null
+  },
+  {
+    "tablename": "promo_codes",
+    "policyname": "Allow public read of public codes",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "((is_admin_only = false) AND (is_active = true))",
+    "with_check": null
+  },
+  {
+    "tablename": "promo_redemptions",
+    "policyname": "Admins can view all redemptions",
+    "cmd": "ALL",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(EXISTS ( SELECT 1\n   FROM user_profiles\n  WHERE ((user_profiles.user_id = (auth.uid())::text) AND (user_profiles.subscription_override = 'admin'::text))))",
+    "with_check": null
+  },
+  {
+    "tablename": "promo_redemptions",
+    "policyname": "Users can view own redemptions",
+    "cmd": "ALL",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "reading_plans",
+    "policyname": "Anyone can read active plans",
+    "cmd": "SELECT",
+    "roles": [
+      "anon",
+      "authenticated"
+    ],
+    "qual": "((is_active = true) AND (COALESCE(is_personal, false) = false) AND (COALESCE(is_pool, false) = false))",
+    "with_check": null
+  },
+  {
+    "tablename": "reading_plans",
+    "policyname": "Anyone can read active pool plans",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((is_active = true) AND (is_pool = true))",
+    "with_check": null
+  },
+  {
+    "tablename": "reading_plans",
+    "policyname": "Users can delete own personal plans",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((is_personal = true) AND (created_by_user_id = (auth.uid())::text))",
+    "with_check": null
+  },
+  {
+    "tablename": "reading_plans",
+    "policyname": "Users can insert own personal plans",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "((is_personal = true) AND (created_by_user_id = (auth.uid())::text) AND (category = 'personal'::text))"
+  },
+  {
+    "tablename": "reading_plans",
+    "policyname": "Users can insert pool copy of own plan",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "((is_pool = true) AND (is_personal = false) AND (created_by_user_id IS NULL) AND (original_owner_id = (auth.uid())::text) AND (category = 'personal'::text))"
+  },
+  {
+    "tablename": "reading_plans",
+    "policyname": "Users can read own personal plans",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((is_personal = true) AND (created_by_user_id = (auth.uid())::text))",
+    "with_check": null
+  },
+  {
+    "tablename": "reading_plans",
+    "policyname": "Users can update own personal plans",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((is_personal = true) AND (created_by_user_id = (auth.uid())::text))",
+    "with_check": "((is_personal = true) AND (created_by_user_id = (auth.uid())::text))"
+  },
+  {
+    "tablename": "search_logs",
+    "policyname": "Admins/Testers can view all search logs",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "search_logs",
+    "policyname": "Anyone can read search logs",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "search_logs",
+    "policyname": "Users can insert search logs",
+    "cmd": "INSERT",
+    "roles": [
+      "public"
+    ],
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "tablename": "search_logs",
+    "policyname": "owner_admin_search",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "sermons",
+    "policyname": "owner_admin_sermons",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = (user_id)::text) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "study_collections",
+    "policyname": "Users can create own collections",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "study_collections",
+    "policyname": "Users can delete own collections",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "study_collections",
+    "policyname": "Users can update own collections",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "study_collections",
+    "policyname": "Users can view own collections",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "study_collections",
+    "policyname": "owner_admin_collections",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "trivia_questions",
+    "policyname": "Allow authenticated users to insert questions",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "tablename": "trivia_questions",
+    "policyname": "Allow read access to questions for authenticated users",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "user_activity_logs",
+    "policyname": "Users can insert own activity",
+    "cmd": "INSERT",
+    "roles": [
+      "public"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "user_activity_logs",
+    "policyname": "Users can view own activity",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_devotionals",
+    "policyname": "Users can insert own devotionals",
+    "cmd": "INSERT",
+    "roles": [
+      "public"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "user_devotionals",
+    "policyname": "Users can read own devotionals",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_devotionals",
+    "policyname": "Users can update own devotionals",
+    "cmd": "UPDATE",
+    "roles": [
+      "public"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_labels",
+    "policyname": "Users can create own labels",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "user_labels",
+    "policyname": "Users can delete own labels",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_labels",
+    "policyname": "Users can update own labels",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_labels",
+    "policyname": "Users can view own labels",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_labels",
+    "policyname": "owner_admin_labels",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_plan_events",
+    "policyname": "Users insert own plan events",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "user_plan_events",
+    "policyname": "Users view own plan events",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_plan_profiles",
+    "policyname": "Users upsert own plan profile",
+    "cmd": "ALL",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "user_plan_profiles",
+    "policyname": "Users view own plan profile",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Admins/Testers can view all profiles",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "owner_admin_profiles",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_reading_plans",
+    "policyname": "Users can delete own enrollments",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_reading_plans",
+    "policyname": "Users can insert own enrollments",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "user_reading_plans",
+    "policyname": "Users can update own enrollments",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_reading_plans",
+    "policyname": "Users can view own enrollments",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_settings",
+    "policyname": "owner_admin_user_settings",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_trivia_daily",
+    "policyname": "Users can update own daily stats",
+    "cmd": "ALL",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(auth.uid() = user_id)",
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "tablename": "user_trivia_daily",
+    "policyname": "Users can view own daily stats",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "user_trivia_history",
+    "policyname": "Users can insert own history",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "tablename": "user_trivia_history",
+    "policyname": "Users can view own history",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "verse_highlights",
+    "policyname": "owner_admin_highlights",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "verse_notes",
+    "policyname": "Users can create own notes",
+    "cmd": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": null,
+    "with_check": "((auth.uid())::text = user_id)"
+  },
+  {
+    "tablename": "verse_notes",
+    "policyname": "Users can delete own notes",
+    "cmd": "DELETE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "verse_notes",
+    "policyname": "Users can update own notes",
+    "cmd": "UPDATE",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "verse_notes",
+    "policyname": "Users can view own notes",
+    "cmd": "SELECT",
+    "roles": [
+      "authenticated"
+    ],
+    "qual": "((auth.uid())::text = user_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "verse_notes",
+    "policyname": "owner_admin_notes",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  },
+  {
+    "tablename": "verses",
+    "policyname": "admin_delete_verses",
+    "cmd": "DELETE",
+    "roles": [
+      "public"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "verses",
+    "policyname": "admin_update_verses",
+    "cmd": "UPDATE",
+    "roles": [
+      "public"
+    ],
+    "qual": "is_admin_jwt()",
+    "with_check": null
+  },
+  {
+    "tablename": "verses",
+    "policyname": "admin_write_verses",
+    "cmd": "INSERT",
+    "roles": [
+      "public"
+    ],
+    "qual": null,
+    "with_check": "is_admin_jwt()"
+  },
+  {
+    "tablename": "verses",
+    "policyname": "public_read_verses",
+    "cmd": "SELECT",
+    "roles": [
+      "public"
+    ],
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "word_studies",
+    "policyname": "owner_admin_word_studies",
+    "cmd": "ALL",
+    "roles": [
+      "public"
+    ],
+    "qual": "(((auth.uid())::text = user_id) OR is_admin_jwt())",
+    "with_check": null
+  }
+]

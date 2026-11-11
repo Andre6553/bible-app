@@ -7,7 +7,7 @@
 
 | Phase | Focus | Ship to production? |
 |--------|--------|---------------------|
-| **P0** | PayFast signature + order validation; revoke/limit `exec_sql` (and any generic RPCs); export/fix `user_profiles` RLS so subscription fields are not owner-writable | **Block broad paid signup** until P0 proven in sandbox |
+| **P0** | (1) Revoke/limit `exec_sql` (and audit generic RPCs); (2) PayFast signature + ITN validation; (3) protect `user_profiles` subscription fields (trigger + policy export) | **Block broad paid signup** until P0 proven in sandbox |
 | **P1** | Real account deletion (or tracked request); blog/sermon HTML sanitization; server-side AI proxy + quotas | After P0 |
 | **P2** | Migration, note labels, plan concurrency, reader request guard, PWA cache scope | After P1 |
 | **Ongoing** | Search/plans **UI polish** (e.g. layout fixes) — OK **if** they do not touch PayFast, RLS, or subscription flows in the same deploy |
@@ -30,9 +30,11 @@ Side-income + real user data → **security and payments before new features**, 
 
 To switch to **feature-first**, note it here with a date and accept payment/AI risk until hardening lands.
 
-## Next concrete tasks (suggested order)
+## Next concrete tasks (order = live evidence)
 
-1. Fix and deploy `payfast-webhook` signature compare + replay/amount checks.
-2. Migration: drop or restrict `exec_sql`; audit grants on `public` functions.
-3. RLS/column protection on `user_profiles` subscription fields.
+1. Migration: revoke `exec_sql` from `anon`/`authenticated`; re-probe with anon key (must fail).
+2. Fix and deploy `payfast-webhook` signature compare + merchant/amount/replay checks; PayFast sandbox ITN.
+3. Export live policies; `user_profiles` subscription trigger (owners cannot self-elevate); align `subscription.js` with server truth.
 4. Smallest slice: Vitest for `subscription.js` + PayFast signature helper.
+
+**Evidence labels:** **Confirmed live** = reproducer on production API (e.g. anon `exec_sql`). **Source only** = risk visible in git but not fully diffed to deployed edge/SQL until you verify.

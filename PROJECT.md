@@ -46,7 +46,7 @@ npm run preview
 
 ## Status
 
-**Active** (Andre, 2026-11-11). **Track:** hardening-first (see [`docs/DEVELOPMENT_TRACK.md`](docs/DEVELOPMENT_TRACK.md)) — P0 payments + `exec_sql`/RLS before broad paid access. Recent UI: Search home, reading plans, Read Today reader.
+**Active** (Andre, 2026-11-11). **Track:** hardening-first (see [`docs/DEVELOPMENT_TRACK.md`](docs/DEVELOPMENT_TRACK.md)) — P0 order: restrict live `exec_sql`, then PayFast ITN, then `user_profiles` subscription fields. Recent UI: Search home, reading plans, Read Today reader.
 
 ## Notes
 

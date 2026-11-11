@@ -7,6 +7,22 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — P0 security order + hardening (maintainers)
+
+**For maintainers**
+- Docs aligned to P0 order: `exec_sql` (live) → PayFast ITN (source) → `user_profiles` subscription fields.
+- Migration `supabase/migrations/20261111190000_p0_security_hardening.sql`: revoke `exec_sql` from anon/authenticated; trigger blocks owner subscription column edits.
+- PayFast webhook enforces MD5 signature, merchant/amount checks, duplicate `pf_payment_id` replay guard.
+- `subscription.js`: premium requires valid expiry (or admin/tester override).
+- Helper: `scripts/export_rls_policies.js` for live policy export.
+
+**For users**
+- No visible UI change; payment and account safety improvements behind the scenes.
+
+**Shipped in git:** commit `9e3e31d` on `main`.
+
+---
+
 ## 2026-11-11 — Audit docs and live verify (maintainers)
 
 **For maintainers**
@@ -14,7 +30,7 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 - Recorded live Supabase checks in `docs/LIVE_VERIFY_2026-11-11.md` (PayFast function up; `exec_sql` reachable from anon — treat as P0).
 - Chosen track documented in `docs/DEVELOPMENT_TRACK.md` (hardening before paid growth; UI fixes OK in parallel).
 
-**Shipped in git:** commit `8ed05cd` on `main`.
+**Shipped in git:** commit `89240c5` on `main`.
 
 ---
 
