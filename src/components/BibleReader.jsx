@@ -102,6 +102,15 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [isFirstSyncDone, setIsFirstSyncDone] = useState(false); // Robust cloud-check protection
     const [isScrolled, setIsScrolled] = useState(false);
     const [currentScrollVerse, setCurrentScrollVerse] = useState(1); // Track top visible verse
+    const [showNoteModal, setShowNoteModal] = useState(false);
+    const [existingNote, setExistingNote] = useState(null);
+    const [showWordStudyModal, setShowWordStudyModal] = useState(false);
+    const [wordStudyData, setWordStudyData] = useState(null);
+    const [showChapterSummary, setShowChapterSummary] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [planContext, setPlanContext] = useState(null);
+    const [planActionLoading, setPlanActionLoading] = useState(false);
+    const [showPlanStudyHint, setShowPlanStudyHint] = useState(false);
 
     // Manage body classes for UI visibility
     useEffect(() => {
@@ -117,11 +126,18 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             document.body.classList.remove('reader-mode-active');
         }
 
+        if (planContext) {
+            document.body.classList.add('plan-reading-active');
+        } else {
+            document.body.classList.remove('plan-reading-active');
+        }
+
         return () => {
             document.body.classList.remove('action-sheet-open');
             document.body.classList.remove('reader-mode-active');
+            document.body.classList.remove('plan-reading-active');
         };
-    }, [showActionSheet, selectedVerses, isReaderMode]);
+    }, [showActionSheet, selectedVerses, isReaderMode, planContext]);
 
     // Auto-hide Reader Mode controls after 4 seconds
     useEffect(() => {
@@ -133,15 +149,6 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         }
         return () => clearTimeout(timer);
     }, [isReaderMode, showReaderControls]);
-
-    const [showNoteModal, setShowNoteModal] = useState(false);
-    const [existingNote, setExistingNote] = useState(null);
-    const [showWordStudyModal, setShowWordStudyModal] = useState(false);
-    const [wordStudyData, setWordStudyData] = useState(null);
-    const [showChapterSummary, setShowChapterSummary] = useState(false);
-    const [showShareModal, setShowShareModal] = useState(false);
-    const [planContext, setPlanContext] = useState(null);
-    const [planActionLoading, setPlanActionLoading] = useState(false);
 
     const handleShareVerse = () => {
         setShowShareModal(true);
@@ -303,6 +310,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         const { bookId, chapter, targetVerse, fromPlan } = location.state;
         if (fromPlan) {
             setPlanContext(fromPlan);
+            setIsReaderMode(true);
+            setShowReaderControls(false);
+            setShowPlanStudyHint(false);
         }
         // Use == for loose equality since bookId might be string and book.id integer
         const book = books.all.find(b => b.id == bookId);
@@ -362,11 +372,22 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     };
 
     const handlePlanDismiss = () => {
+        const slug = planContext?.planSlug;
         setPlanContext(null);
-        if (planContext?.planSlug) {
-            navigate(`/plans/${planContext.planSlug}`);
+        setIsReaderMode(false);
+        setShowPlanStudyHint(false);
+        if (slug) {
+            navigate(`/plans/${slug}`);
         }
     };
+
+    const planBackLabel =
+        settings.language === 'af' ? '← Terug na plan' : '← Back to plan';
+    const planStudyHintLabel =
+        settings.language === 'af' ? 'Studiewenk' : 'Study hint';
+
+    const planBackActive = Boolean(planContext) && !showBookSelector && !showSettings;
+    useBackButton(planBackActive, handlePlanDismiss);
 
     const isLastPlanPassage = planContext
         ? (planContext.passageIndex || 0) >= (planContext.totalPassages || 1) - 1
@@ -1309,7 +1330,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     };
 
     return (
-        <div className="bible-reader">
+        <div className={`bible-reader ${planContext ? 'plan-reading-layout' : ''}`}>
             {/* Header */}
             <div className="bible-header">
                 <div className="header-top">
@@ -1446,7 +1467,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                 </div>
             )}
             {/* Reader Mode Navigation Overlay */}
-            {isReaderMode && (
+            {isReaderMode && !planContext && (
                 <div className={`reader-overlay ${showReaderControls ? 'show-controls' : ''}`}>
                     <div className="nav-zone edge-left" onClick={handlePrevChapter} title="Previous Chapter">
                         <span className="nav-handle">‹</span>
@@ -1575,12 +1596,33 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
             )}
 
             {planContext && (
-                <div className="plan-reader-banner">
-                    <div className="plan-reader-banner-title">
-                        {settings.language === 'af' ? 'Dag' : 'Day'} {planContext.day}
-                        {planContext.planTitle ? ` · ${planContext.planTitle}` : ''}
-                    </div>
-                    {planContext.dayReading && (() => {
+                <>
+                    <header className="plan-reader-top-bar">
+                        <button
+                            type="button"
+                            className="plan-reader-back-btn"
+                            onClick={handlePlanDismiss}
+                        >
+                            {planBackLabel}
+                        </button>
+                        <div className="plan-reader-top-meta">
+                            <span className="plan-reader-top-title">
+                                {settings.language === 'af' ? 'Dag' : 'Day'} {planContext.day}
+                                {planContext.planTitle ? ` · ${planContext.planTitle}` : ''}
+                            </span>
+                            {planContext.dayReading && (
+                                <button
+                                    type="button"
+                                    className="plan-reader-hint-toggle"
+                                    onClick={() => setShowPlanStudyHint((v) => !v)}
+                                    aria-expanded={showPlanStudyHint}
+                                >
+                                    {planStudyHintLabel} {showPlanStudyHint ? '▴' : '▾'}
+                                </button>
+                            )}
+                        </div>
+                    </header>
+                    {showPlanStudyHint && planContext.dayReading && (() => {
                         const lang = settings.language;
                         const intro = getDayCommentaryIntro(planContext.dayReading, lang);
                         const sections = getDayCommentarySections(planContext.dayReading, lang);
@@ -1589,10 +1631,9 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                             (s) => s.book_id == currentPassage?.book_id && s.chapter == currentPassage?.chapter
                         ) || sections[0];
                         const firstPoint = currentSection?.studyPoints?.[0];
-                        const firstCrossRef = currentSection?.crossReferences?.[0];
 
                         return (
-                            <div className="plan-reader-commentary-wrap">
+                            <div className="plan-reader-hint-panel">
                                 {intro && <p className="plan-reader-commentary">{intro}</p>}
                                 {currentSection?.heading && (
                                     <div className="plan-reader-commentary-section">
@@ -1604,25 +1645,16 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                                 {firstPoint.verses ? ` (${firstPoint.verses})` : ''}: {firstPoint.detail}
                                             </p>
                                         )}
-                                        {currentSection?.teaching && (
-                                            <p className="plan-reader-point-preview">
-                                                <em>{settings.language === 'af' ? 'God leer' : 'God teaches'}:</em> {currentSection.teaching}
-                                            </p>
-                                        )}
-                                        {firstCrossRef?.ref && (
-                                            <p className="plan-reader-point-preview">
-                                                <em>{settings.language === 'af' ? 'Soortgelyk' : 'Similar'}: {firstCrossRef.ref}</em> — {firstCrossRef.comparison}
-                                            </p>
-                                        )}
                                     </div>
                                 )}
                             </div>
                         );
                     })()}
-                    <div className="plan-reader-banner-actions">
+                    <footer className="plan-reader-bottom-bar">
                         {!isLastPlanPassage && nextPlanPassage && (
                             <button
-                                className="plan-reader-banner-btn secondary"
+                                type="button"
+                                className="plan-reader-banner-btn primary"
                                 onClick={handlePlanNextPassage}
                             >
                                 {settings.language === 'af' ? 'Volgende' : 'Next'}:{' '}
@@ -1631,6 +1663,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                         )}
                         {isLastPlanPassage && (
                             <button
+                                type="button"
                                 className="plan-reader-banner-btn primary"
                                 onClick={handlePlanMarkComplete}
                                 disabled={planActionLoading}
@@ -1638,18 +1671,12 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 {planActionLoading
                                     ? '...'
                                     : settings.language === 'af'
-                                        ? 'Merker Dag Voltooi'
-                                        : 'Mark Day Complete'}
+                                        ? 'Merker dag voltooi'
+                                        : 'Mark day complete'}
                             </button>
                         )}
-                        <button
-                            className="plan-reader-banner-btn secondary"
-                            onClick={handlePlanDismiss}
-                        >
-                            {settings.language === 'af' ? 'Terug na Plan' : 'Back to Plan'}
-                        </button>
-                    </div>
-                </div>
+                    </footer>
+                </>
             )}
 
             {/* Content Display */}
@@ -1680,7 +1707,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
                                 <span className="version-badge">{currentVersion?.abbreviation}</span>
 
                                 {/* Reader Mode Navigation Buttons */}
-                                {isReaderMode && (
+                                {isReaderMode && !planContext && (
                                     <div className={`reader-nav-top ${isScrolled ? 'floating' : ''}`}>
                                         <button
                                             className="reader-nav-btn prev"
