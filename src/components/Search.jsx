@@ -1548,6 +1548,7 @@ Here are the available shortcuts to quickly ask questions:
     return (
         <div className={`search-page ${showMobileResults ? 'mobile-results-open' : ''}`}>
             <div className="search-header">
+                <div className="search-home-inner">
                 <div className="header-top-row">
                     {showMobileResults ? (
                         <button
@@ -1610,53 +1611,81 @@ Here are the available shortcuts to quickly ask questions:
                     </button>
                 )}
 
-                <div className="search-input-container" id="tutorial-search-input">
-                    <div className="search-form search-launcher-form">
-                        <p className="search-launcher-hint">
-                            {settings.language === 'af'
-                                ? 'Kies Presiese/Konsep-soektog of Bybelsoek om jou eie volskerm-soekbladsy oop te maak.'
-                                : 'Open Exact/Concept Search or Bible Search for a full-screen search experience.'}
+                <div className="search-home-card" id="tutorial-search-input">
+                    <p className="search-launcher-hint">
+                        {settings.language === 'af'
+                            ? 'Kies hoe jy wil soek. Elke opsie open ’n volskerm-bladsy waar jy jou vraag intik.'
+                            : 'Choose how you want to search. Each option opens a focused page where you type your question.'}
+                    </p>
+                    <div className="search-action-cards">
+                        <button
+                            type="button"
+                            className="search-action-card search-action-card-keyword btn-primary"
+                            id="tutorial-search-btn"
+                            onClick={handleOpenKeywordSearch}
+                        >
+                            <span className="search-action-card-icon" aria-hidden>
+                                {searchMode === 'semantic' ? '🪄' : '🔍'}
+                            </span>
+                            <span className="search-action-card-title">
+                                {searchMode === 'semantic'
+                                    ? (settings.language === 'af' ? 'Konsep-soektog' : 'Concept Search')
+                                    : (settings.language === 'af' ? 'Presiese Soektog' : 'Exact Search')}
+                            </span>
+                            <span className="search-action-card-desc">
+                                {searchMode === 'semantic'
+                                    ? (settings.language === 'af'
+                                        ? 'Temas en idees — soek volgens betekenis, nie net woorde nie.'
+                                        : 'Themes and ideas — search by meaning, not just keywords.')
+                                    : (settings.language === 'af'
+                                        ? 'Spesifieke woorde of frases in die Bybel.'
+                                        : 'Specific words or phrases in the Bible.')}
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            className="search-action-card search-action-card-ai ai-btn"
+                            id="tutorial-ai-research"
+                            onClick={handleAskAI}
+                            disabled={quotaInfo.remaining <= 0}
+                        >
+                            <span className="search-action-card-icon" aria-hidden>
+                                <AIIcon className="inline-icon" />
+                            </span>
+                            <span className="search-action-card-title">
+                                {settings.language === 'af' ? 'Bybelsoek' : 'Bible Search'}
+                            </span>
+                            <span className="search-action-card-desc">
+                                {settings.language === 'af'
+                                    ? 'Vra ’n vraag en kry ’n Bybel-georiënteerde antwoord met verwysings.'
+                                    : 'Ask a question and get a Bible-centred answer with references.'}
+                            </span>
+                        </button>
+                    </div>
+
+                    <div className="search-filters search-filters-home" id="tutorial-filters">
+                        <p className="search-mode-label">
+                            {settings.language === 'af' ? 'Verstek vir woorde-soektog' : 'Default for word search'}
                         </p>
-                        <div className="search-actions-row">
+                        <div className="mode-toggle mode-toggle-compact" id="tutorial-search-mode-home">
+                            <div className={`mode-slider ${searchMode}`}></div>
                             <button
+                                className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
+                                onClick={() => handleFilterChange('mode', 'exact')}
                                 type="button"
-                                className="search-btn btn-primary"
-                                id="tutorial-search-btn"
-                                onClick={handleOpenKeywordSearch}
                             >
-                                {searchMode === 'semantic' ? '🪄 Concept Search' : '🔍 Exact Search'}
+                                {settings.language === 'af' ? 'Presiese' : 'Exact Match'}
                             </button>
                             <button
+                                className={`mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
+                                onClick={() => handleFilterChange('mode', 'semantic')}
                                 type="button"
-                                className="search-btn ai-btn"
-                                id="tutorial-ai-research"
-                                onClick={handleAskAI}
-                                disabled={quotaInfo.remaining <= 0}
                             >
-                                <AIIcon className="inline-icon" /> {settings.language === 'af' ? 'Bybelsoek' : 'Bible Search'}
+                                {settings.language === 'af' ? <>Konsep <AIIcon className="inline-icon" /></> : <>Concept <AIIcon className="inline-icon" /></>}
                             </button>
                         </div>
                     </div>
                 </div>
-
-                <div className="search-filters search-filters-home" id="tutorial-filters">
-                    <div className="mode-toggle" id="tutorial-search-mode-home">
-                        <div className={`mode-slider ${searchMode}`}></div>
-                        <button
-                            className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
-                            onClick={() => handleFilterChange('mode', 'exact')}
-                            type="button"
-                        >
-                            {settings.language === 'af' ? 'Presiese Soektog' : 'Exact Match'}
-                        </button>
-                        <button
-                            className={`mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
-                            onClick={() => handleFilterChange('mode', 'semantic')}
-                            type="button"
-                        >
-                            {settings.language === 'af' ? <>Konsep-soektog <AIIcon className="inline-icon" /></> : <>Concept Search <AIIcon className="inline-icon" /></>}
-                        </button>
-                    </div>
                 </div>
             </div>
 

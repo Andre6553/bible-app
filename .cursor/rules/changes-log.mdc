@@ -1,0 +1,23 @@
+---
+description: After any Bible app code change, append plain-English notes to changes Log
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Bible — `changes Log` (mandatory after code changes)
+
+When you **change Omni Bible app code or config** under `Bible\` (features, fixes, UI, data scripts that affect the shipped app):
+
+1. **Append** a dated entry to `Bible/changes Log` (file name includes a space: `changes Log`).
+2. Use **newest first** — add new blocks **above** older entries (below the file header / instructions).
+3. **Date line:** `## YYYY-MM-DD — Short title`
+4. **For users** section: plain English bullets — what people will notice, benefit, how to use it. No file paths or commit hashes required unless you also note **Shipped in git:** when a push happened in that session.
+5. Keep entries concise; one logical change per block (can bundle small fixes from the same session).
+
+When Andre asks to **sum up last changes**, **what’s new**, **release notes**, or **tell users what improved**:
+
+- Read `Bible/changes Log` from the top.
+- Reply with polished copy aimed at **app users** (email, in-app “What’s new”, social), based on the **For users** bullets — not a raw dump of the log.
+
+Do **not** log secrets, API keys, or internal-only ops with no user impact.

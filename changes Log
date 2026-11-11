@@ -1,0 +1,73 @@
+# Omni Bible — changes log
+
+Plain-English record of what changed in the app, for release notes and “what’s new” messages.
+Newest entries first. Each session or shipped change gets a **date** (YYYY-MM-DD, South Africa time when known).
+
+When Andre asks to **sum up recent changes** or **what’s new for users**, read this file (newest entries) and rewrite as short, friendly copy for app users — no jargon.
+
+---
+
+## 2026-11-11 — Search home layout on PC
+
+**For users**
+- The **Search** page on **desktop / large screens** now looks centred and deliberate instead of a few buttons stuck in the corner.
+- Two clear **cards** explain **Exact/Concept search** and **Bible Search** before you open them.
+- A small **Exact vs Concept** switch sits neatly under the cards (for which word-search mode opens by default).
+- **Recent searches** align with the same width as the main card on PC.
+
+**Shipped in git:** (see commit on `main` with Search desktop home + this log file).
+
+---
+
+## 2026-11-11 — Changelog practice
+
+**For maintainers**
+- New Cursor rule: after Bible app changes, append notes to this `changes Log` for user-facing release summaries.
+
+---
+
+## 2026-11-11 — Reading plan “Read Today” screen
+
+**For users**
+- Tapping **Read Today** on a plan now opens a **cleaner Bible view** with more room for the text.
+- The usual **top menu and bottom tabs hide** while you’re reading that day’s passage.
+- A **Back to plan** button at the top returns you to the plan page (device **Back** does the same on Android).
+- You can **scroll to the very bottom** of the chapter without the last verses sitting under buttons.
+- **Study hint** is optional: tap to show or hide short notes; they no longer take over the whole screen.
+- **Next passage** or **Mark day complete** stays in a simple bar at the bottom when you’re done.
+
+**Shipped in git:** commit `cc843f6` on `main`.
+
+---
+
+## 2026-11-11 — Plans browse: topic tiles
+
+**For users**
+- On **Reading plans**, you pick what you want to explore with **topic tiles** (e.g. books, themes) instead of typing in a search box or juggling filter chips.
+- Easier to browse on a phone with less clutter.
+
+**Shipped in git:** commit `16fd006` on `main`.
+
+---
+
+## 2026-11-11 — More book spotlight plans
+
+**For users**
+- **14 new reading plans** focused on whole books of the Bible, added to the catalog you can start from the app.
+- Plan browsing layout was improved for **mobile** (clearer filters and layout on small screens).
+
+**Shipped in git:** commits `3bc3fa9` (and related plan data updates) on `main`.
+
+---
+
+## 2026-11-11 — Search: clearer full-screen search flow
+
+**For users**
+- On **Search**, the home screen is less crowded — there is no big search field on the main page anymore.
+- **Exact** and **Concept** search open in a **full-screen** flow so you can focus on your query.
+- **Bible Search** (AI) keeps its own flow; switching modes is clearer with the mode pill on the home search area.
+- When a full-screen search or AI panel is open, the **bottom navigation hides** so you have more space.
+
+**Shipped in git:** commit `1eda7c1` on `main`.
+
+---
