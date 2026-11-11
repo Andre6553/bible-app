@@ -1700,7 +1700,7 @@ Here are the available shortcuts to quickly ask questions:
                         <div className="history-bar-header">
                             <span className="history-label">{settings.language === 'af' ? 'Onlangse' : 'Recent'}</span>
                             <button
-                                className={`history - manage - btn ${isHistoryEditMode ? 'active' : ''} `}
+                                className={`history-manage-btn ${isHistoryEditMode ? 'active' : ''}`}
                                 onClick={() => setIsHistoryEditMode(!isHistoryEditMode)}
                             >
                                 {isHistoryEditMode

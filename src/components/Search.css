@@ -915,12 +915,38 @@
 
 /* Mobile: original launcher — two primary buttons side by side, toggle below */
 @media (max-width: 768px) {
+    .search-page {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .search-header {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: var(--spacing-md);
+        padding-left: max(var(--spacing-md), var(--safe-left));
+        padding-right: max(var(--spacing-md), var(--safe-right));
+    }
+
+    .search-home-inner {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
     .search-home-card {
         background: transparent;
         border: none;
         box-shadow: none;
         padding: 0;
         gap: var(--spacing-sm);
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
     }
 
     .search-launcher-hint {
@@ -932,17 +958,21 @@
     .search-action-cards {
         flex-direction: row;
         gap: var(--spacing-sm);
+        width: 100%;
+        min-width: 0;
     }
 
     .search-action-card {
-        flex: 1;
+        flex: 1 1 0;
+        min-width: 0;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
-        padding: 12px 10px;
-        min-height: 52px;
+        padding: 12px 8px;
+        min-height: 56px;
         border-radius: var(--radius-md);
+        box-sizing: border-box;
     }
 
     .search-action-card-desc {
@@ -954,8 +984,10 @@
     }
 
     .search-action-card-title {
-        font-size: 0.82rem;
-        line-height: 1.25;
+        font-size: 0.8rem;
+        line-height: 1.2;
+        max-width: 100%;
+        overflow-wrap: anywhere;
     }
 
     .search-action-card-keyword {
@@ -980,8 +1012,64 @@
         display: none;
     }
 
+    .search-filters-home {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
     .search-filters-home .mode-toggle-compact {
+        width: 100%;
+        max-width: 100%;
         height: 48px;
+        box-sizing: border-box;
+    }
+
+    .search-filters-home .mode-btn {
+        font-size: clamp(0.68rem, 3.2vw, 0.85rem);
+        padding: 0 6px;
+        min-width: 0;
+    }
+
+    .header-top-row {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .header-left-content {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    .search-title {
+        font-size: 1.15rem;
+    }
+
+    .recent-history-bar-container {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        padding-left: max(var(--spacing-md), var(--safe-left));
+        padding-right: max(var(--spacing-md), var(--safe-right));
+    }
+
+    .recent-history-bar {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        max-width: 100%;
+        min-width: 0;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .history-chip {
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-word;
+        text-align: left;
+        line-height: 1.3;
     }
 }
 

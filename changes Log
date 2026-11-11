@@ -1,9 +1,20 @@
-# Omni Bible — changes log
+﻿# Omni Bible — changes log
 
 Plain-English record of what changed in the app, for release notes and “what’s new” messages.
 Newest entries first. Each session or shipped change gets a **date** (YYYY-MM-DD, South Africa time when known).
 
 When Andre asks to **sum up recent changes** or **what’s new for users**, read this file (newest entries) and rewrite as short, friendly copy for app users — no jargon.
+
+---
+
+## 2026-11-11 — Search mobile: full-width fit
+
+**For users**
+- On **phone**, Search content stays **inside the screen** — launcher buttons and **Exact/Concept** switch align to the same width.
+- **Recent searches** wrap onto new lines instead of sticking out past the right edge.
+- **Manage** on recent history works again (button styling fix).
+
+**Shipped in git:** commit `3f1fd81` on `main`.
 
 ---
 
@@ -13,7 +24,7 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 - **Phone:** Back to the familiar look — **two colourful buttons side by side** (Exact/Concept + Bible Search) with the **Exact Match / Concept** switch underneath.
 - **Desktop:** Same order, but wider — **two options next to each other**, then the **mode switch full width below**, using more of the screen instead of a tiny strip in the middle.
 
-**Shipped in git:** commit `1396420` on `main`.
+**Shipped in git:** commit `26093dc` on `main`.
 
 ---
 
