@@ -1620,26 +1620,28 @@ Here are the available shortcuts to quickly ask questions:
                     <div className="search-action-cards">
                         <button
                             type="button"
-                            className="search-action-card search-action-card-keyword btn-primary"
+                            className="search-action-card search-action-card-keyword"
                             id="tutorial-search-btn"
                             onClick={handleOpenKeywordSearch}
                         >
                             <span className="search-action-card-icon" aria-hidden>
                                 {searchMode === 'semantic' ? '🪄' : '🔍'}
                             </span>
-                            <span className="search-action-card-title">
-                                {searchMode === 'semantic'
-                                    ? (settings.language === 'af' ? 'Konsep-soektog' : 'Concept Search')
-                                    : (settings.language === 'af' ? 'Presiese Soektog' : 'Exact Search')}
-                            </span>
-                            <span className="search-action-card-desc">
-                                {searchMode === 'semantic'
-                                    ? (settings.language === 'af'
-                                        ? 'Temas en idees — soek volgens betekenis, nie net woorde nie.'
-                                        : 'Themes and ideas — search by meaning, not just keywords.')
-                                    : (settings.language === 'af'
-                                        ? 'Spesifieke woorde of frases in die Bybel.'
-                                        : 'Specific words or phrases in the Bible.')}
+                            <span className="search-action-card-body">
+                                <span className="search-action-card-title">
+                                    {searchMode === 'semantic'
+                                        ? (settings.language === 'af' ? 'Konsep-soektog' : 'Concept Search')
+                                        : (settings.language === 'af' ? 'Presiese Soektog' : 'Exact Search')}
+                                </span>
+                                <span className="search-action-card-desc">
+                                    {searchMode === 'semantic'
+                                        ? (settings.language === 'af'
+                                            ? 'Temas en idees — soek volgens betekenis, nie net woorde nie.'
+                                            : 'Themes and ideas — search by meaning, not just keywords.')
+                                        : (settings.language === 'af'
+                                            ? 'Spesifieke woorde of frases in die Bybel.'
+                                            : 'Specific words or phrases in the Bible.')}
+                                </span>
                             </span>
                         </button>
                         <button
@@ -1652,13 +1654,15 @@ Here are the available shortcuts to quickly ask questions:
                             <span className="search-action-card-icon" aria-hidden>
                                 <AIIcon className="inline-icon" />
                             </span>
-                            <span className="search-action-card-title">
-                                {settings.language === 'af' ? 'Bybelsoek' : 'Bible Search'}
-                            </span>
-                            <span className="search-action-card-desc">
-                                {settings.language === 'af'
-                                    ? 'Vra ’n vraag en kry ’n Bybel-georiënteerde antwoord met verwysings.'
-                                    : 'Ask a question and get a Bible-centred answer with references.'}
+                            <span className="search-action-card-body">
+                                <span className="search-action-card-title">
+                                    {settings.language === 'af' ? 'Bybelsoek' : 'Bible Search'}
+                                </span>
+                                <span className="search-action-card-desc">
+                                    {settings.language === 'af'
+                                        ? 'Vra ’n vraag en kry ’n Bybel-georiënteerde antwoord met verwysings.'
+                                        : 'Ask a question and get a Bible-centred answer with references.'}
+                                </span>
                             </span>
                         </button>
                     </div>

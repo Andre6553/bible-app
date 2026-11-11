@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — Search home: smaller PC buttons
+
+**For users**
+- On **desktop**, the two search options are **compact rows** (icon + short text) instead of huge yellow blocks.
+- The panel is **narrower** and sits naturally under the title — closer to a normal web app, still easy to tap on a phone.
+
+**Shipped in git:** (commit on `main` with this change).
+
+---
+
 ## 2026-11-11 — Search home layout on PC
 
 **For users**
