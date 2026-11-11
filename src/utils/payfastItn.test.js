@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { buildItnParamString, parseAmountToCents, pfUrlEncode } from './payfastItn.js';
+import { buildItnParamString, collectItnParamStrings, parseAmountToCents, pfUrlEncode } from './payfastItn.js';
 
 describe('pfUrlEncode', () => {
     it('encodes spaces as plus, not %20 or %2B', () => {
@@ -44,6 +44,15 @@ describe('buildItnParamString', () => {
         expect(s.endsWith('&passphrase=phrase')).toBe(true);
         const md5 = createHash('md5').update(s).digest('hex');
         expect(md5).toHaveLength(32);
+    });
+});
+
+describe('collectItnParamStrings', () => {
+    it('keeps raw posted bytes and also a passphrase variant', () => {
+        const raw = 'merchant_id=11945617&amount_gross=5.00&custom_str2=&signature=abc';
+        const list = collectItnParamStrings(raw, [['merchant_id', '11945617'], ['amount_gross', '5.00'], ['custom_str2', '']], 'phrase');
+        expect(list.some((s) => s.startsWith('merchant_id=11945617&amount_gross=5.00&custom_str2=&passphrase='))).toBe(true);
+        expect(list).toContain('merchant_id=11945617&amount_gross=5.00&custom_str2=');
     });
 });
 

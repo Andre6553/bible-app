@@ -427,7 +427,7 @@ const SubscriptionPage = () => {
                                             <span style={{ textDecoration: 'line-through', opacity: 0.6, fontSize: '0.7em', marginRight: '6px' }}>
                                                 R{randPrice}
                                             </span>
-                                            R{Math.floor(parseInt(randPrice) * 0.5)}
+                                            R{Math.max(5, Math.floor(parseInt(randPrice) * 0.5))}
                                         </>
                                     ) : (
                                         randPrice ? `R${randPrice}` : <span style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>...</span>

@@ -33,3 +33,19 @@ export function parseAmountToCents(amountGross) {
     if (!Number.isFinite(n) || n <= 0) return null;
     return Math.round(n * 100);
 }
+
+/** Candidate param strings to MD5 — PayFast signs the raw posted body, not a re-encoded copy. */
+export function collectItnParamStrings(rawBody, fieldsInPostedOrder, passphrase) {
+    const pass = String(passphrase ?? '').trim();
+    if (!pass) throw new Error('PAYFAST_PASSPHRASE required');
+    const rawParam = String(rawBody ?? '')
+        .split('&')
+        .filter((p) => !p.startsWith('signature='))
+        .join('&');
+    const rebuilt = buildItnParamString(fieldsInPostedOrder, pass);
+    return [...new Set([
+        `${rawParam}&passphrase=${pfUrlEncode(pass)}`,
+        rawParam,
+        rebuilt,
+    ].filter(Boolean))];
+}

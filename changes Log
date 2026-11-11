@@ -7,6 +7,28 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — Paid subscribe did not unlock (ITN)
+
+**For maintainers**
+- `omnibible@gmail.com` paid (~R5, order `b34ce1d2…`) but `payfast-webhook` never fulfilled — profile stayed **free**, orders **pending**. Manual grant 30 days + payment_history. Hardened ITN likely 400’d (signature re-encode / missing `m_payment_id`).
+- Webhook now verifies PayFast’s **raw** ITN body (WhatsApp pattern) and looks up a pending order if `m_payment_id` is absent.
+
+**For users**
+- Premium on **omnibible@gmail.com** is on for 30 days. Refresh the app (sign out/in if it still says Free).
+
+---
+
+## 2026-11-11 — PayFast: charge at least R5 so cards show
+
+**For maintainers**
+- ~R4 first-month price only offered **Mobicred** (PayFast card/EFT min is ~R5). `create_payment_order` now floors at **500 cents**. Applied `20261111233000_payfast_min_r5.sql`.
+- Subscribe card discounted ZAR also floors at R5 so it matches PayFast.
+
+**For users**
+- Subscribe should show card and Instant EFT on PayFast, not only Mobicred. First month may be **R5** instead of R4.
+
+---
+
 ## 2026-11-11 — Subscribe: allow live list price (~R8)
 
 **For maintainers**

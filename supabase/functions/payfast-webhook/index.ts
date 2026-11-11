@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts"
-import { buildItnParamString, parseAmountToCents } from "./itn.ts"
+import { collectItnParamStrings, parseAmountToCents } from "./itn.ts"
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -51,14 +51,18 @@ serve(async (req) => {
             return json({ error: "Invalid signature" }, 400)
         }
 
-        const paramString = buildItnParamString(fields, passphrase)
-        const hashHex = await md5Hex(paramString)
-        if (signature.toLowerCase() !== hashHex.toLowerCase()) {
+        const receivedSig = signature.toLowerCase()
+        const paramStrings = collectItnParamStrings(raw, fields, passphrase)
+        const hashes = await Promise.all(paramStrings.map((s) => md5Hex(s)))
+        if (!hashes.some((h) => h.toLowerCase() === receivedSig)) {
             console.error("[PayFast IPN] Signature mismatch")
             return json({ error: "Invalid signature" }, 400)
         }
 
-        if (!ipnData.merchant_id || ipnData.merchant_id !== expectedMerchant) {
+        const gotMerchant = String(ipnData.merchant_id || "").trim()
+        const wantMerchant = String(expectedMerchant).trim()
+        if (!gotMerchant || gotMerchant !== wantMerchant) {
+            console.error("[PayFast IPN] Merchant mismatch")
             return json({ error: "Merchant mismatch" }, 400)
         }
 
@@ -85,9 +89,9 @@ serve(async (req) => {
         }
 
         const pfPaymentId = ipnData.pf_payment_id
-        const orderId = ipnData.m_payment_id
+        let orderId = ipnData.m_payment_id
         const userId = ipnData.custom_str1
-        if (!orderId || !userId || !pfPaymentId) {
+        if (!userId || !pfPaymentId) {
             return json({ error: "Missing order" }, 400)
         }
 
@@ -95,6 +99,22 @@ serve(async (req) => {
             Deno.env.get("SUPABASE_URL") ?? "",
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         )
+
+        if (!orderId) {
+            const { data: pending } = await supabase
+                .from("payment_orders")
+                .select("id")
+                .eq("user_id", userId)
+                .eq("amount_cents", amountCents)
+                .eq("status", "pending")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle()
+            orderId = pending?.id
+        }
+        if (!orderId) {
+            return json({ error: "Missing order" }, 400)
+        }
 
         const { data, error } = await supabase.rpc("fulfill_payfast_itn", {
             p_order_id: orderId,
