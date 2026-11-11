@@ -18,16 +18,99 @@ export const PLAN_DURATIONS = [
     { id: 'long', en: 'Long (31+)', af: 'Lang (31+)' },
 ];
 
-export const PLAN_TOPICS = [
-    { id: 'all', en: 'All topics', af: 'Alle temas' },
-    { id: 'beginner', en: 'Beginners', af: 'Beginners' },
-    { id: 'know_jesus', en: 'Jesus & Gospels', af: 'Jesus & Evangelies' },
-    { id: 'faith', en: 'Faith & hope', af: 'Geloof & hoop' },
-    { id: 'family', en: 'Family', af: 'Gesin' },
-    { id: 'wisdom', en: 'Wisdom', af: 'Wysheid' },
-    { id: 'prayer', en: 'Prayer & Psalms', af: 'Gebed & Psalms' },
-    { id: 'anxiety', en: 'Peace & trust', af: 'Vrede & vertroue' },
-    { id: 'book_study', en: 'One book', af: 'Een boek' },
+/** Tappable topic tiles on the Plans page (no search). */
+export const PLAN_TOPIC_TILES = [
+    {
+        id: 'beginner',
+        emoji: '🌱',
+        en: 'New to the Bible',
+        af: 'Nuut by die Bybel',
+        hint_en: 'Short overviews and where to start',
+        hint_af: 'Kort oorsigte en waar om te begin',
+    },
+    {
+        id: 'know_jesus',
+        emoji: '✝️',
+        en: 'Jesus & the Gospels',
+        af: 'Jesus & die Evangelies',
+        hint_en: 'Gospels, miracles, parables, Acts',
+        hint_af: 'Evangelies, wonderwerke, gelykenisse, Handelinge',
+    },
+    {
+        id: 'faith',
+        emoji: '🕊️',
+        en: 'Faith & hope',
+        af: 'Geloof & hoop',
+        hint_en: 'Trusting God when life is hard',
+        hint_af: 'Vertrou op God wanneer lewe swaar is',
+    },
+    {
+        id: 'family',
+        emoji: '👨‍👩‍👧‍👦',
+        en: 'Family & home',
+        af: 'Gesin & huis',
+        hint_en: 'Marriage, parenting, devotion together',
+        hint_af: 'Huwelik, opvoed, toewyding saam',
+    },
+    {
+        id: 'wisdom',
+        emoji: '📜',
+        en: 'Wisdom for life',
+        af: 'Wysheid vir die lewe',
+        hint_en: 'Proverbs, James, practical choices',
+        hint_af: 'Spreuke, Jakobus, praktiese keuses',
+    },
+    {
+        id: 'prayer',
+        emoji: '🎵',
+        en: 'Prayer & Psalms',
+        af: 'Gebed & Psalms',
+        hint_en: 'Praise, lament, and talking with God',
+        hint_af: 'Lof, klagte en praat met God',
+    },
+    {
+        id: 'anxiety',
+        emoji: '🌊',
+        en: 'Peace & trust',
+        af: 'Vrede & vertroue',
+        hint_en: 'When worry or fear feels heavy',
+        hint_af: 'Wanneer angst of vrees swaar voel',
+    },
+    {
+        id: 'book_study',
+        emoji: '📖',
+        en: 'One book at a time',
+        af: 'Een boek op ’n slag',
+        hint_en: 'Letters and short books, chapter by chapter',
+        hint_af: 'Briewe en kort boeke, hoofstuk vir hoofstuk',
+    },
+    {
+        id: 'cat_nt',
+        category: 'nt',
+        emoji: '✉️',
+        en: 'New Testament',
+        af: 'Nuwe Testament',
+        hint_en: 'NT letters and structured NT reading',
+        hint_af: 'NT-briewe en gestruktureerde NT-lees',
+    },
+    {
+        id: 'cat_devotional',
+        category: 'devotional',
+        emoji: '🕯️',
+        en: 'Daily devotion',
+        af: 'Daaglikse toewyding',
+        hint_en: 'Psalms, Proverbs, family rhythm',
+        hint_af: 'Psalms, Spreuke, gesinsritme',
+    },
+    {
+        id: 'cat_whole_bible',
+        category: 'whole_bible',
+        emoji: '📚',
+        en: 'Whole Bible journeys',
+        af: 'Hele Bybel-reise',
+        hint_en: 'Year-long or OT/NT reading tracks',
+        hint_af: 'Jaar-lange of OT/NT-leesroetes',
+    },
 ];
 
 const SLUG_TOPICS = {
@@ -135,4 +218,31 @@ export function sortPlansForBrowse(plans) {
         if (orderA !== orderB) return orderA - orderB;
         return (a.duration_days || 0) - (b.duration_days || 0);
     });
+}
+
+export function planMatchesTopicTile(plan, tile) {
+    if (!plan || !tile) return false;
+    if (tile.category) {
+        return plan.category === tile.category;
+    }
+    return inferPlanTopics(plan).includes(tile.id);
+}
+
+export function getPlansForTopicTile(catalog, tile, { excludeIds = null } = {}) {
+    const exclude = excludeIds || new Set();
+    return sortPlansForBrowse(
+        catalog.filter((plan) => !exclude.has(plan.id) && planMatchesTopicTile(plan, tile))
+    );
+}
+
+export function countPlansPerTopicTile(catalog, excludeIds = null) {
+    const counts = {};
+    for (const tile of PLAN_TOPIC_TILES) {
+        counts[tile.id] = getPlansForTopicTile(catalog, tile, { excludeIds }).length;
+    }
+    return counts;
+}
+
+export function getTopicTileById(id) {
+    return PLAN_TOPIC_TILES.find((t) => t.id === id) || null;
 }

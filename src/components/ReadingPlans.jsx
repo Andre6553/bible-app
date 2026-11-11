@@ -14,10 +14,10 @@ import {
     recordPlanBehavior,
 } from '../services/planIntelligenceService';
 import {
-    PLAN_CATEGORIES,
-    PLAN_DURATIONS,
-    PLAN_TOPICS,
-    matchesPlanBrowseFilters,
+    PLAN_TOPIC_TILES,
+    countPlansPerTopicTile,
+    getPlansForTopicTile,
+    getTopicTileById,
     sortPlansForBrowse,
 } from '../constants/planBrowseFilters';
 import './ReadingPlans.css';
@@ -33,10 +33,7 @@ function ReadingPlans() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const loggingRef = useRef(false);
-    const [browseSearch, setBrowseSearch] = useState('');
-    const [categoryFilter, setCategoryFilter] = useState('all');
-    const [durationFilter, setDurationFilter] = useState('all');
-    const [topicFilter, setTopicFilter] = useState('all');
+    const [selectedTopicId, setSelectedTopicId] = useState(null);
 
     const isAf = settings.language === 'af';
 
@@ -49,7 +46,7 @@ function ReadingPlans() {
         dayOf: isAf ? 'Dag' : 'Day',
         of: isAf ? 'van' : 'of',
         myPlans: isAf ? 'My Planne' : 'My Plans',
-        browse: isAf ? 'Blaai Planne' : 'Browse Plans',
+        browse: isAf ? 'Kies ’n onderwerp' : 'Choose a topic',
         days: isAf ? 'dae' : 'days',
         complete: isAf ? 'Voltooi' : 'Complete',
         paused: isAf ? 'Gepouseer' : 'Paused',
@@ -65,16 +62,12 @@ function ReadingPlans() {
         forYouHint: isAf
             ? 'Voorstelle meng jou studiegedrag, kuratering en nuwe ontdekkinge.'
             : 'Suggestions blend your study habits, curation, and new discoveries.',
-        searchPlaceholder: isAf ? 'Soek planne…' : 'Search plans…',
-        showingPlans: (n, total) =>
-            isAf ? `${n} van ${total} planne` : `${n} of ${total} plans`,
-        clearFilters: isAf ? 'Maak filters skoon' : 'Clear filters',
-        noMatch: isAf
-            ? 'Geen planne pas by jou filters nie. Probeer ander opsies of maak skoon.'
-            : 'No plans match your filters. Try different options or clear filters.',
-        filterType: isAf ? 'Tipe' : 'Type',
-        filterLength: isAf ? 'Lengte' : 'Length',
-        filterTopic: isAf ? 'Onderwerp' : 'Topic',
+        backTopics: isAf ? '⬅ Terug na onderwerpe' : '⬅ Back to topics',
+        plansAvailable: (n) => (isAf ? `${n} planne` : `${n} plans`),
+        topicEmpty: isAf
+            ? 'Geen planne in hierdie onderwerp nog nie. Probeer ’n ander onderwerp.'
+            : 'No plans in this topic yet. Try another topic.',
+        allPlansTitle: isAf ? 'Alle planne' : 'All plans',
     };
 
     useEffect(() => {
@@ -147,33 +140,23 @@ function ReadingPlans() {
         [recommendations]
     );
 
-    const browseCatalog = useMemo(() => {
-        const filters = {
-            search: browseSearch,
-            category: categoryFilter,
-            duration: durationFilter,
-            topic: topicFilter,
-        };
-        return sortPlansForBrowse(
-            catalog.filter(
-                (plan) =>
-                    matchesPlanBrowseFilters(plan, filters, isAf) && !recommendedIds.has(plan.id)
-            )
-        );
-    }, [catalog, browseSearch, categoryFilter, durationFilter, topicFilter, isAf, recommendedIds]);
+    const topicPlanCounts = useMemo(
+        () => countPlansPerTopicTile(catalog, recommendedIds),
+        [catalog, recommendedIds]
+    );
 
-    const filtersActive =
-        browseSearch.trim() ||
-        categoryFilter !== 'all' ||
-        durationFilter !== 'all' ||
-        topicFilter !== 'all';
+    const allBrowsePlans = useMemo(
+        () =>
+            sortPlansForBrowse(catalog.filter((plan) => !recommendedIds.has(plan.id))),
+        [catalog, recommendedIds]
+    );
 
-    const clearBrowseFilters = () => {
-        setBrowseSearch('');
-        setCategoryFilter('all');
-        setDurationFilter('all');
-        setTopicFilter('all');
-    };
+    const selectedTile = selectedTopicId ? getTopicTileById(selectedTopicId) : null;
+
+    const topicPlans = useMemo(() => {
+        if (!selectedTile) return [];
+        return getPlansForTopicTile(catalog, selectedTile, { excludeIds: recommendedIds });
+    }, [catalog, selectedTile, recommendedIds]);
 
     const renderCatalogCard = (plan, source = 'catalog') => {
         const enrollment = getEnrollmentForCatalogPlan(plan.id);
@@ -215,26 +198,6 @@ function ReadingPlans() {
             </div>
         );
     };
-
-    const renderFilterChipRow = (label, options, value, onChange) => (
-        <div className="plans-filter-group">
-            <span className="plans-filter-group-label">{label}</span>
-            <div className="plans-filter-scroll" role="tablist" aria-label={label}>
-                {options.map((opt) => (
-                    <button
-                        key={opt.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={value === opt.id}
-                        className={`plans-filter-chip ${value === opt.id ? 'active' : ''}`}
-                        onClick={() => onChange(opt.id)}
-                    >
-                        {isAf ? opt.af : opt.en}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
 
     return (
         <div className="plans-container">
@@ -367,63 +330,100 @@ function ReadingPlans() {
                     )}
 
                     <section className="plans-section plans-browse-section">
-                        <div className="plans-browse-head">
-                            <h2 className="section-title">{t.browse}</h2>
-                            <p className="plans-browse-count">
-                                {t.showingPlans(browseCatalog.length, catalog.length)}
-                            </p>
-                        </div>
-
-                        <div className="plans-browse-toolbar">
-                            <input
-                                type="search"
-                                className="plans-search-input input"
-                                placeholder={t.searchPlaceholder}
-                                value={browseSearch}
-                                onChange={(e) => setBrowseSearch(e.target.value)}
-                                enterKeyHint="search"
-                                autoComplete="off"
-                            />
-                            {renderFilterChipRow(
-                                t.filterType,
-                                PLAN_CATEGORIES,
-                                categoryFilter,
-                                setCategoryFilter
-                            )}
-                            {renderFilterChipRow(
-                                t.filterLength,
-                                PLAN_DURATIONS,
-                                durationFilter,
-                                setDurationFilter
-                            )}
-                            {renderFilterChipRow(
-                                t.filterTopic,
-                                PLAN_TOPICS,
-                                topicFilter,
-                                setTopicFilter
-                            )}
-                            {filtersActive && (
-                                <button type="button" className="plans-clear-filters-btn" onClick={clearBrowseFilters}>
-                                    {t.clearFilters}
-                                </button>
-                            )}
-                        </div>
-
-                        {catalog.length === 0 ? (
-                            <div className="empty-state">
-                                <div className="empty-icon">📅</div>
-                                <p>{t.noPlans}</p>
-                            </div>
-                        ) : browseCatalog.length === 0 ? (
-                            <div className="empty-state">
-                                <div className="empty-icon">🔎</div>
-                                <p>{t.noMatch}</p>
-                                <button type="button" className="plan-cta-btn small" onClick={clearBrowseFilters}>
-                                    {t.clearFilters}
-                                </button>
-                            </div>
+                        {!selectedTopicId ? (
+                            <>
+                                <h2 className="section-title">{t.browse}</h2>
+                                <div className="plans-topic-grid" role="list">
+                                    {PLAN_TOPIC_TILES.map((tile) => {
+                                        const count = topicPlanCounts[tile.id] || 0;
+                                        if (count === 0) return null;
+                                        return (
+                                            <button
+                                                key={tile.id}
+                                                type="button"
+                                                className="plans-topic-tile"
+                                                onClick={() => setSelectedTopicId(tile.id)}
+                                            >
+                                                <span className="plans-topic-emoji" aria-hidden>
+                                                    {tile.emoji}
+                                                </span>
+                                                <span className="plans-topic-text">
+                                                    <span className="plans-topic-title">
+                                                        {isAf ? tile.af : tile.en}
+                                                    </span>
+                                                    <span className="plans-topic-hint">
+                                                        {isAf ? tile.hint_af : tile.hint_en}
+                                                    </span>
+                                                    <span className="plans-topic-count">
+                                                        {t.plansAvailable(count)}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                    {allBrowsePlans.length > 0 && (
+                                        <button
+                                            type="button"
+                                            className="plans-topic-tile plans-topic-tile-all"
+                                            onClick={() => setSelectedTopicId('__all__')}
+                                        >
+                                            <span className="plans-topic-emoji" aria-hidden>
+                                                📋
+                                            </span>
+                                            <span className="plans-topic-text">
+                                                <span className="plans-topic-title">{t.allPlansTitle}</span>
+                                                <span className="plans-topic-hint">
+                                                    {isAf
+                                                        ? 'Bekyk elke beskikbare leesplan'
+                                                        : 'See every available reading plan'}
+                                                </span>
+                                                <span className="plans-topic-count">
+                                                    {t.plansAvailable(allBrowsePlans.length)}
+                                                </span>
+                                            </span>
+                                        </button>
+                                    )}
+                                </div>
+                            </>
                         ) : (
-                            <div className="plans-list plans-catalog-grid">{browseCatalog.map((plan) => renderCatalogCard(plan))}</div>
+                            <>
+                                <button
+                                    type="button"
+                                    className="plans-back-btn"
+                                    onClick={() => setSelectedTopicId(null)}
+                                >
+                                    {t.backTopics}
+                                </button>
+                                <div className="plans-browse-head">
+                                    <h2 className="section-title">
+                                        {selectedTopicId === '__all__'
+                                            ? t.allPlansTitle
+                                            : isAf
+                                              ? selectedTile?.af
+                                              : selectedTile?.en}
+                                    </h2>
+                                    <p className="plans-browse-count">
+                                        {t.plansAvailable(
+                                            selectedTopicId === '__all__'
+                                                ? allBrowsePlans.length
+                                                : topicPlans.length
+                                        )}
+                                    </p>
+                                </div>
+                                {(selectedTopicId === '__all__' ? allBrowsePlans : topicPlans).length ===
+                                0 ? (
+                                    <div className="empty-state">
+                                        <div className="empty-icon">📅</div>
+                                        <p>{t.topicEmpty}</p>
+                                    </div>
+                                ) : (
+                                    <div className="plans-list plans-catalog-grid">
+                                        {(selectedTopicId === '__all__' ? allBrowsePlans : topicPlans).map(
+                                            (plan) => renderCatalogCard(plan)
+                                        )}
+                                    </div>
+                                )}
+                            </>
                         )}
                     </section>
                 </div>
