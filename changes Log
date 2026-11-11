@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — Fix subscribe: payment order RPC
+
+**For maintainers**
+- `create_payment_order` failed with `uuid = text` — `payment_history.user_id` is UUID on live DB. Fixed casts (`user_id::text`). Applied migration `20261111220000_fix_payment_order_uuid.sql`.
+
+**For users**
+- Subscribe should open PayFast again after Vercel is up to date (no app change required if fix is SQL-only).
+
+---
+
 ## 2026-11-11 — PayFast ITN hardening (not deployed yet)
 
 **For maintainers**

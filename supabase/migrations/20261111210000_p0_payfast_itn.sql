@@ -120,9 +120,9 @@ BEGIN
     full_rands := 85;
   END IF;
 
-  SELECT COUNT(*) INTO prior
+  SELECT COUNT(*)::int INTO prior
     FROM public.payment_history
-    WHERE user_id = uid::text AND status = 'success';
+    WHERE user_id::text = uid::text AND status = 'success';
 
   IF prior > 0 THEN
     cents := full_rands * 100;
