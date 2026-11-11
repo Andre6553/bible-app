@@ -7,6 +7,17 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — First month promo: PayFast = card (R5)
+
+**For maintainers**
+- Andre: **1st month is the intro promo** (banner “on us FREE”). Charge **50% of list**, min **R5** (PayFast cards). Card R10 → **R5**; PayFast must be **R5**, not full R10.
+- `create_payment_order` was bumping to full list after any `payment_history` success (the ITN grant). Removed that. Applied `20261111235000_first_month_promo_amount.sql`.
+
+**For users**
+- First month stays the promo price on the card **and** on PayFast (R5 while list is R10).
+
+---
+
 ## 2026-11-11 — Paid subscribe did not unlock (ITN)
 
 **For maintainers**

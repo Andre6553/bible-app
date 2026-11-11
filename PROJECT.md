@@ -46,7 +46,7 @@ npm run preview
 
 ## Status
 
-**Active** (Andre, 2026-11-11). **Free mode ON**. PayFast ITN webhook deployed (signature + order fulfill). `exec_sql` revoked from anon. Checkout snapshot floor is **R1**; **PayFast charge floors at R5**. 2026-11-11: `omnibible@gmail.com` payment ITN missed — manual 30-day grant; webhook ITN verify aligned with raw-body signing.
+**Active** (Andre, 2026-11-11). **Free mode ON**. PayFast ITN webhook deployed (signature + order fulfill). `exec_sql` revoked from anon. Checkout: **first month intro promo** (card list → 50%, PayFast **min R5** so cards show). Do not charge full list on first-month checkout. 2026-11-11: `omnibible@gmail.com` ITN miss — manual 30-day grant; webhook raw-body ITN.
 
 ## Notes
 

@@ -193,15 +193,12 @@ const SubscriptionPage = () => {
             }
 
             let profile = contextProfile;
-            if (!profile) {
-                console.log('[Subscription] Fetching user profile...');
-                const { data } = await supabase
-                    .from('user_profiles')
-                    .select('subscription_override, subscription_expiry')
-                    .eq('user_id', user.id)
-                    .single();
-                profile = data;
-            }
+            const { data: freshProfile } = await supabase
+                .from('user_profiles')
+                .select('subscription_override, subscription_expiry, subscription_tier')
+                .eq('user_id', user.id)
+                .maybeSingle();
+            if (freshProfile) profile = freshProfile;
 
             if (isPremiumProfile(profile)) {
                 clearTimeout(safetyTimeout);
