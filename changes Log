@@ -7,6 +7,17 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — PayFast amount matches app price
+
+**For maintainers**
+- UI used USD×FX (e.g. R8 → R4); server order used default R85 → R42. Added `checkout_pricing_snapshots` + `save_checkout_pricing_snapshot` before `create_payment_order`.
+- Applied migration `20261111230000_checkout_pricing_snapshot.sql`.
+
+**For users**
+- The Rand amount on Subscribe should match what PayFast shows.
+
+---
+
 ## 2026-11-11 — Fix subscribe: payment order RPC
 
 **For maintainers**

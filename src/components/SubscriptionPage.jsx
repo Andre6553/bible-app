@@ -96,6 +96,16 @@ const SubscriptionPage = () => {
 
                 const rands = (base * rate).toFixed(0);
                 setRandPrice(rands);
+                // Server checkout uses the same figure (see save_checkout_pricing_snapshot)
+                supabase
+                    .from('app_config')
+                    .upsert(
+                        { key: 'last_usd_zar_rate', value: String(rate) },
+                        { onConflict: 'key' }
+                    )
+                    .then(({ error: rateErr }) => {
+                        if (rateErr) console.warn('Could not cache ZAR rate:', rateErr.message);
+                    });
             } catch (err) {
                 console.error('Error fetching pricing:', err);
                 setRandPrice('85');
@@ -219,6 +229,19 @@ const SubscriptionPage = () => {
             const baseUrl = USE_SANDBOX ? 'https://sandbox.payfast.co.za/eng/process' : 'https://www.payfast.co.za/eng/process';
             const receiver = USE_SANDBOX ? '10000100' : '11945617';
             const merchantKey = USE_SANDBOX ? '46f0cd694581a' : '9anvup217hdck';
+
+            const fullZar = parseInt(randPrice, 10);
+            if (!fullZar || Number.isNaN(fullZar)) {
+                throw new Error('Price still loading — please wait a moment and try again.');
+            }
+
+            const { error: snapError } = await supabase.rpc('save_checkout_pricing_snapshot', {
+                p_full_zar: fullZar,
+                p_discount_eligible: isDiscountEligible
+            });
+            if (snapError) {
+                throw new Error(snapError.message || 'Could not save checkout price');
+            }
 
             const { data: orderRaw, error: orderError } = await supabase.rpc('create_payment_order');
             const order = typeof orderRaw === 'string' ? JSON.parse(orderRaw) : orderRaw;
