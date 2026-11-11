@@ -7,6 +7,18 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — Leave live PayFast as-is (maintainers)
+
+**For maintainers**
+- Andre confirmed the live PayFast notify URL still works; **free mode** stays on (subscribe page hidden).
+- Do **not** deploy webhook signature experiments. Git `payfast-webhook` restored to match the working live handler.
+- `exec_sql` anon lock remains in place.
+
+**For users**
+- No change to how the app works. Premium-for-members (free mode) stays as you set it.
+
+---
+
 ## 2026-11-11 — P0 security order + hardening (maintainers)
 
 **For maintainers**

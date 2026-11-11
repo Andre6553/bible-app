@@ -52,4 +52,4 @@ Or repeat anon/service `exec_sql` probe only in a throwaway Node one-liner (do n
 | `exec_sql` via **service_role** | Still works (maintainer scripts) |
 | `user_profiles` subscription trigger | Applied (`guard_user_profile_subscription_fields`) |
 | Live RLS export | [`RLS_POLICIES_EXPORT_LATEST.json`](./RLS_POLICIES_EXPORT_LATEST.json) |
-| PayFast webhook **deployed** code | **Pending** — CLI needs Supabase login (`403`); forged ITN still returned `200` before deploy. After deploy, forged ITN must be **400**. See [`PAYFAST_SANDBOX_ITN.md`](./PAYFAST_SANDBOX_ITN.md). |
+| PayFast webhook **deployed** code | **Leave as-is (Andre 2026-11-11).** Live link works; free mode on. Do **not** deploy git signature changes. Revisit when paid signup is turned back on. |

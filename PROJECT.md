@@ -46,11 +46,12 @@ npm run preview
 
 ## Status
 
-**Active** (Andre, 2026-11-11). **Track:** hardening-first (see [`docs/DEVELOPMENT_TRACK.md`](docs/DEVELOPMENT_TRACK.md)) — P0 order: restrict live `exec_sql`, then PayFast ITN, then `user_profiles` subscription fields. Recent UI: Search home, reading plans, Read Today reader.
+**Active** (Andre, 2026-11-11). **Free mode ON** (paid signup hidden). Live PayFast webhook **left as-is** (working; do not redeploy). `exec_sql` revoked from anon. See [`docs/DEVELOPMENT_TRACK.md`](docs/DEVELOPMENT_TRACK.md).
 
 ## Notes
 
-- **2026-11-11:** ChatGPT review archived under `docs/`; **live verify** confirmed Bible project + PayFast function URL; **`exec_sql` callable via anon key** (critical). Details: [`docs/LIVE_VERIFY_2026-11-11.md`](docs/LIVE_VERIFY_2026-11-11.md).
+- **2026-11-11:** Andre: leave live PayFast (`…/functions/v1/payfast-webhook`) unchanged; free mode stays on. Git webhook restored to match that live handler (do not deploy signature experiments).
+- **2026-11-11:** ChatGPT review archived under `docs/`; **live verify** then **`exec_sql` revoked from anon**. Details: [`docs/LIVE_VERIFY_2026-11-11.md`](docs/LIVE_VERIFY_2026-11-11.md).
 - **2026-11-11:** `changes Log` + `.cursor/rules/changes-log.mdc` — log user-visible changes; one
   git push per ship when possible (avoid double Vercel builds).
 - **2026-11-11:** Plan **Read Today** — `plan-reading-active` body class, top back bar, bottom
