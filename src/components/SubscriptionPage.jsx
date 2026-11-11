@@ -253,21 +253,33 @@ const SubscriptionPage = () => {
 
             const notify_url = 'https://fikjnvkzhemamtlwsrin.supabase.co/functions/v1/payfast-webhook';
 
-            const payParams = new URLSearchParams({
+            const payFields = {
                 cmd: '_paynow',
                 receiver: receiver,
+                merchant_id: receiver,
+                merchant_key: merchantKey,
                 item_name: item_name,
                 amount: amount,
                 return_url: return_url,
                 cancel_url: cancel_url,
                 notify_url: notify_url,
                 custom_str1: custom_str1,
-                m_payment_id: order.order_id,
-                merchant_key: merchantKey
-            });
+                m_payment_id: order.order_id
+            };
 
-            // Fast redirect
-            window.location.href = `${baseUrl}?${payParams.toString()}`;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = baseUrl;
+            form.style.display = 'none';
+            Object.entries(payFields).forEach(([name, value]) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = String(value);
+                form.appendChild(input);
+            });
+            document.body.appendChild(form);
+            form.submit();
         } catch (error) {
             console.error('Payment Error:', error);
             clearTimeout(safetyTimeout);

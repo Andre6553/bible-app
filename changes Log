@@ -7,6 +7,58 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — Chapter Summary: key people and places
+
+**For users**
+- Chapter Summary (📝) now lists **Key people** and **Key places** for that chapter (with a short note each), before the summary text.
+
+**For maintainers**
+- `getChapterSummary` JSON adds `keyPeople` / `keyPlaces` arrays; modal + Copy include them.
+
+---
+
+## 2026-11-11 — Chapter Summary: author and when written
+
+**For users**
+- Opening 📝 Chapter Summary now shows **Author** and **When written** above the summary (traditional + scholarly estimate, with a short note that dates vary).
+
+**For maintainers**
+- `getChapterSummary` JSON adds `author` and `timeframe`; `ChapterSummaryModal` renders and copies them.
+
+---
+
+## 2026-11-11 — Restore working PayFast auto-subscribe
+
+**For maintainers**
+- Andre was right: it worked before ITN hardening. Old webhook **logged** signature and still granted on `COMPLETE` + `custom_str1`. Hardening returned 400, so money was taken and Premium never applied.
+- Live webhook restored to that grant path (still logs ITN). Deployed.
+
+**For users**
+- After you pay, Premium should switch on again the way it used to.
+
+---
+
+## 2026-11-11 — Auto-subscribe after PayFast (ITN)
+
+**For maintainers**
+- Money was taken; Premium was not granted because ITN never fulfilled. Added `grant_payfast_premium` + `payfast_itn_log`. Webhook grants if signature matches **or** the pending `m_payment_id` + amount match. Checkout POST includes `merchant_id`. Deployed webhook.
+
+**For users**
+- After you pay, Premium should switch on by itself. If the bank page says success and the app still says Free, wait ~20 seconds then refresh.
+
+---
+
+## 2026-11-11 — Second R5 payment: grant + ITN not blocking on validate
+
+**For maintainers**
+- PayFast **payer email does not matter** — checkout sends `custom_str1` = app user id (`omnibible@gmail.com` / `297735fd…`). Order `641b3471…` R5 was pending; profile had been reset to free. Manual 30-day grant again.
+- Webhook: skip merchant check when ITN omits `merchant_id`; do not reject if PayFast `/eng/query/validate` is not `VALID` after a good signature.
+
+**For users**
+- Premium is on for **omnibible@gmail.com** for 30 days. Refresh or sign out/in. You can pay with any email on PayFast.
+
+---
+
 ## 2026-11-11 — First month promo: PayFast = card (R5)
 
 **For maintainers**

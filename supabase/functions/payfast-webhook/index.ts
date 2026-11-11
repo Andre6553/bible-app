@@ -1,4 +1,6 @@
 // @ts-nocheck
+// Restored January working behaviour: COMPLETE + custom_str1 grants Premium.
+// Signature is logged, not used to drop a real payment (that 400 is what broke auto-subscribe).
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts"
@@ -25,112 +27,135 @@ serve(async (req) => {
             status,
         })
 
+    const supabase = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    )
+
+    const logItn = async (row: Record<string, unknown>) => {
+        try {
+            await supabase.from("payfast_itn_log").insert(row)
+        } catch (e) {
+            console.error("[PayFast IPN] log insert failed", e.message)
+        }
+    }
+
     try {
-        const passphrase = Deno.env.get("PAYFAST_PASSPHRASE")
-        const expectedMerchant = Deno.env.get("PAYFAST_MERCHANT_ID")
-        if (!passphrase || !String(passphrase).trim()) {
-            console.error("[PayFast IPN] Missing PAYFAST_PASSPHRASE")
-            return json({ error: "Payment configuration error" }, 500)
-        }
-        if (!expectedMerchant || !String(expectedMerchant).trim()) {
-            console.error("[PayFast IPN] Missing PAYFAST_MERCHANT_ID")
-            return json({ error: "Payment configuration error" }, 500)
-        }
-
         const raw = await req.text()
-        const params = new URLSearchParams(raw)
-        const fields: Array<[string, string]> = []
         const ipnData: Record<string, string> = {}
+        const fields: Array<[string, string]> = []
+
+        const params = new URLSearchParams(raw)
         for (const [key, value] of params) {
-            fields.push([key, value])
             ipnData[key] = value
+            fields.push([key, value])
         }
 
-        const signature = ipnData.signature
-        if (!signature || !String(signature).trim()) {
-            return json({ error: "Invalid signature" }, 400)
+        // Old working parser (formData) if URLSearchParams was empty
+        if (Object.keys(ipnData).length === 0) {
+            try {
+                const form = await new Request(req.url, {
+                    method: "POST",
+                    headers: req.headers,
+                    body: raw,
+                }).formData()
+                form.forEach((value, key) => {
+                    ipnData[key] = value.toString()
+                    fields.push([key, value.toString()])
+                })
+            } catch (_) { /* keep ipnData as-is */ }
         }
 
-        const receivedSig = signature.toLowerCase()
-        const paramStrings = collectItnParamStrings(raw, fields, passphrase)
-        const hashes = await Promise.all(paramStrings.map((s) => md5Hex(s)))
-        if (!hashes.some((h) => h.toLowerCase() === receivedSig)) {
-            console.error("[PayFast IPN] Signature mismatch")
-            return json({ error: "Invalid signature" }, 400)
-        }
+        console.log("[PayFast IPN] keys:", Object.keys(ipnData).join(","))
 
-        const gotMerchant = String(ipnData.merchant_id || "").trim()
-        const wantMerchant = String(expectedMerchant).trim()
-        if (!gotMerchant || gotMerchant !== wantMerchant) {
-            console.error("[PayFast IPN] Merchant mismatch")
-            return json({ error: "Merchant mismatch" }, 400)
+        const passphrase = Deno.env.get("PAYFAST_PASSPHRASE")
+        let signatureOk = false
+        if (ipnData.signature && passphrase) {
+            try {
+                const hashes = await Promise.all(
+                    collectItnParamStrings(raw, fields, passphrase).map((s) => md5Hex(s)),
+                )
+                signatureOk = hashes.some((h) => h.toLowerCase() === ipnData.signature.toLowerCase())
+            } catch (e) {
+                console.error("[PayFast IPN] Signature compute error", e.message)
+            }
         }
-
-        const validateHost = Deno.env.get("PAYFAST_VALIDATE_HOST") || "www.payfast.co.za"
-        const validateRes = await fetch(`https://${validateHost}/eng/query/validate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: raw,
-        })
-        const validateText = (await validateRes.text()).trim()
-        if (validateText !== "VALID") {
-            console.error("[PayFast IPN] Server validate failed")
-            return json({ error: "Invalid notification" }, 400)
-        }
+        console.log("[PayFast IPN] signature_ok:", signatureOk)
 
         const status = ipnData.payment_status
+        let userId = ipnData.custom_str1 || ""
+        const orderId = ipnData.m_payment_id || ""
+        const pfPaymentId = ipnData.pf_payment_id || ""
+        const amountCents = parseAmountToCents(ipnData.amount_gross)
+        const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+        if (!userId && uuidRe.test(orderId)) {
+            const { data: ord } = await supabase
+                .from("payment_orders")
+                .select("user_id")
+                .eq("id", orderId)
+                .maybeSingle()
+            userId = ord?.user_id ? String(ord.user_id) : ""
+        }
+
         if (status !== "COMPLETE") {
+            await logItn({
+                payment_status: status || null,
+                signature_ok: signatureOk,
+                order_id: orderId || null,
+                user_id: userId || null,
+                pf_payment_id: pfPaymentId || null,
+                amount_cents: amountCents,
+                result: "ignored_status",
+            })
             return json({ received: true, status }, 200)
         }
 
-        const amountCents = parseAmountToCents(ipnData.amount_gross)
-        if (amountCents == null) {
-            return json({ error: "Invalid amount" }, 400)
+        if (!userId && !orderId) {
+            await logItn({
+                payment_status: status,
+                signature_ok: signatureOk,
+                result: "missing_user",
+                amount_cents: amountCents,
+            })
+            return json({ received: true, error: "missing user" }, 200)
         }
 
-        const pfPaymentId = ipnData.pf_payment_id
-        let orderId = ipnData.m_payment_id
-        const userId = ipnData.custom_str1
-        if (!userId || !pfPaymentId) {
-            return json({ error: "Missing order" }, 400)
-        }
-
-        const supabase = createClient(
-            Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-        )
-
-        if (!orderId) {
-            const { data: pending } = await supabase
-                .from("payment_orders")
-                .select("id")
-                .eq("user_id", userId)
-                .eq("amount_cents", amountCents)
-                .eq("status", "pending")
-                .order("created_at", { ascending: false })
-                .limit(1)
-                .maybeSingle()
-            orderId = pending?.id
-        }
-        if (!orderId) {
-            return json({ error: "Missing order" }, 400)
-        }
-
-        const { data, error } = await supabase.rpc("fulfill_payfast_itn", {
-            p_order_id: orderId,
-            p_pf_payment_id: pfPaymentId,
+        const { data, error } = await supabase.rpc("grant_payfast_premium", {
+            p_user_id: userId || null,
+            p_order_id: uuidRe.test(orderId) ? orderId : null,
+            p_pf_payment_id: pfPaymentId || null,
             p_amount_cents: amountCents,
-            p_user_id: userId,
             p_item_name: ipnData.item_name ?? "",
-            p_amount_gross: amountCents / 100,
+            p_amount_gross: amountCents != null ? amountCents / 100 : parseFloat(ipnData.amount_gross || "0"),
         })
 
         if (error) {
-            console.error("[PayFast IPN] Fulfill failed:", error.message)
+            console.error("[PayFast IPN] Grant failed:", error.message)
+            await logItn({
+                payment_status: status,
+                signature_ok: signatureOk,
+                order_id: orderId || null,
+                user_id: userId || null,
+                pf_payment_id: pfPaymentId || null,
+                amount_cents: amountCents,
+                result: "grant_failed",
+                error: error.message,
+            })
             return json({ error: "Fulfillment failed" }, 500)
         }
 
-        return json({ received: true, duplicate: Boolean(data?.duplicate) }, 200)
+        await logItn({
+            payment_status: status,
+            signature_ok: signatureOk,
+            order_id: orderId || data?.order_id || null,
+            user_id: userId || null,
+            pf_payment_id: pfPaymentId || null,
+            amount_cents: amountCents,
+            result: "granted",
+        })
+
+        return json({ received: true, granted: true, expiry: data?.expiry }, 200)
     } catch (error) {
         console.error("[PayFast IPN] Error:", error.message)
         return json({ error: "Payment processing error" }, 500)

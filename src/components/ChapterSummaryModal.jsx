@@ -17,6 +17,70 @@ function ChapterSummaryModal({ isOpen, onClose, bookName, chapter, verses, langu
     }, [isOpen, onClose]);
     useBackButton(isOpen, handleBackClose);
 
+    const t = {
+        en: {
+            title: 'Chapter Summary',
+            loading: 'Generating summary...',
+            error: 'Error',
+            retry: 'Retry',
+            copy: 'Copy',
+            copied: 'Copied!',
+            summary: 'Summary',
+            outline: 'Outline',
+            author: 'Author',
+            timeframe: 'When written',
+            metaNote: 'Traditional and scholarly estimates; dates vary by view.',
+            keyPeople: 'Key people',
+            keyPlaces: 'Key places',
+            noneListed: 'None highlighted in this chapter.'
+        },
+        af: {
+            title: 'Hoofstuk Opsoming',
+            loading: 'Genereer opsoming...',
+            error: 'Fout',
+            retry: 'Probeer weer',
+            copy: 'Kopieer',
+            copied: 'Gekopieer!',
+            summary: 'Opsoming',
+            outline: 'Skema',
+            author: 'Skrywer',
+            timeframe: 'Wanneer geskryf',
+            metaNote: 'Tradisionele en wetenskaplike skattings; datums wissel.',
+            keyPeople: 'Belangrike mense',
+            keyPlaces: 'Belangrike plekke',
+            noneListed: 'Geen uitgelig in hierdie hoofstuk nie.'
+        }
+    }[language] || {
+        title: 'Chapter Summary',
+        loading: 'Generating summary...',
+        error: 'Error',
+        retry: 'Retry',
+        copy: 'Copy',
+        copied: 'Copied!',
+        summary: 'Summary',
+        outline: 'Outline',
+        author: 'Author',
+        timeframe: 'When written',
+        metaNote: 'Traditional and scholarly estimates; dates vary by view.',
+        keyPeople: 'Key people',
+        keyPlaces: 'Key places',
+        noneListed: 'None highlighted in this chapter.'
+    };
+
+    const renderKeyList = (items) => {
+        const list = Array.isArray(items) ? items.filter(Boolean) : [];
+        if (!list.length) {
+            return <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.75 }}>{t.noneListed}</p>;
+        }
+        return (
+            <ul style={{ margin: 0, paddingLeft: '1.1rem', lineHeight: 1.55, fontSize: '0.9rem' }}>
+                {list.map((item, idx) => (
+                    <li key={idx} style={{ marginBottom: '4px' }}>{item}</li>
+                ))}
+            </ul>
+        );
+    };
+
     useEffect(() => {
         if (isOpen && bookName && chapter) {
             fetchSummary();
@@ -44,11 +108,24 @@ function ChapterSummaryModal({ isOpen, onClose, bookName, chapter, verses, langu
     const handleCopy = () => {
         if (!summaryData) return;
 
-        const outlineText = summaryData.outline
+        const outlineText = (summaryData.outline || [])
             .map(item => `${item.range}: ${item.title}`)
             .join('\n');
 
-        const fullText = `${bookName} ${chapter} Summary\n\n${summaryData.summary}\n\nOutline:\n${outlineText}`;
+        const metaLines = [];
+        if (summaryData.author) metaLines.push(`${t.author}: ${summaryData.author}`);
+        if (summaryData.timeframe) metaLines.push(`${t.timeframe}: ${summaryData.timeframe}`);
+        const people = summaryData.keyPeople || [];
+        const places = summaryData.keyPlaces || [];
+        if (people.length) {
+            metaLines.push(`${t.keyPeople}:\n${people.map((p) => `• ${p}`).join('\n')}`);
+        }
+        if (places.length) {
+            metaLines.push(`${t.keyPlaces}:\n${places.map((p) => `• ${p}`).join('\n')}`);
+        }
+        const metaBlock = metaLines.length ? `${metaLines.join('\n\n')}\n\n` : '';
+
+        const fullText = `${bookName} ${chapter} Summary\n\n${metaBlock}${summaryData.summary}\n\nOutline:\n${outlineText}`;
 
         copyToClipboard(fullText).then(success => {
             if (success) {
@@ -59,50 +136,6 @@ function ChapterSummaryModal({ isOpen, onClose, bookName, chapter, verses, langu
     };
 
     if (!isOpen) return null;
-
-    const t = {
-        en: {
-            title: 'Chapter Summary',
-            loading: 'Generating summary...',
-            error: 'Error',
-            retry: 'Retry',
-            copy: 'Copy',
-            copied: 'Copied!',
-            summary: 'Summary',
-            outline: 'Outline'
-        },
-        af: {
-            title: 'Hoofstuk Opsoming',
-            loading: 'Genereer opsoming...',
-            error: 'Fout',
-            retry: 'Probeer weer',
-            copy: 'Kopieer',
-            copied: 'Gekopieer!',
-            summary: 'Opsoming',
-            outline: 'Skema'
-        }
-    }[language] || {
-        en: {
-            title: 'Chapter Summary',
-            loading: 'Generating summary...',
-            error: 'Error',
-            retry: 'Retry',
-            copy: 'Copy',
-            copied: 'Copied!',
-            summary: 'Summary',
-            outline: 'Outline'
-        },
-        af: {
-            title: 'Hoofstuk Opsoming',
-            loading: 'Genereer opsoming...',
-            error: 'Fout',
-            retry: 'Probeer weer',
-            copy: 'Kopieer',
-            copied: 'Gekopieer!',
-            summary: 'Opsoming',
-            outline: 'Skema'
-        }
-    }.en;
 
     return (
         <div className="book-selector-modal" onClick={onClose}>
@@ -125,6 +158,60 @@ function ChapterSummaryModal({ isOpen, onClose, bookName, chapter, verses, langu
                         </div>
                     ) : (
                         <div className="summary-content">
+                            {(summaryData.author || summaryData.timeframe) && (
+                                <div
+                                    className="info-section chapter-meta-block"
+                                    style={{
+                                        marginBottom: '1rem',
+                                        paddingBottom: '12px',
+                                        borderBottom: '1px solid var(--border-color)'
+                                    }}
+                                >
+                                    {summaryData.author && (
+                                        <p style={{ margin: '0 0 8px', lineHeight: 1.5, fontSize: '0.95rem' }}>
+                                            <span className="info-label" style={{ display: 'block', marginBottom: '4px' }}>
+                                                {t.author}
+                                            </span>
+                                            {summaryData.author}
+                                        </p>
+                                    )}
+                                    {summaryData.timeframe && (
+                                        <p style={{ margin: 0, lineHeight: 1.5, fontSize: '0.95rem' }}>
+                                            <span className="info-label" style={{ display: 'block', marginBottom: '4px' }}>
+                                                {t.timeframe}
+                                            </span>
+                                            {summaryData.timeframe}
+                                        </p>
+                                    )}
+                                    <p
+                                        style={{
+                                            margin: '10px 0 0',
+                                            fontSize: '0.75rem',
+                                            opacity: 0.65,
+                                            lineHeight: 1.4
+                                        }}
+                                    >
+                                        {t.metaNote}
+                                    </p>
+                                </div>
+                            )}
+                            <div
+                                className="info-section"
+                                style={{
+                                    marginBottom: '1rem',
+                                    paddingBottom: '12px',
+                                    borderBottom: '1px solid var(--border-color)'
+                                }}
+                            >
+                                <span className="info-label" style={{ display: 'block', marginBottom: '6px' }}>
+                                    {t.keyPeople}
+                                </span>
+                                {renderKeyList(summaryData.keyPeople)}
+                                <span className="info-label" style={{ display: 'block', margin: '12px 0 6px' }}>
+                                    {t.keyPlaces}
+                                </span>
+                                {renderKeyList(summaryData.keyPlaces)}
+                            </div>
                             <div className="info-section">
                                 <span className="info-label">{t.summary}</span>
                                 <p className="summary-text" style={{ lineHeight: '1.6' }}>
@@ -135,7 +222,7 @@ function ChapterSummaryModal({ isOpen, onClose, bookName, chapter, verses, langu
                             <div className="info-section">
                                 <span className="info-label">{t.outline}</span>
                                 <div className="outline-list">
-                                    {summaryData.outline.map((item, idx) => (
+                                    {(summaryData.outline || []).map((item, idx) => (
                                         <div key={idx} className="outline-item" style={{ marginBottom: '8px', display: 'flex', gap: '8px' }}>
                                             <span style={{ fontWeight: 'bold', minWidth: '50px', color: 'var(--theme-color)' }}>{item.range}</span>
                                             <span>{item.title}</span>

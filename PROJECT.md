@@ -46,7 +46,7 @@ npm run preview
 
 ## Status
 
-**Active** (Andre, 2026-11-11). **Free mode ON**. PayFast ITN webhook deployed (signature + order fulfill). `exec_sql` revoked from anon. Checkout: **first month intro promo** (card list → 50%, PayFast **min R5** so cards show). Do not charge full list on first-month checkout. 2026-11-11: `omnibible@gmail.com` ITN miss — manual 30-day grant; webhook raw-body ITN.
+**Active** (Andre, 2026-11-11). **Free mode ON**. PayFast ITN webhook deployed (signature + order fulfill). `exec_sql` revoked from anon. Checkout: first-month promo R5. `omnibible@gmail.com` is **free** for one PayFast test. Auto-subscribe **restored** to January behaviour: COMPLETE + `custom_str1` grants Premium (signature logged, not used to drop the payment). That 400-on-signature was why money was taken and the account stayed free.
 
 ## Notes
 

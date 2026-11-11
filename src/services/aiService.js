@@ -869,11 +869,19 @@ export async function getChapterSummary(userId, bookName, chapter, verses = [], 
         ${contextText}
         
         **Requirements:**
-        1. **Summary:** A single, powerful paragraph (max 100 words) capturing the main message and theme of the chapter.
-        2. **Outline:** A structured list of the chapter's sections, including verse ranges and brief titles (e.g., "1-10: The Creation of Light").
+        1. **author:** Who wrote the book this chapter belongs to (and chapter-specific note only if relevant). Give **traditional** view first, then one short sentence on common scholarly view if it differs. Max 35 words. Say "Unknown" only if truly debated with no tradition.
+        2. **timeframe:** When this chapter's material was **written or compiled** (not when the events happened, unless the book is narrative history). Use ranges like "c. 950–586 BC" or "AD 50–60". Max 25 words. Add "(approximate)" when dates are uncertain.
+        3. **keyPeople:** Up to 5 people who matter in THIS chapter only. Each entry: "Name — one short role (max 12 words)". Omit names not in this chapter. Empty array if none (e.g. pure poetry with no named persons).
+        4. **keyPlaces:** Up to 5 places in THIS chapter (lands, cities, regions). Each entry: "Place — why it matters here (max 12 words)". Empty array if none (e.g. Genesis 1).
+        5. **Summary:** A single, powerful paragraph (max 100 words) capturing the main message and theme of the chapter.
+        6. **Outline:** A structured list of the chapter's sections, including verse ranges and brief titles (e.g., "1-10: The Creation of Light").
         
         Format the response as a valid JSON object with this structure:
         {
+            "author": "...",
+            "timeframe": "...",
+            "keyPeople": ["Name — role", "..."],
+            "keyPlaces": ["Place — note", "..."],
             "summary": "...",
             "outline": [
                 { "range": "1-10", "title": "..." },
@@ -890,6 +898,9 @@ export async function getChapterSummary(userId, bookName, chapter, verses = [], 
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         const jsonStr = jsonMatch ? jsonMatch[0] : text;
         const data = JSON.parse(jsonStr);
+        if (!Array.isArray(data.outline)) data.outline = [];
+        if (!Array.isArray(data.keyPeople)) data.keyPeople = [];
+        if (!Array.isArray(data.keyPlaces)) data.keyPlaces = [];
 
         // Log to ai_questions for history/visibility
         await supabase.from('ai_questions').insert({
