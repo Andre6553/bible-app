@@ -226,6 +226,34 @@ function buildJohn21() {
     return buildOneChapterPerDay(43, 21);
 }
 
+/** Short "one book" plans — adds many finishable options with minimal curation. */
+const BOOK_SPOTLIGHTS = [
+    { slug: 'jonah-4', bookId: 32 },
+    { slug: 'ruth-4', bookId: 8 },
+    { slug: 'esther-10', bookId: 17 },
+    { slug: 'philemon-1', bookId: 57 },
+    { slug: 'jude-1', bookId: 65 },
+    { slug: 'galatians-6', bookId: 48 },
+    { slug: 'ephesians-6', bookId: 49 },
+    { slug: 'philippians-4', bookId: 50 },
+    { slug: 'colossians-4', bookId: 51 },
+    { slug: 'james-5', bookId: 59 },
+    { slug: 'hebrews-13', bookId: 58 },
+    { slug: 'daniel-12', bookId: 27 },
+    { slug: 'ecclesiastes-12', bookId: 21 },
+    { slug: 'acts-28', bookId: 44 },
+];
+
+function buildBookSpotlights() {
+    const out = {};
+    for (const { slug, bookId } of BOOK_SPOTLIGHTS) {
+        const book = BOOK_BY_ID[bookId];
+        if (!book) continue;
+        out[slug] = buildOneChapterPerDay(bookId, book.chapters);
+    }
+    return out;
+}
+
 function loadCuratedPlans() {
     const curated = {};
     if (!fs.existsSync(CURATED_DIR)) return curated;
@@ -248,6 +276,7 @@ const rawSchedules = {
     'revelation-22': buildRevelation22(),
     'romans-16': buildRomans16(),
     'john-21': buildJohn21(),
+    ...buildBookSpotlights(),
     ...loadCuratedPlans(),
 };
 

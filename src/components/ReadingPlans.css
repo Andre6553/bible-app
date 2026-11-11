@@ -46,6 +46,147 @@
     margin-bottom: 28px;
 }
 
+/* Browse: search + horizontal filter chips (mobile-first) */
+.plans-browse-section {
+    padding-bottom: 8px;
+}
+
+.plans-browse-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.plans-browse-head .section-title {
+    margin-bottom: 0;
+}
+
+.plans-browse-count {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.plans-browse-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--bg-secondary);
+    padding: 12px 0 16px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.plans-search-input {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    touch-action: manipulation;
+}
+
+.plans-search-input:focus {
+    outline: 2px solid rgba(var(--accent-primary-rgb, 212, 175, 55), 0.5);
+    outline-offset: 1px;
+}
+
+.plans-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.plans-filter-group-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding-left: 2px;
+}
+
+.plans-filter-scroll {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+
+.plans-filter-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.plans-filter-chip {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.plans-filter-chip.active {
+    background: rgba(var(--accent-primary-rgb, 212, 175, 55), 0.18);
+    border-color: rgba(var(--accent-primary-rgb, 212, 175, 55), 0.45);
+    color: var(--text-primary);
+}
+
+.plans-clear-filters-btn {
+    align-self: flex-start;
+    min-height: 44px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--accent-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.plans-catalog-grid {
+    gap: 14px;
+}
+
+@media (min-width: 720px) {
+    .plans-catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .plans-browse-toolbar {
+        position: static;
+        border-bottom: none;
+        padding-bottom: 8px;
+    }
+}
+
 .plans-back-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border-color);

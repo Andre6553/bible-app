@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
 import { logActivity } from '../services/bibleService';
@@ -13,6 +13,13 @@ import {
     getProfileSummary,
     recordPlanBehavior,
 } from '../services/planIntelligenceService';
+import {
+    PLAN_CATEGORIES,
+    PLAN_DURATIONS,
+    PLAN_TOPICS,
+    matchesPlanBrowseFilters,
+    sortPlansForBrowse,
+} from '../constants/planBrowseFilters';
 import './ReadingPlans.css';
 
 function ReadingPlans() {
@@ -26,6 +33,10 @@ function ReadingPlans() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const loggingRef = useRef(false);
+    const [browseSearch, setBrowseSearch] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [durationFilter, setDurationFilter] = useState('all');
+    const [topicFilter, setTopicFilter] = useState('all');
 
     const isAf = settings.language === 'af';
 
@@ -54,6 +65,16 @@ function ReadingPlans() {
         forYouHint: isAf
             ? 'Voorstelle meng jou studiegedrag, kuratering en nuwe ontdekkinge.'
             : 'Suggestions blend your study habits, curation, and new discoveries.',
+        searchPlaceholder: isAf ? 'Soek planne…' : 'Search plans…',
+        showingPlans: (n, total) =>
+            isAf ? `${n} van ${total} planne` : `${n} of ${total} plans`,
+        clearFilters: isAf ? 'Maak filters skoon' : 'Clear filters',
+        noMatch: isAf
+            ? 'Geen planne pas by jou filters nie. Probeer ander opsies of maak skoon.'
+            : 'No plans match your filters. Try different options or clear filters.',
+        filterType: isAf ? 'Tipe' : 'Type',
+        filterLength: isAf ? 'Lengte' : 'Length',
+        filterTopic: isAf ? 'Onderwerp' : 'Topic',
     };
 
     useEffect(() => {
@@ -119,6 +140,100 @@ function ReadingPlans() {
 
     const enrolledPlanIds = new Set(
         userPlans.filter((p) => p.status === 'active' || p.status === 'paused').map((p) => p.plan_id)
+    );
+
+    const recommendedIds = useMemo(
+        () => new Set(recommendations.map((r) => r.plan?.id).filter(Boolean)),
+        [recommendations]
+    );
+
+    const browseCatalog = useMemo(() => {
+        const filters = {
+            search: browseSearch,
+            category: categoryFilter,
+            duration: durationFilter,
+            topic: topicFilter,
+        };
+        return sortPlansForBrowse(
+            catalog.filter(
+                (plan) =>
+                    matchesPlanBrowseFilters(plan, filters, isAf) && !recommendedIds.has(plan.id)
+            )
+        );
+    }, [catalog, browseSearch, categoryFilter, durationFilter, topicFilter, isAf, recommendedIds]);
+
+    const filtersActive =
+        browseSearch.trim() ||
+        categoryFilter !== 'all' ||
+        durationFilter !== 'all' ||
+        topicFilter !== 'all';
+
+    const clearBrowseFilters = () => {
+        setBrowseSearch('');
+        setCategoryFilter('all');
+        setDurationFilter('all');
+        setTopicFilter('all');
+    };
+
+    const renderCatalogCard = (plan, source = 'catalog') => {
+        const enrollment = getEnrollmentForCatalogPlan(plan.id);
+        const isEnrolled = enrolledPlanIds.has(plan.id);
+        return (
+            <div
+                key={plan.id}
+                className="plan-card catalog-card"
+                onClick={() => handleStartOrView(plan, source)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleStartOrView(plan, source);
+                    }
+                }}
+            >
+                <span className="plan-card-emoji">{plan.cover_emoji || '📖'}</span>
+                <div className="plan-card-body">
+                    <h3>{isAf ? plan.title_af : plan.title_en}</h3>
+                    <p className="plan-card-desc">{isAf ? plan.description_af : plan.description_en}</p>
+                    <span className="plan-card-meta">
+                        {plan.duration_days} {t.days}
+                        {enrollment?.status === 'completed' &&
+                            ` · ${getProgressStats(enrollment, plan).percent}%`}
+                    </span>
+                </div>
+                <button
+                    className="plan-cta-btn small"
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartOrView(plan, source);
+                    }}
+                >
+                    {isEnrolled ? t.viewBtn : t.startBtn}
+                </button>
+            </div>
+        );
+    };
+
+    const renderFilterChipRow = (label, options, value, onChange) => (
+        <div className="plans-filter-group">
+            <span className="plans-filter-group-label">{label}</span>
+            <div className="plans-filter-scroll" role="tablist" aria-label={label}>
+                {options.map((opt) => (
+                    <button
+                        key={opt.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={value === opt.id}
+                        className={`plans-filter-chip ${value === opt.id ? 'active' : ''}`}
+                        onClick={() => onChange(opt.id)}
+                    >
+                        {isAf ? opt.af : opt.en}
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 
     return (
@@ -251,50 +366,64 @@ function ReadingPlans() {
                         </section>
                     )}
 
-                    <section className="plans-section">
-                        <h2 className="section-title">{t.browse}</h2>
+                    <section className="plans-section plans-browse-section">
+                        <div className="plans-browse-head">
+                            <h2 className="section-title">{t.browse}</h2>
+                            <p className="plans-browse-count">
+                                {t.showingPlans(browseCatalog.length, catalog.length)}
+                            </p>
+                        </div>
+
+                        <div className="plans-browse-toolbar">
+                            <input
+                                type="search"
+                                className="plans-search-input input"
+                                placeholder={t.searchPlaceholder}
+                                value={browseSearch}
+                                onChange={(e) => setBrowseSearch(e.target.value)}
+                                enterKeyHint="search"
+                                autoComplete="off"
+                            />
+                            {renderFilterChipRow(
+                                t.filterType,
+                                PLAN_CATEGORIES,
+                                categoryFilter,
+                                setCategoryFilter
+                            )}
+                            {renderFilterChipRow(
+                                t.filterLength,
+                                PLAN_DURATIONS,
+                                durationFilter,
+                                setDurationFilter
+                            )}
+                            {renderFilterChipRow(
+                                t.filterTopic,
+                                PLAN_TOPICS,
+                                topicFilter,
+                                setTopicFilter
+                            )}
+                            {filtersActive && (
+                                <button type="button" className="plans-clear-filters-btn" onClick={clearBrowseFilters}>
+                                    {t.clearFilters}
+                                </button>
+                            )}
+                        </div>
+
                         {catalog.length === 0 ? (
                             <div className="empty-state">
                                 <div className="empty-icon">📅</div>
                                 <p>{t.noPlans}</p>
                             </div>
-                        ) : (
-                            <div className="plans-list">
-                                {catalog.map((plan) => {
-                                    const enrollment = getEnrollmentForCatalogPlan(plan.id);
-                                    const isEnrolled = enrolledPlanIds.has(plan.id);
-                                    return (
-                                        <div
-                                            key={plan.id}
-                                            className="plan-card catalog-card"
-                                            onClick={() => handleStartOrView(plan)}
-                                        >
-                                            <span className="plan-card-emoji">{plan.cover_emoji || '📖'}</span>
-                                            <div className="plan-card-body">
-                                                <h3>{isAf ? plan.title_af : plan.title_en}</h3>
-                                                <p className="plan-card-desc">
-                                                    {isAf ? plan.description_af : plan.description_en}
-                                                </p>
-                                                <span className="plan-card-meta">
-                                                    {plan.duration_days} {t.days}
-                                                    {enrollment?.status === 'completed' &&
-                                                        ` · ${getProgressStats(enrollment, plan).percent}%`}
-                                                </span>
-                                            </div>
-                                            <button
-                                                className="plan-cta-btn small"
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleStartOrView(plan);
-                                                }}
-                                            >
-                                                {isEnrolled ? t.viewBtn : t.startBtn}
-                                            </button>
-                                        </div>
-                                    );
-                                })}
+                        ) : browseCatalog.length === 0 ? (
+                            <div className="empty-state">
+                                <div className="empty-icon">🔎</div>
+                                <p>{t.noMatch}</p>
+                                <button type="button" className="plan-cta-btn small" onClick={clearBrowseFilters}>
+                                    {t.clearFilters}
+                                </button>
                             </div>
+                        ) : (
+                            <div className="plans-list plans-catalog-grid">{browseCatalog.map((plan) => renderCatalogCard(plan))}</div>
                         )}
                     </section>
                 </div>
