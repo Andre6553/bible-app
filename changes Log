@@ -15,7 +15,7 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 - A small **Exact vs Concept** switch sits neatly under the cards (for which word-search mode opens by default).
 - **Recent searches** align with the same width as the main card on PC.
 
-**Shipped in git:** (see commit on `main` with Search desktop home + this log file).
+**Shipped in git:** commit `c3f345e` on `main`.
 
 ---
 
