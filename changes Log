@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — Search home: PC two-column + mobile original buttons
+
+**For users**
+- **Phone:** Back to the familiar look — **two colourful buttons side by side** (Exact/Concept + Bible Search) with the **Exact Match / Concept** switch underneath.
+- **Desktop:** Same order, but wider — **two options next to each other**, then the **mode switch full width below**, using more of the screen instead of a tiny strip in the middle.
+
+**Shipped in git:** commit `1396420` on `main`.
+
+---
+
 ## 2026-11-11 — Search home: smaller PC buttons
 
 **For users**

@@ -1678,14 +1678,14 @@ Here are the available shortcuts to quickly ask questions:
                                 onClick={() => handleFilterChange('mode', 'exact')}
                                 type="button"
                             >
-                                {settings.language === 'af' ? 'Presiese' : 'Exact Match'}
+                                {settings.language === 'af' ? 'Presiese Soektog' : 'Exact Match'}
                             </button>
                             <button
                                 className={`mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
                                 onClick={() => handleFilterChange('mode', 'semantic')}
                                 type="button"
                             >
-                                {settings.language === 'af' ? <>Konsep <AIIcon className="inline-icon" /></> : <>Concept <AIIcon className="inline-icon" /></>}
+                                {settings.language === 'af' ? <>Konsep-soektog <AIIcon className="inline-icon" /></> : <>Concept Search <AIIcon className="inline-icon" /></>}
                             </button>
                         </div>
                     </div>

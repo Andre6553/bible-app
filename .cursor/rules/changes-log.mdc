@@ -12,8 +12,15 @@ When you **change Omni Bible app code or config** under `Bible\` (features, fixe
 1. **Append** a dated entry to `Bible/changes Log` (file name includes a space: `changes Log`).
 2. Use **newest first** — add new blocks **above** older entries (below the file header / instructions).
 3. **Date line:** `## YYYY-MM-DD — Short title`
-4. **For users** section: plain English bullets — what people will notice, benefit, how to use it. No file paths or commit hashes required unless you also note **Shipped in git:** when a push happened in that session.
+4. **For users** section: plain English bullets — what people will notice, benefit, how to use it. Optional **Shipped in git:** line with short commit hash after push.
 5. Keep entries concise; one logical change per block (can bundle small fixes from the same session).
+
+## When pushing (`..` or explicit push) — one Vercel build
+
+- **One commit, one push.** Include `changes Log` in the same commit as the code change.
+- **Do not** push a second “chore: note hash in changes Log” commit — that triggers a second Vercel deployment.
+- If the hash must be in the log: after the first `git commit`, update `changes Log`, then `git commit --amend --no-edit` **before** `git push` (only when that commit is not yet on the remote).
+- If you already pushed, leave the log as “pushed on YYYY-MM-DD” or add the hash locally without a follow-up push unless Andre asks.
 
 When Andre asks to **sum up last changes**, **what’s new**, **release notes**, or **tell users what improved**:
 

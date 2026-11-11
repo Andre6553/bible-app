@@ -913,6 +913,78 @@
     margin-right: auto;
 }
 
+/* Mobile: original launcher — two primary buttons side by side, toggle below */
+@media (max-width: 768px) {
+    .search-home-card {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        gap: var(--spacing-sm);
+    }
+
+    .search-launcher-hint {
+        text-align: center;
+        font-size: 0.9rem;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .search-action-cards {
+        flex-direction: row;
+        gap: var(--spacing-sm);
+    }
+
+    .search-action-card {
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 12px 10px;
+        min-height: 52px;
+        border-radius: var(--radius-md);
+    }
+
+    .search-action-card-desc {
+        display: none;
+    }
+
+    .search-action-card-icon {
+        font-size: 1.35rem;
+    }
+
+    .search-action-card-title {
+        font-size: 0.82rem;
+        line-height: 1.25;
+    }
+
+    .search-action-card-keyword {
+        background: var(--accent-primary);
+        border-color: transparent;
+    }
+
+    .search-action-card-keyword .search-action-card-title {
+        color: #0a0a0a;
+    }
+
+    .search-action-card-ai {
+        background: var(--accent-secondary);
+        color: #fff;
+    }
+
+    .search-action-card-ai .search-action-card-title {
+        color: #fff;
+    }
+
+    .search-mode-label {
+        display: none;
+    }
+
+    .search-filters-home .mode-toggle-compact {
+        height: 48px;
+    }
+}
+
 .search-launcher-hint {
     margin: 0 0 var(--spacing-sm);
     font-size: 0.9rem;
@@ -1479,22 +1551,30 @@
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
         justify-content: flex-start;
+        width: 100%;
         min-height: 0;
         border-bottom: none;
         box-shadow: none;
         background: transparent;
-        padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+        padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-md);
+        box-sizing: border-box;
     }
 
     .search-home-inner {
-        max-width: 640px;
+        width: 100%;
+        max-width: min(960px, calc(100vw - 240px));
+        margin: 0 auto;
+        padding: 0 var(--spacing-md);
+        box-sizing: border-box;
     }
 
     .search-home-card {
-        margin-top: var(--spacing-sm);
-        padding: var(--spacing-lg);
+        margin-top: var(--spacing-md);
+        padding: var(--spacing-lg) var(--spacing-xl);
+        width: 100%;
+        box-sizing: border-box;
         background: var(--bg-secondary);
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-lg);
@@ -1502,76 +1582,65 @@
     }
 
     .search-launcher-hint {
-        text-align: left;
-        font-size: 0.92rem;
+        text-align: center;
+        font-size: 0.95rem;
         color: var(--text-secondary);
-        margin-bottom: var(--spacing-xs);
+        margin-bottom: var(--spacing-md);
+        max-width: 52rem;
+        margin-left: auto;
+        margin-right: auto;
     }
 
+    /* Row 1: Exact/Concept launcher + Bible Search */
     .search-action-cards {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-md);
+        width: 100%;
     }
 
     .search-action-card {
-        flex-direction: row;
-        align-items: center;
-        gap: 12px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
         min-height: 0;
-        padding: 12px 14px;
+        padding: var(--spacing-md) var(--spacing-lg);
         border-radius: var(--radius-md);
     }
 
-    .search-action-card-keyword {
-        background: rgba(var(--accent-primary-rgb), 0.1);
-        color: var(--text-primary);
-        border: 1px solid rgba(var(--accent-primary-rgb), 0.35);
-    }
-
-    .search-action-card-keyword .search-action-card-title {
-        color: var(--accent-primary);
-    }
-
-    .search-action-card-keyword .search-action-card-desc {
-        color: var(--text-secondary);
-    }
-
     .search-action-card-icon {
-        flex-shrink: 0;
-        font-size: 1.25rem;
-        width: 2rem;
-        text-align: center;
-    }
-
-    .search-action-card-body {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
+        font-size: 1.35rem;
     }
 
     .search-action-card-title {
-        font-size: 0.95rem;
+        font-size: 1rem;
     }
 
     .search-action-card-desc {
-        font-size: 0.8rem;
-        line-height: 1.35;
+        font-size: 0.82rem;
+        line-height: 1.4;
+    }
+
+    /* Row 2: Exact Match | Concept — full width below */
+    .search-filters-home {
+        margin-top: var(--spacing-lg);
+        width: 100%;
     }
 
     .search-filters-home .mode-toggle-compact {
-        max-width: 340px;
-        height: 40px;
+        max-width: 100%;
+        width: 100%;
+        height: 48px;
     }
 
     .search-mode-label {
-        margin-top: var(--spacing-sm);
+        margin-top: 0;
+        margin-bottom: var(--spacing-sm);
+        text-align: left;
     }
 
     .search-page:not(.mobile-results-open) .recent-history-bar-container {
-        max-width: 920px;
+        max-width: min(960px, calc(100vw - 240px));
         margin-left: auto;
         margin-right: auto;
         width: calc(100% - 2 * var(--spacing-lg));
