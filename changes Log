@@ -13,7 +13,7 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 - On **desktop**, the two search options are **compact rows** (icon + short text) instead of huge yellow blocks.
 - The panel is **narrower** and sits naturally under the title — closer to a normal web app, still easy to tap on a phone.
 
-**Shipped in git:** (commit on `main` with this change).
+**Shipped in git:** commit `f030cb6` on `main`.
 
 ---
 
