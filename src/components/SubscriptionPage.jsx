@@ -96,16 +96,7 @@ const SubscriptionPage = () => {
 
                 const rands = (base * rate).toFixed(0);
                 setRandPrice(rands);
-                // Server checkout uses the same figure (see save_checkout_pricing_snapshot)
-                supabase
-                    .from('app_config')
-                    .upsert(
-                        { key: 'last_usd_zar_rate', value: String(rate) },
-                        { onConflict: 'key' }
-                    )
-                    .then(({ error: rateErr }) => {
-                        if (rateErr) console.warn('Could not cache ZAR rate:', rateErr.message);
-                    });
+                // Checkout amount is saved via save_checkout_pricing_snapshot (users cannot write app_config).
             } catch (err) {
                 console.error('Error fetching pricing:', err);
                 setRandPrice('85');

@@ -46,7 +46,7 @@ npm run preview
 
 ## Status
 
-**Active** (Andre, 2026-11-11). **Free mode ON**. PayFast ITN webhook deployed (signature + order fulfill). `exec_sql` revoked from anon.
+**Active** (Andre, 2026-11-11). **Free mode ON**. PayFast ITN webhook deployed (signature + order fulfill). `exec_sql` revoked from anon. Checkout snapshot floor is **R1** (live USD **0.5** → ~R8).
 
 ## Notes
 

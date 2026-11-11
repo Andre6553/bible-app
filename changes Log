@@ -7,6 +7,17 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — Subscribe: allow live list price (~R8)
+
+**For maintainers**
+- `save_checkout_pricing_snapshot` required R15–R999; live USD×FX list is ~R8, so RPC returned `invalid list price`. Floor now **R1**, ceiling R9999. Applied `20261111231000_fix_checkout_price_floor.sql` then `20261111232000_checkout_floor_r1.sql`.
+- Removed client upsert of `last_usd_zar_rate` (RLS 403 on `app_config`).
+
+**For users**
+- Subscribe should open PayFast again at the same Rand amount shown on the card.
+
+---
+
 ## 2026-11-11 — PayFast amount matches app price
 
 **For maintainers**

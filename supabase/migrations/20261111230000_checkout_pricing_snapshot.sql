@@ -31,7 +31,7 @@ BEGIN
   IF uid_text IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
   END IF;
-  IF p_full_zar IS NULL OR p_full_zar < 15 OR p_full_zar > 999 THEN
+  IF p_full_zar IS NULL OR p_full_zar < 1 OR p_full_zar > 9999 THEN
     RAISE EXCEPTION 'invalid list price';
   END IF;
 
@@ -106,7 +106,7 @@ BEGIN
       FROM public.app_config
       WHERE key = 'last_usd_zar_rate';
 
-    full_rands := GREATEST(round(usd * zar_rate)::int, 15);
+    full_rands := GREATEST(round(usd * zar_rate)::int, 1);
 
     SELECT COUNT(*)::int INTO prior
       FROM public.payment_history
