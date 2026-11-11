@@ -149,6 +149,7 @@ function Search({ currentVersion, versions }) {
 
     // AI Research State
     const [showAIModal, setShowAIModal] = useState(false);
+    const [showKeywordModal, setShowKeywordModal] = useState(false);
     const [aiQuestion, setAiQuestion] = useState('');
     const [aiResponse, setAiResponse] = useState(null);
     const [aiLoading, setAiLoading] = useState(false);
@@ -215,8 +216,8 @@ function Search({ currentVersion, versions }) {
             target: '#tutorial-search-input',
             title: settings.language === 'af' ? 'Soek die Woord' : 'Search the Word',
             content: settings.language === 'af'
-                ? 'Tik enige woord, frase of versverwysing hier in. Jy kan ook kortpaaie soos /story gebruik.'
-                : 'Type any word, phrase, or verse reference here. You can also use shortcuts like /story.'
+                ? 'Tik op Presiese Soektog of Konsep-soektog om die volskerm-soekbladsy oop te maak. Tik jou vraag daar.'
+                : 'Tap Exact Search or Concept Search to open the full-screen search page, then type your query there.'
         },
         {
             target: '#tutorial-search-mode',
@@ -424,9 +425,16 @@ function Search({ currentVersion, versions }) {
         { cmd: '/help', desc: settings.language === 'af' ? 'Wys alle kortpaaie' : 'Show all shortcuts', icon: 'ℹ️' },
     ];
 
+    const activeSearchQuery = searchParams.get('q') || searchQuery;
+
+    const keywordModalTitle = searchMode === 'semantic'
+        ? (settings.language === 'af' ? 'Konsep-soektog' : 'Concept Search')
+        : (settings.language === 'af' ? 'Presiese Soektog' : 'Exact Search');
+
     const t = {
         aiTitle: settings.language === 'af' ? 'Bybelsoek' : 'Bible Search',
         backToResults: settings.language === 'af' ? '⬅ Terug na Resultate' : '⬅ Back to Results',
+        backToSearch: settings.language === 'af' ? '⬅ Terug na Soek' : '⬅ Back to Search',
         askQuestion: settings.language === 'af' ? 'Stel jou vraag:' : 'Ask your question:',
         aiPlaceholder: settings.language === 'af' ? 'b.v., Wat sê die Bybel oor geloof? Hoe moet Christene op lyding reageer?' : 'e.g., What does the Bible say about faith? How should Christians respond to suffering?',
         quickCommands: settings.language === 'af' ? '⚡ Vinnige Opdragte' : '⚡ Quick Commands',
@@ -702,17 +710,15 @@ function Search({ currentVersion, versions }) {
             .catch((err) => console.warn('AI verse auto-highlight failed', err));
     }, [aiConversation, allBooks, settings.language]);
 
-    // Hide the mobile bottom nav while the AI modal is open so it
-    // doesn't overlap the follow-up input. Scoped to mobile via CSS;
-    // on desktop the sidebar stays visible regardless.
+    // Hide the mobile bottom nav while a full-screen search overlay is open.
     useEffect(() => {
-        if (showAIModal) {
+        if (showAIModal || showKeywordModal) {
             document.body.classList.add('ai-modal-open');
         } else {
             document.body.classList.remove('ai-modal-open');
         }
         return () => document.body.classList.remove('ai-modal-open');
-    }, [showAIModal]);
+    }, [showAIModal, showKeywordModal]);
 
     const loadBooks = async () => {
         const result = await getBooks();
@@ -924,9 +930,9 @@ function Search({ currentVersion, versions }) {
 
         let text = "";
         if (settings.language === 'af') {
-            text += `BYBELSE NADINKE 🕊️\n"${searchQuery}"\n\n${semanticSummary}\n\nRELEVANTE VERSE:\n`;
+            text += `BYBELSE NADINKE 🕊️\n"${activeSearchQuery}"\n\n${semanticSummary}\n\nRELEVANTE VERSE:\n`;
         } else {
-            text += `BIBLICAL REFLECTION 🕊️\n"${searchQuery}"\n\n${semanticSummary}\n\nRELEVANT VERSES:\n`;
+            text += `BIBLICAL REFLECTION 🕊️\n"${activeSearchQuery}"\n\n${semanticSummary}\n\nRELEVANT VERSES:\n`;
         }
 
         semanticResults.forEach(v => {
@@ -946,12 +952,22 @@ function Search({ currentVersion, versions }) {
         if (!searchQuery.trim()) return;
 
         isSearchingRef.current = true;
-        // Update URL
         setSearchParams({ q: searchQuery.trim(), version: searchVersion, testament: searchTestament, mode: searchMode });
-        // Clear input as requested by user
-        setSearchQuery('');
-        setShowHistory(false); // Close history when searching
+        setShowHistory(false);
+        setShowKeywordModal(false);
+        setShowMainShortcutMenu(false);
     };
+
+    const handleOpenKeywordSearch = () => {
+        setShowKeywordModal(true);
+        setShowMainShortcutMenu(false);
+    };
+
+    const handleCloseKeywordModal = useCallback(() => {
+        setShowKeywordModal(false);
+        setShowHistory(false);
+        setShowMainShortcutMenu(false);
+    }, []);
 
     const highlightText = (text, query) => {
         if (!query) return text;
@@ -1015,8 +1031,9 @@ function Search({ currentVersion, versions }) {
         aiHighlightedVersesRef.current = new Set();
     };
 
+    useBackButton(showKeywordModal, handleCloseKeywordModal);
+
     const handleAskAI = () => {
-        setAiQuestion(searchQuery);
         setShowAIModal(true);
         setAiResponse(null);
         setAiConversation([]);
@@ -1451,6 +1468,83 @@ Here are the available shortcuts to quickly ask questions:
         });
     };
 
+    const renderGroupedVersionOptions = () => {
+        const groups = {
+            English: [],
+            Afrikaans: [],
+            Xhosa: [],
+        };
+
+        versions.forEach((v) => {
+            const lang = (v.language || '').toLowerCase();
+            if (lang.startsWith('af')) groups.Afrikaans.push(v);
+            else if (lang.startsWith('xh')) groups.Xhosa.push(v);
+            else groups.English.push(v);
+        });
+
+        return Object.entries(groups).map(([lang, groupVersions]) => {
+            if (groupVersions.length === 0) return null;
+            return (
+                <optgroup key={lang} label={lang}>
+                    {groupVersions.map((v) => (
+                        <option key={v.id} value={v.id}>
+                            {v.abbreviation} - {v.name}
+                        </option>
+                    ))}
+                </optgroup>
+            );
+        });
+    };
+
+    const keywordSearchFilters = (
+        <>
+            <div className="mode-toggle keyword-modal-mode" id="tutorial-search-mode">
+                <div className={`mode-slider ${searchMode}`}></div>
+                <button
+                    className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
+                    onClick={() => handleFilterChange('mode', 'exact')}
+                    type="button"
+                >
+                    {settings.language === 'af' ? 'Presiese Soektog' : 'Exact Match'}
+                </button>
+                <button
+                    className={`mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
+                    onClick={() => handleFilterChange('mode', 'semantic')}
+                    type="button"
+                >
+                    {settings.language === 'af' ? <>Konsep-soektog <AIIcon className="inline-icon" /></> : <>Concept Search <AIIcon className="inline-icon" /></>}
+                </button>
+            </div>
+            <div className="keyword-modal-filters">
+                <label className="filter-label">
+                    <span>Version:</span>
+                    <select
+                        className="version-filter select"
+                        id="tutorial-versions"
+                        value={searchVersion}
+                        onChange={(e) => handleFilterChange('version', e.target.value)}
+                    >
+                        <option value="all">All Versions</option>
+                        {renderGroupedVersionOptions()}
+                    </select>
+                </label>
+                <label className="filter-label">
+                    <span>Testament:</span>
+                    <select
+                        className="version-filter select"
+                        id="tutorial-testaments"
+                        value={searchTestament}
+                        onChange={(e) => handleFilterChange('testament', e.target.value)}
+                    >
+                        <option value="all">Both Testaments</option>
+                        <option value="OT">Old Testament</option>
+                        <option value="NT">New Testament</option>
+                    </select>
+                </label>
+            </div>
+        </>
+    );
+
     return (
         <div className={`search-page ${showMobileResults ? 'mobile-results-open' : ''}`}>
             <div className="search-header">
@@ -1517,92 +1611,20 @@ Here are the available shortcuts to quickly ask questions:
                 )}
 
                 <div className="search-input-container" id="tutorial-search-input">
-                    <form onSubmit={handleSearch} className="search-form">
-                        {/* Row 1: Input + History Toggle */}
-                        <div className="search-bar-row">
-                            <input
-                                type="text"
-                                className="search-input input"
-                                placeholder={
-                                    searchMode === 'semantic'
-                                        ? (settings.language === 'af' ? "bv. 'ek voel alleen' of 'krag in moeilike tye'..." : "e.g., 'feeling lonely' or 'strength in hard times'...")
-                                        : (settings.language === 'af' ? "Soek vir trefwoorde of verse..." : "Search for keywords or verses...")
-                                }
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setSearchQuery(val);
-                                    // Show menu if starting with / and no space yet (typing command)
-                                    if (val.startsWith('/') && !val.includes(' ')) {
-                                        setShowMainShortcutMenu(true);
-                                        setShowHistory(false);
-                                    } else {
-                                        setShowMainShortcutMenu(false);
-                                    }
-                                }}
-                            // Removed onClick that automatically showed history
-                            />
-
-                            {/* Main Search Shortcut Menu */}
-                            {showMainShortcutMenu && (
-                                <div className="shortcut-popup main-search-shortcuts" style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    left: 0,
-                                    right: 0,
-                                    zIndex: 1000,
-                                    marginTop: '5px'
-                                }}>
-                                    <div className="shortcut-header">{settings.language === 'af' ? '⚡ Vinnige Bybelsoek' : '⚡ Quick Bible Search'}</div>
-                                    {AI_SHORTCUTS.map((item) => (
-                                        <button
-                                            key={item.cmd}
-                                            className="shortcut-item"
-                                            onClick={() => {
-                                                setAiQuestion(item.cmd + ' ');
-                                                setSearchQuery(''); // Clear main search
-                                                setShowMainShortcutMenu(false);
-                                                setShowAIModal(true); // Open AI modal
-                                            }}
-                                            type="button"
-                                        >
-                                            <span className="shortcut-icon">{item.icon}</span>
-                                            <span className="shortcut-cmd">{item.cmd}</span>
-                                            <span className="shortcut-desc">{item.desc}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                            <button
-                                type="button"
-                                className={`history-toggle-btn ${showHistory ? 'active' : ''}`}
-                                id="tutorial-history"
-                                onClick={toggleHistory}
-                                title="Search History"
-                            >
-                                🕒
-                            </button>
-                        </div>
-
-                        {/* Row 2: Action Buttons */}
+                    <div className="search-form search-launcher-form">
+                        <p className="search-launcher-hint">
+                            {settings.language === 'af'
+                                ? 'Kies Presiese/Konsep-soektog of Bybelsoek om jou eie volskerm-soekbladsy oop te maak.'
+                                : 'Open Exact/Concept Search or Bible Search for a full-screen search experience.'}
+                        </p>
                         <div className="search-actions-row">
                             <button
-                                type="submit"
+                                type="button"
                                 className="search-btn btn-primary"
                                 id="tutorial-search-btn"
-                                onClick={(e) => {
-                                    // If user typed a command manually in main search, handle it as AI
-                                    if (searchQuery.startsWith('/')) {
-                                        e.preventDefault();
-                                        setAiQuestion(searchQuery);
-                                        setSearchQuery('');
-                                        setShowAIModal(true);
-                                    }
-                                }}
-                                disabled={loading || !searchQuery.trim()}
+                                onClick={handleOpenKeywordSearch}
                             >
-                                {loading ? '...' : (searchQuery.startsWith('/') ? <AIIcon className="inline-icon" /> : (searchMode === 'semantic' ? '🪄 Concept Search' : '🔍 Exact Search'))}
-                                {searchQuery.startsWith('/') && (settings.language === 'af' ? ' Bybelsoek' : ' Bible Search')}
+                                {searchMode === 'semantic' ? '🪄 Concept Search' : '🔍 Exact Search'}
                             </button>
                             <button
                                 type="button"
@@ -1614,38 +1636,11 @@ Here are the available shortcuts to quickly ask questions:
                                 <AIIcon className="inline-icon" /> {settings.language === 'af' ? 'Bybelsoek' : 'Bible Search'}
                             </button>
                         </div>
-                    </form>
-
-                    {/* History Dropdown */}
-                    {showHistory && history.length > 0 && (
-                        <div className="history-dropdown">
-                            <div className="history-header">
-                                <span>Recent Searches</span>
-                                <button className="clear-history-btn" onClick={clearHistory}>Clear</button>
-                            </div>
-                            <div className="history-list">
-                                {history.map((item, i) => (
-                                    <button
-                                        key={i}
-                                        className="history-item"
-                                        onClick={() => {
-                                            const query = typeof item === 'string' ? item : item.query;
-                                            const mode = typeof item === 'string' ? 'exact' : item.mode;
-                                            setSearchQuery(query);
-                                            setSearchParams({ q: query, version: searchVersion, testament: searchTestament, mode: mode });
-                                            setShowHistory(false);
-                                        }}
-                                    >
-                                        🕒 {(typeof item === 'string' ? item : item.query)} {(typeof item !== 'string' && item.mode === 'semantic') ? <AIIcon className="inline-icon mini" /> : ''}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    </div>
                 </div>
 
-                <div className="search-filters" id="tutorial-filters">
-                    <div className="mode-toggle" id="tutorial-search-mode">
+                <div className="search-filters search-filters-home" id="tutorial-filters">
+                    <div className="mode-toggle" id="tutorial-search-mode-home">
                         <div className={`mode-slider ${searchMode}`}></div>
                         <button
                             className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
@@ -1662,61 +1657,6 @@ Here are the available shortcuts to quickly ask questions:
                             {settings.language === 'af' ? <>Konsep-soektog <AIIcon className="inline-icon" /></> : <>Concept Search <AIIcon className="inline-icon" /></>}
                         </button>
                     </div>
-
-                    <label className="filter-label">
-                        <span>Version:</span>
-                        <select
-                            className="version-filter select"
-                            id="tutorial-versions"
-                            value={searchVersion}
-                            onChange={(e) => handleFilterChange('version', e.target.value)}
-                        >
-                            <option value="all">All Versions</option>
-
-                            {/* Grouped Versions */}
-                            {(() => {
-                                const groups = {
-                                    English: [],
-                                    Afrikaans: [],
-                                    Xhosa: []
-                                };
-
-                                versions.forEach(v => {
-                                    const lang = (v.language || '').toLowerCase();
-                                    if (lang.startsWith('af')) groups.Afrikaans.push(v);
-                                    else if (lang.startsWith('xh')) groups.Xhosa.push(v);
-                                    else groups.English.push(v);
-                                });
-
-                                return Object.entries(groups).map(([lang, groupVersions]) => {
-                                    if (groupVersions.length === 0) return null;
-                                    return (
-                                        <optgroup key={lang} label={lang}>
-                                            {groupVersions.map(v => (
-                                                <option key={v.id} value={v.id}>
-                                                    {v.abbreviation} - {v.name}
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    );
-                                });
-                            })()}
-                        </select>
-                    </label>
-
-                    <label className="filter-label">
-                        <span>Testament:</span>
-                        <select
-                            className="version-filter select"
-                            id="tutorial-testaments"
-                            value={searchTestament}
-                            onChange={(e) => handleFilterChange('testament', e.target.value)}
-                        >
-                            <option value="all">Both Testaments</option>
-                            <option value="OT">Old Testament</option>
-                            <option value="NT">New Testament</option>
-                        </select>
-                    </label>
                 </div>
             </div>
 
@@ -1936,7 +1876,7 @@ Here are the available shortcuts to quickly ask questions:
                                                     </div>
                                                 </div>
                                                 <p className="result-text">
-                                                    {highlightText(verse.text, searchQuery)}
+                                                    {highlightText(verse.text, activeSearchQuery)}
                                                 </p>
                                             </div>
                                         );
@@ -1961,6 +1901,137 @@ Here are the available shortcuts to quickly ask questions:
                     null // Clean home screen as requested
                 )}
             </div>
+
+            {/* Keyword / Concept Search — full-screen (same pattern as Bible Search) */}
+            {showKeywordModal && (
+                <div
+                    className="book-selector-modal ai-research-modal keyword-search-modal"
+                    onClick={handleCloseKeywordModal}
+                >
+                    <div
+                        className="book-selector-content info-modal-content keyword-search-modal-content"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header ai-modal-header">
+                            <div className="ai-modal-title-wrapper">
+                                <span className="keyword-modal-icon">{searchMode === 'semantic' ? '🪄' : '🔍'}</span>
+                                <h2 className="ai-modal-title">{keywordModalTitle}</h2>
+                            </div>
+                            <button type="button" className="close-btn back-to-results" onClick={handleCloseKeywordModal}>
+                                {t.backToSearch}
+                            </button>
+                        </div>
+                        <div className="modal-body info-body keyword-search-modal-body">
+                            <form onSubmit={handleSearch} className="keyword-search-form">
+                                <div className="search-bar-row keyword-modal-search-row">
+                                    <input
+                                        type="text"
+                                        className="search-input input"
+                                        id="tutorial-keyword-input"
+                                        autoFocus
+                                        placeholder={
+                                            searchMode === 'semantic'
+                                                ? (settings.language === 'af' ? "bv. 'ek voel alleen' of 'krag in moeilike tye'..." : "e.g., 'feeling lonely' or 'strength in hard times'...")
+                                                : (settings.language === 'af' ? "Soek vir trefwoorde of verse..." : "Search for keywords or verses...")
+                                        }
+                                        value={searchQuery}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setSearchQuery(val);
+                                            if (val.startsWith('/') && !val.includes(' ')) {
+                                                setShowMainShortcutMenu(true);
+                                                setShowHistory(false);
+                                            } else {
+                                                setShowMainShortcutMenu(false);
+                                            }
+                                        }}
+                                    />
+                                    {showMainShortcutMenu && (
+                                        <div className="shortcut-popup main-search-shortcuts keyword-modal-shortcuts">
+                                            <div className="shortcut-header">{settings.language === 'af' ? '⚡ Vinnige Bybelsoek' : '⚡ Quick Bible Search'}</div>
+                                            {AI_SHORTCUTS.map((item) => (
+                                                <button
+                                                    key={item.cmd}
+                                                    type="button"
+                                                    className="shortcut-item"
+                                                    onClick={() => {
+                                                        setAiQuestion(item.cmd + ' ');
+                                                        setShowMainShortcutMenu(false);
+                                                        setShowKeywordModal(false);
+                                                        setShowAIModal(true);
+                                                    }}
+                                                >
+                                                    <span className="shortcut-icon">{item.icon}</span>
+                                                    <span className="shortcut-cmd">{item.cmd}</span>
+                                                    <span className="shortcut-desc">{item.desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className={`history-toggle-btn ${showHistory ? 'active' : ''}`}
+                                        id="tutorial-history"
+                                        onClick={toggleHistory}
+                                        title="Search History"
+                                    >
+                                        🕒
+                                    </button>
+                                </div>
+                                {keywordSearchFilters}
+                                <button
+                                    type="submit"
+                                    className="search-btn btn-primary keyword-modal-submit"
+                                    disabled={loading || !searchQuery.trim()}
+                                    onClick={(e) => {
+                                        if (searchQuery.startsWith('/')) {
+                                            e.preventDefault();
+                                            setAiQuestion(searchQuery);
+                                            setShowMainShortcutMenu(false);
+                                            setShowKeywordModal(false);
+                                            setShowAIModal(true);
+                                        }
+                                    }}
+                                >
+                                    {loading ? '...' : (searchMode === 'semantic' ? '🪄 Concept Search' : '🔍 Exact Search')}
+                                </button>
+                            </form>
+                            {showHistory && history.length > 0 && (
+                                <div className="history-dropdown keyword-modal-history">
+                                    <div className="history-header">
+                                        <span>{settings.language === 'af' ? 'Onlangse soektogte' : 'Recent Searches'}</span>
+                                        <button type="button" className="clear-history-btn" onClick={clearHistory}>
+                                            {settings.language === 'af' ? 'Vee uit' : 'Clear'}
+                                        </button>
+                                    </div>
+                                    <div className="history-list">
+                                        {history.map((item, i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                className="history-item"
+                                                onClick={() => {
+                                                    const query = typeof item === 'string' ? item : item.query;
+                                                    const mode = typeof item === 'string' ? 'exact' : item.mode;
+                                                    setSearchQuery(query);
+                                                    setSearchMode(mode);
+                                                    isSearchingRef.current = true;
+                                                    setSearchParams({ q: query, version: searchVersion, testament: searchTestament, mode });
+                                                    setShowHistory(false);
+                                                    setShowKeywordModal(false);
+                                                }}
+                                            >
+                                                🕒 {(typeof item === 'string' ? item : item.query)}{' '}
+                                                {typeof item !== 'string' && item.mode === 'semantic' ? <AIIcon className="inline-icon mini" /> : ''}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* AI Research Modal */}
             {

@@ -792,8 +792,78 @@
 /* Unified Full-Screen Results Toggle */
 .mobile-results-open .search-form,
 .mobile-results-open .search-filters,
+.mobile-results-open .search-filters-home,
 .mobile-results-open .recent-history-bar-container {
     display: none;
+}
+
+.search-launcher-hint {
+    margin: 0 0 var(--spacing-sm);
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
+}
+
+.search-launcher-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.search-filters-home {
+    width: 100%;
+    padding: 0 var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+}
+
+.keyword-search-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.keyword-search-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.keyword-modal-search-row {
+    position: relative;
+}
+
+.keyword-modal-shortcuts {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    margin-top: 5px;
+}
+
+.keyword-modal-filters {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.keyword-modal-mode {
+    margin-bottom: 0;
+}
+
+.keyword-modal-submit {
+    width: 100%;
+}
+
+.keyword-modal-history {
+    position: relative;
+    margin-top: 0;
+}
+
+.keyword-modal-icon {
+    font-size: 1.25rem;
+    line-height: 1;
 }
 
 .back-to-search-btn {
