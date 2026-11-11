@@ -33,11 +33,11 @@ To switch to **feature-first**, note it here with a date and accept payment/AI r
 ## Next concrete tasks
 
 1. ~~Migration: revoke `exec_sql`~~ — **live-verified** (anon denied).
-2. **PayFast — do not change.** Andre confirmed the live notify URL works. Free mode is on. Revisit ITN hardening **only when paid subscriptions are turned back on.** Do not deploy git signature experiments.
+2. **PayFast ITN hardening deployed** (2026-11-11). Same notify URL. Secrets set. Confirm with one real payment when ready; keep free mode on until then.
 3. Optional later: tighten profile INSERT/DELETE + overlapping RLS (not required for PayFast).
 
 **Evidence labels:** **Confirmed live** = reproducer on production API. **Source only** = git risk not deployed.
 
 ## Andre override (2026-11-11)
 
-Leave live PayFast as-is. App stays on **free mode** (`app_settings.free_mode`). Paid ITN hardening is deferred.
+Free mode stays on. Live PayFast webhook stays until secrets are set and the new function is deployed. ITN hardening is in git/SQL (source); not live until deploy.

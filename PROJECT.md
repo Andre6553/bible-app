@@ -46,7 +46,7 @@ npm run preview
 
 ## Status
 
-**Active** (Andre, 2026-11-11). **Free mode ON** (paid signup hidden). Live PayFast webhook **left as-is** (working; do not redeploy). `exec_sql` revoked from anon. See [`docs/DEVELOPMENT_TRACK.md`](docs/DEVELOPMENT_TRACK.md).
+**Active** (Andre, 2026-11-11). **Free mode ON**. PayFast ITN webhook deployed (signature + order fulfill). `exec_sql` revoked from anon.
 
 ## Notes
 

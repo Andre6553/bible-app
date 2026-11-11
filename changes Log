@@ -7,6 +7,19 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — PayFast ITN hardening (not deployed yet)
+
+**For maintainers**
+- Server `create_payment_order` + `fulfill_payfast_itn` (atomic grant, unique payment id, keep leftover paid days).
+- Webhook verifies PayFast ITN signature (posted field order), merchant, amount, and `/eng/query/validate`. Same notify URL.
+- **Live function deployed** 2026-11-11 (same notify URL). Forged ITN returns 400. Secrets set on the Bible project.
+- Tests: `npm test` (`payfastItn.test.js`).
+
+**For users**
+- No change while free mode is on. Subscribe stays hidden.
+
+---
+
 ## 2026-11-11 — Leave live PayFast as-is (maintainers)
 
 **For maintainers**

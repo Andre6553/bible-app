@@ -220,30 +220,26 @@ const SubscriptionPage = () => {
             const receiver = USE_SANDBOX ? '10000100' : '11945617';
             const merchantKey = USE_SANDBOX ? '46f0cd694581a' : '9anvup217hdck';
 
-            // Apply 50% discount if eligible
-            let finalPrice = randPrice;
-            if (isDiscountEligible && randPrice && !isNaN(parseInt(randPrice))) {
-                finalPrice = Math.floor(parseInt(randPrice) * 0.5).toString();
-            } else if (!randPrice || isNaN(parseInt(randPrice))) {
-                finalPrice = '85'; // Fallback
+            const { data: orderRaw, error: orderError } = await supabase.rpc('create_payment_order');
+            const order = typeof orderRaw === 'string' ? JSON.parse(orderRaw) : orderRaw;
+            if (orderError || !order?.order_id || !order?.amount) {
+                throw new Error(orderError?.message || 'Could not create payment order');
             }
 
-            const amount = `${finalPrice}.00`;
-            const item_name = isDiscountEligible ? 'Omni Bible Subscription (50% Off)' : 'Omni Bible Subscription';
+            const amount = order.amount;
+            const item_name = order.item_name || 'Omni Bible Subscription';
             const return_url = `${window.location.origin}/subscription?payment=success`;
             const cancel_url = `${window.location.origin}/subscription?payment=cancelled`;
             const custom_str1 = user.id;
 
             console.log(`[Subscription] Redirecting to PayFast with amount: ${amount}`);
 
-            // Log checkout initiation
             logEvent('begin_checkout', {
-                value: finalPrice,
+                value: order.amount_cents ? order.amount_cents / 100 : amount,
                 currency: 'ZAR',
                 item_name: item_name
             });
 
-            // The notify_url is where PayFast sends the IPN (webhook) confirmation
             const notify_url = 'https://fikjnvkzhemamtlwsrin.supabase.co/functions/v1/payfast-webhook';
 
             const payParams = new URLSearchParams({
@@ -255,6 +251,7 @@ const SubscriptionPage = () => {
                 cancel_url: cancel_url,
                 notify_url: notify_url,
                 custom_str1: custom_str1,
+                m_payment_id: order.order_id,
                 merchant_key: merchantKey
             });
 
