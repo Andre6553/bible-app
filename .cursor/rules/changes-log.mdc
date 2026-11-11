@@ -19,8 +19,8 @@ When you **change Omni Bible app code or config** under `Bible\` (features, fixe
 
 - **One commit, one push.** Include `changes Log` in the same commit as the code change.
 - **Do not** push a second “chore: note hash in changes Log” commit — that triggers a second Vercel deployment.
-- If the hash must be in the log: after the first `git commit`, update `changes Log`, then `git commit --amend --no-edit` **before** `git push` (only when that commit is not yet on the remote).
-- If you already pushed, leave the log as “pushed on YYYY-MM-DD” or add the hash locally without a follow-up push unless Andre asks.
+- If the hash must be in the log: after `git commit`, set **Shipped in git:** to that hash, `git add "changes Log"`, then `git commit --amend --no-edit`. The amend creates a **new** hash — update the log line to the **final** hash and amend **once more** before `git push`, OR skip the hash in the file and note “pushed YYYY-MM-DD” only (avoids hash/amend churn).
+- If you already pushed, correct the hash locally; bundle log fixes into the next feature push, not a hash-only push.
 
 When Andre asks to **sum up last changes**, **what’s new**, **release notes**, or **tell users what improved**:
 

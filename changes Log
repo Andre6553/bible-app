@@ -7,6 +7,24 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-11 — Audit docs and live verify (maintainers)
+
+**For maintainers**
+- Archived full project review under `docs/PROJECT_REVIEW_2026-11-11.md`.
+- Recorded live Supabase checks in `docs/LIVE_VERIFY_2026-11-11.md` (PayFast function up; `exec_sql` reachable from anon — treat as P0).
+- Chosen track documented in `docs/DEVELOPMENT_TRACK.md` (hardening before paid growth; UI fixes OK in parallel).
+
+**Shipped in git:** commit `8ed05cd` on `main`.
+
+---
+
+## 2026-11-11 — Project memory file
+
+**For maintainers**
+- Added **`PROJECT.md`** in the Bible folder (stack, paths, Supabase ref, how to run, recent status) for the Information Hierarchy.
+
+---
+
 ## 2026-11-11 — Search mobile: full-width fit
 
 **For users**
@@ -14,7 +32,7 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 - **Recent searches** wrap onto new lines instead of sticking out past the right edge.
 - **Manage** on recent history works again (button styling fix).
 
-**Shipped in git:** commit `3f1fd81` on `main`.
+**Shipped in git:** commit `b451d17` on `main`.
 
 ---
 
