@@ -1,5 +1,13 @@
-﻿# O
-## 2026-11-12 - Guest data preservation and deletion corrections (pending deployment)
+﻿# Omni Bible — changes log
+
+Plain-English record of what changed in the app, for release notes and “what’s new” messages.
+Newest entries first. Each session or shipped change gets a **date** (YYYY-MM-DD, South Africa time when known).
+
+When Andre asks to **sum up recent changes** or **what’s new for users**, read this file (newest entries) and rewrite as short, friendly copy for app users — no jargon.
+
+---
+
+## 2026-11-12 — Guest data preservation and deletion corrections
 
 **For users**
 - Unverified legacy guest data is kept until support verifies its account link.
@@ -7,18 +15,10 @@
 - Account cleanup stops and retries if data removal fails.
 
 **For maintainers**
-- New SQL: 20261112100000_reliability_corrections.sql. NOT applied here: service-role preflight failed before submission (fetch failed). Deploy SQL before the new deletion worker.
-- Quotas derive their signed-in allowance from database settings/profile, ignoring client cap arguments. Free mode and PayFast unchanged.
-- 29 non-PayFast tests passed; mocked service/worker failure-path coverage added. SQL compilation/concurrency and live E2E remain unverified.
+- SQL **applied live** (2026-11-12): `supabase/migrations/20261112100000_reliability_corrections.sql` via `scripts/apply_reliability_corrections.js --apply` (preflight + `exec_sql`).
+- Quotas derive signed-in allowance from database settings/profile, ignoring client cap arguments. Free mode and PayFast unchanged.
+- Deletion edge functions + cron still **not deployed**. Do not treat Delete Account cleanup as live until Dashboard deploy + test account.
 - Full handoff: docs/CURSOR_HANDOFF_2026-11-12_RELIABILITY_CORRECTIONS.md.
-
----
-mni Bible — changes log
-
-Plain-English record of what changed in the app, for release notes and “what’s new” messages.
-Newest entries first. Each session or shipped change gets a **date** (YYYY-MM-DD, South Africa time when known).
-
-When Andre asks to **sum up recent changes** or **what’s new for users**, read this file (newest entries) and rewrite as short, friendly copy for app users — no jargon.
 
 ---
 

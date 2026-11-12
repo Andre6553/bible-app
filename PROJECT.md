@@ -50,7 +50,7 @@ npm run preview
 
 ## Notes
 
-- **2026-11-12 corrections (NOT LIVE):** New migration `20261112100000_reliability_corrections.sql` requires verified legacy guest/account mappings, preserves conflict snapshots and study links, derives signed-in AI limits in the database, and adds transactional deletion cleanup. Supabase preflight failed before SQL submission. Deploy SQL before the worker. Unverified legacy guest data stays pending. Handoff: `docs/CURSOR_HANDOFF_2026-11-12_RELIABILITY_CORRECTIONS.md`. 29 non-payment tests passed; SQL/runtime and live E2E verification pending.
+- **2026-11-12 corrections:** Migration `20261112100000_reliability_corrections.sql` **applied live** (apply script preflight + `exec_sql`). Requires verified `legacy_guest_migration_claims` before guest inspect/migrate. Conflict snapshots + study-link remap. Signed-in AI limits from DB. Deletion worker SQL RPCs live; **edge functions still not deployed**. Handoff: `docs/CURSOR_HANDOFF_2026-11-12_RELIABILITY_CORRECTIONS.md`.
 
 - **2026-11-12:** Reliability follow-up SQL live (`20261112090000_reliability_followup.sql`). Deletion edge functions still need Dashboard deploy + cron. Browser AI keys/quotas remain untrusted until a server proxy (separate P1).
 - **2026-11-11:** Andre: leave live PayFast (`…/functions/v1/payfast-webhook`) unchanged; free mode stays on. Git webhook restored to match that live handler (do not deploy signature experiments).

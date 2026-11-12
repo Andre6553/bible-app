@@ -5,7 +5,7 @@
 Changes are in the canonical Bible repository. PayFast files and the free_mode setting were not changed.
 Earlier Cursor work (commit c25a0c4) was retained. This pass adds a new migration rather than rewriting the already-applied 090000 migration.
 
-**Deployment status:** NOT applied live from this session. The service-role preflight failed with TypeError: fetch failed before any SQL was sent. Deletion edge functions and cron still require deployment and verification. Do not describe these changes as live.
+**Deployment status:** SQL `20261112100000_reliability_corrections.sql` **applied live** 2026-11-12 via `node scripts/apply_reliability_corrections.js --apply` (preflight succeeded). Deletion edge functions and cron still require Dashboard deployment and a dedicated-account E2E. Do not describe account-deletion cleanup as live until that is done.
 
 ## 1. Legacy guest ownership and concurrency
 
