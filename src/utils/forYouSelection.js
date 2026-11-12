@@ -132,18 +132,36 @@ export function parseForYouJson(raw) {
     throw new SyntaxError(lastError?.message || 'invalid_json');
 }
 
+function splitLongParagraph(text) {
+    const trimmed = text.trim();
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length < 8) return [trimmed];
+    const mid = Math.max(4, Math.floor(words.length / 2));
+    return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
+}
+
 function normalizeParagraphs(paragraphs) {
-    if (!Array.isArray(paragraphs)) return paragraphs;
-    let list = paragraphs.filter(p => typeof p === 'string').map(p => p.trim()).filter(Boolean);
+    let source = paragraphs;
+    if (typeof source === 'string') source = [source];
+    if (!Array.isArray(source)) return source;
+    let list = source.filter(p => typeof p === 'string').map(p => p.trim()).filter(Boolean);
     if (list.length === 1) {
         const split = list[0].split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
         if (split.length >= 2) list = split;
+        else {
+            const lines = list[0].split(/\n+/).map(p => p.trim()).filter(Boolean);
+            if (lines.length >= 2) list = lines;
+            else if (list[0].split(/\s+/).length >= 8) list = splitLongParagraph(list[0]);
+        }
     }
     return list;
 }
 
 export function validateGeneratedPiece(raw) {
     const data = parseForYouJson(raw);
+    if (data.paragraphs != null && !Array.isArray(data.paragraphs) && typeof data.paragraphs === 'string') {
+        data.paragraphs = [data.paragraphs];
+    }
     if (typeof data.title !== 'string' || !data.title.trim() || data.title.length > 150) throw new Error('invalid_title');
     if (typeof data.summary !== 'string' || data.summary.length > 500) throw new Error('invalid_summary');
     const paragraphs = normalizeParagraphs(data.paragraphs);

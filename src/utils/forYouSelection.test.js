@@ -79,6 +79,13 @@ describe('For You interest matching and response validation', () => {
         expect(() => validateGeneratedPiece('not json')).toThrow();
         expect(() => validateGeneratedPiece(JSON.stringify({ title: 'A title', summary: 'Brief', paragraphs: ['too short'] }))).toThrow();
     });
+    it('splits a single string paragraph field into two paragraphs', () => {
+        const words = Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ') + ' ' + Array.from({ length: 40 }, (_, i) => `extra${i}`).join(' ');
+        const out = validateGeneratedPiece(JSON.stringify({
+            title: 'A title', summary: 'Brief', paragraphs: words, closing: '',
+        }));
+        expect(out.paragraphs.length).toBe(2);
+    });
     it('parses JSON with preamble and splits one block into paragraphs', () => {
         const body = {
             title: 'A title',

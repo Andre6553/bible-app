@@ -229,7 +229,7 @@ export default function Blog() {
         {slot?.status && ['error', 'busy', 'cooldown'].includes(slot.status) && <div className="fy-inline-error" role="status">
             <p>{t[slot.status]}</p>
             {slot.availableAt && <p>{new Date(slot.availableAt).toLocaleString(language === 'af' ? 'af-ZA' : 'en-ZA')}</p>}
-            {slot.status !== 'cooldown' && <button onClick={() => refreshSections([name], false)} disabled={slot.loading}>{t.retry}</button>}
+            {slot.status !== 'cooldown' && <button onClick={() => refreshSections([name], slot.status !== 'cooldown')} disabled={slot.loading}>{t.retry}</button>}
         </div>}
     </>;
 

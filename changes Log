@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — Recommended reading: leases and paragraph validation
+
+**For users**
+- **Recommended reading** should load instead of staying on “another tab”; **Try again** / **New suggestions** can reclaim a stuck slot. The page also waits briefly if generation is already in progress.
+
+**For maintainers**
+- SQL applied: `20261112180000_for_you_force_reclaim_lease.sql`. Client busy poll, force retry from Blog, stronger `normalizeParagraphs`.
+
+---
+
 ## 2026-11-12 — For You: fewer “section failed” errors from AI JSON
 
 **For users**

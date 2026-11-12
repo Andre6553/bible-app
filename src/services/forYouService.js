@@ -158,6 +158,7 @@ Never assume the reader's personal circumstances from their interests. Do not pr
 Keep the voice suited to the format: explanation is not a pep talk. No generic greetings or repeated motivational filler.
 Avoid copying recent titles, openings and endings: ${JSON.stringify(recent)}
 Return ONLY JSON: {"title":"specific title","summary":"one sentence","paragraphs":["plain text paragraph","plain text paragraph"],"closing":"optional plain text ending"}.
+The paragraphs value MUST be a JSON array with at least two separate strings. Do not use one string with line breaks inside the array.
 No HTML or Markdown. The ending must suit the format; not every piece needs a question, prayer or action.`;
 }
 
@@ -189,8 +190,17 @@ async function generatePiece(ctx, spec, force) {
                 return { content: cached || null, status: 'cooldown' };
             }
         } else {
-            const claim = await rpc('for_you_claim_content', { p_timezone: ctx.zone, p_language: ctx.language,
+            let claim = await rpc('for_you_claim_content', { p_timezone: ctx.zone, p_language: ctx.language,
                 p_slot: spec.slot, p_fingerprint: fingerprint, p_force: force });
+            const busyPollMs = import.meta.env.VITEST ? 0 : 2000;
+            const busyPollMax = import.meta.env.VITEST ? 0 : 25;
+            if (claim.status === 'busy' && !force) {
+                for (let wait = 0; wait < busyPollMax && claim.status === 'busy'; wait++) {
+                    await new Promise(resolve => setTimeout(resolve, busyPollMs));
+                    claim = await rpc('for_you_claim_content', { p_timezone: ctx.zone, p_language: ctx.language,
+                        p_slot: spec.slot, p_fingerprint: fingerprint, p_force: false });
+                }
+            }
             if (claim.status !== 'claimed') {
                 const existing = payloadOf(claim.content);
                 return { content: existing && states[existing.topic_id] !== 'exclude' ? existing : cached || null, status: claim.status, availableAt: claim.available_at };
