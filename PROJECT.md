@@ -50,6 +50,10 @@ npm run preview
 
 ## Notes
 
+- **2026-11-12 For You v2:** SQL **applied live** (`20261112160000_for_you_v2.sql` + schema verify). Frontend ships with this commit. 67 non-PayFast tests + UI harness EN/AF 375/1280 passed. Disposable-account RLS and live editorial smoke still outstanding. PayFast/free mode/login policy unchanged. Handoff: `docs/CURSOR_FOR_YOU_IMPLEMENTED_2026-11-12.md`.
+
+- **2026-11-12 Auth:** Shared route guards on `/admin` (existing admin override) and `/study/:id` (signed-in). Public pages and PayFast unchanged. Signup requires a returned session before migration; handles PASSWORD_RECOVERY; safe local return destinations. Live note-label policy tightened. Existing subscription-field guard retained. See `docs/AUTH_SETUP_2026-11-12.md` for checks and limitations. Frontend changes not pushed/deployed by this task.
+
 - **2026-11-12 corrections:** Migration `20261112100000_reliability_corrections.sql` **applied live** (apply script preflight + `exec_sql`). Requires verified `legacy_guest_migration_claims` before guest inspect/migrate. Conflict snapshots + study-link remap. Signed-in AI limits from DB. Deletion worker SQL RPCs live; **edge functions still not deployed**. Handoff: `docs/CURSOR_HANDOFF_2026-11-12_RELIABILITY_CORRECTIONS.md`.
 
 - **2026-11-12:** Inspect/migrate use `user_id::text` so UUID tables (sermons) do not block Sync (`20261112150000_inspect_userid_text.sql`).

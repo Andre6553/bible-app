@@ -1,4 +1,93 @@
-/* Blog Page Styles */
+/* For You v2: all new rules are scoped so other screens keep their styling. */
+.fy-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: var(--header-top-padding, 80px) 24px calc(115px + env(safe-area-inset-bottom, 0px));
+    color: var(--text-primary, #edf1f7);
+    min-height: 100dvh;
+    overflow-wrap: anywhere;
+}
+.fy-page *, .fy-page *::before, .fy-page *::after { box-sizing: border-box; }
+.fy-page button, .fy-page select, .fy-page summary {
+    min-height: 44px;
+    touch-action: manipulation;
+    font: inherit;
+}
+.fy-page button, .fy-page select {
+    border: 1px solid var(--border-subtle, #526077);
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: var(--bg-tertiary, #24334a);
+    color: var(--text-primary, #edf1f7);
+    cursor: pointer;
+    max-width: 100%;
+    white-space: normal;
+}
+.fy-page button:disabled, .fy-page select:disabled { opacity: .55; cursor: default; }
+.fy-page button[aria-pressed="true"] { border-color: var(--accent-primary, #93b5ff); background: var(--bg-secondary, #172840); }
+.fy-page button:focus-visible, .fy-page select:focus-visible, .fy-page summary:focus-visible { outline: 3px solid var(--accent-primary, #93b5ff); outline-offset: 3px; }
+.fy-header { margin-bottom: 22px; }
+.fy-header h1 { font-size: clamp(1.8rem, 5vw, 2.5rem); margin: 0 0 8px; }
+.fy-header p, .fy-reason, .fy-help { color: var(--text-secondary, #bcc7d9); line-height: 1.6; }
+.fy-notice:empty { display: none; }
+.fy-notice { padding: 12px 0; }
+.fy-section { margin-bottom: 30px; }
+.fy-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.fy-section-heading h2 { font-size: 1.25rem; margin: 0; }
+.fy-devotional, .fy-card, .fy-details, .fy-continue {
+    background: var(--bg-secondary, #172438);
+    border: 1px solid var(--border-subtle, #35435a);
+    border-radius: 18px;
+    padding: 24px;
+}
+.fy-devotional h3 { font-size: 1.7rem; line-height: 1.3; margin: 12px 0; }
+.fy-format { display: inline-block; color: var(--accent-primary, #a9c2ff); font-size: .9rem; font-weight: 600; }
+.fy-reason { font-size: .9rem; margin: 10px 0 18px; }
+.fy-body { line-height: 1.85; max-width: 74ch; }
+.fy-body p { margin: 16px 0; white-space: pre-line; }
+.fy-scripture { margin: 20px 0; }
+.fy-scripture blockquote { margin: 14px 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--accent-primary, #a9c2ff); }
+.fy-scripture sup { font-size: .7em; opacity: .75; }
+.fy-reference { text-align: left; font-weight: 600 !important; }
+.fy-closing { padding-top: 12px; border-top: 1px solid var(--border-subtle, #35435a); }
+.fy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.fy-card { height: 100%; display: flex; flex-direction: column; align-items: flex-start; }
+.fy-card h3 { font-size: 1.3rem; line-height: 1.4; margin: 12px 0 6px; }
+.fy-card > p { line-height: 1.65; }
+.fy-primary { margin-top: auto; }
+.fy-feedback { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.fy-feedback button { font-size: .85rem; }
+.fy-continue { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 30px; }
+.fy-continue h2 { font-size: 1.1rem; margin: 0; }
+.fy-continue p { margin: 8px 0 0; }
+.fy-banner, .fy-inline-error { background: var(--bg-tertiary, #24334a); border-radius: 12px; padding: 16px; margin-bottom: 20px; line-height: 1.6; }
+.fy-status { padding: 16px 0; color: var(--text-secondary, #bcc7d9); }
+.fy-details { margin-bottom: 18px; }
+.fy-details summary { cursor: pointer; font-weight: 600; line-height: 44px; }
+.fy-interests { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.fy-interests label { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-subtle, #35435a); padding-bottom: 10px; }
+.fy-interests label span { flex: 1; }
+.fy-interests select { width: 140px; flex: 0 0 140px; }
+.fy-saved-list { list-style: none; padding: 0; }
+.fy-saved-list li { margin: 10px 0; }
+.fy-saved-list button { text-align: left; width: 100%; }
+.fy-modal-overlay { position: fixed; inset: 0; z-index: 10005; display: flex; align-items: center; justify-content: center; padding: calc(18px + env(safe-area-inset-top, 0px)) 20px calc(18px + env(safe-area-inset-bottom, 0px)); background: rgb(0 0 0 / .72); }
+.fy-modal { width: min(820px, 100%); max-height: 100%; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border: 1px solid var(--border-subtle, #35435a); border-radius: 20px; background: var(--bg-primary, #101a2b); padding: 26px; }
+.fy-modal-heading { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+.fy-modal h2 { font-size: clamp(1.4rem, 4vw, 2rem); line-height: 1.35; }
+@media (max-width: 768px) {
+    .fy-page { padding-left: 14px; padding-right: 14px; }
+    .fy-grid, .fy-interests { grid-template-columns: minmax(0, 1fr); }
+    .fy-devotional, .fy-card, .fy-details, .fy-continue { padding: 18px; }
+    .fy-section-heading { flex-wrap: wrap; align-items: flex-start; }
+    .fy-section-heading button { font-size: .9rem; }
+    .fy-continue { flex-direction: column; align-items: stretch; }
+    .fy-modal-overlay { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+    .fy-modal { height: 100%; border-radius: 0; padding: 18px 16px calc(22px + env(safe-area-inset-bottom, 0px)); }
+    .fy-body { max-width: 100%; }
+}
+
+/* Legacy blog styles retained for compatibility with existing shared class names. */
 
 .blog-page {
     min-height: 100vh;

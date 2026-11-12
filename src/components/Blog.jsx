@@ -1,729 +1,311 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserId, getBooks, logActivity } from '../services/bibleService';
-import {
-    getRecommendedPosts,
-    getDailyDevotional,
-    getTrendingTopics,
-    analyzeUserInterests,
-    checkRefreshCooldown,
-    getSearchKeywords,
-    toggleKeywordHighlight,
-    hideSearchKeyword,
-    logBlogView
-} from '../services/blogService';
 import { useSettings } from '../context/SettingsContext';
-import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
+import { getUserId } from '../services/bibleService';
+import { logBlogView } from '../services/blogService';
+import { getForYouContext, getForYouPlan, cachedForSlot, getForYouPiece, patchForYouInterest, setForYouFeedback, getSavedForYou } from '../services/forYouService';
+import { FOR_YOU_TOPICS, DEFAULT_TOPIC_IDS, topicLabel } from '../config/forYouTopics';
+import { formatLabel } from '../config/forYouFormats';
+import { localDay, preferenceStates } from '../utils/forYouSelection';
 import { copyToClipboard } from '../utils/appUtils';
 import './Blog.css';
 
-function Blog() {
+const WORDS = {
+    en: {
+        title: 'For You', subtitle: 'Scripture, reflection and something new to learn.', daily: 'Today’s reflection',
+        reading: 'Recommended reading', loading: 'Preparing your reading…', newDaily: 'Another reflection', newArticles: 'New suggestions',
+        retry: 'Try again', saved: 'Saved reading', noSaved: 'Save a piece to find it here later.', interests: 'Manage my interests',
+        interestHelp: 'Choose what interests you. Excluded topics stay out of all new suggestions.', prefer: 'Prefer', exclude: 'Exclude', neutral: 'Automatic',
+        pending: 'Your preferences are saved. Update recommendations to apply them.', update: 'Update recommendations',
+        empty: 'No eligible topics. Enable an interest below to receive suggestions.', continue: 'Continue your reading plan',
+        save: 'Save', helpful: 'Helpful', read: 'Already read', less: 'Less like this', feedbackHelp: 'Less like this lowers similar suggestions; it does not permanently exclude a topic.',
+        offline: 'Showing saved content. Reconnect before generating or changing preferences.',
+        busy: 'This piece is being prepared in another tab. Try again shortly.', cooldown: 'This section can be refreshed later. Your existing reading is kept.',
+        error: 'Could not load this section. Your previous reading has been kept.', setup: 'For You could not connect. Please try again. The new database setup may still be pending.',
+        close: 'Close', open: 'Read article', passage: 'Read the passage in the Bible', copy: 'Copy', copied: 'Copied.', copyFailed: 'Could not copy.',
+        chosen: 'You chose', explored: 'Because you explored', discover: 'Explore a different topic', general: 'A starting point for your study',
+        signIn: 'Please sign in to request new content.', preferFailed: 'Could not save your preference. Your previous choice was restored.',
+        feedbackFailed: 'Could not save your feedback. Please try again.', current: 'Today', marked: 'Selected', savedHelp: 'Saved pieces stay available across days and languages.',
+        previous: 'Previous reflection, kept from before this update',
+        preferenceConflict: 'Your preferences changed in another tab. The latest choices have been loaded; please review them.',
+    },
+    af: {
+        title: 'Vir Jou', subtitle: 'Skrif, nadenke en iets nuuts om te leer.', daily: 'Vandag se nadenke',
+        reading: 'Aanbevole leesstof', loading: 'Jou leesstof word voorberei…', newDaily: 'Nog ’n oordenking', newArticles: 'Nuwe voorstelle',
+        retry: 'Probeer weer', saved: 'Gestoorde leesstof', noSaved: 'Stoor ’n artikel om dit later hier te vind.', interests: 'Bestuur my belangstellings',
+        interestHelp: 'Kies wat jou interesseer. Uitgeslote onderwerpe word uit alle nuwe voorstelle gelaat.', prefer: 'Verkies', exclude: 'Sluit uit', neutral: 'Outomaties',
+        pending: 'Jou voorkeure is gestoor. Werk aanbevelings by om dit toe te pas.', update: 'Werk aanbevelings by',
+        empty: 'Geen geskikte onderwerpe nie. Aktiveer ’n belangstelling hieronder om voorstelle te kry.', continue: 'Gaan voort met jou leesplan',
+        save: 'Stoor', helpful: 'Nuttig', read: 'Reeds gelees', less: 'Minder hiervan', feedbackHelp: 'Minder hiervan verlaag soortgelyke voorstelle; dit sluit nie die onderwerp permanent uit nie.',
+        offline: 'Gestoorde inhoud word gewys. Koppel weer voordat jy inhoud genereer of voorkeure verander.',
+        busy: 'Hierdie leesstuk word in ’n ander oortjie voorberei. Probeer binnekort weer.', cooldown: 'Hierdie afdeling kan later verfris word. Jou bestaande leesstof bly behoue.',
+        error: 'Kon nie hierdie afdeling laai nie. Jou vorige leesstof bly behoue.', setup: 'Vir Jou kon nie koppel nie. Probeer weer. Die nuwe databasisopstelling is moontlik nog nie voltooi nie.',
+        close: 'Sluit', open: 'Lees artikel', passage: 'Lees die gedeelte in die Bybel', copy: 'Kopieer', copied: 'Gekopieer.', copyFailed: 'Kon nie kopieer nie.',
+        chosen: 'Jy het gekies', explored: 'Omdat jy ondersoek het', discover: 'Verken ’n ander onderwerp', general: '’n Beginpunt vir jou studie',
+        signIn: 'Meld asseblief aan om nuwe inhoud aan te vra.', preferFailed: 'Kon nie jou voorkeur stoor nie. Jou vorige keuse is herstel.',
+        feedbackFailed: 'Kon nie jou terugvoer stoor nie. Probeer weer.', current: 'Vandag', marked: 'Gekies', savedHelp: 'Gestoorde leesstof bly oor dae en tale heen beskikbaar.',
+        previous: 'Vorige oordenking, behou van voor hierdie opdatering',
+        preferenceConflict: 'Jou voorkeure het in ’n ander oortjie verander. Die jongste keuses is gelaai; kyk dit asseblief na.',
+    },
+};
+
+export default function Blog() {
+    const { settings, user, authLoading } = useSettings();
+    const language = settings.language === 'af' ? 'af' : 'en';
+    const t = WORDS[language];
     const navigate = useNavigate();
-    const { settings } = useSettings();
-    const prevLanguage = useRef(settings.language);
-    const [posts, setPosts] = useState([]);
-    const [devotional, setDevotional] = useState(null);
-    const [trendingTopics, setTrendingTopics] = useState([]);
-    const [userTopics, setUserTopics] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [devotionalLoading, setDevotionalLoading] = useState(false);
-    const [postsLoading, setPostsLoading] = useState(false);
-    const [selectedPost, setSelectedPost] = useState(null);
-    const [error, setError] = useState(null);
-    const [allBooks, setAllBooks] = useState([]);
-    const [cooldownMessage, setCooldownMessage] = useState(null);
-    const [searchKeywords, setSearchKeywords] = useState([]);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState({ show: false, word: '' });
-    const [isDeleting, setIsDeleting] = useState(false);
+    const [ctx, setCtx] = useState(null);
+    const [slots, setSlots] = useState({});
+    const [pageError, setPageError] = useState(false);
+    const [selected, setSelected] = useState(null);
+    const [pendingPreferences, setPendingPreferences] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [feedbackBusy, setFeedbackBusy] = useState('');
+    const [notice, setNotice] = useState('');
+    const [saved, setSaved] = useState(null);
+    const [savedLoading, setSavedLoading] = useState(false);
+    const request = useRef(0);
+    const current = useRef(null);
+    const refresh = useRef(0);
+    const dialog = useRef(null);
+    const identity = user?.id || 'guest';
 
-    const translations = {
-        en: {
-            title: '✨ For You',
-            subtitle: 'Personalized content based on your interests',
-            todaysInspiration: '🌅 Today\'s Inspiration',
-            newBtn: 'New',
-            yourTopics: '🎯 Your Topics',
-            topicsDesc: 'Based on your searches and questions',
-            trending: '🔥 Trending Topics',
-            recommended: '📚 Recommended Reading',
-            noDevotional: 'No devotional yet. Click "New" to generate one based on your interests!',
-            noArticles: 'No personalized articles yet. Keep searching or asking questions to get recommendations!',
-            yourTopicsEmpty: 'Start searching to unlock personalized topics!',
-            scriptureRefs: '📖 Scripture References',
-            tryAgain: 'Try Again',
-            loading: 'Could not load content. Please try again.',
-            interestKeywords: '🔍 Search Keywords',
-            interestKeywordsDesc: 'Toggle keywords to include/exclude them from recommendations. New searches are auto-highlighted.',
-            interestKeywordsDescEdit: 'Tap a keyword to delete it permanently.',
-            searchesLabel: 'searches',
-            manageBtn: 'Manage',
-            doneBtn: 'Done',
-            searching: 'Searching for your personalized content...'
-        },
-        af: {
-            title: '✨ Vir Jou',
-            subtitle: 'Gepersonaliseerde inhoud gebaseer op jou belangstellings',
-            todaysInspiration: 'Vandag se Inspirasie',
-            newBtn: 'Nuut',
-            yourTopics: '🎯 Jou Onderwerpe',
-            topicsDesc: 'Gebaseer op jou soektogte en vrae',
-            trending: '🔥 Gewilde Onderwerpe',
-            recommended: '📚 Aanbevole Leesstof',
-            noDevotional: 'Geen dagstukkie nog nie. Kliek "Nuut" om een te genereer gebaseer op jou belangstellings!',
-            noArticles: 'Geen gepersonaliseerde artikels nie. Hou aan soek of vrae vra om aanbevelings te kry!',
-            yourTopicsEmpty: 'Begin soek om gepersonaliseerde onderwerpe te ontsluit!',
-            scriptureRefs: '📖 Skrifverwysings',
-            tryAgain: 'Probeer Weer',
-            loading: 'Kon nie inhoud laai nie. Probeer asseblief weer.',
-            interestKeywords: '🔍 Soek Sleutelwoorde',
-            interestKeywordsDesc: 'Skakel sleutelwoorde aan/af vir jou aanbevelings. Nuwe soektogte word outomaties beklemtoon.',
-            interestKeywordsDescEdit: 'Raak \'n sleutelwoord om dit permanent te verwyder.',
-            searchesLabel: 'soektogte',
-            manageBtn: 'Bestuur',
-            doneBtn: 'Klaar',
-            searching: 'Besig om jou gepersonaliseerde inhoud te soek...'
+    const applyContext = useCallback(next => { current.current = next; setCtx(next); }, []);
+
+    const fillSlot = useCallback(async (context, spec, force, loadId) => {
+        setSlots(previous => ({ ...previous, [spec.slot]: { ...previous[spec.slot], loading: true, status: null } }));
+        const result = await getForYouPiece(context, spec, { force });
+        if (loadId !== request.current) return;
+        setSlots(previous => ({ ...previous, [spec.slot]: { ...result, loading: false } }));
+        if (result.content && current.current?.userId === context.userId) {
+            const updated = { ...current.current, history: [result.content, ...current.current.history.filter(h => h.id !== result.content.id)].slice(0, 90) };
+            applyContext(updated);
         }
-    };
+    }, [applyContext]);
 
-    const t = translations[settings.language] || translations.en;
+    const load = useCallback(async () => {
+        if (authLoading) return;
+        const loadId = ++request.current;
+        current.current = null;
+        setCtx(null); setSlots({}); setSelected(null); setSaved(null); setPageError(false); setNotice(''); setPendingPreferences(false);
+        setSaving(false); setFeedbackBusy(''); setSavedLoading(false);
+        try {
+            const userId = user?.id || await getUserId();
+            if (!user && !userId?.startsWith('user_')) throw new Error('account_changed');
+            const next = await getForYouContext(userId, language);
+            if (loadId !== request.current) return;
+            applyContext(next);
+            const plan = getForYouPlan(next);
+            setSlots(Object.fromEntries(plan.map(spec => [spec.slot, { content: cachedForSlot(next, spec.slot) || (spec.slot === 'devotional' ? next.legacy : null), loading: true }])));
+            // Sections settle independently; a slow article cannot hide a ready devotional.
+            plan.forEach(spec => { void fillSlot(next, spec, false, loadId); });
+            void logBlogView(userId);
+        } catch {
+            if (loadId === request.current) setPageError(true);
+        }
+    }, [authLoading, user, language, applyContext, fillSlot]);
+
+    useEffect(() => { void load(); return () => { request.current++; }; }, [load]);
+    useEffect(() => {
+        const checkDay = () => {
+            if (current.current && localDay(new Date(), current.current.zone) !== current.current.day) void load();
+        };
+        window.addEventListener('focus', checkDay);
+        const interval = setInterval(checkDay, 60000);
+        return () => { window.removeEventListener('focus', checkDay); clearInterval(interval); };
+    }, [load]);
 
     useEffect(() => {
-        // If language changed, force refresh
-        const force = settings.language !== prevLanguage.current;
-        loadBlogContent(force);
-        loadBooks();
-        prevLanguage.current = settings.language;
+        if (!selected) return;
+        const previous = document.activeElement;
+        const close = () => setSelected(null);
+        window.backButtonHandlers?.add(close);
+        const keydown = e => { if (e.key === 'Escape') close(); };
+        window.addEventListener('keydown', keydown);
+        dialog.current?.focus();
+        return () => {
+            window.backButtonHandlers?.delete(close);
+            window.removeEventListener('keydown', keydown);
+            previous?.focus?.();
+        };
+    }, [selected?.id]);
 
-        // [NEW] Log blog view
-        logBlogView();
-    }, [settings.language]); // Reload when language changes
+    // Never render an earlier account/language's personal content during an effect transition.
+    const visible = ctx && ctx.language === language && (user ? ctx.userId === user.id : ctx.guest);
+    const states = visible ? preferenceStates(ctx.prefs.preferences) : {};
+    const plan = visible ? getForYouPlan(ctx, refresh.current) : [];
+    const allowed = item => item && states[item.topic_id] !== 'exclude';
+    const isLoading = Object.values(slots).some(slot => slot.loading);
 
-    const loadBooks = async () => {
-        const result = await getBooks();
-        if (result.success) {
-            setAllBooks(result.data.all || []);
-        }
+    const refreshSections = async (which, force = true) => {
+        const context = current.current;
+        if (!context || saving || isLoading) return;
+        if (context.guest && force) { setNotice(t.signIn); navigate('/auth'); return; }
+        const loadId = request.current;
+        refresh.current++;
+        const keep = ['devotional', 'article_1', 'article_2'].filter(slot => !which.includes(slot));
+        const specs = getForYouPlan(context, refresh.current, keep).filter(spec => which.includes(spec.slot));
+        setPendingPreferences(false);
+        await Promise.all(specs.map(spec => fillSlot(context, spec, force, loadId)));
     };
 
-    const loadBlogContent = async (forceRefesh = false) => {
-        setLoading(true);
-        setError(null);
-
+    const changeInterest = async (topicId, state) => {
+        const previous = current.current;
+        if (!previous || saving) return;
+        const loadId = request.current;
+        setSaving(true); setNotice('');
+        applyContext({ ...previous, prefs: { ...previous.prefs, preferences: { ...previous.prefs.preferences,
+            topics: { ...previous.prefs.preferences.topics, [topicId]: state } } } });
         try {
-            const userId = await getUserId();
-            let loadError = null;
-
-            // Load all content
-            const [postsResult, devotionalResult, trendingResult, interestsResult, keywordsResult] = await Promise.all([
-                getRecommendedPosts(userId, forceRefesh, settings.language),
-                getDailyDevotional(userId, forceRefesh, settings.language),
-                getTrendingTopics(),
-                analyzeUserInterests(userId),
-                getSearchKeywords(userId)
-            ]);
-
-            if (postsResult.success) {
-                setPosts(postsResult.posts);
-            } else if (postsResult.error) {
-                loadError = postsResult.error;
-            }
-
-            if (devotionalResult.success) {
-                setDevotional(devotionalResult.devotional);
-            } else if (devotionalResult.error && !loadError) {
-                loadError = devotionalResult.error;
-            }
-
-            if (trendingResult.success) {
-                setTrendingTopics(trendingResult.topics);
-            }
-
-            if (interestsResult.success) {
-                setUserTopics(interestsResult.topics);
-            }
-
-            setSearchKeywords(keywordsResult || []);
-
-            if (loadError) {
-                setError(loadError);
-            }
-        } catch (err) {
-            console.error('Error loading blog content:', err);
-            setError('Could not load content. Please try again.');
-        }
-
-        setLoading(false);
-    };
-
-    const refreshDevotional = async () => {
-        const userId = await getUserId();
-
-        // --- REGISTRATION GATING ---
-        if (userId && userId.startsWith('user_')) {
-            const promptMsg = settings.language === 'af'
-                ? 'Om nuwe gepersonaliseerde dagstukkies te genereer, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
-                : 'To generate new personalized devotionals, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to provide your free account now?';
-
-            if (window.confirm(promptMsg)) {
-                navigate('/auth');
-            }
-            return;
-        }
-
-        // Check cooldown first
-        const cooldown = await checkRefreshCooldown(userId);
-        if (!cooldown.canRefresh) {
-            setCooldownMessage(cooldown.message);
-            setTimeout(() => setCooldownMessage(null), 4000);
-            return;
-        }
-
-        setDevotionalLoading(true);
-        const result = await getDailyDevotional(userId, true, settings.language);
-        if (result.success) {
-            setDevotional(result.devotional);
-        } else {
-            const msg = translations[settings.language].loading || 'Could not generate content';
-            alert(`${msg}\n\nDetails: ${result.error || 'Unknown error'}`);
-        }
-        setDevotionalLoading(false);
-    };
-
-    const refreshPosts = async () => {
-        const userId = await getUserId();
-
-        // --- REGISTRATION GATING ---
-        if (userId && userId.startsWith('user_')) {
-            const promptMsg = settings.language === 'af'
-                ? 'Om nuwe gepersonaliseerde artikels te genereer, moet jy \'n gratis rekening skep!\n\nRekeninge is GRATIS en sluit beperkte AI-vrae in. Bybel lees, merk en soek bly GRATIS vir altyd.\n\nWil jy nou jou gratis rekening skep?'
-                : 'To generate new personalized articles, you need to create a free account!\n\nCreating an account is FREE and includes limited AI requests. Bible reading, highlighting, and exact search are FREE for life.\n\nWould you like to create your free account now?';
-
-            if (window.confirm(promptMsg)) {
-                navigate('/auth');
-            }
-            return;
-        }
-
-        // Check cooldown first
-        const cooldown = await checkRefreshCooldown(userId);
-        if (!cooldown.canRefresh) {
-            setCooldownMessage(cooldown.message);
-            setTimeout(() => setCooldownMessage(null), 4000);
-            return;
-        }
-
-        setPostsLoading(true);
-        const result = await getRecommendedPosts(userId, true, settings.language);
-        if (result.success) {
-            setPosts(result.posts);
-        } else {
-            const msg = translations[settings.language].loading || 'Could not generate content';
-            alert(`${msg}\n\nDetails: ${result.error || 'Unknown error'}`);
-        }
-        setPostsLoading(false);
-        // Refresh keywords too as generation might have updated used status
-        const keywords = await getSearchKeywords(userId);
-        setSearchKeywords(keywords);
-    };
-
-    const handleKeywordToggle = async (word) => {
-        if (isEditMode) {
-            handleKeywordDelete(word);
-            return;
-        }
-
-        const userId = await getUserId();
-        const keyword = searchKeywords.find(k => k.word === word);
-        if (!keyword) return;
-
-        const newStatus = !keyword.isHighlighted;
-
-        // Optimistic update
-        setSearchKeywords(prev => prev.map(k =>
-            k.word === word ? { ...k, isHighlighted: newStatus } : k
-        ));
-
-        // Persist
-        await toggleKeywordHighlight(userId, word, newStatus);
-    };
-
-    const handleKeywordDelete = (word) => {
-        setConfirmDelete({ show: true, word });
-    };
-
-    const confirmKeywordDelete = async () => {
-        const { word } = confirmDelete;
-        if (!word) return;
-
-        setIsDeleting(true);
-        console.log('[DEBUG] Deleting keyword:', word);
-        try {
-            const userId = await getUserId();
-            // Optimistic delete
-            setSearchKeywords(prev => prev.filter(k => k.word !== word));
-            // Persist
-            await hideSearchKeyword(userId, word);
-            console.log('[DEBUG] Keyword deleted successfully:', word);
-            setConfirmDelete({ show: false, word: '' });
-        } catch (err) {
-            console.error('[DEBUG] Error deleting keyword:', err);
-            alert(`Error deleting keyword: ${err.message}`);
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
-    const formatContent = (content) => {
-        if (!content) return '';
-        // Convert markdown-style bold to HTML
-        return content
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/\n/g, '<br/>');
-    };
-
-    // Handle clicking on scripture reference - navigate to Bible reader
-    const handleScriptureClick = (ref, e) => {
-        e.stopPropagation(); // Prevent modal from closing
-        setSelectedPost(null); // Close the modal
-
-        try {
-            // Clean up the string to get just the reference - handle full verse text being passed
-            let cleanRef = ref.trim();
-
-            // 1. Remove everything after (VERSION) if present
-            if (cleanRef.includes(' (')) {
-                cleanRef = cleanRef.split(' (')[0].trim();
-            }
-
-            // 2. Remove " sê:" or " says:" if present
-            if (cleanRef.includes(' sê:')) cleanRef = cleanRef.split(' sê:')[0].trim();
-            if (cleanRef.toLowerCase().includes(' says:')) {
-                const parts = cleanRef.split(/ says:/i);
-                cleanRef = parts[0].trim();
-            }
-
-            // 3. Handle cases where there might be a quote or extra colon text
-            // Look for a colon that ISN'T part of the chapter:verse (usually followed by " or space)
-            const colonQuoteIndex = cleanRef.indexOf(': "');
-            if (colonQuoteIndex !== -1) cleanRef = cleanRef.substring(0, colonQuoteIndex).trim();
-
-            // Find the last space to separate book from chapter:verse
-            const lastSpaceIndex = cleanRef.lastIndexOf(' ');
-            if (lastSpaceIndex === -1) {
-                // Fallback to search if can't parse
-                navigate(`/search?q=${encodeURIComponent(ref)}`);
-                return;
-            }
-
-            const bookName = cleanRef.substring(0, lastSpaceIndex).trim();
-            const refPart = cleanRef.substring(lastSpaceIndex + 1).trim(); // "6:9-13" or "3:16"
-
-            // Extract chapter and verse (handle ranges like 9-13)
-            const [chapterVerse] = refPart.split('-'); // Take first part if range
-            const [chapter, verse] = chapterVerse.split(':');
-
-            // Normalize book name for matching
-            const normalizeBookName = (name) => {
-                return name.toLowerCase().trim()
-                    .replace(/^first /, '1 ')
-                    .replace(/^second /, '2 ')
-                    .replace(/^third /, '3 ')
-                    .replace(/^i /, '1 ')
-                    .replace(/^ii /, '2 ')
-                    .replace(/^iii /, '3 ')
-                    .replace(/^1st /, '1 ')
-                    .replace(/^2nd /, '2 ')
-                    .replace(/^3rd /, '3 ')
-                    .replace(/^psalm$/, 'psalms')
-                    .replace(/^proverb$/, 'proverbs')
-                    .replace(/\./g, '')
-                    .replace(/\s+/g, ' ');
-            };
-
-            const targetName = normalizeBookName(bookName);
-
-            // Find matching book
-            let book = allBooks.find(b => {
-                const dbName = normalizeBookName(b.name_full);
-                return dbName === targetName;
-            });
-
-            // Fallback 1: Check Afrikaans mapping
-            if (!book) {
-                const englishName = Object.keys(AFRIKAANS_BOOK_NAMES).find(key =>
-                    normalizeBookName(AFRIKAANS_BOOK_NAMES[key]) === targetName
-                );
-                if (englishName) {
-                    book = allBooks.find(b => normalizeBookName(b.name_full) === normalizeBookName(englishName));
+            const prefs = await patchForYouInterest(previous, topicId, state);
+            if (loadId !== request.current) return;
+            applyContext({ ...current.current, prefs });
+            setPendingPreferences(true);
+        } catch (error) {
+            if (loadId === request.current) {
+                applyContext(previous); setNotice(t.preferFailed);
+                if (error.message?.includes('preferences_changed_reload')) {
+                    try {
+                        const latest = await getForYouContext(previous.userId, language);
+                        if (loadId === request.current) { applyContext(latest); setNotice(t.preferenceConflict); }
+                    } catch { /* keep the previous verified preference state */ }
                 }
             }
-
-            // Fallback 2: partial match if strict match failed
-            if (!book) {
-                book = allBooks.find(b => {
-                    const dbName = normalizeBookName(b.name_full);
-                    return dbName.startsWith(targetName) || targetName.startsWith(dbName);
-                });
-            }
-
-            if (book) {
-                // Navigate to Bible reader with the specific passage
-                navigate('/bible', {
-                    state: {
-                        bookId: book.id,
-                        chapter: parseInt(chapter),
-                        targetVerse: parseInt(verse) || 1,
-                        fromSearch: true
-                    }
-                });
-            } else {
-                // Fallback to search if book not found
-                console.warn(`Book not found: ${bookName}`);
-                navigate(`/search?q=${encodeURIComponent(ref)}`);
-            }
-        } catch (err) {
-            console.error('Error parsing scripture reference:', err);
-            navigate(`/search?q=${encodeURIComponent(ref)}`);
-        }
+        } finally { if (loadId === request.current) setSaving(false); }
     };
 
-    const handleCopy = (text, e) => {
-        if (e) e.stopPropagation();
-
-        if (!text) {
-            alert('Nothing to copy!');
-            return;
-        }
-
-        copyToClipboard(text).then(success => {
-            if (success) {
-                alert('Copied to clipboard! 📋');
-            } else {
-                alert('Copy failed. Please copy manually.');
-            }
-        });
+    const giveFeedback = async (item, field) => {
+        if (feedbackBusy) return;
+        const context = current.current;
+        const loadId = request.current;
+        const old = context.feedback[item.id] || item.feedback || {};
+        setFeedbackBusy(`${item.id}:${field}`); setNotice('');
+        try {
+            const value = await setForYouFeedback(context, item.id, field, !old[field]);
+            if (loadId !== request.current) return;
+            applyContext({ ...current.current, feedback: { ...current.current.feedback, [item.id]: value } });
+            if (field === 'saved') setSaved(previous => previous === null ? null
+                : value.saved ? [{ ...item, feedback: value }, ...previous.filter(p => p.id !== item.id)]
+                    : previous.filter(p => p.id !== item.id));
+        } catch { if (loadId === request.current) setNotice(t.feedbackFailed); }
+        finally { if (loadId === request.current) setFeedbackBusy(''); }
     };
 
-    if (loading) {
-        return (
-            <div className="blog-page">
-                <div className="blog-header">
-                    <h1>{t.title}</h1>
-                    <p className="blog-subtitle">{t.subtitle}</p>
-                </div>
-                <div className="blog-loading-container">
-                    <div className="blog-spinner"></div>
-                    <p className="loading-text">{t.searching}</p>
-                    <div className="blog-loading-skeletons">
-                        <div className="skeleton-card"></div>
-                        <div className="skeleton-card"></div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    const loadSaved = async () => {
+        if (!current.current || savedLoading) return;
+        const loadId = request.current;
+        setSavedLoading(true);
+        try {
+            const items = await getSavedForYou(current.current);
+            if (loadId === request.current) setSaved(items);
+        } catch { if (loadId === request.current) setNotice(t.error); }
+        finally { if (loadId === request.current) setSavedLoading(false); }
+    };
 
-    return (
-        <div className="blog-page">
-            {/* Header */}
-            <div className="blog-header">
-                <h1>{t.title}</h1>
-                <p className="blog-subtitle">{t.subtitle}</p>
-            </div>
+    const reason = item => item.legacy ? t.previous : `${t[item.reason] || t.general}${['chosen', 'explored'].includes(item.reason) ? `: ${topicLabel(item.topic_id, language)}` : ''}`;
+    const feedbackButtons = item => item.legacy ? null : <div className="fy-feedback" aria-label={t.feedbackHelp}>
+        {['saved', 'helpful', 'read', 'less_like'].map(field => {
+            const checked = (ctx.feedback[item.id] || item.feedback || {})[field];
+            return <button key={field} type="button" aria-pressed={!!checked} disabled={!!feedbackBusy || ctx.offline}
+                onClick={() => giveFeedback(item, field)}>{checked ? '✓ ' : ''}{t[({ saved: 'save', helpful: 'helpful', read: 'read', less_like: 'less' })[field]]}</button>;
+        })}
+    </div>;
+    const passage = item => item.passage && <div className="fy-scripture">
+        <button type="button" className="fy-reference" onClick={() => {
+            setSelected(null);
+            navigate('/bible', { state: { bookId: item.passage.book_id, chapter: item.passage.chapter,
+                targetVerse: item.passage.start, fromSearch: true } });
+        }} title={t.passage}>{item.passage.reference} · {item.passage.version}</button>
+        <blockquote>{item.passage.verses.map(v => <span key={v.verse}><sup>{v.verse}</sup> {v.text}{' '}</span>)}</blockquote>
+    </div>;
+    const body = item => <div className="fy-body" style={{ fontSize: `${settings.fontSize}px` }}>
+        {passage(item)}
+        {item.paragraphs.map((paragraph, i) => <p key={i}>{paragraph}</p>)}
+        {item.closing && <p className="fy-closing">{item.closing}</p>}
+        {feedbackButtons(item)}
+    </div>;
+    const sectionStatus = (slot, name) => <>
+        {slot?.loading && <p className="fy-status" role="status">{t.loading}</p>}
+        {slot?.status && ['error', 'busy', 'cooldown'].includes(slot.status) && <div className="fy-inline-error" role="status">
+            <p>{t[slot.status]}</p>
+            {slot.availableAt && <p>{new Date(slot.availableAt).toLocaleString(language === 'af' ? 'af-ZA' : 'en-ZA')}</p>}
+            {slot.status !== 'cooldown' && <button onClick={() => refreshSections([name], false)} disabled={slot.loading}>{t.retry}</button>}
+        </div>}
+    </>;
 
-            {error && (
-                <div className="blog-error">
-                    <p>{error}</p>
-                    <button onClick={() => loadBlogContent(true)}>{t.tryAgain}</button>
-                </div>
-            )}
-
-            {/* Cooldown Toast */}
-            {cooldownMessage && (
-                <div className="cooldown-toast">
-                    ⏳ {cooldownMessage}
-                </div>
-            )}
-
-            {/* Daily Devotional Section */}
-            <section className="blog-section devotional-section">
-                <div className="section-header">
-                    <h2>{t.todaysInspiration}</h2>
-                    <button
-                        className="refresh-btn"
-                        onClick={refreshDevotional}
-                        disabled={devotionalLoading}
-                    >
-                        {devotionalLoading ? '⏳' : '🔄'} {t.newBtn}
-                    </button>
-                </div>
-
-                {devotional ? (
-                    <div className="devotional-card">
-                        <div className="devotional-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                            <h3 style={{ margin: 0 }}>{devotional.title || 'Daily Devotional'}</h3>
-                            <button
-                                className="icon-btn"
-                                onClick={(e) => {
-                                    const content = devotional.content || '';
-                                    const text = `${devotional.title || 'Devotional'}\n\n${content}\n\nTopics: ${(devotional.topics || []).join(', ')}`;
-                                    handleCopy(text, e);
-                                }}
-                                title="Copy content"
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                            </button>
-                        </div>
-                        <div
-                            className="devotional-content"
-                            style={{ fontSize: `${settings.fontSize}px` }}
-                            dangerouslySetInnerHTML={{ __html: formatContent(devotional.content) }}
-                        />
-                        {devotional.topics && (
-                            <div className="topic-chips">
-                                {devotional.topics.map((topic, idx) => (
-                                    <span key={idx} className="topic-chip">{topic}</span>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="empty-devotional">
-                        <p>{t.noDevotional}</p>
-                    </div>
-                )}
+    return <main className="fy-page" data-identity={identity}>
+        <header className="fy-header"><h1>{t.title}</h1><p>{t.subtitle}</p></header>
+        <div className="fy-notice" aria-live="polite">{notice}</div>
+        {!visible && !pageError && <p className="fy-status" role="status">{t.loading}</p>}
+        {pageError && <div className="fy-inline-error"><p>{t.setup}</p><button onClick={load}>{t.retry}</button></div>}
+        {visible && <>
+            {ctx.offline && <p className="fy-banner">{t.offline}</p>}
+            {pendingPreferences && <div className="fy-banner"><p>{t.pending}</p><button disabled={isLoading || saving}
+                onClick={() => refreshSections(['devotional', 'article_1', 'article_2'], false)}>{t.update}</button></div>}
+            {!plan.length && <p className="fy-banner">{t.empty}</p>}
+            <section className="fy-section" aria-labelledby="fy-daily">
+                <div className="fy-section-heading"><h2 id="fy-daily">{t.daily}</h2><button onClick={() => refreshSections(['devotional'])}
+                    disabled={isLoading || saving || ctx.offline || !plan.length}>{t.newDaily}</button></div>
+                {sectionStatus(slots.devotional, 'devotional')}
+                {allowed(slots.devotional?.content) && <article className="fy-devotional">
+                    <span className="fy-format">{formatLabel(slots.devotional.content.format_id, language)}</span>
+                    <h3>{slots.devotional.content.title}</h3>
+                    <p className="fy-reason">{reason(slots.devotional.content)}</p>
+                    {body(slots.devotional.content)}
+                </article>}
             </section>
-
-            {/* Your Topics Section */}
-            <section className="blog-section topics-section">
-                <h2>{t.yourTopics}</h2>
-                <p className="section-desc">{t.topicsDesc}</p>
-                {userTopics.length > 0 ? (
-                    <div className="topics-grid">
-                        {userTopics.map((item, idx) => (
-                            <div key={idx} className="topic-card">
-                                <span className="topic-name">{item.topic}</span>
-                                <span className="topic-weight">{item.weight} {settings.language === 'af' ? 'soektogte' : 'searches'}</span>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="empty-topics-hint">
-                        <p>{t.yourTopicsEmpty}</p>
-                    </div>
-                )}
+            {ctx.activePlan?.reading_plans?.slug && <section className="fy-continue">
+                <div><h2>{t.continue}</h2><p>{language === 'af' ? ctx.activePlan.reading_plans.title_af || ctx.activePlan.reading_plans.title : ctx.activePlan.reading_plans.title}</p></div>
+                <button onClick={() => navigate(`/plans/${ctx.activePlan.reading_plans.slug}`)}>{t.continue}</button>
+            </section>}
+            <section className="fy-section" aria-labelledby="fy-reading">
+                <div className="fy-section-heading"><h2 id="fy-reading">{t.reading}</h2><button onClick={() => refreshSections(['article_1', 'article_2'])}
+                    disabled={isLoading || saving || ctx.offline || !plan.length}>{t.newArticles}</button></div>
+                <div className="fy-grid">{['article_1', 'article_2'].map(name => <div key={name}>
+                    {sectionStatus(slots[name], name)}
+                    {allowed(slots[name]?.content) && <article className="fy-card">
+                        <span className="fy-format">{formatLabel(slots[name].content.format_id, language)}</span>
+                        <h3>{slots[name].content.title}</h3><p>{slots[name].content.summary}</p>
+                        <p className="fy-reason">{reason(slots[name].content)}</p>
+                        <button className="fy-primary" onClick={() => setSelected(slots[name].content)}>{t.open}</button>
+                        {feedbackButtons(slots[name].content)}
+                    </article>}
+                </div>)}</div>
+                <p className="fy-help">{t.feedbackHelp}</p>
             </section>
-
-            {/* Trending Topics */}
-            {trendingTopics.length > 0 && (
-                <section className="blog-section trending-section">
-                    <h2>{t.trending}</h2>
-                    <div className="trending-list">
-                        {trendingTopics.map((item, idx) => (
-                            <span key={idx} className="trending-chip">
-                                #{item.topic}
-                            </span>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* Recommended Articles */}
-            <section className="blog-section articles-section">
-                <div className="section-header">
-                    <h2>{t.recommended}</h2>
-                    <button
-                        className="refresh-btn"
-                        onClick={refreshPosts}
-                        disabled={postsLoading}
-                    >
-                        {postsLoading ? '⏳' : '🔄'} {t.newBtn}
-                    </button>
-                </div>
-                {posts.length === 0 ? (
-                    <div className="empty-posts">
-                        <p>{t.noArticles}</p>
-                    </div>
-                ) : (
-                    <div className="posts-grid">
-                        {posts.map(post => (
-                            <article
-                                key={post.id}
-                                className="post-card"
-                                onClick={() => {
-                                    setSelectedPost(post);
-                                    logActivity('blog_post_open');
-                                }}
-                            >
-                                <h3>{post.title}</h3>
-                                <p className="post-summary">{post.summary}</p>
-                                <div className="post-meta">
-                                    <div className="post-topics">
-                                        {(post.topics || []).slice(0, 3).map((topic, idx) => (
-                                            <span key={idx} className="post-topic">{topic}</span>
-                                        ))}
-                                    </div>
-                                    <span className="post-views">👁 {post.view_count || 0}</span>
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-                )}
+            <details className="fy-details" onToggle={e => { if (e.currentTarget.open && saved === null) void loadSaved(); }}>
+                <summary>{t.saved}</summary><p className="fy-help">{t.savedHelp}</p>
+                {savedLoading ? <p role="status">{t.loading}</p> : saved?.length ? <ul className="fy-saved-list">{saved.map(item => <li key={item.id}><button onClick={() => setSelected(item)}>{item.title} · {item.language.toUpperCase()}</button></li>)}</ul> : <p>{t.noSaved}</p>}
+            </details>
+            <details className="fy-details">
+                <summary>{t.interests}</summary><p>{t.interestHelp}</p>
+                <div className="fy-interests">{FOR_YOU_TOPICS.filter(topic => DEFAULT_TOPIC_IDS.includes(topic.id) || ctx.interests.some(i => i.id === topic.id)
+                    || Object.hasOwn(states, topic.id) || !topic.id.startsWith('book_')).map(topic => <label key={topic.id}>
+                    <span>{topicLabel(topic.id, language)}</span><select value={states[topic.id] || 'neutral'} disabled={saving || isLoading || ctx.offline}
+                        onChange={e => changeInterest(topic.id, e.target.value)}>
+                        <option value="neutral">{t.neutral}</option><option value="prefer">{t.prefer}</option><option value="exclude">{t.exclude}</option>
+                    </select>
+                </label>)}</div>
+            </details>
+        </>}
+        {visible && selected && <div className="fy-modal-overlay" onClick={() => setSelected(null)}>
+            <section className="fy-modal" role="dialog" aria-modal="true" aria-labelledby="fy-article-title" ref={dialog} tabIndex={-1}
+                onClick={e => e.stopPropagation()} onKeyDown={e => {
+                    if (e.key !== 'Tab') return;
+                    const buttons = dialog.current.querySelectorAll('button:not(:disabled),a[href],select:not(:disabled),[tabindex="0"]');
+                    const first = buttons[0], last = buttons[buttons.length - 1];
+                    if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last?.focus(); }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+                }}>
+                <div className="fy-modal-heading"><span className="fy-format">{formatLabel(selected.format_id, language)}</span>
+                    <button onClick={() => setSelected(null)}>{t.close}</button></div>
+                <h2 id="fy-article-title">{selected.title}</h2>{body(selected)}
+                <button onClick={async () => {
+                    const text = [selected.title, selected.passage ? `${selected.passage.reference} (${selected.passage.version})` : '',
+                        selected.passage?.verses.map(v => `${v.verse} ${v.text}`).join(' ') || '', ...selected.paragraphs, selected.closing].filter(Boolean).join('\n\n');
+                    setNotice(await copyToClipboard(text) ? t.copied : t.copyFailed);
+                }}>{t.copy}</button>
             </section>
-
-            {/* Keyword Management Section - Listed beneath Recommended Reading */}
-            <section className="blog-section keyword-management">
-                <div className="section-header" style={{ justifyContent: 'space-between' }}>
-                    <h2>{t.interestKeywords}</h2>
-                    <button
-                        className={`manage-btn ${isEditMode ? 'active' : ''}`}
-                        onClick={() => setIsEditMode(!isEditMode)}
-                    >
-                        {isEditMode ? t.doneBtn : t.manageBtn}
-                    </button>
-                </div>
-                <p className="section-desc">
-                    {isEditMode ? t.interestKeywordsDescEdit : t.interestKeywordsDesc}
-                </p>
-                <div className={`keyword-buttons ${isEditMode ? 'edit-mode' : ''}`}>
-                    {searchKeywords.map((item, idx) => (
-                        <button
-                            key={idx}
-                            className={`keyword-btn ${item.isHighlighted ? 'highlighted' : ''} ${isEditMode ? 'deletable' : ''}`}
-                            onClick={() => handleKeywordToggle(item.word)}
-                        >
-                            {isEditMode && <span className="delete-icon">✕</span>}
-                            {item.word}
-                            {!isEditMode && item.isHighlighted && <span className="check-mark">✓</span>}
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            {/* Article Detail Modal */}
-            {selectedPost && (
-                <div className="article-modal-overlay" onClick={() => setSelectedPost(null)}>
-                    <div className="article-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="article-modal-header">
-                            <h2>{selectedPost.title}</h2>
-                            <div className="modal-actions">
-                                <button
-                                    className="icon-btn"
-                                    onClick={(e) => {
-                                        const text = `${selectedPost.title}\n\n${selectedPost.content}\n\nTopics: ${(selectedPost.topics || []).join(', ')}`;
-                                        handleCopy(text, e);
-                                    }}
-                                    title="Copy article"
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', marginRight: '8px' }}
-                                >
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                    </svg>
-                                </button>
-                                <button className="close-btn" onClick={() => setSelectedPost(null)}>✕</button>
-                            </div>
-                        </div>
-                        <div className="article-modal-body">
-                            <div
-                                className="article-content"
-                                style={{ fontSize: `${settings.fontSize}px` }}
-                                dangerouslySetInnerHTML={{ __html: formatContent(selectedPost.content) }}
-                            />
-                            {selectedPost.scripture_refs && selectedPost.scripture_refs.length > 0 && (
-                                <div className="scripture-refs">
-                                    <h4>{t.scriptureRefs}</h4>
-                                    <div className="refs-list">
-                                        {selectedPost.scripture_refs.map((ref, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="scripture-ref clickable"
-                                                onClick={(e) => handleScriptureClick(ref, e)}
-                                            >
-                                                {ref}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            <div className="article-topics">
-                                {(selectedPost.topics || []).map((topic, idx) => (
-                                    <span key={idx} className="topic-chip">{topic}</span>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {/* Keyword Delete Confirmation Modal */}
-            {confirmDelete.show && (
-                <div className="article-modal-overlay" onClick={() => setConfirmDelete({ show: false, word: '' })}>
-                    <div className="confirm-modal" onClick={(e) => e.stopPropagation()} style={{
-                        background: 'var(--bg-secondary)',
-                        padding: '30px',
-                        borderRadius: '20px',
-                        textAlign: 'center',
-                        maxWidth: '350px',
-                        width: '90%',
-                        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-                        border: '1px solid var(--border-subtle)',
-                        position: 'relative',
-                        zIndex: 10002
-                    }}>
-                        <h3 style={{ margin: '0 0 15px', color: 'var(--text-primary)' }}>
-                            {settings.language === 'af' ? 'Verwyder Sleutelwoord' : 'Delete Keyword'}
-                        </h3>
-                        <p style={{ margin: '0 0 25px', color: 'var(--text-secondary)' }}>
-                            {settings.language === 'af'
-                                ? `Is jy seker jy wil "${confirmDelete.word}" permanent verwyder?`
-                                : `Are you sure you want to delete "${confirmDelete.word}" permanently?`}
-                        </p>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                            <button
-                                onClick={() => setConfirmDelete({ show: false, word: '' })}
-                                style={{
-                                    flex: 1,
-                                    padding: '12px',
-                                    borderRadius: '12px',
-                                    border: '1px solid var(--border-color)',
-                                    background: 'transparent',
-                                    color: 'var(--text-primary)',
-                                    cursor: 'pointer'
-                                }}
-                                disabled={isDeleting}
-                            >
-                                {settings.language === 'af' ? 'Kanselleer' : 'Cancel'}
-                            </button>
-                            <button
-                                onClick={confirmKeywordDelete}
-                                style={{
-                                    flex: 1,
-                                    padding: '12px',
-                                    borderRadius: '12px',
-                                    border: 'none',
-                                    background: '#ef4444',
-                                    color: 'white',
-                                    fontWeight: '600',
-                                    cursor: 'pointer'
-                                }}
-                                disabled={isDeleting}
-                            >
-                                {isDeleting
-                                    ? (settings.language === 'af' ? 'Besig...' : 'Deleting...')
-                                    : (settings.language === 'af' ? 'Verwyder' : 'Delete')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+        </div>}
+    </main>;
 }
-
-export default Blog;

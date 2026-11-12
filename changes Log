@@ -7,6 +7,30 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 - For You: varied reading and personal choices (pending deployment)
+
+**For users**
+- One reflection and two different kinds of Bible articles, with varied structures and endings.
+- Shared topic choices across recommendations, with clearer reasons for each suggestion.
+- Separate English/Afrikaans reading caches, verified Bible quotations and safer display of generated text.
+- Save reading for later, mark it helpful or already read, and request less similar content.
+- Sections load independently and previous reading is kept if a replacement fails.
+
+**For maintainers**
+- SQL **applied live** 2026-11-12: `20261112160000_for_you_v2.sql`; catalogue check `scripts/verify_for_you_schema.sql` passed. No new edge function; PayFast/free mode unchanged.
+- Tests: 67 non-PayFast passed. UI harness passed EN/AF at 375px and 1280px. Disposable-account RLS and live generation smoke still outstanding.
+- Handoff: `docs/CURSOR_FOR_YOU_IMPLEMENTED_2026-11-12.md`.
+
+---
+
+## 2026-11-12 — Safer sign-in and private study access
+
+**For users**
+- Private study editing now asks you to log in and returns you to the same page afterward.
+- Creating an account waits for email confirmation when required, instead of starting a sync without a signed-in session.
+- Admin pages wait for your account check. Signing out reports failures instead of pretending it succeeded.
+- Note labels are protected so another account cannot change your links.
+
 ## 2026-11-12 — Sync Local Data no longer stuck on one table
 
 **For users**

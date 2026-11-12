@@ -28,12 +28,12 @@ import { ensureFreeModeLoaded } from './appSettingsService';
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
 
-const getAiModelLabel = () => {
+export const getAiModelLabel = () => {
     if (AI_PROVIDER === 'groq') return GROQ_MODEL;
     return GEMINI_MODEL;
 };
 
-const generateBlogAiText = async (prompt) => {
+export const generateBlogAiText = async (prompt) => {
     if (AI_PROVIDER === 'groq') {
         if (!GROQ_API_KEY) {
             throw new Error('Groq API key is missing. Set VITE_GROQ_API_KEY in .env');

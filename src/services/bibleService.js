@@ -956,7 +956,7 @@ export const getUserHistory = async (userId) => {
             .order('answered_at', { ascending: false })
             .limit(100);
 
-        const [searches, aiQuestions, blogViews, bibleReadings, activities, triviaRes, sermonCountRes] =
+        const [searches, aiQuestions, blogViews, rawBibleReadings, activities, triviaRes, sermonCountRes] =
             await Promise.all([
                 fetchAllPages(pageForUsers('search_logs')),
                 fetchAllPages(pageForUsers('ai_questions')),
@@ -968,6 +968,7 @@ export const getUserHistory = async (userId) => {
             ]);
 
         const sermonCount = sermonCountRes.count || 0;
+        let bibleReadings = rawBibleReadings;
 
         // Post-process to add book names (since join might fail if SQL hasn't been run perfect)
         if (bibleReadings.length > 0) {
