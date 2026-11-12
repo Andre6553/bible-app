@@ -22,7 +22,9 @@ const WORDS = {
         offline: 'Showing saved content. Reconnect before generating or changing preferences.',
         busy: 'This piece is being prepared in another tab. Try again shortly.',
         cooldown: 'You already requested a new version today. One refresh per section per day; your current reading is kept.',
-        error: 'Could not load this section. Your previous reading has been kept.', setup: 'For You could not connect. Please try again. The new database setup may still be pending.',
+        error: 'Could not load this section. Your previous reading has been kept.',
+        errorHint: 'Open the browser console (F12) and look for [For You] section failed: … then share that line if it keeps failing.',
+        setup: 'For You could not connect. Please try again. The new database setup may still be pending.',
         close: 'Close', open: 'Read article', passage: 'Read the passage in the Bible', copy: 'Copy', copied: 'Copied.', copyFailed: 'Could not copy.',
         chosen: 'You chose', explored: 'Because you explored', discover: 'Explore a different topic', general: 'A starting point for your study',
         signIn: 'Please sign in to request new content.', preferFailed: 'Could not save your preference. Your previous choice was restored.',
@@ -41,7 +43,9 @@ const WORDS = {
         offline: 'Gestoorde inhoud word gewys. Koppel weer voordat jy inhoud genereer of voorkeure verander.',
         busy: 'Hierdie leesstuk word in ’n ander oortjie voorberei. Probeer binnekort weer.',
         cooldown: 'Jy het vandag reeds ’n nuwe weergawe gevra. Een verfrissing per afdeling per dag; jou huidige leesstof bly behoue.',
-        error: 'Kon nie hierdie afdeling laai nie. Jou vorige leesstof bly behoue.', setup: 'Vir Jou kon nie koppel nie. Probeer weer. Die nuwe databasisopstelling is moontlik nog nie voltooi nie.',
+        error: 'Kon nie hierdie afdeling laai nie. Jou vorige leesstof bly behoue.',
+        errorHint: 'Maak die blaaierkonsole oop (F12) en soek [For You] section failed: … as dit aanhou.',
+        setup: 'Vir Jou kon nie koppel nie. Probeer weer. Die nuwe databasisopstelling is moontlik nog nie voltooi nie.',
         close: 'Sluit', open: 'Lees artikel', passage: 'Lees die gedeelte in die Bybel', copy: 'Kopieer', copied: 'Gekopieer.', copyFailed: 'Kon nie kopieer nie.',
         chosen: 'Jy het gekies', explored: 'Omdat jy ondersoek het', discover: 'Verken ’n ander onderwerp', general: '’n Beginpunt vir jou studie',
         signIn: 'Meld asseblief aan om nuwe inhoud aan te vra.', preferFailed: 'Kon nie jou voorkeur stoor nie. Jou vorige keuse is herstel.',
@@ -232,6 +236,8 @@ export default function Blog() {
         {slot?.loading && <p className="fy-status" role="status">{t.loading}</p>}
         {slot?.status && ['error', 'busy', 'cooldown'].includes(slot.status) && <div className="fy-inline-error" role="status">
             <p>{t[slot.status]}</p>
+            {slot.status === 'error' && slot.error && import.meta.env.DEV && <p className="fy-help">{slot.error}</p>}
+            {slot.status === 'error' && <p className="fy-help">{t.errorHint}</p>}
             {slot.availableAt && <p>{new Date(slot.availableAt).toLocaleString(language === 'af' ? 'af-ZA' : 'en-ZA')}</p>}
             {slot.status !== 'cooldown' && canForce(slot) && (
                 <button onClick={() => refreshSections([name], true)} disabled={slot.loading}>{t.retry}</button>

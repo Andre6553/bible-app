@@ -4,8 +4,9 @@ import { getActivePlan } from './readingPlanService';
 import { generateForYouAiText, getAiModelLabel, isSuperUser } from './blogService';
 import { logApiCall } from './adminService';
 import { resolveDbBook, getCanonicalBookMeta } from '../constants/canonicalBooks';
+import { SUPPORTED_VERSIONS } from '../constants/bibleVersions';
 import { FOR_YOU_FORMATS, FOR_YOU_VERSION } from '../config/forYouFormats';
-import { topicLabel } from '../config/forYouTopics';
+import { topicLabel, TOPIC_BY_ID } from '../config/forYouTopics';
 import { localDay, preferenceStates, rankInterests, planForYou, stableHash, validateGeneratedPiece, matchTopics } from '../utils/forYouSelection';
 
 const pending = new Map();
@@ -117,26 +118,65 @@ export function cachedForSlot(ctx, slot) {
         && states[item.topic_id] !== 'exclude' && item.prompt_version === FOR_YOU_VERSION) || null;
 }
 
-async function verifiedPassage(ctx, spec) {
-    const book = resolveDbBook(ctx.books, spec.passage.book);
-    if (!book) throw new Error('passage_book_unavailable');
-    const meta = getCanonicalBookMeta(spec.passage.book);
-    if (Number(book.order) !== spec.passage.book && book.name_full !== meta?.name) throw new Error('passage_book_mismatch');
-    // No silent cross-language fallback; try the available corpus for this language only.
-    const versions = ctx.language === 'af' ? ['AFR53', 'AFR83'] : ['KJV'];
+function dedupeChapterVerses(rows) {
+    const byVerse = new Map();
+    for (const row of rows) {
+        const verse = Number(row.verse);
+        if (!Number.isFinite(verse)) continue;
+        const text = typeof row.text === 'string' ? row.text.trim() : '';
+        const existing = byVerse.get(verse);
+        if (!existing || (!existing.text && text)) byVerse.set(verse, { verse, text });
+    }
+    return [...byVerse.values()].sort((a, b) => a.verse - b.verse);
+}
+
+async function loadVerifiedPassage(ctx, passage) {
+    const book = resolveDbBook(ctx.books, passage.book);
+    if (!book) return null;
+    const meta = getCanonicalBookMeta(passage.book);
+    if (Number(book.order) !== passage.book && book.name_full !== meta?.name) return null;
+    const lang = ctx.language === 'af' ? 'af' : 'en';
+    const versions = SUPPORTED_VERSIONS.filter(v => v.language === lang || (lang === 'en' && !v.language)).map(v => v.id);
+    if (!versions.length) versions.push(lang === 'af' ? 'AFR53' : 'KJV');
+    const need = passage.end - passage.start + 1;
     for (const version of versions) {
         const result = await supabase.from('verses').select('verse,text').eq('book_id', book.id)
-            .eq('chapter', spec.passage.chapter).eq('version', version).order('verse');
-        if (result.error) throw new Error(result.error.message);
-        const rows = result.data || [];
-        const selected = rows.filter(v => v.verse >= spec.passage.start && v.verse <= spec.passage.end);
-        if (selected.length !== spec.passage.end - spec.passage.start + 1 || selected.some(v => !v.text)) continue;
+            .eq('chapter', passage.chapter).eq('version', version).order('verse');
+        if (result.error) continue;
+        const rows = dedupeChapterVerses(result.data || []);
+        const selected = rows.filter(v => v.verse >= passage.start && v.verse <= passage.end);
+        if (selected.length !== need || selected.some(v => !v.text)) continue;
+        const startIdx = rows.findIndex(v => v.verse === passage.start);
+        const endIdx = rows.findIndex(v => v.verse === passage.end);
+        const context = startIdx >= 0 && endIdx >= 0
+            ? rows.slice(Math.max(0, startIdx - 5), Math.min(rows.length, endIdx + 5))
+            : selected;
         return {
-            book_id: book.id, chapter: spec.passage.chapter, start: spec.passage.start, end: spec.passage.end,
-            version, reference: `${ctx.language === 'af' ? meta.name_af : meta.name} ${spec.passage.chapter}:${spec.passage.start}–${spec.passage.end}`,
+            book_id: book.id, chapter: passage.chapter, start: passage.start, end: passage.end,
+            version, reference: `${ctx.language === 'af' ? meta?.name_af : meta?.name} ${passage.chapter}:${passage.start}–${passage.end}`,
             verses: selected.map(v => ({ verse: v.verse, text: v.text })),
-            context: rows.slice(Math.max(0, spec.passage.start - 5), spec.passage.end + 4).map(v => `${v.verse}. ${v.text}`).join('\n'),
+            context: context.map(v => `${v.verse}. ${v.text}`).join('\n'),
         };
+    }
+    return null;
+}
+
+const FALLBACK_PASSAGES = [
+    { book: 43, chapter: 3, start: 16, end: 17 },
+    { book: 45, chapter: 8, start: 28, end: 31 },
+    { book: 19, chapter: 23, start: 1, end: 4 },
+];
+
+async function verifiedPassage(ctx, spec) {
+    if (!ctx.books?.all?.length) throw new Error('bible_catalogue_unavailable');
+    const candidates = [spec.passage, ...(TOPIC_BY_ID[spec.topic_id]?.passages || []), ...FALLBACK_PASSAGES];
+    const seen = new Set();
+    for (const candidate of candidates) {
+        const key = `${candidate.book}:${candidate.chapter}:${candidate.start}-${candidate.end}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const loaded = await loadVerifiedPassage(ctx, candidate);
+        if (loaded) return loaded;
     }
     throw new Error('verified_passage_unavailable');
 }
@@ -242,7 +282,9 @@ async function generatePiece(ctx, spec, force) {
                 void logApiCall('generateForYou', 'success', getAiModelLabel(), { format: spec.format_id, language: ctx.language });
                 generated = validateGeneratedPiece(raw);
                 const opening = generated.paragraphs[0].toLowerCase().split(/\s+/).slice(0, 10).join(' ');
-                if (ctx.history.slice(0, 5).some(item => item.paragraphs?.[0]?.toLowerCase().startsWith(opening))) throw new Error('repeated_opening');
+                if (!ctx.unlimitedRefresh && ctx.history.slice(0, 5).some(item => item.paragraphs?.[0]?.toLowerCase().startsWith(opening))) {
+                    throw new Error('repeated_opening');
+                }
                 break;
             } catch (error) {
                 lastError = error;
@@ -275,7 +317,12 @@ async function generatePiece(ctx, spec, force) {
         return { content: saved, status: 'generated', forceRemaining };
     } catch (error) {
         console.warn('[For You] section failed:', error.message);
-        return { content: cached || null, status: 'error', error: error.message, forceRemaining: force ? 0 : forceRemaining };
+        return {
+            content: cached || null,
+            status: 'error',
+            error: error.message,
+            forceRemaining: ctx.unlimitedRefresh ? 99 : (force ? 0 : forceRemaining),
+        };
     } finally {
         if (token) await rpc('for_you_release_content', { p_token: token }).catch(() => {});
     }

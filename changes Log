@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — For You: fix “Could not load” from duplicate verses
+
+**For users**
+- For You should load again when the database has duplicate verse rows (common on Genesis ch. 1). Fallback passages if a topic range is missing.
+
+**For maintainers**
+- `dedupeChapterVerses` in `forYouService.js`; topic + John 3:16 / Romans 8 / Psalm 23 fallbacks. Super users skip `repeated_opening` block.
+
+---
+
 ## 2026-11-12 — For You: one manual refresh per section per day
 
 **For users**

@@ -21,7 +21,12 @@ beforeEach(() => {
     vi.stubGlobal('localStorage', { getItem: k => data.get(k) ?? null, setItem: (k, v) => data.set(k, v), removeItem: k => data.delete(k) });
     mock.getUser.mockResolvedValue({ data: { user: { id: 'account' } } });
     mock.from.mockImplementation(() => {
-        const q = { select: () => q, eq: () => q, order: () => Promise.resolve({ data: [{ verse: 1, text: 'Verified verse one' }, { verse: 2, text: 'Verified verse two' }] }) };
+        const q = { select: () => q, eq: () => q, order: () => Promise.resolve({
+            data: [
+                { verse: 1, text: 'Verified verse one' }, { verse: 1, text: 'dup' },
+                { verse: 2, text: 'Verified verse two' }, { verse: 2, text: 'dup' },
+            ],
+        }) };
         return q;
     });
     mock.generate.mockResolvedValue(JSON.stringify({ title: 'Understanding this passage', summary: 'A closer look at the text.',
