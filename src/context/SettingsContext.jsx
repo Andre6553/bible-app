@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../config/supabaseClient';
+import { migrateAnonymousData } from '../services/migrationService';
 
 const SettingsContext = createContext();
 
@@ -42,6 +43,15 @@ export const SettingsProvider = ({ children }) => {
             if (currentUser && currentUser.id !== lastFetchedUserId.current) {
                 // ... (rest of logic)
                 fetchRemoteSettings(currentUser.id);
+
+                const leftoverGuest = typeof localStorage !== 'undefined'
+                    ? localStorage.getItem('bible_user_id')
+                    : null;
+                if (leftoverGuest && leftoverGuest !== currentUser.id) {
+                    migrateAnonymousData(currentUser.id).catch((err) => {
+                        console.warn('[Auth] Guest sync on login failed:', err?.message || err);
+                    });
+                }
 
                 // Capture IP on login/session restore
                 const shouldCaptureIp = event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION';

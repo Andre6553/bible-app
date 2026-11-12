@@ -65,30 +65,12 @@ export const inspectGuestMigration = async (oldUserId) => {
     });
 
     if (error) {
-        const requiresVerification = String(error.message || '').includes('guest_ownership_verification_required');
-        if (!requiresVerification) {
-            console.warn('[Migration] inspect failed:', error.message);
-        }
+        console.warn('[Migration] inspect failed:', error.message);
         const tables = Object.fromEntries(
             TABLES_TO_MIGRATE.map((t) => [t, { status: 'failed', error: error.message }])
         );
         return {
-            needed: false,
-            uncertain: !requiresVerification,
-            confirmedEmpty: false,
-            tables,
-            requiresVerification,
-            error: error.message,
-        };
-    }
-
-    if (data?.verification_required) {
-        return {
-            needed: false,
-            uncertain: false,
-            confirmedEmpty: false,
-            tables: {},
-            requiresVerification: true,
+            needed: false, uncertain: true, confirmedEmpty: false, tables, error: error.message,
         };
     }
 
@@ -106,7 +88,7 @@ export const hasPendingGuestMigration = async (authUserId) => {
     const guestId = localStorage.getItem(GUEST_ID_KEY);
     if (!guestId || guestId === authUserId) return false;
     const inspect = await inspectGuestMigration(guestId);
-    return inspect.needed || inspect.uncertain || inspect.requiresVerification;
+    return inspect.needed || inspect.uncertain;
 };
 
 async function runMigration(newUserId) {
@@ -127,21 +109,10 @@ async function runMigration(newUserId) {
     const inspection = await inspectGuestMigration(oldUserId);
     recordInspection(oldUserId, newUserId, inspection);
 
-    if (inspection.requiresVerification) {
-        return {
-            success: false,
-            requiresVerification: true,
-            message: 'guest_ownership_verification_required',
-            results: [],
-            guestId: oldUserId,
-        };
-    }
-
     if (inspection.uncertain) {
         return {
             success: false,
             uncertain: true,
-            requiresVerification: inspection.requiresVerification,
             message: 'Could not confirm guest data. Guest id kept for retry.',
             results: Object.entries(inspection.tables).map(([table, info]) => ({
                 table,

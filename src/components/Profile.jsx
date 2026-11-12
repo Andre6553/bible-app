@@ -15,6 +15,7 @@ import { supabase } from '../config/supabaseClient';
 import {
     migrateAnonymousData,
     inspectGuestMigration,
+    clearGuestIdAfterSuccess,
 } from '../services/migrationService';
 import { requestAccountDeletion } from '../services/accountDeletionService';
 import TutorialOverlay from './TutorialOverlay';
@@ -44,7 +45,6 @@ function Profile() {
     const [loading, setLoading] = useState(true);
     const [selectedWordStudy, setSelectedWordStudy] = useState(null);
     const [showSyncBtn, setShowSyncBtn] = useState(false);
-    const [guestNeedsVerification, setGuestNeedsVerification] = useState(false);
     const [syncing, setSyncing] = useState(false);
 
     // Profile settings (stored locally)
@@ -125,12 +125,21 @@ function Profile() {
             const guestId = localStorage.getItem('bible_user_id');
             if (!guestId || guestId === currentUser.id) {
                 setShowSyncBtn(false);
-                setGuestNeedsVerification(false);
                 return;
             }
             const inspect = await inspectGuestMigration(guestId);
-            setGuestNeedsVerification(!!inspect.requiresVerification);
-            setShowSyncBtn(inspect.needed || inspect.uncertain || inspect.requiresVerification);
+            if (inspect.confirmedEmpty) {
+                clearGuestIdAfterSuccess(guestId);
+                setShowSyncBtn(false);
+                return;
+            }
+            const result = await migrateAnonymousData(currentUser.id);
+            if (result.success) {
+                setShowSyncBtn(false);
+                loadData();
+                return;
+            }
+            setShowSyncBtn(true);
         }
     };
 
@@ -145,17 +154,11 @@ function Profile() {
         if (!user) return;
         setSyncing(true);
         try {
-            const localId = localStorage.getItem('bible_user_id');
             const result = await migrateAnonymousData(user.id);
             if (result.success) {
                 alert('Success! Your highlights and notes have been synced to your account.');
                 setShowSyncBtn(false);
                 loadData();
-            } else if (result.requiresVerification) {
-                alert(settings.language === 'af'
-                    ? 'Jou ou gasdata is behou. Kontak ondersteuning om dit veilig aan jou rekening te koppel.'
-                    : 'Your previous guest data has been kept. Contact support to link it safely to your account.');
-                setShowSyncBtn(true);
             } else if (result.uncertain) {
                 alert(
                     'Could not confirm guest data (a table check failed). Your guest id was kept — try Sync again.'
@@ -907,7 +910,7 @@ function Profile() {
                                 >
                                     Delete Account
                                 </button>
-                                {showSyncBtn && !guestNeedsVerification && (
+                                {showSyncBtn && (
                                     <button
                                         className="sync-btn"
                                         onClick={handleManualSync}
@@ -919,11 +922,7 @@ function Profile() {
                             </div>
                             {showSyncBtn && (
                                 <p className="sync-tip">
-                                    {guestNeedsVerification
-                                        ? (settings.language === 'af'
-                                            ? 'Jou ou gasdata is op hierdie toestel behou. Kontak ondersteuning om dit veilig aan jou rekening te koppel.'
-                                            : 'Guest data from this browser is kept until support verifies it belongs to this account.')
-                                        : 'Guest highlights, notes, or plans on this browser are not fully linked to your account yet. Tap Sync Local Data (or sign in again) to finish.'}
+                                    Guest highlights, notes, or plans on this browser did not finish linking. Tap Sync Local Data, or sign in again.
                                 </p>
                             )}
                         </div>

@@ -7,6 +7,29 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — Login attaches leftover guest data
+
+**For users**
+- Log in (or open the app already logged in). Guest highlights/notes from this browser move onto your account. No support step. No admin button.
+
+**For maintainers**
+- Claim gate removed from `inspect_guest_migration` / `migrate_guest_data`. Transactional merge + conflict archive kept. SQL: `20261112140000_auto_migrate_on_login.sql`.
+
+---
+
+## 2026-11-12 — Admin can link leftover guest data
+
+**For users**
+- If this browser has an empty leftover guest id, the Profile warning is removed automatically.
+- If there is real leftover guest data, support (admin) can tap **Link guest data from this browser** on Profile.
+
+**For maintainers**
+- `inspect_guest_migration` counts first: empty leftover → confirmed empty (client drops the id). Found leftover without a claim still needs approval.
+- Admin RPC `approve_legacy_guest_claim` (self only). Other users: `node scripts/approve_guest_claim.js --guest user_xxx --user <uuid> --ref "…"`.
+- SQL: `20261112130000_guest_claim_admin.sql`.
+
+---
+
 ## 2026-11-12 — Quiet guest-inspect (no 400 on Profile)
 
 **For users**
