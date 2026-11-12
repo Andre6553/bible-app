@@ -1,3 +1,9 @@
 [functions.payfast-webhook]
 # PayFast IPN calls don't include JWT tokens, so we must disable JWT verification
 verify_jwt = false
+
+[functions.request-account-deletion]
+verify_jwt = true
+
+[functions.process-account-deletions]
+verify_jwt = false

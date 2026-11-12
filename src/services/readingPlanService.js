@@ -298,52 +298,33 @@ export const markDayComplete = async (enrollmentId, day, planSlug) => {
     if (!auth.ok) return { success: false, error: auth.error, requiresAuth: true };
 
     try {
-        const { data: enrollment, error: fetchErr } = await supabase
-            .from('user_reading_plans')
-            .select('*, reading_plans(duration_days, slug)')
-            .eq('id', enrollmentId)
-            .eq('user_id', auth.userId)
-            .single();
+        const { error: rpcErr } = await supabase.rpc('complete_plan_day', {
+            p_enrollment_id: enrollmentId,
+            p_day: day,
+        });
 
-        if (fetchErr) throw fetchErr;
-        if (enrollment.status !== 'active') {
-            return { success: false, error: 'Plan is not active' };
-        }
-
-        const completedDays = [...(enrollment.completed_days || [])];
-        if (!completedDays.includes(day)) {
-            completedDays.push(day);
-            completedDays.sort((a, b) => a - b);
-        }
-
-        const duration = enrollment.reading_plans?.duration_days || 0;
-        const isFinished = completedDays.length >= duration;
-        const nextDay = Math.min(day + 1, duration + 1);
-
-        const updates = {
-            completed_days: completedDays,
-            current_day: isFinished ? duration : Math.max(enrollment.current_day, nextDay),
-            last_activity_at: new Date().toISOString(),
-            status: isFinished ? 'completed' : 'active',
-            completed_at: isFinished ? new Date().toISOString() : null,
-        };
+        if (rpcErr) throw rpcErr;
 
         const { data, error } = await supabase
             .from('user_reading_plans')
-            .update(updates)
+            .select('*, reading_plans(*)')
             .eq('id', enrollmentId)
             .eq('user_id', auth.userId)
-            .select('*, reading_plans(*)')
             .single();
 
         if (error) throw error;
 
+        const planMeta = data?.reading_plans;
+        const duration = planMeta?.duration_days || 0;
+        const isFinished =
+            data?.status === 'completed' ||
+            (duration > 0 && (data?.completed_days?.length || 0) >= duration);
+
         logEvent('plan_day_complete', {
-            plan_slug: planSlug || enrollment.reading_plans?.slug,
+            plan_slug: planSlug || planMeta?.slug,
             day,
         });
 
-        const planMeta = enrollment.reading_plans;
         if (planMeta?.slug) {
             const eventType = isFinished ? 'plan_completed' : 'plan_day_complete';
             recordPlanBehavior(eventType, planMeta, { day }).catch(() => {});
@@ -484,33 +465,11 @@ export const saveDayNote = async (enrollmentId, day, noteText) => {
     if (!auth.ok) return { success: false, error: auth.error, requiresAuth: true };
 
     try {
-        const { data: enrollment, error: fetchErr } = await supabase
-            .from('user_reading_plans')
-            .select('day_notes')
-            .eq('id', enrollmentId)
-            .eq('user_id', auth.userId)
-            .single();
-
-        if (fetchErr) throw fetchErr;
-
-        const dayNotes = { ...(enrollment.day_notes || {}) };
-        const trimmed = (noteText || '').trim();
-        if (trimmed) {
-            dayNotes[String(day)] = trimmed;
-        } else {
-            delete dayNotes[String(day)];
-        }
-
-        const { data, error } = await supabase
-            .from('user_reading_plans')
-            .update({
-                day_notes: dayNotes,
-                last_activity_at: new Date().toISOString(),
-            })
-            .eq('id', enrollmentId)
-            .eq('user_id', auth.userId)
-            .select()
-            .single();
+        const { data, error } = await supabase.rpc('patch_plan_day_note', {
+            p_enrollment_id: enrollmentId,
+            p_day: day,
+            p_note_text: noteText ?? '',
+        });
 
         if (error) throw error;
         return { success: true, data };

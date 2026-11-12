@@ -345,11 +345,12 @@ const checkAndIncrementAiUsage = async () => {
         }
     }
 
-    // 3. Increment Count
-    await supabase.from('user_profiles').update({
-        ai_usage_count: currentUsage + 1,
-        last_seen: new Date().toISOString()
-    }).eq('user_id', userId);
+    // 3. Increment Count (atomic in DB)
+    const { error: incErr } = await supabase.rpc('increment_ai_usage', { p_user_id: userId });
+    if (incErr) {
+        console.error('[AI Usage] increment failed:', incErr.message);
+        throw incErr;
+    }
 
     return true;
 };

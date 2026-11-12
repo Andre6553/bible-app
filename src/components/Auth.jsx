@@ -57,12 +57,18 @@ function Auth() {
                 }
 
                 try {
-                    // [UX] Wait at most 3 seconds for migration before proceeding anyway
+                    const MIGRATION_WAIT_MS = 15000;
                     const migrationTask = migrateAnonymousData(result.data.user.id);
-                    const timeoutTask = new Promise(resolve => setTimeout(resolve, 3000));
-
-                    await Promise.race([migrationTask, timeoutTask]);
-                    console.log('[Auth] Migration finished or timed out, navigating to profile.');
+                    const timeoutTask = new Promise((resolve) => setTimeout(resolve, MIGRATION_WAIT_MS));
+                    const migResult = await Promise.race([
+                        migrationTask.then((r) => ({ done: true, ...r })),
+                        timeoutTask.then(() => ({ done: false, timedOut: true })),
+                    ]);
+                    if (migResult.timedOut) {
+                        console.warn('[Auth] Migration still running after 15s — Profile can retry sync.');
+                    } else if (migResult.partial) {
+                        console.warn('[Auth] Migration partially complete — guest id kept for retry.');
+                    }
                 } catch (migErr) {
                     console.error('[Auth] Migration error, proceeding anyway:', migErr);
                 }

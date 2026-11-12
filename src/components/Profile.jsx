@@ -12,7 +12,11 @@ import { getSavedWordStudies, deleteWordStudy as removeSavedWordStudy } from '..
 import WordStudyModal from './WordStudyModal';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
-import { migrateAnonymousData, checkIfMigrationNeeded } from '../services/migrationService';
+import {
+    migrateAnonymousData,
+    hasPendingGuestMigration,
+} from '../services/migrationService';
+import { requestAccountDeletion } from '../services/accountDeletionService';
 import TutorialOverlay from './TutorialOverlay';
 import { getActivePlan, getProgressStats } from '../services/readingPlanService';
 import './Profile.css';
@@ -116,16 +120,9 @@ function Profile() {
         const currentUser = user;
 
         // Check for un-migrated local data
-        const localId = localStorage.getItem('bible_user_id');
-        if (currentUser && localId && localId !== currentUser.id) {
-            // Verify if there's actually something to sync
-            const needsSync = await checkIfMigrationNeeded(localId);
-            if (needsSync) {
-                setShowSyncBtn(true);
-            } else {
-                // If no data, just retire the ID to stop checking
-                localStorage.removeItem('bible_user_id');
-            }
+        if (currentUser) {
+            const needsSync = await hasPendingGuestMigration(currentUser.id);
+            setShowSyncBtn(needsSync);
         }
     };
 
@@ -144,11 +141,21 @@ function Profile() {
             const result = await migrateAnonymousData(user.id);
             if (result.success) {
                 alert('Success! Your highlights and notes have been synced to your account.');
-                localStorage.removeItem('bible_user_id');
                 setShowSyncBtn(false);
-                loadData(); // Refresh everything
+                loadData();
+            } else if (result.partial) {
+                alert(
+                    'Some items synced, but not everything. Please try Sync again when you have a stable connection.'
+                );
+                setShowSyncBtn(true);
             } else {
-                alert('Migration failed: ' + result.error);
+                const failed = (result.results || []).filter((r) => !r.success).map((r) => r.table);
+                alert(
+                    failed.length
+                        ? `Sync incomplete (tables: ${failed.join(', ')}). Your guest data is still on this device — tap Sync again.`
+                        : 'Migration failed. Please try again.'
+                );
+                setShowSyncBtn(true);
             }
         } catch (err) {
             console.error('Sync error:', err);
@@ -407,16 +414,30 @@ function Profile() {
         } else if (type === 'account') {
             setIsDeleting(true);
             try {
-                // In a real app, you'd call a dedicated edge function or backend to wipe the user.
-                // For now, we sign them out and inform them. 
-                // We could also call a Supabase RPC if one exists to delete the user record.
-                await handleLogout();
-                alert(settings.language === 'af'
-                    ? 'Jou versoek vir verwydering is ontvang. Jou rekening sal binne 7 dae permanent geskrap word.'
-                    : 'Your deletion request has been received. Your account will be permanently deleted within 7 days.');
-                success = true;
+                const del = await requestAccountDeletion();
+                if (!del.success) {
+                    alert(
+                        settings.language === 'af'
+                            ? `Kon nie verwydering aanvra nie: ${del.error || 'onbekende fout'}`
+                            : `Could not submit deletion request: ${del.error || 'unknown error'}`
+                    );
+                    success = false;
+                } else {
+                    await handleLogout();
+                    alert(
+                        settings.language === 'af'
+                            ? 'Jou versoek vir verwydering is ontvang. Jou rekening sal binne 7 dae permanent geskrap word.'
+                            : 'Your deletion request has been received. Your account will be permanently deleted within 7 days.'
+                    );
+                    success = true;
+                }
             } catch (err) {
-                console.error("Account delete request failed", err);
+                console.error('Account delete request failed', err);
+                alert(
+                    settings.language === 'af'
+                        ? 'Kon nie verwydering aanvra nie. Probeer weer of kontak ondersteuning.'
+                        : 'Could not request deletion. Please try again or contact support.'
+                );
             } finally {
                 setIsDeleting(false);
             }
@@ -880,7 +901,7 @@ function Profile() {
                             </div>
                             {showSyncBtn && (
                                 <p className="sync-tip">
-                                    Found un-synced notes on this browser. Click "Sync" to move them to your account.
+                                    Guest highlights, notes, or plans on this browser are not fully linked to your account yet. Tap Sync Local Data (or sign in again) to finish.
                                 </p>
                             )}
                         </div>

@@ -54,8 +54,11 @@ function NoteModal({
     const handleSave = async () => {
         if (!noteText.trim()) return;
         setSaving(true);
-        await onSave(noteText, selectedStudy, selectedLabels);
-        setSaving(false);
+        try {
+            await onSave(noteText, selectedStudy, selectedLabels);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleCreateStudy = async () => {

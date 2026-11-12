@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabaseClient';
+import { fetchAllPages } from '../utils/fetchAllPages';
 import { AFRIKAANS_BOOK_NAMES } from '../constants/bookNames';
 import { SUPPORTED_VERSIONS } from '../constants/bibleVersions';
 import { notifyAdminOfNewUser } from './emailService';
@@ -415,11 +416,7 @@ export const getUserId = async () => {
         if (session?.user) {
             const userId = session.user.id;
             cachedUserId = userId; // Update memory cache
-
-            // Clean up guest ID if it exists
-            if (localStorage.getItem('bible_user_id')) {
-                localStorage.removeItem('bible_user_id');
-            }
+            // Guest bible_user_id is cleared only after migrateAnonymousData succeeds (migrationService).
 
             // Per-session initialization for authenticated users
             if (!isSessionInitialized) {
@@ -957,41 +954,13 @@ export const getUserHistory = async (userId) => {
             }
         }
 
-        // 1. Query by all associated IDs
-        const searchReq = supabase
-            .from('search_logs')
-            .select('*')
-            .in('user_id', userIdsToFetch)
-            .order('created_at', { ascending: false })
-            .limit(1000);
-
-        const aiReq = supabase
-            .from('ai_questions')
-            .select('*')
-            .in('user_id', userIdsToFetch)
-            .order('created_at', { ascending: false })
-            .limit(1000);
-
-        const blogReq = supabase
-            .from('blog_views')
-            .select('*')
-            .in('user_id', userIdsToFetch)
-            .order('created_at', { ascending: false })
-            .limit(1000);
-
-        const readingReq = supabase
-            .from('bible_reading_logs')
-            .select('*') // No join here, much safer
-            .in('user_id', userIdsToFetch)
-            .order('created_at', { ascending: false })
-            .limit(1000);
-
-        const activityReq = supabase
-            .from('user_activity_logs')
-            .select('*')
-            .in('user_id', userIdsToFetch)
-            .order('created_at', { ascending: false })
-            .limit(1000);
+        const pageForUsers = (table) => (from, to) =>
+            supabase
+                .from(table)
+                .select('*')
+                .in('user_id', userIdsToFetch)
+                .order('created_at', { ascending: false })
+                .range(from, to);
 
         const sermonCountReq = (async () => {
             // Sermons table user_id is likely UUID, so filter out non-UUIDs to avoid 400 errors
@@ -1013,78 +982,20 @@ export const getUserHistory = async (userId) => {
             .order('answered_at', { ascending: false })
             .limit(100);
 
-        const [searchRes, aiRes, blogRes, readingRes, activityRes, triviaRes, sermonCountRes] = await Promise.all([
-            searchReq, aiReq, blogReq, readingReq, activityReq, triviaReq, sermonCountReq
-        ]);
+        const [searches, aiQuestions, blogViews, bibleReadings, activities, triviaRes, sermonCountRes] =
+            await Promise.all([
+                fetchAllPages(pageForUsers('search_logs')),
+                fetchAllPages(pageForUsers('ai_questions')),
+                fetchAllPages(pageForUsers('blog_views')),
+                fetchAllPages(pageForUsers('bible_reading_logs')),
+                fetchAllPages(pageForUsers('user_activity_logs')),
+                triviaReq,
+                sermonCountReq,
+            ]);
 
-        let searches = searchRes.data || [];
-        let aiQuestions = aiRes.data || [];
-        let blogViews = blogRes.data || [];
-        let bibleReadings = readingRes.data || [];
-        let activities = activityRes.data || [];
-        let sermonCount = sermonCountRes.count || 0;
+        const sermonCount = sermonCountRes.count || 0;
 
-        // 2. Fallback: If no results, try client-side filtering (handles potential column type casting issues)
-        if (searches.length === 0) {
-            console.log(`Direct search_logs query returned 0 for ${cleanUserId}, trying fallback (limit 5000)...`);
-            const { data: allSearches } = await supabase
-                .from('search_logs')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(5000); // Increased to match stats limit
-
-            if (allSearches) {
-                // Manual loose comparison
-                searches = allSearches.filter(s => s.user_id && s.user_id.trim() === cleanUserId).slice(0, 1000);
-                console.log(`Fallback found ${searches.length} searches`);
-            }
-        }
-
-        if (aiQuestions.length === 0) {
-            console.log(`Direct ai_questions query returned 0 for ${cleanUserId}, trying fallback (limit 5000)...`);
-            const { data: allAi } = await supabase
-                .from('ai_questions')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(5000);
-
-            if (allAi) {
-                aiQuestions = allAi.filter(q => q.user_id && q.user_id.trim() === cleanUserId).slice(0, 1000);
-                console.log(`Fallback found ${aiQuestions.length} ai questions`);
-            }
-        }
-
-        if (blogViews.length === 0) {
-            console.log(`Direct blog_views query returned 0 for ${cleanUserId}, trying fallback (limit 5000)...`);
-            const { data: allBlog } = await supabase
-                .from('blog_views')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(5000);
-
-            if (allBlog) {
-                blogViews = allBlog.filter(b => b.user_id && b.user_id.trim() === cleanUserId).slice(0, 1000);
-                console.log(`Fallback found ${blogViews.length} blog views`);
-            }
-        }
-
-        if (bibleReadings.length === 0) {
-            console.log(`Direct bible_reading_logs query returned 0 for ${cleanUserId}, trying fallback (limit 5000)...`);
-            const { data: allReading, error: readingErr } = await supabase
-                .from('bible_reading_logs')
-                .select('*') // No join
-                .order('created_at', { ascending: false })
-                .limit(5000);
-
-            if (readingErr) console.error('Fallback query error:', readingErr);
-
-            if (allReading) {
-                bibleReadings = allReading.filter(b => b.user_id && b.user_id.trim() === cleanUserId).slice(0, 1000);
-                console.log(`Fallback found ${bibleReadings.length} bible readings`);
-            }
-        }
-
-        // 3. Post-process to add book names (since join might fail if SQL hasn't been run perfect)
+        // Post-process to add book names (since join might fail if SQL hasn't been run perfect)
         if (bibleReadings.length > 0) {
             const { data: bookNames } = await supabase.from('books').select('id, name_full');
             if (bookNames) {

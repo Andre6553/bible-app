@@ -7,6 +7,23 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — Reliability: guest sync, deletion, plans, reader
+
+**For users**
+- Signing up or logging in should **keep your guest highlights, notes, and reading plans** until sync finishes; use **Sync Local Data** on Profile if anything is still missing.
+- **Delete Account** now **registers a real deletion request** (removed after 7 days) instead of only logging you out.
+- Clearing **all labels** on a note works; failed saves show an alert.
+- Faster chapter/version changes should show the **correct** chapter text.
+- Reading-plan day marks and day notes are safer when you use **two devices**.
+- Profile notes/highlights and history lists load **past the old 1000-row cap**.
+
+**For maintainers**
+- Migration: `migrationService.js`, no early `bible_user_id` clear in `getUserId`, 15s auth wait.
+- SQL `20261112080000_reliability_rpcs.sql` (RPCs + `account_deletion_requests`); edge `request-account-deletion` / `process-account-deletions` (cron needs `CRON_SECRET`).
+- `fetchAllPages.js`; paginated highlights/notes/history; atomic `increment_ai_usage`.
+
+---
+
 ## 2026-11-11 — Chapter Summary: key people and places
 
 **For users**

@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../config/supabaseClient';
+import { fetchAllPages } from '../utils/fetchAllPages';
 import { getUserId, logActivity } from './bibleService';
 
 // =====================================================
@@ -316,13 +317,14 @@ export const deleteHighlightsByIds = async (ids) => {
 export const getAllHighlights = async () => {
     const userId = await getUserId();
     try {
-        const { data, error } = await supabase
-            .from('verse_highlights')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
+        const data = await fetchAllPages((from, to) =>
+            supabase
+                .from('verse_highlights')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .range(from, to)
+        );
         return { success: true, highlights: data || [] };
     } catch (err) {
         console.error('Error fetching all highlights:', err);
@@ -733,17 +735,18 @@ export const saveNote = async (bookId, chapter, verse, version, noteText, studyI
 
         if (noteError) throw noteError;
 
-        // Update labels if provided
-        if (labelIds.length > 0 && note) {
-            // Remove old labels
-            await supabase.from('note_labels').delete().eq('note_id', note.id);
+        if (note && Array.isArray(labelIds)) {
+            const { error: deleteErr } = await supabase.from('note_labels').delete().eq('note_id', note.id);
+            if (deleteErr) throw deleteErr;
 
-            // Add new labels
-            const labelLinks = labelIds.map(labelId => ({
-                note_id: note.id,
-                label_id: labelId
-            }));
-            await supabase.from('note_labels').insert(labelLinks);
+            if (labelIds.length > 0) {
+                const labelLinks = labelIds.map((labelId) => ({
+                    note_id: note.id,
+                    label_id: labelId,
+                }));
+                const { error: insertErr } = await supabase.from('note_labels').insert(labelLinks);
+                if (insertErr) throw insertErr;
+            }
         }
 
         console.log('✅ Note saved');
@@ -780,21 +783,23 @@ export const getAllNotes = async (explicitUserId = null) => {
     const userId = explicitUserId || await getUserId();
     try {
         console.log('[HighlightService] Executing verse_notes query for:', userId);
-        const { data, error } = await supabase
-            .from('verse_notes')
-            .select(`
+        const data = await fetchAllPages((from, to) =>
+            supabase
+                .from('verse_notes')
+                .select(`
                 *,
                 study_collections (id, name, color),
                 note_labels (
                     user_labels (id, name, color)
                 )
             `)
-            .eq('user_id', userId)
-            .order('updated_at', { ascending: false });
+                .eq('user_id', userId)
+                .order('updated_at', { ascending: false })
+                .range(from, to)
+        );
 
-        console.log('[HighlightService] verse_notes query finished', { success: !error });
+        console.log('[HighlightService] verse_notes query finished', { count: data?.length });
 
-        if (error) throw error;
         return { success: true, notes: data || [] };
     } catch (err) {
         console.error('Error fetching all notes:', err);

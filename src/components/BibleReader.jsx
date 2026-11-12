@@ -73,6 +73,7 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
     const [verses, setVerses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const chapterLoadIdRef = useRef(0);
     const [showBookSelector, setShowBookSelector] = useState(false);
 
     // Settings Scope
@@ -759,31 +760,42 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
 
     const loadChapter = async () => {
         if (!selectedBook || !currentVersion) return;
+
+        const loadId = ++chapterLoadIdRef.current;
+        const bookId = selectedBook.id;
+        const chapter = selectedChapter;
+        const versionId = currentVersion.id;
+        const split = isSplitView;
+        const secondaryId = secondVersion?.id;
+
         setLoading(true);
-        // Clear verses prevents potential race conditions with auto-scroll looking at old verses
         setVerses([]);
 
         try {
-            console.log(`[Reader] Loading chapter: ${selectedBook.id} ch.${selectedChapter} (${currentVersion.id}) split=${isSplitView}`);
-            // Load main version
-            const result = await getChapter(selectedBook.id, selectedChapter, currentVersion.id);
+            console.log(`[Reader] Loading chapter: ${bookId} ch.${chapter} (${versionId}) split=${split}`);
+            const result = await getChapter(bookId, chapter, versionId);
+            if (loadId !== chapterLoadIdRef.current) return;
             if (result.success) {
                 setVerses(result.data || []);
             }
 
-            // Load second version if in split view
-            if (isSplitView && secondVersion) {
-                console.log(`[Reader] Loading secondary: ${secondVersion.id}`);
-                const result2 = await getChapter(selectedBook.id, selectedChapter, secondVersion.id);
+            if (split && secondaryId) {
+                const result2 = await getChapter(bookId, chapter, secondaryId);
+                if (loadId !== chapterLoadIdRef.current) return;
                 if (result2.success) {
                     setSecondVerses(result2.data || []);
                 }
+            } else if (!split) {
+                setSecondVerses([]);
             }
         } catch (err) {
-            console.error("Error loading chapter:", err);
-            setError("Failed to load verses.");
+            if (loadId !== chapterLoadIdRef.current) return;
+            console.error('Error loading chapter:', err);
+            setError('Failed to load verses.');
         } finally {
-            setLoading(false);
+            if (loadId === chapterLoadIdRef.current) {
+                setLoading(false);
+            }
         }
     };
 
@@ -980,7 +992,19 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         if (selectedVerses.length === 0 || !selectedBook || !currentVersion) return;
 
         const primaryVerse = selectedVerses[0].verse;
-        await saveNote(selectedBook.id, selectedChapter, primaryVerse, currentVersion.id, noteText, studyId, labelIds);
+        const result = await saveNote(
+            selectedBook.id,
+            selectedChapter,
+            primaryVerse,
+            currentVersion.id,
+            noteText,
+            studyId,
+            labelIds
+        );
+        if (!result.success) {
+            alert(result.error || 'Could not save note. Please try again.');
+            return;
+        }
         logActivity('note_created');
         setShowNoteModal(false);
         setSelectedVerses([]);
