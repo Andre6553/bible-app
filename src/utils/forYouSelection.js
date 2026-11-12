@@ -114,14 +114,42 @@ export function planForYou({ userId, language, day, preferences, interests, hist
     });
 }
 
+export function parseForYouJson(raw) {
+    const stripped = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const candidates = [stripped];
+    const start = stripped.indexOf('{');
+    const end = stripped.lastIndexOf('}');
+    if (start >= 0 && end > start) candidates.push(stripped.slice(start, end + 1));
+    let lastError;
+    for (const candidate of candidates) {
+        try {
+            return JSON.parse(candidate);
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    if (lastError instanceof SyntaxError) throw lastError;
+    throw new SyntaxError(lastError?.message || 'invalid_json');
+}
+
+function normalizeParagraphs(paragraphs) {
+    if (!Array.isArray(paragraphs)) return paragraphs;
+    let list = paragraphs.filter(p => typeof p === 'string').map(p => p.trim()).filter(Boolean);
+    if (list.length === 1) {
+        const split = list[0].split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
+        if (split.length >= 2) list = split;
+    }
+    return list;
+}
+
 export function validateGeneratedPiece(raw) {
-    const text = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    const data = JSON.parse(text);
+    const data = parseForYouJson(raw);
     if (typeof data.title !== 'string' || !data.title.trim() || data.title.length > 150) throw new Error('invalid_title');
     if (typeof data.summary !== 'string' || data.summary.length > 500) throw new Error('invalid_summary');
-    if (!Array.isArray(data.paragraphs) || data.paragraphs.length < 2 || data.paragraphs.length > 9
-        || data.paragraphs.some(p => typeof p !== 'string' || !p.trim() || p.length > 4000)) throw new Error('invalid_paragraphs');
-    if (data.paragraphs.join(' ').split(/\s+/).length < 70 || data.paragraphs.join(' ').length > 12000) throw new Error('invalid_length');
+    const paragraphs = normalizeParagraphs(data.paragraphs);
+    if (!paragraphs || paragraphs.length < 2 || paragraphs.length > 9
+        || paragraphs.some(p => typeof p !== 'string' || !p.trim() || p.length > 4000)) throw new Error('invalid_paragraphs');
+    if (paragraphs.join(' ').split(/\s+/).length < 70 || paragraphs.join(' ').length > 12000) throw new Error('invalid_length');
     if (data.closing != null && (typeof data.closing !== 'string' || data.closing.length > 1500)) throw new Error('invalid_closing');
-    return { title: data.title.trim(), summary: data.summary.trim(), paragraphs: data.paragraphs.map(p => p.trim()), closing: data.closing?.trim() || '' };
+    return { title: data.title.trim(), summary: data.summary.trim(), paragraphs, closing: data.closing?.trim() || '' };
 }

@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — For You: fewer “section failed” errors from AI JSON
+
+**For users**
+- **For You** should load more reliably when Groq returns structured content; broken or single-block replies are retried and repaired instead of failing the whole card.
+
+**For maintainers**
+- `generateForYouAiText` uses Groq `response_format: json_object` (Gemini `application/json` on fallback). `parseForYouJson` + paragraph split in `forYouSelection.js`; up to 3 repair attempts in `forYouService.js`.
+
+---
+
 ## 2026-11-12 — For You reflection load error
 
 **For users**

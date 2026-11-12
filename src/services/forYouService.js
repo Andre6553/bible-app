@@ -1,7 +1,7 @@
 import { supabase } from '../config/supabaseClient';
 import { getBooks } from './bibleService';
 import { getActivePlan } from './readingPlanService';
-import { generateBlogAiText, getAiModelLabel, isRateLimitEnabled } from './blogService';
+import { generateForYouAiText, getAiModelLabel, isRateLimitEnabled } from './blogService';
 import { logApiCall } from './adminService';
 import { resolveDbBook, getCanonicalBookMeta } from '../constants/canonicalBooks';
 import { FOR_YOU_FORMATS, FOR_YOU_VERSION } from '../config/forYouFormats';
@@ -205,12 +205,15 @@ async function generatePiece(ctx, spec, force) {
         // No new shared quota rule is introduced; For You retains its existing cooldown policy.
         const prompt = buildForYouPrompt(spec, passage, ctx.history);
         let generated;
-        for (let attempt = 0; attempt < 2; attempt++) {
+        for (let attempt = 0; attempt < 3; attempt++) {
             let timeout;
             try {
+                const repairNote = attempt
+                    ? '\nYour last answer was not valid JSON. Return ONLY one JSON object: {"title":"...","summary":"...","paragraphs":["...","..."],"closing":"..."}. Use double quotes. Escape quotes inside strings. At least two paragraphs, 70+ words total. Plain text only.'
+                    : '';
                 const raw = await Promise.race([
-                    generateBlogAiText(prompt + (attempt ? '\nThe previous response failed validation. Follow the plain-text JSON contract exactly; do not add any verse citations.' : '')),
-                    new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('generation_timeout')), 60000); }),
+                    generateForYouAiText(prompt + repairNote),
+                    new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('generation_timeout')), 90000); }),
                 ]);
                 void logApiCall('generateForYou', 'success', getAiModelLabel(), { format: spec.format_id, language: ctx.language });
                 generated = validateGeneratedPiece(raw);
@@ -218,9 +221,10 @@ async function generatePiece(ctx, spec, force) {
                 if (ctx.history.slice(0, 5).some(item => item.paragraphs?.[0]?.toLowerCase().startsWith(opening))) throw new Error('repeated_opening');
                 break;
             } catch (error) {
-                // Repair malformed/repeated content once. Provider/network timeouts do not start a second paid request.
-                const repairable = error instanceof SyntaxError || /^(invalid_|unverified_|repeated_)/.test(error.message);
-                if (attempt || !repairable) throw error;
+                const repairable = error instanceof SyntaxError
+                    || /JSON/i.test(error.message)
+                    || /^(invalid_|unverified_|repeated_)/.test(error.message);
+                if (attempt >= 2 || !repairable) throw error;
             } finally { clearTimeout(timeout); }
         }
         const content = { ...generated, ...spec, passage: { ...passage, context: undefined }, generated_at: new Date().toISOString() };

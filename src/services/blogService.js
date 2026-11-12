@@ -82,6 +82,55 @@ export const generateBlogAiText = async (prompt) => {
     return response.text();
 };
 
+/** For You structured pieces — JSON mode when the provider supports it. */
+export const generateForYouAiText = async (prompt) => {
+    if (AI_PROVIDER === 'groq') {
+        if (!GROQ_API_KEY) throw new Error('Groq API key is missing. Set VITE_GROQ_API_KEY in .env');
+        const response = await fetch(GROQ_CHAT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${GROQ_API_KEY}`,
+            },
+            body: JSON.stringify(buildGroqChatBody(prompt, {
+                temperature: 0.35,
+                max_completion_tokens: 4096,
+                response_format: { type: 'json_object' },
+            })),
+        });
+        if (!response.ok) {
+            const errText = await response.text();
+            if (shouldFallbackFromGroq(response.status) && geminiModel) {
+                const result = await geminiModel.generateContent({
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: 'application/json', temperature: 0.35 },
+                });
+                return (await result.response).text();
+            }
+            throw new Error(`Groq API error (${response.status}): ${errText}`);
+        }
+        const data = await response.json();
+        const { content, finishReason } = extractGroqMessageContent(data);
+        if (!content) {
+            if (geminiModel) {
+                const result = await geminiModel.generateContent({
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: 'application/json', temperature: 0.35 },
+                });
+                return (await result.response).text();
+            }
+            throw new Error(`Groq API returned empty content (finish_reason=${finishReason ?? 'unknown'})`);
+        }
+        return content;
+    }
+    if (!geminiModel) throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY in .env');
+    const result = await geminiModel.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.35 },
+    });
+    return (await result.response).text();
+};
+
 /**
  * Blog Service - Handles personalized content and AI devotionals
  */
