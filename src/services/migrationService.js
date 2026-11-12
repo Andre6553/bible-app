@@ -5,7 +5,6 @@ import {
     TABLES_TO_MIGRATE,
     isGuestUserId,
     summarizeInspection,
-    shouldRetireGuestId,
 } from '../utils/migrationHelpers';
 
 export { TABLES_TO_MIGRATE, MIGRATION_STATE_KEY };
@@ -29,13 +28,15 @@ export function clearMigrationState() {
     localStorage.removeItem(MIGRATION_STATE_KEY);
 }
 
-export function clearGuestIdAfterSuccess() {
+export function clearGuestIdAfterSuccess(expectedGuestId) {
+    if (localStorage.getItem(GUEST_ID_KEY) !== expectedGuestId) return false;
     localStorage.removeItem(GUEST_ID_KEY);
     const state = getMigrationState();
     if (state) {
         state.completedAt = new Date().toISOString();
         saveMigrationState(state);
     }
+    return true;
 }
 
 function recordInspection(guestId, authUserId, inspection) {
@@ -68,7 +69,11 @@ export const inspectGuestMigration = async (oldUserId) => {
         const tables = Object.fromEntries(
             TABLES_TO_MIGRATE.map((t) => [t, { status: 'failed', error: error.message }])
         );
-        return { needed: false, uncertain: true, confirmedEmpty: false, tables, error: error.message };
+        return {
+            needed: false, uncertain: true, confirmedEmpty: false, tables,
+            requiresVerification: error.message?.includes('guest_ownership_verification_required') || false,
+            error: error.message,
+        };
     }
 
     const tables = data || {};
@@ -98,6 +103,10 @@ async function runMigration(newUserId) {
         console.warn('[Migration] Refusing non-guest id');
         return { success: false, message: 'invalid_guest_id', results: [] };
     }
+    const { data: sessionData, error: sessionError } = await supabase.auth.getUser();
+    if (sessionError || sessionData?.user?.id !== newUserId) {
+        return { success: false, message: 'migration_account_changed', results: [] };
+    }
 
     const inspection = await inspectGuestMigration(oldUserId);
     recordInspection(oldUserId, newUserId, inspection);
@@ -106,6 +115,7 @@ async function runMigration(newUserId) {
         return {
             success: false,
             uncertain: true,
+            requiresVerification: inspection.requiresVerification,
             message: 'Could not confirm guest data. Guest id kept for retry.',
             results: Object.entries(inspection.tables).map(([table, info]) => ({
                 table,
@@ -117,7 +127,9 @@ async function runMigration(newUserId) {
     }
 
     if (inspection.confirmedEmpty) {
-        clearGuestIdAfterSuccess();
+        if (!clearGuestIdAfterSuccess(oldUserId)) {
+            return { success: false, message: 'guest_identity_changed', results: [] };
+        }
         clearMigrationState();
         return { success: true, message: 'No data to migrate', results: [] };
     }
@@ -149,7 +161,9 @@ async function runMigration(newUserId) {
     const verifyFailed = verify.uncertain;
 
     if (allGone && !verifyFailed) {
-        clearGuestIdAfterSuccess();
+        if (!clearGuestIdAfterSuccess(oldUserId)) {
+            return { success: false, message: 'guest_identity_changed', results: [] };
+        }
         return { success: true, results: [{ table: 'all', success: true }], data, guestId: oldUserId };
     }
 
@@ -172,10 +186,14 @@ async function runMigration(newUserId) {
  */
 export const migrateAnonymousData = async (newUserId) => {
     if (migrationInFlight) {
-        return migrationInFlight;
+        if (migrationInFlight.userId !== newUserId) {
+            return { success: false, message: 'migration_account_changed', results: [] };
+        }
+        return migrationInFlight.promise;
     }
-    migrationInFlight = runMigration(newUserId).finally(() => {
+    const promise = runMigration(newUserId).finally(() => {
         migrationInFlight = null;
     });
-    return migrationInFlight;
+    migrationInFlight = { userId: newUserId, promise };
+    return promise;
 };

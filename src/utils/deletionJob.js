@@ -1,7 +1,6 @@
 export const DELETION_LEASE_MS = 15 * 60 * 1000;
 
 export const USER_DATA_TABLES = [
-    'note_labels',
     'verse_notes',
     'verse_highlights',
     'study_collections',
@@ -21,8 +20,11 @@ export const USER_DATA_TABLES = [
     'bible_reading_logs',
     'blog_views',
     'user_trivia_history',
+    'user_trivia_daily',
     'api_usage_logs',
     'payment_orders',
+    'guest_migration_conflicts',
+    'legacy_guest_migration_claims',
     'user_profiles',
 ];
 
@@ -30,9 +32,8 @@ export function isAuthUserAlreadyGone(error) {
     const msg = String(error?.message || error || '').toLowerCase();
     const status = error?.status || error?.code;
     return (
-        status === 404 ||
-        msg.includes('user not found') ||
-        msg.includes('not found') ||
+        status === 'user_not_found' ||
+        /^user not found\.?$/.test(msg.trim()) ||
         msg.includes('already been deleted')
     );
 }

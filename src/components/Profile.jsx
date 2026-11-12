@@ -143,6 +143,11 @@ function Profile() {
                 alert('Success! Your highlights and notes have been synced to your account.');
                 setShowSyncBtn(false);
                 loadData();
+            } else if (result.requiresVerification) {
+                alert(settings.language === 'af'
+                    ? 'Jou ou gasdata is behou. Kontak ondersteuning om dit veilig aan jou rekening te koppel.'
+                    : 'Your previous guest data has been kept. Contact support to link it safely to your account.');
+                setShowSyncBtn(true);
             } else if (result.uncertain) {
                 alert(
                     'Could not confirm guest data (a table check failed). Your guest id was kept — try Sync again.'

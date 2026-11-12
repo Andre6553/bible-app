@@ -34,9 +34,9 @@ export function classifyTableCheck({ error, count }) {
 
 export function summarizeInspection(tableResults) {
     const tables = tableResults || {};
-    const values = Object.values(tables);
+    const values = TABLES_TO_MIGRATE.map((table) => tables[table] || { status: 'failed' });
     const needed = values.some((t) => t.status === 'found');
-    const uncertain = values.some((t) => t.status === 'failed') || values.length === 0;
+    const uncertain = values.some((t) => !['found', 'empty'].includes(t.status));
     const confirmedEmpty = values.length > 0 && values.every((t) => t.status === 'empty');
     return { needed, uncertain, confirmedEmpty };
 }

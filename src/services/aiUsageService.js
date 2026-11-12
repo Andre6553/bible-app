@@ -27,16 +27,8 @@ export async function reserveAiUsage() {
         return true;
     }
 
-    const { data: profile, error } = await supabase
-        .from('user_profiles')
-        .select('subscription_tier, subscription_override, subscription_expiry, ai_usage_count')
-        .eq('user_id', userId)
-        .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
-
-    const limit = resolveAiUsageLimit(profile, { freeMode, userId, isGuest: false });
-    const { error: resErr } = await supabase.rpc('reserve_ai_usage', { p_limit: limit });
+    // The database derives the account limit; callers cannot choose a larger cap.
+    const { error: resErr } = await supabase.rpc('reserve_ai_usage', {});
     if (resErr) {
         const msg = resErr.message || '';
         if (msg.includes('AI_LIMIT_EXCEEDED')) {
