@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — For You reflection load error
+
+**For users**
+- Today’s reflection should load instead of “Could not load this section” when the writing mentions a verse number.
+
+**For maintainers**
+- Do not fail a slot on `11:1`-style mentions in commentary. Match claim `day` on YYYY-MM-DD. Unknown timezones fall back to Africa/Johannesburg. SQL: `20261112170000_for_you_timezone_fallback.sql`.
+
+---
+
 ## 2026-11-12 - For You: varied reading and personal choices (pending deployment)
 
 **For users**

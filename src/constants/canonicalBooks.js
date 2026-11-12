@@ -99,7 +99,7 @@ export function resolveDbBook(books, canonicalBookId) {
         if (byName) return byName;
     }
 
-    return byId || null;
+    return null;
 }
 
 export function resolveDbBookId(books, canonicalBookId) {

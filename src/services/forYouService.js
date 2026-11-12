@@ -9,7 +9,11 @@ import { topicLabel } from '../config/forYouTopics';
 import { localDay, preferenceStates, rankInterests, planForYou, stableHash, validateGeneratedPiece, matchTopics } from '../utils/forYouSelection';
 
 const pending = new Map();
-const timezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Johannesburg';
+const timezone = () => {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return zone && zone.includes('/') ? zone : 'Africa/Johannesburg';
+};
+const sameDay = (left, right) => String(left || '').slice(0, 10) === String(right || '').slice(0, 10);
 const guest = id => id.startsWith('user_');
 const key = (id, name) => `omni_for_you_v2:${id}:${name}`;
 function readLocal(id, name, fallback) {
@@ -191,7 +195,7 @@ async function generatePiece(ctx, spec, force) {
                 const existing = payloadOf(claim.content);
                 return { content: existing && states[existing.topic_id] !== 'exclude' ? existing : cached || null, status: claim.status, availableAt: claim.available_at };
             }
-            if (claim.day !== ctx.day) {
+            if (!sameDay(claim.day, ctx.day)) {
                 await rpc('for_you_release_content', { p_token: claim.token });
                 throw new Error('day_changed_reload');
             }
@@ -210,8 +214,6 @@ async function generatePiece(ctx, spec, force) {
                 ]);
                 void logApiCall('generateForYou', 'success', getAiModelLabel(), { format: spec.format_id, language: ctx.language });
                 generated = validateGeneratedPiece(raw);
-                const prose = [...generated.paragraphs, generated.closing].join(' ');
-                if (/\b\d{1,3}:\d{1,3}\b/.test(prose)) throw new Error('unverified_additional_reference');
                 const opening = generated.paragraphs[0].toLowerCase().split(/\s+/).slice(0, 10).join(' ');
                 if (ctx.history.slice(0, 5).some(item => item.paragraphs?.[0]?.toLowerCase().startsWith(opening))) throw new Error('repeated_opening');
                 break;
@@ -237,6 +239,7 @@ async function generatePiece(ctx, spec, force) {
         try { writeLocal(ctx.userId, localName, { fingerprint, content: saved }); } catch { /* read from cloud next time */ }
         return { content: saved, status: 'generated' };
     } catch (error) {
+        console.warn('[For You] section failed:', error.message);
         return { content: cached || null, status: 'error', error: error.message };
     } finally {
         if (token) await rpc('for_you_release_content', { p_token: token }).catch(() => {});

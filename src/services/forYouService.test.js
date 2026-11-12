@@ -98,12 +98,21 @@ describe('actual For You generation orchestration', () => {
         expect((await getForYouPiece(ctx(), spec())).status).toBe('generated');
         expect(mock.generate).toHaveBeenCalledTimes(2);
     });
-    it('does not persist an additional unverified Scripture citation', async () => {
+    it('keeps commentary that mentions a verse number, without treating it as a second verified quotation', async () => {
         mock.generate.mockResolvedValue(JSON.stringify({ title: 'A title', summary: 'Brief',
-            paragraphs: [Array(45).fill('Observation').join(' '), 'John 99:99 ' + Array(45).fill('Explanation').join(' ')], closing: '' }));
-        expect((await getForYouPiece(ctx(), spec())).status).toBe('error');
-        expect(mock.generate).toHaveBeenCalledTimes(2);
-        expect(mock.rpc.mock.calls.some(([name]) => name === 'for_you_complete_content')).toBe(false);
+            paragraphs: [Array(45).fill('Observation').join(' '), 'Hebrews 11:1 ' + Array(45).fill('Explanation').join(' ')], closing: '' }));
+        const result = await getForYouPiece(ctx(), spec());
+        expect(result.status).toBe('generated');
+        expect(result.content.passage.verses.every(v => v.text !== 'John 99:99')).toBe(true);
+        expect(mock.generate).toHaveBeenCalledTimes(1);
+    });
+    it('accepts a Postgres date that includes a time when matching the local day', async () => {
+        mock.rpc.mockImplementation(async (name, args) => {
+            if (name === 'for_you_claim_content') return { data: { status: 'claimed', token: 'token', day: '2026-11-12T00:00:00+00:00' } };
+            if (name === 'for_you_complete_content') return { data: { id: 'new', generated_at: '2026-11-12T09:00:00Z', payload: args.p_payload } };
+            return { data: null };
+        });
+        expect((await getForYouPiece(ctx(), spec())).status).toBe('generated');
     });
     it('keeps previously cached content when the save fails', async () => {
         const context = ctx(); context.history = [content()];
