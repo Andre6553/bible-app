@@ -794,6 +794,27 @@ export const isSuperUser = async (userId) => {
     return false;
 };
 
+/** For You manual refresh cap — testers/admins only; not free_mode or paid tier. */
+export const isForYouForceExempt = async (userId) => {
+    if (!userId) return false;
+    const superUsers = await getSuperUsers();
+    if (superUsers.includes(userId)) return true;
+    try {
+        const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('email, subscription_override, subscription_tier')
+            .eq('user_id', userId)
+            .single();
+        if (!profile) return false;
+        if (profile.email && superUsers.includes(profile.email)) return true;
+        const override = (profile.subscription_override || '').trim().toLowerCase();
+        const tier = (profile.subscription_tier || '').trim().toLowerCase();
+        return override === 'admin' || override === 'tester' || tier === 'admin';
+    } catch {
+        return false;
+    }
+};
+
 /**
  * Get cache expiry time based on rate limit setting
  * Rate limit OFF: 1 hour

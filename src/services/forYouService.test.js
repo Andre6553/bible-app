@@ -3,7 +3,11 @@ const mock = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn(), getUser: vi.fn(), 
 vi.mock('../config/supabaseClient', () => ({ supabase: { rpc: mock.rpc, from: mock.from, auth: { getUser: mock.getUser } } }));
 vi.mock('./bibleService', () => ({ getBooks: vi.fn() }));
 vi.mock('./readingPlanService', () => ({ getActivePlan: vi.fn() }));
-vi.mock('./blogService', () => ({ generateForYouAiText: mock.generate, getAiModelLabel: () => 'fixture-model', isSuperUser: vi.fn().mockResolvedValue(false) }));
+vi.mock('./blogService', () => ({
+    generateForYouAiText: mock.generate,
+    getAiModelLabel: () => 'fixture-model',
+    isForYouForceExempt: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('./adminService', () => ({ logApiCall: vi.fn() }));
 import { getForYouPiece, buildForYouPrompt, patchForYouInterest } from './forYouService';
 

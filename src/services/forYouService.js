@@ -1,7 +1,7 @@
 import { supabase } from '../config/supabaseClient';
 import { getBooks } from './bibleService';
 import { getActivePlan } from './readingPlanService';
-import { generateForYouAiText, getAiModelLabel, isSuperUser } from './blogService';
+import { generateForYouAiText, getAiModelLabel, isForYouForceExempt } from './blogService';
 import { logApiCall } from './adminService';
 import { resolveDbBook, getCanonicalBookMeta } from '../constants/canonicalBooks';
 import { SUPPORTED_VERSIONS } from '../constants/bibleVersions';
@@ -64,7 +64,7 @@ export async function getForYouContext(userId, language, now = new Date()) {
         const feedbackTask = guest(userId) ? Promise.resolve(readLocal(userId, 'feedback', {}))
             : supabase.from('for_you_feedback').select('*').eq('user_id', userId).order('updated_at', { ascending: false }).limit(300)
                 .then(r => { if (r.error) throw new Error(r.error.message); return Object.fromEntries(r.data.map(f => [f.content_id, f])); });
-        const unlimitedRefreshTask = guest(userId) ? Promise.resolve(false) : isSuperUser(userId);
+        const unlimitedRefreshTask = guest(userId) ? Promise.resolve(false) : isForYouForceExempt(userId);
         const [prefs, events, history, feedback, books, activePlan, unlimitedRefresh] = await Promise.all([
             prefsTask, eventsTask, contentTask, feedbackTask, getBooks(),
             guest(userId) ? Promise.resolve({ data: null }) : getActivePlan().catch(() => ({ data: null })),

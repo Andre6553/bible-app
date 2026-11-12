@@ -7,6 +7,29 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — super_users: disable auto-promote + reset allowlist
+
+**For users**
+- **`super_users_auto` off** — new sign-ins/guests are **not** added to the super list anymore (this is why `andrebitcoin6553@gmail.com` could spam For You refreshes).
+- **`super_users` reset** to the **7 family emails** only (no thousands of guest UUIDs). Accounts like **andrebitcoin** and **omnibible** are **normal users** for For You refresh unless you add their email in Stats again.
+
+**For maintainers**
+- SQL: `20261112194500_super_users_disable_auto_reset_allowlist.sql`.
+
+---
+
+## 2026-11-12 — For You refresh cap + Gemini fallback
+
+**For users**
+- **One manual refresh per section per day** for normal accounts. **`free_mode` and paid tier no longer skip this** (premium AI elsewhere unchanged).
+- **Unlimited For You refreshes:** only `super_users` list + admin/tester (e.g. andre.ecprint@gmail.com). **omnibible@gmail.com** is on the super_users list by UUID — remove there to test as a normal user.
+- Default Gemini fallback model updated from retired `gemini-2.0-flash` → `gemini-2.5-flash` (override with `VITE_GEMINI_MODEL`).
+
+**For maintainers**
+- SQL: `20261112193000_for_you_force_limit_no_premium_bypass.sql`. Client: `isForYouForceExempt` (not `isSuperUser` + free_mode).
+
+---
+
 ## 2026-11-12 — For You: fix “Could not load” from duplicate verses
 
 **For users**
