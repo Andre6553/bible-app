@@ -22,7 +22,7 @@ export const TABLES_TO_MIGRATE = [
 
 /** Guest ids are created as user_<rand><time>, never an auth UUID. */
 export function isGuestUserId(id) {
-    return typeof id === 'string' && /^user_[a-z0-9]+$/i.test(id);
+    return typeof id === 'string' && /^user_[a-z0-9_]+$/i.test(id);
 }
 
 export function classifyTableCheck({ error, count }) {

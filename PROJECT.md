@@ -52,6 +52,7 @@ npm run preview
 
 - **2026-11-12 corrections:** Migration `20261112100000_reliability_corrections.sql` **applied live** (apply script preflight + `exec_sql`). Requires verified `legacy_guest_migration_claims` before guest inspect/migrate. Conflict snapshots + study-link remap. Signed-in AI limits from DB. Deletion worker SQL RPCs live; **edge functions still not deployed**. Handoff: `docs/CURSOR_HANDOFF_2026-11-12_RELIABILITY_CORRECTIONS.md`.
 
+- **2026-11-12:** Inspect/migrate use `user_id::text` so UUID tables (sermons) do not block Sync (`20261112150000_inspect_userid_text.sql`).
 - **2026-11-12:** Andre: users only log in — leftover guest data on that browser auto-migrates. Claim gate removed (`20261112140000_auto_migrate_on_login.sql`). No support/admin step for guests.
 - **2026-11-12:** `inspect_guest_migration` live (`20261112120000_inspect_guest_no_raise.sql`): unverified leftover `bible_user_id` returns `{ verification_required: true }` (HTTP 200) instead of 400. `migrate_guest_data` still requires a claim. Client ships with this commit.
 - **2026-11-12:** Reliability follow-up SQL live (`20261112090000_reliability_followup.sql`). Deletion edge functions still need Dashboard deploy + cron. Browser AI keys/quotas remain untrusted until a server proxy (separate P1).

@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — Sync Local Data no longer stuck on one table
+
+**For users**
+- Tapping **Sync Local Data** should finish instead of saying a table check failed.
+
+**For maintainers**
+- Inspect/migrate compare `user_id::text` so UUID columns (sermons) do not mark the inspect as failed. SQL: `20261112150000_inspect_userid_text.sql`.
+
+---
+
 ## 2026-11-12 — Login attaches leftover guest data
 
 **For users**

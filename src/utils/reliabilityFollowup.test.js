@@ -18,6 +18,7 @@ import { fetchAllPages } from './fetchAllPages';
 describe('guest migration helpers', () => {
     it('accepts only user_ guest ids, not auth UUIDs', () => {
         expect(isGuestUserId('user_abc123xyz')).toBe(true);
+        expect(isGuestUserId('user_fvxru9myd_1765726153295')).toBe(true);
         expect(isGuestUserId('fikjnvkz-aaaa-bbbb-cccc-ddddeeeeffff')).toBe(false);
         expect(isGuestUserId('')).toBe(false);
     });
