@@ -37,6 +37,7 @@ import { resolveDbBookId } from '../constants/canonicalBooks';
 import './BibleReader.css';
 import './ReadingPlans.css';
 import { resetAppCache } from '../utils/appUtils';
+import { applyChapterLoadResult } from '../utils/chapterLoadGuard';
 
 const THEME_COLORS = [
     '#6366f1', '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
@@ -774,20 +775,21 @@ function BibleReader({ currentVersion, setCurrentVersion, versions }) {
         try {
             console.log(`[Reader] Loading chapter: ${bookId} ch.${chapter} (${versionId}) split=${split}`);
             const result = await getChapter(bookId, chapter, versionId);
-            if (loadId !== chapterLoadIdRef.current) return;
-            if (result.success) {
-                setVerses(result.data || []);
-            }
-
+            let second = [];
             if (split && secondaryId) {
                 const result2 = await getChapter(bookId, chapter, secondaryId);
-                if (loadId !== chapterLoadIdRef.current) return;
-                if (result2.success) {
-                    setSecondVerses(result2.data || []);
-                }
-            } else if (!split) {
-                setSecondVerses([]);
+                second = result2.success ? result2.data || [] : [];
             }
+            const applied = applyChapterLoadResult({
+                loadId,
+                currentLoadId: chapterLoadIdRef.current,
+                main: result.success ? result.data || [] : [],
+                secondary: second,
+                split: Boolean(split && secondaryId),
+            });
+            if (!applied.apply) return;
+            setVerses(applied.verses);
+            setSecondVerses(applied.secondVerses);
         } catch (err) {
             if (loadId !== chapterLoadIdRef.current) return;
             console.error('Error loading chapter:', err);

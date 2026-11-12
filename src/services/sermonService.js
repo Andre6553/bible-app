@@ -19,8 +19,8 @@ import {
     extractGroqMessageContent,
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
-import { isPremiumProfile } from '../utils/subscription';
 import { ensureFreeModeLoaded } from './appSettingsService';
+import { reserveAiUsage } from './aiUsageService';
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: GEMINI_MODEL }) : null;
@@ -291,68 +291,14 @@ const checkAndIncrementAiUsage = async () => {
     const userId = await getUserId();
     if (!userId) throw new Error('User not logged in');
 
-    // 1. Fetch Profile
-    const { data: profile, error } = await supabase
+    const { data: profile } = await supabase
         .from('user_profiles')
-        .select('*')
+        .select('subscription_override, last_renewal_month')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
+    await checkTesterRenewal(userId, profile);
 
-    // If profile doesn't exist (e.g. Guest user), use fallback logic
-    if (error && error.code === 'PGRST116') {
-        // For guests, we count their logs instead of using a column
-        const { count } = await supabase
-            .from('api_usage_logs')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId);
-
-        const guestUsage = count || 0;
-        if (guestUsage >= 10) { // Specific limit for guests
-            throw new Error('AI_LIMIT_EXCEEDED');
-        }
-        return true;
-    }
-
-    if (error) throw error;
-
-    // Check for tester renewal (DB based)
-    const resetHappened = await checkTesterRenewal(userId, profile);
-
-    const tier = profile?.subscription_tier || 'free';
-    // If reset happened, usage is effectively 0 locally for the check (though DB is 0 already)
-    // But since we selected *before* the reset, 'profile.ai_usage_count' is OLD.
-    const currentUsage = resetHappened ? 0 : (profile?.ai_usage_count || 0);
-
-    const override = profile?.subscription_override;
-    const freeMode = await ensureFreeModeLoaded();
-    const isPremium = isPremiumProfile(profile, { freeMode, user: { id: userId } });
-
-    // 2. Enforce Limit
-    let limit = 50;
-    if (isPremium) limit = 999999; // Premium/Admin/Tester/Valid Subscription
-    if (override === 'tester') limit = 500; // Specific tester limit if needed, but isPremium covers it. keeping logic simple.
-
-    // Refined Logic:
-    // If Admin -> Unlimited (covered by isPremium)
-    // If Tester -> 500 (covered by isPremium setting high, or specific check)
-    // If Premium Sub -> Unlimited
-    // If Free/Expired -> 50
-
-    if (override === 'tester') limit = 500; // Explicit tester limit constraint
-    if (!isPremium && override !== 'admin') {
-        if (currentUsage >= limit) {
-            throw new Error('AI_LIMIT_EXCEEDED');
-        }
-    }
-
-    // 3. Increment Count (atomic in DB)
-    const { error: incErr } = await supabase.rpc('increment_ai_usage', { p_user_id: userId });
-    if (incErr) {
-        console.error('[AI Usage] increment failed:', incErr.message);
-        throw incErr;
-    }
-
-    return true;
+    return reserveAiUsage();
 };
 
 export const incrementSermonAuditCount = async () => {

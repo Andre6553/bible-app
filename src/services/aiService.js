@@ -14,8 +14,7 @@ import {
     extractGroqMessageContent,
     shouldFallbackFromGroq,
 } from '../config/aiConfig';
-import { isPremiumProfile } from '../utils/subscription';
-import { ensureFreeModeLoaded } from './appSettingsService';
+import { reserveAiUsage, getRemainingAiUsage } from './aiUsageService';
 
 // Initialize Gemini only when configured
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -295,43 +294,27 @@ export async function getCurrentQuota() {
  */
 export async function getUserRemainingQuota(userId) {
     try {
-        const today = new Date().toISOString().split('T')[0];
-
-        // 1. Check Subscription Status FIRST
-        const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('subscription_tier, subscription_override, subscription_expiry')
-            .eq('user_id', userId)
-            .single();
-
-        const freeMode = await ensureFreeModeLoaded();
-        const isPremium = isPremiumProfile(profile, { freeMode, user: { id: userId } });
-
-        // If Premium/Subscriber -> UNLIMITED QUOTA
-        if (isPremium) {
-            return { remaining: 999999, used: 0, quota: 999999, isPremium: true };
-        }
-
-        // 2. Normal Quota Logic for Free Users
-        const currentQuota = await getCurrentQuota();
-
-        // Count questions asked today
-        const { count, error } = await supabase
-            .from('ai_questions')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .gte('created_at', today);
-
-        if (error) throw error;
-
-        const used = count || 0;
-        const remaining = Math.max(0, currentQuota - used);
-
-        return { remaining, used, quota: currentQuota, isPremium: false };
-
+        return await getRemainingAiUsage(userId);
     } catch (error) {
         console.error('Check quota error:', error);
         return { remaining: 0, used: 0, quota: 10 };
+    }
+}
+
+async function consumeAiQuota() {
+    try {
+        await reserveAiUsage();
+        return { ok: true };
+    } catch (error) {
+        if (String(error.message || '').includes('AI_LIMIT_EXCEEDED')) {
+            return {
+                ok: false,
+                success: false,
+                error: 'Daily quota exceeded. Try again tomorrow!',
+                quotaExceeded: true,
+            };
+        }
+        throw error;
     }
 }
 
@@ -428,16 +411,6 @@ export async function saveCachedAnswer(question, answer) {
  */
 export async function askBibleQuestion(userId, question, verses = [], language = 'en', conversationHistory = []) {
     try {
-        // 1. Check quota
-        const { remaining } = await getUserRemainingQuota(userId);
-        if (remaining <= 0) {
-            return {
-                success: false,
-                error: 'Daily quota exceeded. Try again tomorrow!',
-                quotaExceeded: true
-            };
-        }
-
         const isFollowUp = Array.isArray(conversationHistory) && conversationHistory.length > 0;
 
         // 2. Check cache first - skipped for follow-ups since answers are contextual
@@ -502,6 +475,9 @@ export async function askBibleQuestion(userId, question, verses = [], language =
             userPrompt += "5. If you cannot find a direct biblical answer, say \"The Bible does not directly address this\" — do not speculate.\n";
         }
 
+        const quota = await consumeAiQuota();
+        if (!quota.ok) return quota;
+
         // 4. Call Gemini AI
         const rawAnswer = await generateAiText(userPrompt);
         const answer = stripConversationalOpening(rawAnswer);
@@ -529,10 +505,7 @@ export async function askBibleQuestion(userId, question, verses = [], language =
                 });
 
             // 7. Increment API call counter
-            await supabase.rpc('increment', {
-                table_name: 'ai_quota',
-                column_name: 'total_api_calls_today'
-            });
+            // Per-user usage was reserved before the provider call.
         } catch (dbError) {
             console.warn("Background logging failed, but answer was generated:", dbError);
         }
@@ -575,8 +548,8 @@ export async function askBibleQuestion(userId, question, verses = [], language =
  */
 export async function getInductiveStudyHints(userId, step, bookName, chapter, verseStart, verseEnd, language = 'en') {
     try {
-        const { remaining } = await getUserRemainingQuota(userId);
-        if (remaining <= 0) return { success: false, error: 'Quota exceeded' };
+        const quota = await consumeAiQuota();
+        if (!quota.ok) return { success: false, error: quota.error || 'Quota exceeded' };
 
         const ref = `${bookName} ${chapter}:${verseStart}${verseEnd && verseEnd !== verseStart ? '-' + verseEnd : ''}`;
 
@@ -671,8 +644,8 @@ ${lastRawText}
  */
 export async function getWordStudy(userId, verseRef, verseText, originalText, selectedWord = null, language = 'en') {
     try {
-        const { remaining } = await getUserRemainingQuota(userId);
-        if (remaining <= 0) return { success: false, error: 'Quota exceeded' };
+        const quota = await consumeAiQuota();
+        if (!quota.ok) return { success: false, error: quota.error || 'Quota exceeded' };
 
         // 1. Lexical Danger List & Specific Rules
         const LEXICAL_DANGER_LIST = {
@@ -851,8 +824,8 @@ export async function getWordStudy(userId, verseRef, verseText, originalText, se
  */
 export async function getChapterSummary(userId, bookName, chapter, verses = [], language = 'en') {
     try {
-        const { remaining } = await getUserRemainingQuota(userId);
-        if (remaining <= 0) return { success: false, error: 'Daily quota exceeded. Try again tomorrow!' };
+        const quota = await consumeAiQuota();
+        if (!quota.ok) return { success: false, error: quota.error || 'Daily quota exceeded. Try again tomorrow!' };
 
         const ref = `${bookName} ${chapter}`;
         const contextText = verses.length > 0
@@ -926,9 +899,6 @@ export async function getChapterSummary(userId, bookName, chapter, verses = [], 
  */
 export async function performSemanticSearch(userId, query, versionId = 'KJV', testament = 'all', language = 'en') {
     try {
-        const { remaining } = await getUserRemainingQuota(userId);
-        if (remaining <= 0) return { success: false, error: 'Daily quota exceeded. Try again tomorrow!' };
-
         // 1. Check Cache
         const cacheKey = `semantic_${query.toLowerCase().trim()}_${language}`;
         const cached = await getCachedAnswer(cacheKey);
@@ -943,6 +913,9 @@ export async function performSemanticSearch(userId, query, versionId = 'KJV', te
                 console.warn("Malformed semantic cache entry", e);
             }
         }
+
+        const quota = await consumeAiQuota();
+        if (!quota.ok) return { success: false, error: quota.error || 'Daily quota exceeded. Try again tomorrow!' };
 
         const outputLanguage = language === 'af' ? 'Afrikaans' : 'English';
         const testamentLimit = testament === 'OT' ? 'limit search to the Old Testament' :

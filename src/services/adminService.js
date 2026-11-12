@@ -43,14 +43,17 @@ export const getApiUsageStats = async (startDate, endDate) => {
         const start = startDate.toISOString();
         const end = endDate.toISOString();
 
-        const { data, error } = await supabase
-            .from('api_usage_logs')
-            .select('*')
-            .gte('created_at', start)
-            .lte('created_at', end)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
+        const { fetchAllPages } = await import('../utils/fetchAllPages.js');
+        const data = await fetchAllPages((from, to) =>
+            supabase
+                .from('api_usage_logs')
+                .select('*')
+                .gte('created_at', start)
+                .lte('created_at', end)
+                .order('created_at', { ascending: false })
+                .order('id', { ascending: false })
+                .range(from, to)
+        );
 
         return { success: true, data };
     } catch (error) {
@@ -208,6 +211,12 @@ export const updateUserStatus = async (targetUserId, newStatus, expiryDate = nul
  */
 export const getTriviaDashboardStats = async () => {
     try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_trivia_dashboard_stats');
+        if (!rpcError && rpcData) {
+            return { success: true, data: rpcData };
+        }
+        if (rpcError) console.warn('get_trivia_dashboard_stats:', rpcError.message);
+
         // 1. Total Questions Answered
         const { count: totalQuestions, error: qError } = await supabase
             .from('user_trivia_history')
@@ -219,29 +228,21 @@ export const getTriviaDashboardStats = async () => {
             .select('*', { count: 'exact', head: true })
             .eq('is_correct', true);
 
-        // 3. Unique Users
-        // Since Supabase doesn't easily support 'distinct' count on a column via JS without RPC, 
-        // we'll fetch the user_ids and count unique ones manually for now (assuming smallish history)
-        // Optimization: Use a view or RPC for this later.
-        const { data: userHistory, error: uError } = await supabase
-            .from('user_trivia_history')
-            .select('user_id');
-
-        const uniqueUsers = new Set(userHistory?.map(h => h.user_id)).size;
-
-        // 4. Activity per day (Last 30 days)
+        const { fetchAllPages } = await import('../utils/fetchAllPages.js');
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const { data: dailyActivity, error: dError } = await supabase
-            .from('user_trivia_history')
-            .select('answered_at')
-            .gte('answered_at', thirtyDaysAgo.toISOString());
-
-        // Process daily activity
+        const historyRows = await fetchAllPages((from, to) =>
+            supabase
+                .from('user_trivia_history')
+                .select('user_id, answered_at, id')
+                .order('id', { ascending: true })
+                .range(from, to)
+        );
+        const uniqueUsers = new Set(historyRows.map((h) => h.user_id)).size;
         const activityMap = {};
-        dailyActivity?.forEach(item => {
-            const date = item.answered_at.split('T')[0];
+        historyRows.forEach((item) => {
+            if (!item.answered_at || item.answered_at < thirtyDaysAgo.toISOString()) return;
+            const date = String(item.answered_at).split('T')[0];
             activityMap[date] = (activityMap[date] || 0) + 1;
         });
 

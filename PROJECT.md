@@ -46,10 +46,11 @@ npm run preview
 
 ## Status
 
-**Active** (Andre, 2026-11-12). **Free mode ON**. **Reliability pass (2026-11-12):** guest migration retry, real account-deletion queue, plan/reader/label fixes, list pagination, atomic AI usage RPC — see `changes Log` entry 2026-11-12 and `supabase/migrations/20261112080000_reliability_rpcs.sql`. Deploy edge functions `request-account-deletion` + schedule `process-account-deletions` with `CRON_SECRET`. PayFast ITN webhook deployed (signature + order fulfill). `exec_sql` revoked from anon. Checkout: first-month promo R5. `omnibible@gmail.com` is **free** for one PayFast test. Auto-subscribe **restored** to January behaviour: COMPLETE + `custom_str1` grants Premium (signature logged, not used to drop the payment). That 400-on-signature was why money was taken and the account stayed free.
+**Active** (Andre, 2026-11-12). **Free mode ON**. **Reliability follow-up (2026-11-12):** guest migrate is a DB transaction RPC (`inspect_guest_migration` / `migrate_guest_data`); note labels atomic RPC; plan days bounded; AI `reserve_ai_usage`; deletion job leases in SQL. SQL **applied live**. Edge functions **not deployed** (CLI `.env` parse). Do **not** treat deletion as live until Dashboard deploy + `CRON_SECRET` schedule + a test-account run. PayFast left unchanged. See `changes Log` 2026-11-12 follow-up. `exec_sql` revoked from anon. Checkout: first-month promo R5. `omnibible@gmail.com` is **free** for one PayFast test. Auto-subscribe **restored** to January behaviour: COMPLETE + `custom_str1` grants Premium (signature logged, not used to drop the payment).
 
 ## Notes
 
+- **2026-11-12:** Reliability follow-up SQL live (`20261112090000_reliability_followup.sql`). Deletion edge functions still need Dashboard deploy + cron. Browser AI keys/quotas remain untrusted until a server proxy (separate P1).
 - **2026-11-11:** Andre: leave live PayFast (`…/functions/v1/payfast-webhook`) unchanged; free mode stays on. Git webhook restored to match that live handler (do not deploy signature experiments).
 - **2026-11-11:** ChatGPT review archived under `docs/`; **live verify** then **`exec_sql` revoked from anon**. Details: [`docs/LIVE_VERIFY_2026-11-11.md`](docs/LIVE_VERIFY_2026-11-11.md).
 - **2026-11-11:** `changes Log` + `.cursor/rules/changes-log.mdc` — log user-visible changes; one

@@ -143,6 +143,11 @@ function Profile() {
                 alert('Success! Your highlights and notes have been synced to your account.');
                 setShowSyncBtn(false);
                 loadData();
+            } else if (result.uncertain) {
+                alert(
+                    'Could not confirm guest data (a table check failed). Your guest id was kept — try Sync again.'
+                );
+                setShowSyncBtn(true);
             } else if (result.partial) {
                 alert(
                     'Some items synced, but not everything. Please try Sync again when you have a stable connection.'

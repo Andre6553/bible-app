@@ -7,6 +7,23 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — Reliability follow-up (data protection)
+
+**For users**
+- Guest notes/highlights stay on this device until sync is **confirmed**. If a check fails, the app **does not** throw away the guest id.
+- Conflicting notes from guest vs account are **kept together** (not the guest copy deleted).
+- Reading-plan days outside the plan length are ignored. Completing the same day twice is safe.
+- Saving a note with labels is all-or-nothing: a failed label save will not wipe the old labels.
+- Delete Account still queues a 7-day removal; the cleanup worker is safer to retry if it is interrupted.
+
+**For maintainers**
+- SQL applied live: `supabase/migrations/20261112090000_reliability_followup.sql` (`migrate_guest_data`, `inspect_guest_migration`, `save_verse_note_with_labels`, `reserve_ai_usage`, plan day bounds, deletion leases, admin count RPCs).
+- Edge functions **not deployed from CLI** (local `.env` still fails Supabase CLI parse). Dashboard: deploy `request-account-deletion` + `process-account-deletions`, set `CRON_SECRET`, schedule the worker. `verify_jwt = false` on the worker so `x-cron-secret` works.
+- Tests: `src/utils/reliabilityFollowup.test.js`. Failed provider AI calls **consume** a reserved slot (no refund). Browser quota is still not a trusted boundary (keys still client-side).
+- PayFast / free mode: unchanged.
+
+---
+
 ## 2026-11-12 — Reliability: guest sync, deletion, plans, reader
 
 **For users**

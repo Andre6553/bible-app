@@ -34,7 +34,8 @@ To switch to **feature-first**, note it here with a date and accept payment/AI r
 
 1. ~~Migration: revoke `exec_sql`~~ — **live-verified** (anon denied).
 2. **PayFast ITN hardening deployed** (2026-11-11). Same notify URL. Secrets set. Confirm with one real payment when ready; keep free mode on until then.
-3. Optional later: tighten profile INSERT/DELETE + overlapping RLS (not required for PayFast).
+3. **Reliability follow-up SQL live** (`20261112090000`). Still outstanding: deploy `request-account-deletion` + `process-account-deletions`, set `CRON_SECRET`, schedule worker, confirm with a dedicated test account. Server-side AI proxy remains P1.
+4. Optional later: tighten profile INSERT/DELETE + overlapping RLS (not required for PayFast).
 
 **Evidence labels:** **Confirmed live** = reproducer on production API. **Source only** = git risk not deployed.
 

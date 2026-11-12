@@ -323,6 +323,7 @@ export const getAllHighlights = async () => {
                 .select('*')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
+                .order('id', { ascending: false })
                 .range(from, to)
         );
         return { success: true, highlights: data || [] };
@@ -715,7 +716,22 @@ export const getVerseNote = async (bookId, chapter, verse, version) => {
 export const saveNote = async (bookId, chapter, verse, version, noteText, studyId = null, labelIds = []) => {
     const userId = await getUserId();
     try {
-        // Upsert the note
+        const ids = Array.isArray(labelIds) ? [...new Set(labelIds.filter(Boolean))] : [];
+
+        if (userId && !String(userId).startsWith('user_')) {
+            const { data: note, error: rpcErr } = await supabase.rpc('save_verse_note_with_labels', {
+                p_book_id: bookId,
+                p_chapter: chapter,
+                p_verse: verse,
+                p_version: version,
+                p_note_text: noteText,
+                p_study_id: studyId,
+                p_label_ids: ids,
+            });
+            if (rpcErr) throw rpcErr;
+            return { success: true, note };
+        }
+
         const { data: note, error: noteError } = await supabase
             .from('verse_notes')
             .upsert({
@@ -734,22 +750,6 @@ export const saveNote = async (bookId, chapter, verse, version, noteText, studyI
             .single();
 
         if (noteError) throw noteError;
-
-        if (note && Array.isArray(labelIds)) {
-            const { error: deleteErr } = await supabase.from('note_labels').delete().eq('note_id', note.id);
-            if (deleteErr) throw deleteErr;
-
-            if (labelIds.length > 0) {
-                const labelLinks = labelIds.map((labelId) => ({
-                    note_id: note.id,
-                    label_id: labelId,
-                }));
-                const { error: insertErr } = await supabase.from('note_labels').insert(labelLinks);
-                if (insertErr) throw insertErr;
-            }
-        }
-
-        console.log('✅ Note saved');
         return { success: true, note };
     } catch (err) {
         console.error('Error saving note:', err);
@@ -795,6 +795,7 @@ export const getAllNotes = async (explicitUserId = null) => {
             `)
                 .eq('user_id', userId)
                 .order('updated_at', { ascending: false })
+                .order('id', { ascending: false })
                 .range(from, to)
         );
 

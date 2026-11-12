@@ -587,13 +587,13 @@ export async function getGlobalSermonStats() {
             }));
         }
 
-        // 2. Fallback (Legacy Client-side grouping)
-        const { data, error } = await supabase
-            .from('sermons')
-            .select('user_id')
-            .limit(5000);
-
-        if (error) throw error;
+        const data = await fetchAllPages((from, to) =>
+            supabase
+                .from('sermons')
+                .select('user_id, id')
+                .order('id', { ascending: true })
+                .range(from, to)
+        );
 
         const counts = {};
         data.forEach(s => {
@@ -615,84 +615,47 @@ export async function getGlobalSermonStats() {
  */
 export async function getGlobalActivityCounts() {
     try {
-        // 1. Get raw AI logs to parse types
-        const { data: aiLogs, error: aiError } = await supabase
-            .from('ai_questions')
-            .select('question'); // We need the text to categorize
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_global_activity_counts_v2');
+        if (!rpcError && rpcData) {
+            return { success: true, data: rpcData };
+        }
+        if (rpcError) console.warn('get_global_activity_counts_v2:', rpcError.message);
 
-        // 2. Get Bible reading count
+        // Fallback: exact counts only (no unpaginated dumps)
         const { count: bibleCount, error: bibleError } = await supabase
             .from('bible_reading_logs')
             .select('id', { count: 'exact', head: true });
 
-        // 3. Get generic activity logs
-        const { data: activityLogs, error: activityError } = await supabase
-            .from('user_activity_logs')
-            .select('activity_type');
-
-        if (aiError || bibleError || activityError) throw new Error('Failed to fetch stats');
-
-        const counts = {
-            bible: bibleCount || 0,
-            ai: 0,
-            search: 0,
-            // Granular AI types
-            inductive_hint_1: 0,
-            inductive_hint_2: 0,
-            inductive_hint_3: 0,
-            word_study_ai: 0,
-            semantic_search: 0
-        };
-
-        // Parse AI Logs
-        (aiLogs || []).forEach(log => {
-            const q = log.question || '';
-            if (q.startsWith('Inductive Hint Step 1')) {
-                counts.inductive_hint_1++;
-            } else if (q.startsWith('Inductive Hint Step 2')) {
-                counts.inductive_hint_2++;
-            } else if (q.startsWith('Inductive Hint Step 3')) {
-                counts.inductive_hint_3++;
-            } else if (q.startsWith('Word Study:')) {
-                counts.word_study_ai++;
-            } else if (q.startsWith('Semantic Search:')) {
-                counts.semantic_search++;
-            } else {
-                counts.ai++; // Generic AI
-            }
-        });
-
-        // Parse Generic Activity Logs
-        (activityLogs || []).forEach(log => {
-            const type = log.activity_type || 'uncategorized';
-            counts[type] = (counts[type] || 0) + 1;
-        });
-
-        // 4. Get Search Logs count separately (Legacy Search)
         const { count: searchCount } = await supabase
             .from('search_logs')
             .select('id', { count: 'exact', head: true });
 
-        // 5. Get Sermon Count (Use Global RPC helper to match the list)
-        const globalSermonStats = await getGlobalSermonStats();
-        const sermonCount = globalSermonStats.reduce((sum, s) => sum + s.count, 0);
+        if (bibleError) throw new Error('Failed to fetch stats');
 
-        // 6. Get Trivia Count
+        const { count: aiCount } = await supabase
+            .from('ai_questions')
+            .select('id', { count: 'exact', head: true });
         const { count: triviaCount } = await supabase
             .from('user_trivia_history')
             .select('id', { count: 'exact', head: true });
-
         const { count: correctCount } = await supabase
             .from('user_trivia_history')
             .select('id', { count: 'exact', head: true })
             .eq('is_correct', true);
+        const globalSermonStats = await getGlobalSermonStats();
+        const sermonCount = globalSermonStats.reduce((sum, s) => sum + s.count, 0);
 
-        counts.search = (counts.search || 0) + (searchCount || 0);
-        counts.sermon_creation = sermonCount || 0;
-        counts.trivia_play = triviaCount || 0;
-        counts.trivia_correct = correctCount || 0;
-
-        return { success: true, data: counts };
+        return {
+            success: true,
+            data: {
+                bible: bibleCount || 0,
+                search: searchCount || 0,
+                ai: aiCount || 0,
+                sermon_creation: sermonCount || 0,
+                trivia_play: triviaCount || 0,
+                trivia_correct: correctCount || 0,
+            },
+        };
     } catch (err) {
         console.error('Error getting global activity:', err);
         return { success: false, data: {} };
@@ -774,29 +737,39 @@ export const getUserStatistics = async () => {
             };
         }
 
-        // 2. Fallback (Legacy Client-side Fetch)
-        // 1. Fetch search and AI logs (latest 5000 for each to get a representative active set)
-        const searchReq = supabase.from('search_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
-        const aiReq = supabase.from('ai_questions').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
-        const blogReq = supabase.from('blog_views').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
-        const readingReq = supabase.from('bible_reading_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
-        const activityReq = supabase.from('user_activity_logs').select('user_id, device_info').order('created_at', { ascending: false }).limit(5000);
+        // 2. Fallback: paginated samples with unique id order (RPC is preferred)
+        const pageLogs = (table) => (from, to) =>
+            supabase
+                .from(table)
+                .select('user_id, device_info, id, created_at')
+                .order('created_at', { ascending: false })
+                .order('id', { ascending: false })
+                .range(from, to);
+        const searchReq = fetchAllPages(pageLogs('search_logs'));
+        const aiReq = fetchAllPages(pageLogs('ai_questions'));
+        const blogReq = fetchAllPages(pageLogs('blog_views'));
+        const readingReq = fetchAllPages(pageLogs('bible_reading_logs'));
+        const activityReq = fetchAllPages(pageLogs('user_activity_logs'));
 
-        const [searchRes, aiRes, blogRes, readingRes, activityRes] = await Promise.all([searchReq, aiReq, blogReq, readingReq, activityReq]);
+        let searchRows = [];
+        let aiRows = [];
+        let blogRows = [];
+        let readingRows = [];
+        let activityRows = [];
+        try {
+            [searchRows, aiRows, blogRows, readingRows, activityRows] = await Promise.all([
+                searchReq, aiReq, blogReq, readingReq, activityReq,
+            ]);
+        } catch (pageErr) {
+            console.warn('Stats fallback pagination:', pageErr.message);
+        }
 
-        if (searchRes.error) throw searchRes.error;
-        if (aiRes.error) throw aiRes.error;
-        if (blogRes.error) throw blogRes.error;
-        if (readingRes.error) throw readingRes.error;
-        // Don't throw for activityRes.error as it's a new table that might not exist yet
-
-        // Combined list of all actions
         const allActions = [
-            ...(searchRes.data || []).map(d => ({ user: d.user_id, type: 'search', device: d.device_info })),
-            ...(aiRes.data || []).map(d => ({ user: d.user_id, type: 'ai', device: d.device_info })),
-            ...(blogRes.data || []).map(d => ({ user: d.user_id, type: 'blog', device: d.device_info })),
-            ...(readingRes.data || []).map(d => ({ user: d.user_id, type: 'bible', device: d.device_info })),
-            ...(activityRes.data || []).map(d => ({ user: d.user_id, type: 'activity', device: d.device_info }))
+            ...(searchRows || []).map(d => ({ user: d.user_id, type: 'search', device: d.device_info })),
+            ...(aiRows || []).map(d => ({ user: d.user_id, type: 'ai', device: d.device_info })),
+            ...(blogRows || []).map(d => ({ user: d.user_id, type: 'blog', device: d.device_info })),
+            ...(readingRows || []).map(d => ({ user: d.user_id, type: 'bible', device: d.device_info })),
+            ...(activityRows || []).map(d => ({ user: d.user_id, type: 'activity', device: d.device_info })),
         ];
 
         // Extract unique user IDs for profile fetching
@@ -960,6 +933,7 @@ export const getUserHistory = async (userId) => {
                 .select('*')
                 .in('user_id', userIdsToFetch)
                 .order('created_at', { ascending: false })
+                .order('id', { ascending: false })
                 .range(from, to);
 
         const sermonCountReq = (async () => {
