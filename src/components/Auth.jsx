@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { migrateAnonymousData } from '../services/migrationService';
 import { sendWelcomeEmail, notifyAdminOfNewUser } from '../services/emailService';
 import './Auth.css';
+import { authDestination } from '../utils/authNavigation';
 
 function Auth() {
     const [email, setEmail] = useState('');
@@ -16,8 +17,16 @@ function Auth() {
     const [message, setMessage] = useState(null);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const destination = authDestination(searchParams.get('next'));
 
     // Check for recovery type in URL
+    useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'PASSWORD_RECOVERY') setAuthMode('updatePassword');
+        });
+        return () => subscription.unsubscribe();
+    }, []);
+
     useEffect(() => {
         if (searchParams.get('type') === 'recovery') {
             setAuthMode('updatePassword');
@@ -46,7 +55,7 @@ function Auth() {
 
             if (result.error) throw result.error;
 
-            if (result.data?.user) {
+            if (result.data?.session && result.data?.user) {
                 console.log('Auth success, starting migration...');
                 setLoading(false); // Auth is done
                 setIsSyncing(true); // Now syncing data
@@ -73,11 +82,11 @@ function Auth() {
                     console.error('[Auth] Migration error, proceeding anyway:', migErr);
                 }
 
-                navigate('/profile');
+                navigate(destination, { replace: true });
             } else if (authMode === 'signup') {
                 sendWelcomeEmail(email);
                 notifyAdminOfNewUser('Pending', email);
-                alert('Success! Please check your email for the confirmation link.');
+                setMessage('Please check your email for the confirmation link, then log in.');
                 setAuthMode('login');
                 setLoading(false);
             }

@@ -11,6 +11,7 @@ import SplashScreen from './components/SplashScreen';
 import { initGA, logPageView, setUserId } from './services/analyticsService';
 import { useLocation } from 'react-router-dom';
 import BackButtonHandler from './components/BackButtonHandler';
+import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
 // Lazy load components
@@ -143,7 +144,7 @@ function App() {
                                     />
                                     <Route
                                         path="/study/:id"
-                                        element={<InductiveEditor />}
+                                        element={<ProtectedRoute><InductiveEditor /></ProtectedRoute>}
                                     />
                                     <Route
                                         path="/plans"
@@ -165,7 +166,7 @@ function App() {
                                     />
                                     <Route
                                         path="/admin"
-                                        element={<Admin />}
+                                        element={<ProtectedRoute admin><Admin /></ProtectedRoute>}
                                     />
                                     <Route
                                         path="/sermon-prep"

@@ -188,18 +188,21 @@ function Profile() {
 
     const handleLogout = async () => {
         try {
-            await supabase.auth.signOut();
+            const { error } = await supabase.auth.signOut({ scope: 'local' });
+            if (error) throw error;
         } catch (error) {
             console.error('Logout error:', error);
-        } finally {
-            // Force clean state regardless of server response
+            alert('Could not log out. Please try again.');
+            return;
+        }
+        {
             if (manualSetUser) manualSetUser(null); // CRITICAL FIX: Force global state clear
             setHighlights([]);
             setNotes([]);
             setStudies([]);
             setWordStudies([]);
             localStorage.removeItem('bible_user_id'); // Clear guest ID if any
-            loadData(); // Reload to show anonymous data or empty state
+            // Do not reload with the signed-out account captured by this handler.
         }
     };
 
