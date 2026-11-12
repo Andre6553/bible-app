@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — For You: one manual refresh per section per day
+
+**For users**
+- **Another reflection** and **New suggestions** can each be used **once per day** per section (tomorrow resets). Prevents endless AI retries from burning quota.
+
+**For maintainers**
+- SQL: `20261112190000_for_you_one_force_per_day.sql` (`force_generations` on `for_you_slots`). Super/admin list still bypasses. UI disables buttons when `force_remaining` is 0.
+
+---
+
 ## 2026-11-12 — Recommended reading: leases and paragraph validation
 
 **For users**

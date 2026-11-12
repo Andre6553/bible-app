@@ -1,7 +1,7 @@
 import { supabase } from '../config/supabaseClient';
 import { getBooks } from './bibleService';
 import { getActivePlan } from './readingPlanService';
-import { generateForYouAiText, getAiModelLabel, isRateLimitEnabled } from './blogService';
+import { generateForYouAiText, getAiModelLabel, isSuperUser } from './blogService';
 import { logApiCall } from './adminService';
 import { resolveDbBook, getCanonicalBookMeta } from '../constants/canonicalBooks';
 import { FOR_YOU_FORMATS, FOR_YOU_VERSION } from '../config/forYouFormats';
@@ -63,9 +63,11 @@ export async function getForYouContext(userId, language, now = new Date()) {
         const feedbackTask = guest(userId) ? Promise.resolve(readLocal(userId, 'feedback', {}))
             : supabase.from('for_you_feedback').select('*').eq('user_id', userId).order('updated_at', { ascending: false }).limit(300)
                 .then(r => { if (r.error) throw new Error(r.error.message); return Object.fromEntries(r.data.map(f => [f.content_id, f])); });
-        const [prefs, events, history, feedback, books, activePlan] = await Promise.all([
+        const unlimitedRefreshTask = guest(userId) ? Promise.resolve(false) : isSuperUser(userId);
+        const [prefs, events, history, feedback, books, activePlan, unlimitedRefresh] = await Promise.all([
             prefsTask, eventsTask, contentTask, feedbackTask, getBooks(),
             guest(userId) ? Promise.resolve({ data: null }) : getActivePlan().catch(() => ({ data: null })),
+            unlimitedRefreshTask,
         ]);
         if (!books.success) throw new Error('bible_catalogue_unavailable');
         let legacy = null;
@@ -89,7 +91,7 @@ export async function getForYouContext(userId, language, now = new Date()) {
         const interests = rankInterests(events, preferences, now.getTime()).map(interest => ({
             ...interest, score: interest.score * (lessLike.some(item => item.topic_id === interest.id) ? 0.5 : 1),
         })).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-        const ctx = { userId, language, zone, day, guest: guest(userId), prefs, interests, history, feedback, legacy, books: books.data, activePlan: activePlan.data, offline: false };
+        const ctx = { userId, language, zone, day, guest: guest(userId), prefs, interests, history, feedback, legacy, books: books.data, activePlan: activePlan.data, offline: false, unlimitedRefresh: !!unlimitedRefresh };
         try { writeLocal(userId, `context:${language}`, ctx); } catch { /* cloud remains authoritative */ }
         return ctx;
     } catch (error) {
@@ -181,13 +183,18 @@ async function generatePiece(ctx, spec, force) {
         || (spec.slot === 'devotional' && ctx.legacy && states[ctx.legacy.topic_id] !== 'exclude' ? ctx.legacy : null);
     if (ctx.offline) return { content: cached || null, status: 'offline' };
     let token;
+    let forceRemaining;
     try {
         await assertAccount(ctx);
+        const forceDayKey = `force_used:${ctx.language}:${ctx.day}:${spec.slot}`;
         if (ctx.guest) {
-            if (!force && cached && local?.fingerprint === fingerprint) return { content: cached, status: 'cached' };
-            const hours = await isRateLimitEnabled() ? 24 : 1;
-            if (force && local && Date.now() - Date.parse(local.content.generated_at) < hours * 3600000) {
-                return { content: cached || null, status: 'cooldown' };
+            if (!force && cached && local?.fingerprint === fingerprint) {
+                return { content: cached, status: 'cached', forceRemaining: readLocal(ctx.userId, forceDayKey, false) ? 0 : 1 };
+            }
+            if (force && readLocal(ctx.userId, forceDayKey, false)) {
+                const next = new Date(`${ctx.day}T00:00:00`);
+                next.setDate(next.getDate() + 1);
+                return { content: cached || null, status: 'cooldown', availableAt: next.toISOString(), forceRemaining: 0 };
             }
         } else {
             let claim = await rpc('for_you_claim_content', { p_timezone: ctx.zone, p_language: ctx.language,
@@ -203,23 +210,30 @@ async function generatePiece(ctx, spec, force) {
             }
             if (claim.status !== 'claimed') {
                 const existing = payloadOf(claim.content);
-                return { content: existing && states[existing.topic_id] !== 'exclude' ? existing : cached || null, status: claim.status, availableAt: claim.available_at };
+                return {
+                    content: existing && states[existing.topic_id] !== 'exclude' ? existing : cached || null,
+                    status: claim.status,
+                    availableAt: claim.available_at,
+                    forceRemaining: claim.force_remaining,
+                };
             }
             if (!sameDay(claim.day, ctx.day)) {
                 await rpc('for_you_release_content', { p_token: claim.token });
                 throw new Error('day_changed_reload');
             }
             token = claim.token;
+            forceRemaining = claim.force_remaining;
         }
         const passage = await verifiedPassage(ctx, spec);
         // No new shared quota rule is introduced; For You retains its existing cooldown policy.
         const prompt = buildForYouPrompt(spec, passage, ctx.history);
         let generated;
-        for (let attempt = 0; attempt < 3; attempt++) {
+        let lastError;
+        for (let attempt = 0; attempt < 4; attempt++) {
             let timeout;
             try {
-                const repairNote = attempt
-                    ? '\nYour last answer was not valid JSON. Return ONLY one JSON object: {"title":"...","summary":"...","paragraphs":["...","..."],"closing":"..."}. Use double quotes. Escape quotes inside strings. At least two paragraphs, 70+ words total. Plain text only.'
+                const repairNote = attempt && lastError
+                    ? `\nYour previous answer failed validation (${lastError.message}). Return ONLY one JSON object with keys title, summary, paragraphs, closing. paragraphs MUST be a JSON array of at least two plain-text strings (not one string, not objects). Use double quotes. At least 70 words across paragraphs. Plain text only.`
                     : '';
                 const raw = await Promise.race([
                     generateForYouAiText(prompt + repairNote),
@@ -231,10 +245,11 @@ async function generatePiece(ctx, spec, force) {
                 if (ctx.history.slice(0, 5).some(item => item.paragraphs?.[0]?.toLowerCase().startsWith(opening))) throw new Error('repeated_opening');
                 break;
             } catch (error) {
+                lastError = error;
                 const repairable = error instanceof SyntaxError
                     || /JSON/i.test(error.message)
                     || /^(invalid_|unverified_|repeated_)/.test(error.message);
-                if (attempt >= 2 || !repairable) throw error;
+                if (attempt >= 3 || !repairable) throw error;
             } finally { clearTimeout(timeout); }
         }
         const content = { ...generated, ...spec, passage: { ...passage, context: undefined }, generated_at: new Date().toISOString() };
@@ -251,10 +266,16 @@ async function generatePiece(ctx, spec, force) {
         }
         // Cloud success should not be reported as failure merely because a local cache is full.
         try { writeLocal(ctx.userId, localName, { fingerprint, content: saved }); } catch { /* read from cloud next time */ }
-        return { content: saved, status: 'generated' };
+        if (ctx.guest && force) writeLocal(ctx.userId, forceDayKey, true);
+        if (ctx.guest) {
+            forceRemaining = readLocal(ctx.userId, forceDayKey, false) ? 0 : 1;
+        } else if (force) {
+            forceRemaining = 0;
+        }
+        return { content: saved, status: 'generated', forceRemaining };
     } catch (error) {
         console.warn('[For You] section failed:', error.message);
-        return { content: cached || null, status: 'error', error: error.message };
+        return { content: cached || null, status: 'error', error: error.message, forceRemaining: force ? 0 : forceRemaining };
     } finally {
         if (token) await rpc('for_you_release_content', { p_token: token }).catch(() => {});
     }

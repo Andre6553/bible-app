@@ -140,11 +140,21 @@ function splitLongParagraph(text) {
     return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
 }
 
-function normalizeParagraphs(paragraphs) {
-    let source = paragraphs;
+function paragraphText(entry) {
+    if (typeof entry === 'string') return entry.trim();
+    if (entry && typeof entry === 'object') {
+        for (const key of ['text', 'body', 'content', 'paragraph']) {
+            if (typeof entry[key] === 'string' && entry[key].trim()) return entry[key].trim();
+        }
+    }
+    return '';
+}
+
+function normalizeParagraphs(paragraphs, extras = {}) {
+    let source = paragraphs ?? extras.body ?? extras.sections;
     if (typeof source === 'string') source = [source];
     if (!Array.isArray(source)) return source;
-    let list = source.filter(p => typeof p === 'string').map(p => p.trim()).filter(Boolean);
+    let list = source.map(paragraphText).filter(Boolean);
     if (list.length === 1) {
         const split = list[0].split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
         if (split.length >= 2) list = split;
@@ -153,6 +163,14 @@ function normalizeParagraphs(paragraphs) {
             if (lines.length >= 2) list = lines;
             else if (list[0].split(/\s+/).length >= 8) list = splitLongParagraph(list[0]);
         }
+    }
+    if (list.length < 2 && extras.summary?.trim()) {
+        const summary = extras.summary.trim();
+        if (summary.split(/\s+/).length >= 12) list = [summary, ...list].filter(Boolean);
+    }
+    if (list.length < 2 && extras.closing?.trim()) {
+        const closing = extras.closing.trim();
+        if (closing.split(/\s+/).length >= 8) list = [...list, closing];
     }
     return list;
 }
@@ -164,10 +182,12 @@ export function validateGeneratedPiece(raw) {
     }
     if (typeof data.title !== 'string' || !data.title.trim() || data.title.length > 150) throw new Error('invalid_title');
     if (typeof data.summary !== 'string' || data.summary.length > 500) throw new Error('invalid_summary');
-    const paragraphs = normalizeParagraphs(data.paragraphs);
+    let closing = typeof data.closing === 'string' ? data.closing.trim() : '';
+    const paragraphs = normalizeParagraphs(data.paragraphs, { ...data, closing: '' });
     if (!paragraphs || paragraphs.length < 2 || paragraphs.length > 9
         || paragraphs.some(p => typeof p !== 'string' || !p.trim() || p.length > 4000)) throw new Error('invalid_paragraphs');
     if (paragraphs.join(' ').split(/\s+/).length < 70 || paragraphs.join(' ').length > 12000) throw new Error('invalid_length');
     if (data.closing != null && (typeof data.closing !== 'string' || data.closing.length > 1500)) throw new Error('invalid_closing');
-    return { title: data.title.trim(), summary: data.summary.trim(), paragraphs, closing: data.closing?.trim() || '' };
+    if (closing && paragraphs.some(p => p === closing)) closing = '';
+    return { title: data.title.trim(), summary: data.summary.trim(), paragraphs, closing };
 }

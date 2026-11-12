@@ -20,7 +20,8 @@ const WORDS = {
         empty: 'No eligible topics. Enable an interest below to receive suggestions.', continue: 'Continue your reading plan',
         save: 'Save', helpful: 'Helpful', read: 'Already read', less: 'Less like this', feedbackHelp: 'Less like this lowers similar suggestions; it does not permanently exclude a topic.',
         offline: 'Showing saved content. Reconnect before generating or changing preferences.',
-        busy: 'This piece is being prepared in another tab. Try again shortly.', cooldown: 'This section can be refreshed later. Your existing reading is kept.',
+        busy: 'This piece is being prepared in another tab. Try again shortly.',
+        cooldown: 'You already requested a new version today. One refresh per section per day; your current reading is kept.',
         error: 'Could not load this section. Your previous reading has been kept.', setup: 'For You could not connect. Please try again. The new database setup may still be pending.',
         close: 'Close', open: 'Read article', passage: 'Read the passage in the Bible', copy: 'Copy', copied: 'Copied.', copyFailed: 'Could not copy.',
         chosen: 'You chose', explored: 'Because you explored', discover: 'Explore a different topic', general: 'A starting point for your study',
@@ -38,7 +39,8 @@ const WORDS = {
         empty: 'Geen geskikte onderwerpe nie. Aktiveer ’n belangstelling hieronder om voorstelle te kry.', continue: 'Gaan voort met jou leesplan',
         save: 'Stoor', helpful: 'Nuttig', read: 'Reeds gelees', less: 'Minder hiervan', feedbackHelp: 'Minder hiervan verlaag soortgelyke voorstelle; dit sluit nie die onderwerp permanent uit nie.',
         offline: 'Gestoorde inhoud word gewys. Koppel weer voordat jy inhoud genereer of voorkeure verander.',
-        busy: 'Hierdie leesstuk word in ’n ander oortjie voorberei. Probeer binnekort weer.', cooldown: 'Hierdie afdeling kan later verfris word. Jou bestaande leesstof bly behoue.',
+        busy: 'Hierdie leesstuk word in ’n ander oortjie voorberei. Probeer binnekort weer.',
+        cooldown: 'Jy het vandag reeds ’n nuwe weergawe gevra. Een verfrissing per afdeling per dag; jou huidige leesstof bly behoue.',
         error: 'Kon nie hierdie afdeling laai nie. Jou vorige leesstof bly behoue.', setup: 'Vir Jou kon nie koppel nie. Probeer weer. Die nuwe databasisopstelling is moontlik nog nie voltooi nie.',
         close: 'Sluit', open: 'Lees artikel', passage: 'Lees die gedeelte in die Bybel', copy: 'Kopieer', copied: 'Gekopieer.', copyFailed: 'Kon nie kopieer nie.',
         chosen: 'Jy het gekies', explored: 'Omdat jy ondersoek het', discover: 'Verken ’n ander onderwerp', general: '’n Beginpunt vir jou studie',
@@ -136,10 +138,12 @@ export default function Blog() {
     const plan = visible ? getForYouPlan(ctx, refresh.current) : [];
     const allowed = item => item && states[item.topic_id] !== 'exclude';
     const isLoading = Object.values(slots).some(slot => slot.loading);
+    const slotLoading = (...names) => names.some(name => slots[name]?.loading);
+    const canForce = slot => !!ctx?.unlimitedRefresh || slot?.forceRemaining !== 0;
 
     const refreshSections = async (which, force = true) => {
         const context = current.current;
-        if (!context || saving || isLoading) return;
+        if (!context || saving || which.some(slot => slots[slot]?.loading)) return;
         if (context.guest && force) { setNotice(t.signIn); navigate('/auth'); return; }
         const loadId = request.current;
         refresh.current++;
@@ -229,7 +233,9 @@ export default function Blog() {
         {slot?.status && ['error', 'busy', 'cooldown'].includes(slot.status) && <div className="fy-inline-error" role="status">
             <p>{t[slot.status]}</p>
             {slot.availableAt && <p>{new Date(slot.availableAt).toLocaleString(language === 'af' ? 'af-ZA' : 'en-ZA')}</p>}
-            {slot.status !== 'cooldown' && <button onClick={() => refreshSections([name], slot.status !== 'cooldown')} disabled={slot.loading}>{t.retry}</button>}
+            {slot.status !== 'cooldown' && canForce(slot) && (
+                <button onClick={() => refreshSections([name], true)} disabled={slot.loading}>{t.retry}</button>
+            )}
         </div>}
     </>;
 
@@ -245,7 +251,7 @@ export default function Blog() {
             {!plan.length && <p className="fy-banner">{t.empty}</p>}
             <section className="fy-section" aria-labelledby="fy-daily">
                 <div className="fy-section-heading"><h2 id="fy-daily">{t.daily}</h2><button onClick={() => refreshSections(['devotional'])}
-                    disabled={isLoading || saving || ctx.offline || !plan.length}>{t.newDaily}</button></div>
+                    disabled={slotLoading('devotional') || saving || ctx.offline || !plan.length || !canForce(slots.devotional)}>{t.newDaily}</button></div>
                 {sectionStatus(slots.devotional, 'devotional')}
                 {allowed(slots.devotional?.content) && <article className="fy-devotional">
                     <span className="fy-format">{formatLabel(slots.devotional.content.format_id, language)}</span>
@@ -260,7 +266,8 @@ export default function Blog() {
             </section>}
             <section className="fy-section" aria-labelledby="fy-reading">
                 <div className="fy-section-heading"><h2 id="fy-reading">{t.reading}</h2><button onClick={() => refreshSections(['article_1', 'article_2'])}
-                    disabled={isLoading || saving || ctx.offline || !plan.length}>{t.newArticles}</button></div>
+                    disabled={slotLoading('article_1', 'article_2') || saving || ctx.offline || !plan.length
+                        || (!ctx.unlimitedRefresh && !canForce(slots.article_1) && !canForce(slots.article_2))}>{t.newArticles}</button></div>
                 <div className="fy-grid">{['article_1', 'article_2'].map(name => <div key={name}>
                     {sectionStatus(slots[name], name)}
                     {allowed(slots[name]?.content) && <article className="fy-card">

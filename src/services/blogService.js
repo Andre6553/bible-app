@@ -770,6 +770,10 @@ export const isSuperUser = async (userId) => {
             .single();
 
         if (profile) {
+            const override = (profile.subscription_override || '').trim().toLowerCase();
+            if (override === 'admin' || override === 'tester' || (profile.subscription_tier || '').toLowerCase() === 'admin') {
+                return true;
+            }
             // A. Email Match for Explicit Super User List
             if (profile.email && superUsers.includes(profile.email)) {
                 console.log(`🔓 Super User authenticated via Email: ${profile.email}`);

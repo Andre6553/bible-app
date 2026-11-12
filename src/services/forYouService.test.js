@@ -3,7 +3,7 @@ const mock = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn(), getUser: vi.fn(), 
 vi.mock('../config/supabaseClient', () => ({ supabase: { rpc: mock.rpc, from: mock.from, auth: { getUser: mock.getUser } } }));
 vi.mock('./bibleService', () => ({ getBooks: vi.fn() }));
 vi.mock('./readingPlanService', () => ({ getActivePlan: vi.fn() }));
-vi.mock('./blogService', () => ({ generateForYouAiText: mock.generate, getAiModelLabel: () => 'fixture-model', isRateLimitEnabled: vi.fn().mockResolvedValue(false) }));
+vi.mock('./blogService', () => ({ generateForYouAiText: mock.generate, getAiModelLabel: () => 'fixture-model', isSuperUser: vi.fn().mockResolvedValue(false) }));
 vi.mock('./adminService', () => ({ logApiCall: vi.fn() }));
 import { getForYouPiece, buildForYouPrompt, patchForYouInterest } from './forYouService';
 
@@ -27,7 +27,7 @@ beforeEach(() => {
     mock.generate.mockResolvedValue(JSON.stringify({ title: 'Understanding this passage', summary: 'A closer look at the text.',
         paragraphs: [Array(45).fill('Observation').join(' '), Array(45).fill('Explanation').join(' ')], closing: 'A concise insight.' }));
     mock.rpc.mockImplementation(async (name, args) => {
-        if (name === 'for_you_claim_content') return { data: { status: 'claimed', token: 'token', day: '2026-11-12' } };
+        if (name === 'for_you_claim_content') return { data: { status: 'claimed', token: 'token', day: '2026-11-12', force_remaining: 1 } };
         if (name === 'for_you_complete_content') return { data: { id: 'new', generated_at: '2026-11-12T09:00:00Z', payload: args.p_payload } };
         return { data: null };
     });
@@ -80,8 +80,22 @@ describe('actual For You generation orchestration', () => {
         expect(mock.generate).not.toHaveBeenCalled();
     });
     it('does not generate when another tab already owns the slot', async () => {
-        mock.rpc.mockResolvedValue({ data: { status: 'busy', content: null } });
+        mock.rpc.mockResolvedValue({ data: { status: 'busy', content: null, force_remaining: 1 } });
         expect((await getForYouPiece(ctx(), spec())).status).toBe('busy');
+        expect(mock.generate).not.toHaveBeenCalled();
+    });
+    it('blocks a second force refresh on the same day', async () => {
+        mock.rpc.mockImplementation(async (name, args) => {
+            if (name === 'for_you_claim_content' && args.p_force) {
+                return { data: { status: 'cooldown', content: { id: 'cache', payload: content() }, force_remaining: 0, available_at: '2026-11-13T00:00:00+02:00' } };
+            }
+            if (name === 'for_you_claim_content') return { data: { status: 'claimed', token: 'token', day: '2026-11-12', force_remaining: 1 } };
+            if (name === 'for_you_complete_content') return { data: { id: 'new', generated_at: '2026-11-12T09:00:00Z', payload: args.p_payload } };
+            return { data: null };
+        });
+        const result = await getForYouPiece(ctx(), spec(), { force: true });
+        expect(result.status).toBe('cooldown');
+        expect(result.forceRemaining).toBe(0);
         expect(mock.generate).not.toHaveBeenCalled();
     });
     it('handles a SQL composite with null fields as no cached content, not an article', async () => {
