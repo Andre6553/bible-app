@@ -7,6 +7,16 @@ When Andre asks to **sum up recent changes** or **what’s new for users**, read
 
 ---
 
+## 2026-11-12 — Quiet guest-inspect (no 400 on Profile)
+
+**For users**
+- Opening Profile no longer fires a failed “guest sync” request in the background. If old guest data is on this device, you see a note to contact support instead of a broken Sync error.
+
+**For maintainers**
+- `inspect_guest_migration` returns `{ verification_required: true }` instead of raising (HTTP 400). `migrate_guest_data` still requires a claim. SQL: `20261112120000_inspect_guest_no_raise.sql`.
+
+---
+
 ## 2026-11-12 — Guest data preservation and deletion corrections
 
 **For users**

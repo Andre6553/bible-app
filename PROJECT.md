@@ -52,6 +52,7 @@ npm run preview
 
 - **2026-11-12 corrections:** Migration `20261112100000_reliability_corrections.sql` **applied live** (apply script preflight + `exec_sql`). Requires verified `legacy_guest_migration_claims` before guest inspect/migrate. Conflict snapshots + study-link remap. Signed-in AI limits from DB. Deletion worker SQL RPCs live; **edge functions still not deployed**. Handoff: `docs/CURSOR_HANDOFF_2026-11-12_RELIABILITY_CORRECTIONS.md`.
 
+- **2026-11-12:** `inspect_guest_migration` live (`20261112120000_inspect_guest_no_raise.sql`): unverified leftover `bible_user_id` returns `{ verification_required: true }` (HTTP 200) instead of 400. `migrate_guest_data` still requires a claim. Client ships with this commit.
 - **2026-11-12:** Reliability follow-up SQL live (`20261112090000_reliability_followup.sql`). Deletion edge functions still need Dashboard deploy + cron. Browser AI keys/quotas remain untrusted until a server proxy (separate P1).
 - **2026-11-11:** Andre: leave live PayFast (`…/functions/v1/payfast-webhook`) unchanged; free mode stays on. Git webhook restored to match that live handler (do not deploy signature experiments).
 - **2026-11-11:** ChatGPT review archived under `docs/`; **live verify** then **`exec_sql` revoked from anon**. Details: [`docs/LIVE_VERIFY_2026-11-11.md`](docs/LIVE_VERIFY_2026-11-11.md).

@@ -14,7 +14,7 @@ import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../config/supabaseClient';
 import {
     migrateAnonymousData,
-    hasPendingGuestMigration,
+    inspectGuestMigration,
 } from '../services/migrationService';
 import { requestAccountDeletion } from '../services/accountDeletionService';
 import TutorialOverlay from './TutorialOverlay';
@@ -44,6 +44,7 @@ function Profile() {
     const [loading, setLoading] = useState(true);
     const [selectedWordStudy, setSelectedWordStudy] = useState(null);
     const [showSyncBtn, setShowSyncBtn] = useState(false);
+    const [guestNeedsVerification, setGuestNeedsVerification] = useState(false);
     const [syncing, setSyncing] = useState(false);
 
     // Profile settings (stored locally)
@@ -121,8 +122,15 @@ function Profile() {
 
         // Check for un-migrated local data
         if (currentUser) {
-            const needsSync = await hasPendingGuestMigration(currentUser.id);
-            setShowSyncBtn(needsSync);
+            const guestId = localStorage.getItem('bible_user_id');
+            if (!guestId || guestId === currentUser.id) {
+                setShowSyncBtn(false);
+                setGuestNeedsVerification(false);
+                return;
+            }
+            const inspect = await inspectGuestMigration(guestId);
+            setGuestNeedsVerification(!!inspect.requiresVerification);
+            setShowSyncBtn(inspect.needed || inspect.uncertain || inspect.requiresVerification);
         }
     };
 
@@ -899,7 +907,7 @@ function Profile() {
                                 >
                                     Delete Account
                                 </button>
-                                {showSyncBtn && (
+                                {showSyncBtn && !guestNeedsVerification && (
                                     <button
                                         className="sync-btn"
                                         onClick={handleManualSync}
@@ -911,7 +919,11 @@ function Profile() {
                             </div>
                             {showSyncBtn && (
                                 <p className="sync-tip">
-                                    Guest highlights, notes, or plans on this browser are not fully linked to your account yet. Tap Sync Local Data (or sign in again) to finish.
+                                    {guestNeedsVerification
+                                        ? (settings.language === 'af'
+                                            ? 'Jou ou gasdata is op hierdie toestel behou. Kontak ondersteuning om dit veilig aan jou rekening te koppel.'
+                                            : 'Guest data from this browser is kept until support verifies it belongs to this account.')
+                                        : 'Guest highlights, notes, or plans on this browser are not fully linked to your account yet. Tap Sync Local Data (or sign in again) to finish.'}
                                 </p>
                             )}
                         </div>

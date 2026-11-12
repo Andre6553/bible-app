@@ -34,6 +34,15 @@ describe('migration orchestration with real service code', () => {
         const result = await migrateAnonymousData(account);
         expect(result.requiresVerification).toBe(true);
         expect(localStorage.getItem('bible_user_id')).toBe(guest);
+        expect(mock.rpc.mock.calls.map((c) => c[0])).toEqual(['inspect_guest_migration']);
+    });
+    it('treats inspect JSON verification_required as success payload, not a failed inspect', async () => {
+        mock.rpc.mockResolvedValue({ data: { verification_required: true }, error: null });
+        const result = await migrateAnonymousData(account);
+        expect(result.requiresVerification).toBe(true);
+        expect(result.success).toBe(false);
+        expect(localStorage.getItem('bible_user_id')).toBe(guest);
+        expect(mock.rpc.mock.calls.map((c) => c[0])).toEqual(['inspect_guest_migration']);
     });
     it('does not retire the id on an incomplete inspection response', async () => {
         mock.rpc.mockResolvedValue({ data: { verse_notes: { status: 'empty', count: 0 } }, error: null });

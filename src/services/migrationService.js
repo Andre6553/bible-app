@@ -65,14 +65,30 @@ export const inspectGuestMigration = async (oldUserId) => {
     });
 
     if (error) {
-        console.warn('[Migration] inspect failed:', error.message);
+        const requiresVerification = String(error.message || '').includes('guest_ownership_verification_required');
+        if (!requiresVerification) {
+            console.warn('[Migration] inspect failed:', error.message);
+        }
         const tables = Object.fromEntries(
             TABLES_TO_MIGRATE.map((t) => [t, { status: 'failed', error: error.message }])
         );
         return {
-            needed: false, uncertain: true, confirmedEmpty: false, tables,
-            requiresVerification: error.message?.includes('guest_ownership_verification_required') || false,
+            needed: false,
+            uncertain: !requiresVerification,
+            confirmedEmpty: false,
+            tables,
+            requiresVerification,
             error: error.message,
+        };
+    }
+
+    if (data?.verification_required) {
+        return {
+            needed: false,
+            uncertain: false,
+            confirmedEmpty: false,
+            tables: {},
+            requiresVerification: true,
         };
     }
 
@@ -90,7 +106,7 @@ export const hasPendingGuestMigration = async (authUserId) => {
     const guestId = localStorage.getItem(GUEST_ID_KEY);
     if (!guestId || guestId === authUserId) return false;
     const inspect = await inspectGuestMigration(guestId);
-    return inspect.needed || inspect.uncertain;
+    return inspect.needed || inspect.uncertain || inspect.requiresVerification;
 };
 
 async function runMigration(newUserId) {
@@ -110,6 +126,16 @@ async function runMigration(newUserId) {
 
     const inspection = await inspectGuestMigration(oldUserId);
     recordInspection(oldUserId, newUserId, inspection);
+
+    if (inspection.requiresVerification) {
+        return {
+            success: false,
+            requiresVerification: true,
+            message: 'guest_ownership_verification_required',
+            results: [],
+            guestId: oldUserId,
+        };
+    }
 
     if (inspection.uncertain) {
         return {
